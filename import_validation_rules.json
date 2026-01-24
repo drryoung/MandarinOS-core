@@ -1,0 +1,290 @@
+{
+  "schema_version": "1.0",
+  "name": "Import Validation Rules",
+  "description": "Validation rules for MandarinOS Core content pack import. Ensures strict JSON, UTF-8 integrity, ID uniqueness, cross-file reference integrity, and schema compatibility.",
+  "global": {
+    "encoding_required": "UTF-8",
+    "json_strict": true,
+    "reject_json_with_comments": true,
+    "reject_trailing_commas": true,
+    "reject_duplicate_keys": true
+  },
+  "required_files": [
+    "pack_meta.json",
+    "content_manifest.json",
+    "srs_config.json",
+    "p1_engines.json",
+    "p1_fillers.json",
+    "p1_frames.json",
+    "p1_words.json",
+    "diagnostic_p1.json",
+    "p2_engines.json",
+    "p2_fillers.json",
+    "p2_frames.json",
+    "p2_words.json",
+    "diagnostic_p2.json"
+  ],
+  "optional_files": [
+    "id_map.json",
+    "radicals_core.json",
+    "characters_1200.json",
+    "word_character_links.json"
+  ],
+  "rules": [
+    {
+      "id": "R001_json_parse_all",
+      "severity": "fatal",
+      "description": "All required files must parse as strict JSON.",
+      "check": {
+        "type": "json_parse",
+        "target": "required_files"
+      }
+    },
+    {
+      "id": "R002_schema_version_supported",
+      "severity": "fatal",
+      "description": "schema_version must be present and supported in each file.",
+      "check": {
+        "type": "field_exists_and_supported",
+        "target": "all_files",
+        "field": "schema_version",
+        "supported_values": [
+          "1.0"
+        ]
+      }
+    },
+    {
+      "id": "R003_manifest_entrypoint",
+      "severity": "fatal",
+      "description": "pack_meta.entrypoint must exist and match an available file.",
+      "check": {
+        "type": "file_exists",
+        "path_from": "pack_meta.json",
+        "field": "entrypoint"
+      }
+    },
+    {
+      "id": "R010_unique_ids_words",
+      "severity": "fatal",
+      "description": "All word ids in p1_words.json and p2_words.json must be unique.",
+      "check": {
+        "type": "unique_id",
+        "sources": [
+          {
+            "file": "p1_words.json",
+            "path": "words[*].id"
+          },
+          {
+            "file": "p2_words.json",
+            "path": "words[*].id"
+          }
+        ]
+      }
+    },
+    {
+      "id": "R011_unique_ids_frames",
+      "severity": "fatal",
+      "description": "All frame ids in p1_frames.json and p2_frames.json must be unique.",
+      "check": {
+        "type": "unique_id",
+        "sources": [
+          {
+            "file": "p1_frames.json",
+            "path": "frames[*].id"
+          },
+          {
+            "file": "p2_frames.json",
+            "path": "frames[*].id"
+          }
+        ]
+      }
+    },
+    {
+      "id": "R012_unique_ids_engines",
+      "severity": "fatal",
+      "description": "All engine keys must be unique within each engines file.",
+      "check": {
+        "type": "unique_object_keys",
+        "sources": [
+          {
+            "file": "p1_engines.json",
+            "path": "engines"
+          },
+          {
+            "file": "p2_engines.json",
+            "path": "engines"
+          }
+        ]
+      }
+    },
+    {
+      "id": "R020_frame_engine_exists",
+      "severity": "fatal",
+      "description": "Each frame.engine must exist as an engine key in the same phase engines file.",
+      "check": {
+        "type": "cross_reference",
+        "from": {
+          "file": "p2_frames.json",
+          "path": "frames[*].engine"
+        },
+        "to": {
+          "file": "p2_engines.json",
+          "path": "engines.{value}"
+        }
+      }
+    },
+    {
+      "id": "R021_frame_slots_valid_sources",
+      "severity": "fatal",
+      "description": "Each frame slot source must exist in the fillers file (e.g., fillers.times).",
+      "check": {
+        "type": "slot_source_exists",
+        "phase_rules": [
+          {
+            "phase": "P2",
+            "frames_file": "p2_frames.json",
+            "fillers_file": "p2_fillers.json",
+            "slot_source_prefix_required": "fillers."
+          }
+        ]
+      }
+    },
+    {
+      "id": "R030_engine_frames_exist",
+      "severity": "fatal",
+      "description": "Engine entry_frames and followup_frames must exist in the frames file.",
+      "check": {
+        "type": "id_list_exists",
+        "sources": [
+          {
+            "from": {
+              "file": "p2_engines.json",
+              "paths": [
+                "engines.*.entry_frames[*]",
+                "engines.*.followup_frames[*]"
+              ]
+            },
+            "to": {
+              "file": "p2_frames.json",
+              "path": "frames[*].id"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "R040_words_frame_links_exist",
+      "severity": "warn",
+      "description": "Each word.frame_ids entry should exist in the phase frames file. Warn only because you may expand frames later.",
+      "check": {
+        "type": "id_list_exists",
+        "sources": [
+          {
+            "from": {
+              "file": "p2_words.json",
+              "paths": [
+                "words[*].frame_ids[*]"
+              ]
+            },
+            "to": {
+              "file": "p2_frames.json",
+              "path": "frames[*].id"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "R050_diagnostic_targets_exist",
+      "severity": "fatal",
+      "description": "Diagnostic target_frames and target_words must exist.",
+      "check": {
+        "type": "diagnostic_integrity",
+        "diagnostics": [
+          {
+            "file": "diagnostic_p2.json",
+            "frames_file": "p2_frames.json",
+            "words_file": "p2_words.json",
+            "paths": {
+              "target_frames": "tasks[*].target_frames[*]",
+              "target_words": "tasks[*].target_words[*]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "R060_word_character_links_integrity",
+      "severity": "warn",
+      "description": "If word_character_links.json is present, referenced word_id and character_id should exist.",
+      "check": {
+        "type": "optional_cross_reference",
+        "enabled_if_file_exists": "word_character_links.json",
+        "rules": [
+          {
+            "from": {
+              "file": "word_character_links.json",
+              "path": "links[*].word_id"
+            },
+            "to": [
+              {
+                "file": "p1_words.json",
+                "path": "words[*].id"
+              },
+              {
+                "file": "p2_words.json",
+                "path": "words[*].id"
+              }
+            ]
+          },
+          {
+            "from": {
+              "file": "word_character_links.json",
+              "path": "links[*].characters[*].character_id"
+            },
+            "to": {
+              "file": "characters_1200.json",
+              "path": "characters[*].id"
+            },
+            "enabled_if_file_exists": "characters_1200.json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "R070_id_map_sanity",
+      "severity": "warn",
+      "description": "If id_map.json is present, internal IDs must be unique and non-empty; null is allowed.",
+      "check": {
+        "type": "id_map_validation",
+        "enabled_if_file_exists": "id_map.json",
+        "allow_null_values": true,
+        "require_unique_non_null_values": true,
+        "require_non_empty_strings": true
+      }
+    },
+    {
+      "id": "R080_utf8_sanity",
+      "severity": "fatal",
+      "description": "Reject invalid UTF-8 and reject files containing NUL bytes.",
+      "check": {
+        "type": "encoding_sanity",
+        "target": "all_files",
+        "reject_nul_bytes": true
+      }
+    }
+  ],
+  "output_format": {
+    "error_object": {
+      "fields": [
+        "rule_id",
+        "severity",
+        "file",
+        "json_path",
+        "message",
+        "suggested_fix"
+      ]
+    },
+    "max_errors": 200
+  }
+}

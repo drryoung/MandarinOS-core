@@ -1,0 +1,183 @@
+{
+  "schema_version": "1.0",
+  "phase": "P1",
+  "name": "Survival Conversation Engine",
+  "description": "Six core conversation engines for survival-level Mandarin. Engines define loops, entry frames, followups, slot sources, and mastery checks.",
+  "engines": {
+    "identity": {
+      "name": "Identity",
+      "goal": "Introduce yourself and ask basic identity questions.",
+      "entry_frames": [
+        "f_name_1",
+        "f_name_2",
+        "f_you_ne"
+      ],
+      "followup_frames": [
+        "f_ask_you_name",
+        "f_thanks",
+        "f_no_problem"
+      ],
+      "slot_sources": [
+        "fillers.names"
+      ],
+      "mastery_checks": [
+        {
+          "type": "recognize",
+          "frame_id": "f_name_1"
+        },
+        {
+          "type": "produce",
+          "frame_id": "f_name_2"
+        }
+      ]
+    },
+    "place": {
+      "name": "Place",
+      "goal": "Ask and answer origin and current residence.",
+      "entry_frames": [
+        "f_from_where",
+        "f_i_from_city",
+        "f_live_where",
+        "f_live_in_city"
+      ],
+      "followup_frames": [
+        "f_you_ne"
+      ],
+      "slot_sources": [
+        "fillers.cities",
+        "fillers.countries"
+      ],
+      "mastery_checks": [
+        {
+          "type": "recognize",
+          "frame_id": "f_from_where"
+        },
+        {
+          "type": "produce",
+          "frame_id": "f_i_from_city"
+        },
+        {
+          "type": "produce",
+          "frame_id": "f_live_in_city"
+        }
+      ]
+    },
+    "family": {
+      "name": "Family",
+      "goal": "Ask about family and siblings.",
+      "entry_frames": [
+        "f_have_family",
+        "f_have_siblings"
+      ],
+      "followup_frames": [
+        "f_have_brother",
+        "f_have_sister",
+        "f_you_ne"
+      ],
+      "slot_sources": [],
+      "mastery_checks": [
+        {
+          "type": "recognize",
+          "frame_id": "f_have_siblings"
+        },
+        {
+          "type": "produce",
+          "frame_id": "f_have_family"
+        }
+      ]
+    },
+    "work": {
+      "name": "Work",
+      "goal": "Ask and answer what someone does; basic work status.",
+      "entry_frames": [
+        "f_what_work",
+        "f_i_am_job",
+        "f_like_work",
+        "f_like_work_yes"
+      ],
+      "followup_frames": [
+        "f_you_ne"
+      ],
+      "slot_sources": [
+        "fillers.jobs"
+      ],
+      "mastery_checks": [
+        {
+          "type": "recognize",
+          "frame_id": "f_what_work"
+        },
+        {
+          "type": "produce",
+          "frame_id": "f_i_am_job"
+        }
+      ]
+    },
+    "hobby": {
+      "name": "Hobby",
+      "goal": "Ask and answer likes and hobbies.",
+      "entry_frames": [
+        "f_what_hobby",
+        "f_i_like_hobby",
+        "f_weekend_do",
+        "f_weekend_rest"
+      ],
+      "followup_frames": [
+        "f_you_ne"
+      ],
+      "slot_sources": [
+        "fillers.hobbies"
+      ],
+      "mastery_checks": [
+        {
+          "type": "recognize",
+          "frame_id": "f_what_hobby"
+        },
+        {
+          "type": "produce",
+          "frame_id": "f_i_like_hobby"
+        }
+      ]
+    },
+    "travel": {
+      "name": "Travel",
+      "goal": "Ask and answer whether someone has been somewhere; basic evaluation.",
+      "entry_frames": [
+        "f_been_to_country",
+        "f_i_been_to_country",
+        "f_fun_or_not"
+      ],
+      "followup_frames": [
+        "f_you_ne"
+      ],
+      "slot_sources": [
+        "fillers.countries"
+      ],
+      "mastery_checks": [
+        {
+          "type": "recognize",
+          "frame_id": "f_been_to_country"
+        },
+        {
+          "type": "produce",
+          "frame_id": "f_i_been_to_country"
+        }
+      ]
+    }
+  },
+  "conversation_policy": {
+    "turn_structure": {
+      "default_turns": 4,
+      "pattern": [
+        "ask",
+        "answer",
+        "bounce_back",
+        "followup"
+      ]
+    },
+    "frame_selection_rules": [
+      "Prefer due frames (SRS) inside the active engine.",
+      "Prefer frames that use due words (bundle reinforcement).",
+      "Use fillers to avoid boring repetition."
+    ]
+  }
+}

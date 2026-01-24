@@ -1,0 +1,599 @@
+{
+  "schema_version": "1.0",
+  "name": "Core Radicals Pack (25)",
+  "description": "High-coverage radicals for visual learning, handwriting drills, and character decomposition. Aligns with radical drill engine.",
+  "radicals": [
+    {
+      "id": "r_ren",
+      "radical": "亻",
+      "traditional": "人",
+      "pinyin": "rén",
+      "meaning_en": "person; human",
+      "stroke_count": 2,
+      "forms": [
+        "亻",
+        "人"
+      ],
+      "notes": "Often appears on the left side of characters.",
+      "example_characters": [
+        "你",
+        "他",
+        "们",
+        "住"
+      ],
+      "drill": {
+        "priority": 1,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_nv",
+      "radical": "女",
+      "traditional": "女",
+      "pinyin": "nǚ",
+      "meaning_en": "woman; female",
+      "stroke_count": 3,
+      "forms": [
+        "女"
+      ],
+      "notes": "Frequently appears in family/social words.",
+      "example_characters": [
+        "妈",
+        "姐",
+        "妹",
+        "好"
+      ],
+      "drill": {
+        "priority": 1,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_kou",
+      "radical": "口",
+      "traditional": "口",
+      "pinyin": "kǒu",
+      "meaning_en": "mouth; opening",
+      "stroke_count": 3,
+      "forms": [
+        "口"
+      ],
+      "notes": "Common in speech/interaction characters.",
+      "example_characters": [
+        "叫",
+        "吗",
+        "问",
+        "吃"
+      ],
+      "drill": {
+        "priority": 1,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_xin",
+      "radical": "忄",
+      "traditional": "心",
+      "pinyin": "xīn",
+      "meaning_en": "heart; mind; feelings",
+      "stroke_count": 3,
+      "forms": [
+        "忄",
+        "心"
+      ],
+      "notes": "Often on the left in emotion/mental-state characters.",
+      "example_characters": [
+        "忙",
+        "想",
+        "怕",
+        "情"
+      ],
+      "drill": {
+        "priority": 2,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_shui",
+      "radical": "氵",
+      "traditional": "水",
+      "pinyin": "shuǐ",
+      "meaning_en": "water",
+      "stroke_count": 3,
+      "forms": [
+        "氵",
+        "水"
+      ],
+      "notes": "Often on the left; liquid-related or extended senses.",
+      "example_characters": [
+        "没",
+        "海",
+        "酒",
+        "洗"
+      ],
+      "drill": {
+        "priority": 2,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_mu",
+      "radical": "木",
+      "traditional": "木",
+      "pinyin": "mù",
+      "meaning_en": "wood; tree",
+      "stroke_count": 4,
+      "forms": [
+        "木"
+      ],
+      "notes": "High coverage; many common characters.",
+      "example_characters": [
+        "本",
+        "样",
+        "林",
+        "机"
+      ],
+      "drill": {
+        "priority": 2,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_shou",
+      "radical": "扌",
+      "traditional": "手",
+      "pinyin": "shǒu",
+      "meaning_en": "hand",
+      "stroke_count": 3,
+      "forms": [
+        "扌",
+        "手"
+      ],
+      "notes": "Often left-side; actions/manipulation.",
+      "example_characters": [
+        "打",
+        "拿",
+        "找",
+        "推"
+      ],
+      "drill": {
+        "priority": 2,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_yan",
+      "radical": "讠",
+      "traditional": "言",
+      "pinyin": "yán",
+      "meaning_en": "speech; words",
+      "stroke_count": 2,
+      "forms": [
+        "讠",
+        "言"
+      ],
+      "notes": "Often left-side; language/communication.",
+      "example_characters": [
+        "说",
+        "语",
+        "认",
+        "谢"
+      ],
+      "drill": {
+        "priority": 2,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_ri",
+      "radical": "日",
+      "traditional": "日",
+      "pinyin": "rì",
+      "meaning_en": "sun; day",
+      "stroke_count": 4,
+      "forms": [
+        "日"
+      ],
+      "notes": "Time/daylight related; also appears in many words.",
+      "example_characters": [
+        "昨",
+        "明",
+        "时",
+        "早"
+      ],
+      "drill": {
+        "priority": 2,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_yue",
+      "radical": "月",
+      "traditional": "月",
+      "pinyin": "yuè",
+      "meaning_en": "moon; month (also 'flesh' in some forms)",
+      "stroke_count": 4,
+      "forms": [
+        "月"
+      ],
+      "notes": "In some characters it functions as 'flesh' (⺼).",
+      "example_characters": [
+        "期",
+        "服",
+        "朋友",
+        "腿"
+      ],
+      "drill": {
+        "priority": 3,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_tu",
+      "radical": "土",
+      "traditional": "土",
+      "pinyin": "tǔ",
+      "meaning_en": "earth; soil",
+      "stroke_count": 3,
+      "forms": [
+        "土"
+      ],
+      "notes": "Location/ground; many place-related characters.",
+      "example_characters": [
+        "地",
+        "城",
+        "场",
+        "块"
+      ],
+      "drill": {
+        "priority": 3,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_huo",
+      "radical": "火",
+      "traditional": "火",
+      "pinyin": "huǒ",
+      "meaning_en": "fire",
+      "stroke_count": 4,
+      "forms": [
+        "火",
+        "灬"
+      ],
+      "notes": "Often bottom form 灬.",
+      "example_characters": [
+        "热",
+        "点",
+        "然",
+        "煮"
+      ],
+      "drill": {
+        "priority": 3,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_shi",
+      "radical": "石",
+      "traditional": "石",
+      "pinyin": "shí",
+      "meaning_en": "stone",
+      "stroke_count": 5,
+      "forms": [
+        "石"
+      ],
+      "notes": "Material/object related.",
+      "example_characters": [
+        "码",
+        "硬",
+        "破",
+        "确"
+      ],
+      "drill": {
+        "priority": 4,
+        "handwriting": true,
+        "decomposition_focus": false
+      }
+    },
+    {
+      "id": "r_jin",
+      "radical": "钅",
+      "traditional": "金",
+      "pinyin": "jīn",
+      "meaning_en": "metal; gold",
+      "stroke_count": 5,
+      "forms": [
+        "钅",
+        "金"
+      ],
+      "notes": "Often left-side; metal/objects/tools.",
+      "example_characters": [
+        "钱",
+        "银",
+        "钟",
+        "铁"
+      ],
+      "drill": {
+        "priority": 4,
+        "handwriting": true,
+        "decomposition_focus": false
+      }
+    },
+    {
+      "id": "r_che",
+      "radical": "车",
+      "traditional": "車",
+      "pinyin": "chē",
+      "meaning_en": "vehicle",
+      "stroke_count": 4,
+      "forms": [
+        "车",
+        "車"
+      ],
+      "notes": "Transport-related.",
+      "example_characters": [
+        "辆",
+        "转",
+        "轻",
+        "轮"
+      ],
+      "drill": {
+        "priority": 4,
+        "handwriting": true,
+        "decomposition_focus": false
+      }
+    },
+    {
+      "id": "r_shi2",
+      "radical": "尸",
+      "traditional": "尸",
+      "pinyin": "shī",
+      "meaning_en": "corpse (radical form; often indicates shelter/body-related forms historically)",
+      "stroke_count": 3,
+      "forms": [
+        "尸"
+      ],
+      "notes": "Appears in many common characters; modern meaning often unrelated.",
+      "example_characters": [
+        "层",
+        "局",
+        "屋",
+        "居"
+      ],
+      "drill": {
+        "priority": 4,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_yan2",
+      "radical": "宀",
+      "traditional": "宀",
+      "pinyin": "mián",
+      "meaning_en": "roof; shelter",
+      "stroke_count": 3,
+      "forms": [
+        "宀"
+      ],
+      "notes": "Often indicates house/home concepts.",
+      "example_characters": [
+        "家",
+        "室",
+        "安",
+        "客"
+      ],
+      "drill": {
+        "priority": 3,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_zi",
+      "radical": "子",
+      "traditional": "子",
+      "pinyin": "zǐ",
+      "meaning_en": "child; son",
+      "stroke_count": 3,
+      "forms": [
+        "子"
+      ],
+      "notes": "High frequency in basic vocabulary.",
+      "example_characters": [
+        "字",
+        "学",
+        "孩",
+        "孙"
+      ],
+      "drill": {
+        "priority": 3,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_nian",
+      "radical": "辶",
+      "traditional": "辵/辶",
+      "pinyin": "chuò",
+      "meaning_en": "walk; movement",
+      "stroke_count": 3,
+      "forms": [
+        "辶"
+      ],
+      "notes": "Often indicates movement/going.",
+      "example_characters": [
+        "这",
+        "还",
+        "进",
+        "过"
+      ],
+      "drill": {
+        "priority": 2,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_shan",
+      "radical": "山",
+      "traditional": "山",
+      "pinyin": "shān",
+      "meaning_en": "mountain",
+      "stroke_count": 3,
+      "forms": [
+        "山"
+      ],
+      "notes": "Place/terrain-related; also common in names.",
+      "example_characters": [
+        "岁",
+        "岛",
+        "岗",
+        "岩"
+      ],
+      "drill": {
+        "priority": 4,
+        "handwriting": true,
+        "decomposition_focus": false
+      }
+    },
+    {
+      "id": "r_mu2",
+      "radical": "目",
+      "traditional": "目",
+      "pinyin": "mù",
+      "meaning_en": "eye",
+      "stroke_count": 5,
+      "forms": [
+        "目"
+      ],
+      "notes": "Seeing/looking; perception vocabulary.",
+      "example_characters": [
+        "看",
+        "眼",
+        "相",
+        "睡"
+      ],
+      "drill": {
+        "priority": 3,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    },
+    {
+      "id": "r_yi",
+      "radical": "衣",
+      "traditional": "衣",
+      "pinyin": "yī",
+      "meaning_en": "clothing",
+      "stroke_count": 6,
+      "forms": [
+        "衣",
+        "衤"
+      ],
+      "notes": "Often left-side 衤 in simplified characters.",
+      "example_characters": [
+        "被",
+        "裤",
+        "裙",
+        "补"
+      ],
+      "drill": {
+        "priority": 5,
+        "handwriting": true,
+        "decomposition_focus": false
+      }
+    },
+    {
+      "id": "r_shi3",
+      "radical": "食",
+      "traditional": "食",
+      "pinyin": "shí",
+      "meaning_en": "eat; food",
+      "stroke_count": 9,
+      "forms": [
+        "食",
+        "饣"
+      ],
+      "notes": "Often left-side 饣 in simplified.",
+      "example_characters": [
+        "饭",
+        "馆",
+        "饿",
+        "饺"
+      ],
+      "drill": {
+        "priority": 5,
+        "handwriting": true,
+        "decomposition_focus": false
+      }
+    },
+    {
+      "id": "r_chong",
+      "radical": "虫",
+      "traditional": "虫",
+      "pinyin": "chóng",
+      "meaning_en": "insect",
+      "stroke_count": 6,
+      "forms": [
+        "虫"
+      ],
+      "notes": "Common semantic component; not always literal insect.",
+      "example_characters": [
+        "蚂",
+        "蛇",
+        "蜂",
+        "蝴"
+      ],
+      "drill": {
+        "priority": 6,
+        "handwriting": true,
+        "decomposition_focus": false
+      }
+    },
+    {
+      "id": "r_bei",
+      "radical": "贝",
+      "traditional": "貝",
+      "pinyin": "bèi",
+      "meaning_en": "shell (money-related historically)",
+      "stroke_count": 4,
+      "forms": [
+        "贝",
+        "貝"
+      ],
+      "notes": "Often indicates trade/money/value historically.",
+      "example_characters": [
+        "买",
+        "贵",
+        "财",
+        "账"
+      ],
+      "drill": {
+        "priority": 4,
+        "handwriting": true,
+        "decomposition_focus": true
+      }
+    }
+  ],
+  "drill_settings": {
+    "default_mode": "handwriting_then_recognition",
+    "stroke_order_hint": true,
+    "show_examples_on_error": true,
+    "srs_item_type": "radical"
+  }
+}

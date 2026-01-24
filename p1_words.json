@@ -1,0 +1,681 @@
+{
+  "schema_version": "1.0",
+  "language": "zh-Hans",
+  "phase": {
+    "id": "P1",
+    "name": "Survival Conversation Engine",
+    "target_unique_words": 200
+  },
+  "words": [
+    {
+      "id": "w_ni",
+      "hanzi": "你",
+      "pinyin": "nǐ",
+      "gloss_en": "you",
+      "pos": [
+        "pron"
+      ],
+      "tags": [
+        "core"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_ask_you_name",
+        "f_from_where",
+        "f_live_where"
+      ]
+    },
+    {
+      "id": "w_wo",
+      "hanzi": "我",
+      "pinyin": "wǒ",
+      "gloss_en": "I; me",
+      "pos": [
+        "pron"
+      ],
+      "tags": [
+        "core"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_name_2",
+        "f_i_from_city",
+        "f_live_in_city"
+      ]
+    },
+    {
+      "id": "w_ta",
+      "hanzi": "他/她",
+      "pinyin": "tā",
+      "gloss_en": "he/she",
+      "pos": [
+        "pron"
+      ],
+      "tags": [
+        "core"
+      ],
+      "frequency_band": "very_high"
+    },
+    {
+      "id": "w_hao",
+      "hanzi": "好",
+      "pinyin": "hǎo",
+      "gloss_en": "good",
+      "pos": [
+        "adj"
+      ],
+      "tags": [
+        "core"
+      ],
+      "frequency_band": "very_high"
+    },
+    {
+      "id": "w_nihao",
+      "hanzi": "你好",
+      "pinyin": "nǐ hǎo",
+      "gloss_en": "hello",
+      "pos": [
+        "expr"
+      ],
+      "tags": [
+        "core"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_name_1"
+      ]
+    },
+    {
+      "id": "w_xiexie",
+      "hanzi": "谢谢",
+      "pinyin": "xièxie",
+      "gloss_en": "thanks",
+      "pos": [
+        "expr"
+      ],
+      "tags": [
+        "core"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_thanks"
+      ]
+    },
+    {
+      "id": "w_bukeqi",
+      "hanzi": "不客气",
+      "pinyin": "bú kèqi",
+      "gloss_en": "you're welcome",
+      "pos": [
+        "expr"
+      ],
+      "tags": [
+        "core"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_no_problem"
+      ]
+    },
+    {
+      "id": "w_shi",
+      "hanzi": "是",
+      "pinyin": "shì",
+      "gloss_en": "to be",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "grammar"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_i_from_city"
+      ]
+    },
+    {
+      "id": "w_jiao",
+      "hanzi": "叫",
+      "pinyin": "jiào",
+      "gloss_en": "to be called",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "identity"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_ask_you_name",
+        "f_name_2"
+      ]
+    },
+    {
+      "id": "w_shenme",
+      "hanzi": "什么",
+      "pinyin": "shénme",
+      "gloss_en": "what",
+      "pos": [
+        "pron"
+      ],
+      "tags": [
+        "question"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_ask_you_name",
+        "f_what_work",
+        "f_like_what"
+      ]
+    },
+    {
+      "id": "w_mingzi",
+      "hanzi": "名字",
+      "pinyin": "míngzi",
+      "gloss_en": "name",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "identity"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_ask_you_name",
+        "f_name_2"
+      ]
+    },
+    {
+      "id": "w_ne",
+      "hanzi": "呢",
+      "pinyin": "ne",
+      "gloss_en": "and you? (particle)",
+      "pos": [
+        "part"
+      ],
+      "tags": [
+        "grammar"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_you_ne"
+      ]
+    },
+    {
+      "id": "w_nali",
+      "hanzi": "哪里",
+      "pinyin": "nǎlǐ",
+      "gloss_en": "where",
+      "pos": [
+        "pron"
+      ],
+      "tags": [
+        "question",
+        "place"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_from_where",
+        "f_live_where"
+      ]
+    },
+    {
+      "id": "w_ren",
+      "hanzi": "人",
+      "pinyin": "rén",
+      "gloss_en": "person",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "place"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_from_where",
+        "f_i_from_city"
+      ]
+    },
+    {
+      "id": "w_xianzai",
+      "hanzi": "现在",
+      "pinyin": "xiànzài",
+      "gloss_en": "now",
+      "pos": [
+        "t"
+      ],
+      "tags": [
+        "time"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_live_where",
+        "f_live_in_city"
+      ]
+    },
+    {
+      "id": "w_zhu",
+      "hanzi": "住",
+      "pinyin": "zhù",
+      "gloss_en": "to live; reside",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "place"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_live_where",
+        "f_live_in_city"
+      ]
+    },
+    {
+      "id": "w_zai",
+      "hanzi": "在",
+      "pinyin": "zài",
+      "gloss_en": "at; in",
+      "pos": [
+        "prep"
+      ],
+      "tags": [
+        "grammar",
+        "place"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_live_in_city"
+      ]
+    },
+    {
+      "id": "w_ma",
+      "hanzi": "吗",
+      "pinyin": "ma",
+      "gloss_en": "question particle",
+      "pos": [
+        "part"
+      ],
+      "tags": [
+        "grammar"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_have_family",
+        "f_have_siblings",
+        "f_been_to_country"
+      ]
+    },
+    {
+      "id": "w_you",
+      "hanzi": "有",
+      "pinyin": "yǒu",
+      "gloss_en": "to have",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "core"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_have_family",
+        "f_have_siblings",
+        "f_have_hobby"
+      ]
+    },
+    {
+      "id": "w_jiaren",
+      "hanzi": "家人",
+      "pinyin": "jiārén",
+      "gloss_en": "family members",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "family"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_have_family"
+      ]
+    },
+    {
+      "id": "w_xiongdi",
+      "hanzi": "兄弟",
+      "pinyin": "xiōngdì",
+      "gloss_en": "brothers",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "family"
+      ],
+      "frequency_band": "mid",
+      "frame_ids": [
+        "f_have_siblings"
+      ]
+    },
+    {
+      "id": "w_jiemei",
+      "hanzi": "姐妹",
+      "pinyin": "jiěmèi",
+      "gloss_en": "sisters",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "family"
+      ],
+      "frequency_band": "mid",
+      "frame_ids": [
+        "f_have_siblings"
+      ]
+    },
+    {
+      "id": "w_gege",
+      "hanzi": "哥哥",
+      "pinyin": "gēge",
+      "gloss_en": "older brother",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "family"
+      ],
+      "frequency_band": "mid",
+      "frame_ids": [
+        "f_have_brother"
+      ]
+    },
+    {
+      "id": "w_didi",
+      "hanzi": "弟弟",
+      "pinyin": "dìdi",
+      "gloss_en": "younger brother",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "family"
+      ],
+      "frequency_band": "mid",
+      "frame_ids": [
+        "f_have_brother"
+      ]
+    },
+    {
+      "id": "w_jiejie",
+      "hanzi": "姐姐",
+      "pinyin": "jiějie",
+      "gloss_en": "older sister",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "family"
+      ],
+      "frequency_band": "mid",
+      "frame_ids": [
+        "f_have_sister"
+      ]
+    },
+    {
+      "id": "w_meimei",
+      "hanzi": "妹妹",
+      "pinyin": "mèimei",
+      "gloss_en": "younger sister",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "family"
+      ],
+      "frequency_band": "mid",
+      "frame_ids": [
+        "f_have_sister"
+      ]
+    },
+    {
+      "id": "w_zuo",
+      "hanzi": "做",
+      "pinyin": "zuò",
+      "gloss_en": "to do",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "work"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_what_work"
+      ]
+    },
+    {
+      "id": "w_gongzuo",
+      "hanzi": "工作",
+      "pinyin": "gōngzuò",
+      "gloss_en": "work; job",
+      "pos": [
+        "n",
+        "v"
+      ],
+      "tags": [
+        "work"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_what_work",
+        "f_busy_or_not"
+      ]
+    },
+    {
+      "id": "w_woshi",
+      "hanzi": "我是",
+      "pinyin": "wǒ shì",
+      "gloss_en": "I am (pattern)",
+      "pos": [
+        "pattern"
+      ],
+      "tags": [
+        "work"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_i_am_job",
+        "f_i_from_city"
+      ]
+    },
+    {
+      "id": "w_mang",
+      "hanzi": "忙",
+      "pinyin": "máng",
+      "gloss_en": "busy",
+      "pos": [
+        "adj"
+      ],
+      "tags": [
+        "work"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_busy_or_not"
+      ]
+    },
+    {
+      "id": "w_xihuan",
+      "hanzi": "喜欢",
+      "pinyin": "xǐhuan",
+      "gloss_en": "to like",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "hobby"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_like_what",
+        "f_i_like_hobby"
+      ]
+    },
+    {
+      "id": "w_aihao",
+      "hanzi": "爱好",
+      "pinyin": "àihào",
+      "gloss_en": "hobby",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "hobby"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_have_hobby"
+      ]
+    },
+    {
+      "id": "w_quguo",
+      "hanzi": "去过",
+      "pinyin": "qùguo",
+      "gloss_en": "have been (to)",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "travel",
+        "grammar"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_been_to_country",
+        "f_i_been_to_country"
+      ]
+    },
+    {
+      "id": "w_haowan",
+      "hanzi": "好玩",
+      "pinyin": "hǎowán",
+      "gloss_en": "fun",
+      "pos": [
+        "adj"
+      ],
+      "tags": [
+        "travel"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_fun_or_not"
+      ]
+    },
+    {
+      "id": "w_beijing",
+      "hanzi": "北京",
+      "pinyin": "Běijīng",
+      "gloss_en": "Beijing",
+      "pos": [
+        "pn"
+      ],
+      "tags": [
+        "place",
+        "filler_seed"
+      ],
+      "frequency_band": "high"
+    },
+    {
+      "id": "w_shanghai",
+      "hanzi": "上海",
+      "pinyin": "Shànghǎi",
+      "gloss_en": "Shanghai",
+      "pos": [
+        "pn"
+      ],
+      "tags": [
+        "place",
+        "filler_seed"
+      ],
+      "frequency_band": "high"
+    },
+    {
+      "id": "w_zhongguo",
+      "hanzi": "中国",
+      "pinyin": "Zhōngguó",
+      "gloss_en": "China",
+      "pos": [
+        "pn"
+      ],
+      "tags": [
+        "travel",
+        "filler_seed"
+      ],
+      "frequency_band": "high"
+    },
+    {
+      "id": "w_xinxilan",
+      "hanzi": "新西兰",
+      "pinyin": "Xīnxīlán",
+      "gloss_en": "New Zealand",
+      "pos": [
+        "pn"
+      ],
+      "tags": [
+        "travel",
+        "filler_seed"
+      ],
+      "frequency_band": "mid"
+    },
+    {
+      "id": "w_de",
+      "hanzi": "的",
+      "pinyin": "de",
+      "gloss_en": "(possessive particle)",
+      "pos": [
+        "part"
+      ],
+      "tags": [
+        "grammar"
+      ],
+      "frequency_band": "very_high"
+    },
+    {
+      "id": "w_he",
+      "hanzi": "和",
+      "pinyin": "hé",
+      "gloss_en": "and; with",
+      "pos": [
+        "conj"
+      ],
+      "tags": [
+        "grammar"
+      ],
+      "frequency_band": "very_high"
+    },
+    {
+      "id": "w_bu",
+      "hanzi": "不",
+      "pinyin": "bù",
+      "gloss_en": "not",
+      "pos": [
+        "adv"
+      ],
+      "tags": [
+        "grammar"
+      ],
+      "frequency_band": "very_high"
+    },
+    {
+      "id": "w_mei",
+      "hanzi": "没",
+      "pinyin": "méi",
+      "gloss_en": "not (past); have not",
+      "pos": [
+        "adv"
+      ],
+      "tags": [
+        "grammar"
+      ],
+      "frequency_band": "very_high"
+    }
+  ]
+}

@@ -1,0 +1,199 @@
+{
+  "schema_version": "1.0",
+  "name": "Content Pack Import Order",
+  "description": "Deterministic load order and registration steps for MandarinOS Core content pack.",
+  "import_steps": [
+    {
+      "step": 1,
+      "file": "pack_meta.json",
+      "action": "read_meta",
+      "register": [
+        "pack_id",
+        "version",
+        "language",
+        "requirements"
+      ],
+      "notes": "Used to validate required files and app version compatibility."
+    },
+    {
+      "step": 2,
+      "file": "content_manifest.json",
+      "action": "read_manifest",
+      "register": [
+        "phase_list",
+        "file_registry"
+      ],
+      "notes": "Defines what exists and where to find it."
+    },
+    {
+      "step": 3,
+      "file": "id_map.json",
+      "action": "read_optional",
+      "optional": true,
+      "register": [
+        "external_to_internal_id_maps"
+      ],
+      "notes": "If absent, importer uses content IDs as internal IDs."
+    },
+    {
+      "step": 4,
+      "file": "srs_config.json",
+      "action": "register_srs_rules",
+      "register": [
+        "sm2_parameters",
+        "session_policy",
+        "scheduling_rules"
+      ],
+      "notes": "Load SRS policy before content so items can inherit defaults."
+    },
+    {
+      "step": 5,
+      "file": "radicals_core.json",
+      "action": "read_optional",
+      "optional": true,
+      "register": [
+        "radicals_index"
+      ],
+      "notes": "Optional, but recommended to enable visual drills early."
+    },
+    {
+      "step": 6,
+      "file": "characters_1200.json",
+      "action": "read_optional",
+      "optional": true,
+      "register": [
+        "characters_index",
+        "components_index"
+      ],
+      "notes": "Optional. If present, enables character decomposition and handwriting support."
+    },
+    {
+      "step": 7,
+      "file": "p1_fillers.json",
+      "action": "register_fillers",
+      "register": [
+        "P1.fillers"
+      ],
+      "notes": "Slot sources must exist before frames are parsed."
+    },
+    {
+      "step": 8,
+      "file": "p1_frames.json",
+      "action": "register_frames",
+      "register": [
+        "P1.frames_index"
+      ],
+      "notes": "Frames reference fillers; verify slot sources now."
+    },
+    {
+      "step": 9,
+      "file": "p1_engines.json",
+      "action": "register_engines",
+      "register": [
+        "P1.engines_index"
+      ],
+      "notes": "Engines reference frames; resolve frame IDs now."
+    },
+    {
+      "step": 10,
+      "file": "p1_words.json",
+      "action": "register_words",
+      "register": [
+        "P1.words_index"
+      ],
+      "notes": "Words may reference frames; treat as soft links unless fatal in your app."
+    },
+    {
+      "step": 11,
+      "file": "diagnostic_p1.json",
+      "action": "register_diagnostic",
+      "register": [
+        "P1.diagnostic"
+      ],
+      "notes": "Diagnostic references frames/words; validate now."
+    },
+    {
+      "step": 12,
+      "file": "p2_fillers.json",
+      "action": "register_fillers",
+      "register": [
+        "P2.fillers"
+      ],
+      "notes": "Same pattern as P1."
+    },
+    {
+      "step": 13,
+      "file": "p2_frames.json",
+      "action": "register_frames",
+      "register": [
+        "P2.frames_index"
+      ],
+      "notes": "Frames reference P2 fillers."
+    },
+    {
+      "step": 14,
+      "file": "p2_engines.json",
+      "action": "register_engines",
+      "register": [
+        "P2.engines_index"
+      ],
+      "notes": "Engines reference P2 frames."
+    },
+    {
+      "step": 15,
+      "file": "p2_words.json",
+      "action": "register_words",
+      "register": [
+        "P2.words_index"
+      ],
+      "notes": "Words reference frames; soft link okay unless your importer requires strictness."
+    },
+    {
+      "step": 16,
+      "file": "diagnostic_p2.json",
+      "action": "register_diagnostic",
+      "register": [
+        "P2.diagnostic"
+      ],
+      "notes": "Validate all diagnostic targets now."
+    },
+    {
+      "step": 17,
+      "file": "word_character_links.json",
+      "action": "read_optional",
+      "optional": true,
+      "register": [
+        "word_character_links"
+      ],
+      "notes": "If characters_1200.json is present, resolve character IDs; otherwise store links as best-effort."
+    },
+    {
+      "step": 18,
+      "file": "import_validation_rules.json",
+      "action": "apply_ruleset",
+      "register": [
+        "validation_report"
+      ],
+      "notes": "Run full validation at the end for best error reporting (more context available)."
+    }
+  ],
+  "post_import": {
+    "actions": [
+      {
+        "name": "build_reverse_indexes",
+        "description": "Build derived indexes for fast runtime: word->frames, frame->words, engine->frames, character->words, radical->characters.",
+        "enabled": true
+      },
+      {
+        "name": "initialize_user_state_if_new",
+        "description": "Create empty SM-2 state objects for words/frames/radicals as needed. Do not create for all items if storage is expensive; lazy-init is fine.",
+        "enabled": true
+      },
+      {
+        "name": "checksum_optional",
+        "description": "If pack_meta.integrity.checksums are provided, verify them now; otherwise skip.",
+        "enabled": true
+      }
+    ]
+  }
+}

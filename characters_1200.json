@@ -1,0 +1,144 @@
+{
+  "schema_version": "1.0",
+  "name": "Characters 1200 Core",
+  "language": "zh-Hans",
+  "description": "Core character dataset with frequency, complexity, radical/component decomposition, etymology notes, handwriting metadata, confusion sets, and word links.",
+  "field_conventions": {
+    "frequency_rank": "1 = most frequent",
+    "frequency_band": ["very_high", "high", "mid", "low"],
+    "etymology_type": ["pictograph", "ideograph", "compound_ideograph", "phonetic_semantic", "loan", "unknown"],
+    "decomposition": "Use component ids when available. If not, use raw strings for components.",
+    "ids": {
+      "character_id_format": "c_<hanzi_or_keyword>",
+      "component_id_format": "cmp_<name>",
+      "radical_id_format": "r_<name>"
+    }
+  },
+  "components_index": [
+    { "id": "cmp_ren_left", "glyph": "亻", "type": "variant", "meaning_en": "person (left form)", "notes": "Variant of 人 used as a component." },
+    { "id": "cmp_kou", "glyph": "口", "type": "radical_or_component", "meaning_en": "mouth", "notes": "" },
+    { "id": "cmp_nv", "glyph": "女", "type": "radical_or_component", "meaning_en": "woman", "notes": "" },
+    { "id": "cmp_xin_left", "glyph": "忄", "type": "variant", "meaning_en": "heart (left form)", "notes": "Variant of 心." },
+    { "id": "cmp_shui_left", "glyph": "氵", "type": "variant", "meaning_en": "water (left form)", "notes": "Variant of 水." },
+    { "id": "cmp_mu", "glyph": "木", "type": "radical_or_component", "meaning_en": "wood; tree", "notes": "" },
+    { "id": "cmp_shou_left", "glyph": "扌", "type": "variant", "meaning_en": "hand (left form)", "notes": "Variant of 手." },
+    { "id": "cmp_yan_left", "glyph": "讠", "type": "variant", "meaning_en": "speech (left form)", "notes": "Variant of 言." },
+    { "id": "cmp_ri", "glyph": "日", "type": "radical_or_component", "meaning_en": "sun; day", "notes": "" },
+    { "id": "cmp_yue", "glyph": "月", "type": "radical_or_component", "meaning_en": "moon; month (sometimes flesh)", "notes": "" },
+    { "id": "cmp_tu", "glyph": "土", "type": "radical_or_component", "meaning_en": "earth", "notes": "" },
+    { "id": "cmp_chuo", "glyph": "辶", "type": "radical_or_component", "meaning_en": "walk; movement", "notes": "" }
+  ],
+  "characters": [
+    {
+      "id": "c_wo",
+      "hanzi": "我",
+      "pinyin": "wǒ",
+      "gloss_en": "I; me",
+      "frequency_rank": 1,
+      "frequency_band": "very_high",
+      "stroke_count": 7,
+      "primary_radical": { "id": "r_shou", "glyph": "扌", "meaning_en": "hand", "confidence": 0.4 },
+      "decomposition": {
+        "type": "components",
+        "components": ["戈", "手"],
+        "component_ids": []
+      },
+      "etymology": {
+        "type": "unknown",
+        "origin_note": "Common pronoun; historical forms vary. Treat as high-frequency utility character rather than a transparent meaning build.",
+        "source_note": "If you later add verified origin notes, place them here."
+      },
+      "mnemonic": {
+        "type": "optional_story",
+        "story": "把"手"拿着"戈"，像在说"这是我"。",
+        "disclaimer": "Mnemonic may be invented; not a verified origin."
+      },
+      "handwriting": {
+        "supports_drawing_input": true,
+        "stroke_order_hint_available": true
+      },
+      "confusables": [
+        { "hanzi": "找", "reason": "shared component 戈; visually similar right side" }
+      ],
+      "word_links": [
+        { "word_hanzi": "我们", "word_id": null },
+        { "word_hanzi": "我的", "word_id": "w_wode" }
+      ],
+      "tags": ["core_pronoun", "phase_P1", "phase_P2"]
+    },
+    {
+      "id": "c_ni",
+      "hanzi": "你",
+      "pinyin": "nǐ",
+      "gloss_en": "you",
+      "frequency_rank": 2,
+      "frequency_band": "very_high",
+      "stroke_count": 7,
+      "primary_radical": { "id": "r_ren", "glyph": "亻", "meaning_en": "person", "confidence": 0.9 },
+      "decomposition": {
+        "type": "components",
+        "components": ["亻", "尔"],
+        "component_ids": ["cmp_ren_left"]
+      },
+      "etymology": {
+        "type": "phonetic_semantic",
+        "origin_note": "亻 gives a 'person' category; 尔 provides sound. Meaning is pronominal rather than compositional imagery.",
+        "source_note": "You can later add a citation-grade origin entry if you curate one."
+      },
+      "mnemonic": {
+        "type": "optional_story",
+        "story": "左边一个人(亻)，右边像在指"你"。",
+        "disclaimer": "Mnemonic may be invented; not a verified origin."
+      },
+      "handwriting": {
+        "supports_drawing_input": true,
+        "stroke_order_hint_available": true
+      },
+      "confusables": [
+        { "hanzi": "他", "reason": "shared 亻 radical; pronoun set" }
+      ],
+      "word_links": [
+        { "word_hanzi": "你好", "word_id": "w_nihao" },
+        { "word_hanzi": "你呢", "word_id": null }
+      ],
+      "tags": ["core_pronoun", "phase_P1", "phase_P2"]
+    },
+    {
+      "id": "c_hui",
+      "hanzi": "会",
+      "pinyin": "huì",
+      "gloss_en": "can; will; meeting",
+      "frequency_rank": 60,
+      "frequency_band": "high",
+      "stroke_count": 6,
+      "primary_radical": { "id": "r_ren", "glyph": "人", "meaning_en": "person", "confidence": 0.3 },
+      "decomposition": {
+        "type": "components",
+        "components": ["人", "云"],
+        "component_ids": []
+      },
+      "etymology": {
+        "type": "compound_ideograph",
+        "origin_note": "Historically associated with 'gather/meet' (people together). Modern meanings include 'meeting' and auxiliary 'can/will' by extension/usage.",
+        "source_note": "If you support verified etymology, store the curated explanation here."
+      },
+      "mnemonic": {
+        "type": "optional_story",
+        "story": "人 + 云：人聚在一起像云一样多 → 开会/会面；"会"也引申成"会(能)"。",
+        "disclaimer": "This is partly mnemonic; origin details may differ by source."
+      },
+      "handwriting": {
+        "supports_drawing_input": true,
+        "stroke_order_hint_available": true
+      },
+      "confusables": [
+        { "hanzi": "云", "reason": "shared component" }
+      ],
+      "word_links": [
+        { "word_hanzi": "会", "word_id": "w_hui" },
+        { "word_hanzi": "开会", "word_id": null }
+      ],
+      "tags": ["auxiliary", "meeting", "phase_P2"]
+    }
+  ]
+}

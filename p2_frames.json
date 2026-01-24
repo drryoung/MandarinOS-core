@@ -1,0 +1,446 @@
+{
+  "schema_version": "1.0",
+  "phase": "P2",
+  "name": "Daily Life Sentence Frames",
+  "description": "Phase 2 recombinable frames for planning, opinions, stories, and problem-solving across the six engines plus daily-life loops.",
+  "frames": [
+    {
+      "id": "p2_id_1",
+      "text": "我的名字有意思，因为{REASON_POS}。",
+      "pinyin": "wǒ de míngzi yǒu yìsi, yīnwèi {REASON_POS}.",
+      "engine": "identity",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "REASON_POS",
+          "source": "fillers.reasons_positive"
+        }
+      ]
+    },
+    {
+      "id": "p2_id_2",
+      "text": "大家一般怎么叫你？",
+      "pinyin": "dàjiā yībān zěnme jiào nǐ?",
+      "engine": "identity",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_id_3",
+      "text": "我平时比较{STYLE}。",
+      "pinyin": "wǒ píngshí bǐjiào {STYLE}.",
+      "engine": "identity",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "STYLE",
+          "source": "fillers.reasons_positive"
+        }
+      ]
+    },
+    {
+      "id": "p2_id_4",
+      "text": "你觉得你的名字怎么样？",
+      "pinyin": "nǐ juéde nǐ de míngzi zěnmeyàng?",
+      "engine": "identity",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_id_5",
+      "text": "这个名字对你有什么意义？",
+      "pinyin": "zhège míngzi duì nǐ yǒu shénme yìyì?",
+      "engine": "identity",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_pl_1",
+      "text": "你觉得{CITY}生活怎么样？",
+      "pinyin": "nǐ juéde {CITY} shēnghuó zěnmeyàng?",
+      "engine": "place",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "CITY",
+          "source": "fillers.cities"
+        }
+      ]
+    },
+    {
+      "id": "p2_pl_2",
+      "text": "{CITY}有什么好吃的？",
+      "pinyin": "{CITY} yǒu shénme hǎochī de?",
+      "engine": "place",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "CITY",
+          "source": "fillers.cities"
+        }
+      ]
+    },
+    {
+      "id": "p2_pl_3",
+      "text": "你平时喜欢去{PLACE}吗？",
+      "pinyin": "nǐ píngshí xǐhuan qù {PLACE} ma?",
+      "engine": "place",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "PLACE",
+          "source": "fillers.places_to_go"
+        }
+      ]
+    },
+    {
+      "id": "p2_pl_4",
+      "text": "住在{CITY}方便吗？",
+      "pinyin": "zhù zài {CITY} fāngbiàn ma?",
+      "engine": "place",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "CITY",
+          "source": "fillers.cities"
+        }
+      ]
+    },
+    {
+      "id": "p2_pl_5",
+      "text": "我觉得{CITY}{REASON_POS}。",
+      "pinyin": "wǒ juéde {CITY} {REASON_POS}.",
+      "engine": "place",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "CITY",
+          "source": "fillers.cities"
+        },
+        {
+          "name": "REASON_POS",
+          "source": "fillers.reasons_positive"
+        }
+      ]
+    },
+    {
+      "id": "p2_fa_1",
+      "text": "你跟家人住在一起吗？",
+      "pinyin": "nǐ gēn jiārén zhù zài yīqǐ ma?",
+      "engine": "family",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_fa_2",
+      "text": "你多久见一次家人？",
+      "pinyin": "nǐ duōjiǔ jiàn yīcì jiārén?",
+      "engine": "family",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_fa_3",
+      "text": "我跟{FAMILY_ROLE}关系很好。",
+      "pinyin": "wǒ gēn {FAMILY_ROLE} guānxi hěn hǎo.",
+      "engine": "family",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "FAMILY_ROLE",
+          "source": "fillers.family_roles"
+        }
+      ]
+    },
+    {
+      "id": "p2_fa_4",
+      "text": "{FAMILY_ROLE}最近很忙。",
+      "pinyin": "{FAMILY_ROLE} zuìjìn hěn máng.",
+      "engine": "family",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "FAMILY_ROLE",
+          "source": "fillers.family_roles"
+        }
+      ]
+    },
+    {
+      "id": "p2_fa_5",
+      "text": "周末一般跟家人一起做什么？",
+      "pinyin": "zhōumò yībān gēn jiārén yīqǐ zuò shénme?",
+      "engine": "family",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_wk_1",
+      "text": "你每天几点下班？",
+      "pinyin": "nǐ měitiān jǐ diǎn xiàbān?",
+      "engine": "work",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_wk_2",
+      "text": "你最近工作忙不忙？",
+      "pinyin": "nǐ zuìjìn gōngzuò máng bù máng?",
+      "engine": "work",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_wk_3",
+      "text": "我最近工作有点{REASON_NEG}。",
+      "pinyin": "wǒ zuìjìn gōngzuò yǒudiǎn {REASON_NEG}.",
+      "engine": "work",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "REASON_NEG",
+          "source": "fillers.reasons_negative"
+        }
+      ]
+    },
+    {
+      "id": "p2_wk_4",
+      "text": "你一般怎么安排一天的工作？",
+      "pinyin": "nǐ yībān zěnme ānpái yītiān de gōngzuò?",
+      "engine": "work",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_wk_5",
+      "text": "遇到问题你会怎么解决？",
+      "pinyin": "yùdào wèntí nǐ huì zěnme jiějué?",
+      "engine": "work",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_hb_1",
+      "text": "你什么时候开始{HOBBY}的？",
+      "pinyin": "nǐ shénme shíhou kāishǐ {HOBBY} de?",
+      "engine": "hobby",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "HOBBY",
+          "source": "fillers.hobbies"
+        }
+      ]
+    },
+    {
+      "id": "p2_hb_2",
+      "text": "你为什么喜欢{HOBBY}？",
+      "pinyin": "nǐ wèishénme xǐhuan {HOBBY}?",
+      "engine": "hobby",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "HOBBY",
+          "source": "fillers.hobbies"
+        }
+      ]
+    },
+    {
+      "id": "p2_hb_3",
+      "text": "我觉得{HOBBY}{REASON_POS}。",
+      "pinyin": "wǒ juéde {HOBBY} {REASON_POS}.",
+      "engine": "hobby",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "HOBBY",
+          "source": "fillers.hobbies"
+        },
+        {
+          "name": "REASON_POS",
+          "source": "fillers.reasons_positive"
+        }
+      ]
+    },
+    {
+      "id": "p2_hb_4",
+      "text": "你觉得{HOBBY}难不难？",
+      "pinyin": "nǐ juéde {HOBBY} nán bù nán?",
+      "engine": "hobby",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "HOBBY",
+          "source": "fillers.hobbies"
+        }
+      ]
+    },
+    {
+      "id": "p2_hb_5",
+      "text": "你最大的成就是什么？",
+      "pinyin": "nǐ zuìdà de chéngjiù shì shénme?",
+      "engine": "hobby",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_tr_1",
+      "text": "你去过哪些国家？",
+      "pinyin": "nǐ qùguo nǎxiē guójiā?",
+      "engine": "travel",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_tr_2",
+      "text": "你最喜欢哪里？",
+      "pinyin": "nǐ zuì xǐhuan nǎlǐ?",
+      "engine": "travel",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_tr_3",
+      "text": "那个地方有什么好玩的？",
+      "pinyin": "nàge dìfang yǒu shénme hǎowán de?",
+      "engine": "travel",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_tr_4",
+      "text": "你觉得那次旅行怎么样？",
+      "pinyin": "nǐ juéde nà cì lǚxíng zěnmeyàng?",
+      "engine": "travel",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_tr_5",
+      "text": "我最难忘的是{PLACE}。",
+      "pinyin": "wǒ zuì nánwàng de shì {PLACE}.",
+      "engine": "travel",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "PLACE",
+          "source": "fillers.places_to_go"
+        }
+      ]
+    },
+    {
+      "id": "p2_pln_1",
+      "text": "你{TIME}有什么计划？",
+      "pinyin": "nǐ {TIME} yǒu shénme jìhuà?",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "TIME",
+          "source": "fillers.times"
+        }
+      ]
+    },
+    {
+      "id": "p2_pln_2",
+      "text": "我打算{ACTION}。",
+      "pinyin": "wǒ dǎsuàn {ACTION}.",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "ACTION",
+          "source": "fillers.actions"
+        }
+      ]
+    },
+    {
+      "id": "p2_pln_3",
+      "text": "我们什么时候见面？",
+      "pinyin": "wǒmen shénme shíhou jiànmiàn?",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_pln_4",
+      "text": "一起去{PLACE}吧！",
+      "pinyin": "yīqǐ qù {PLACE} ba!",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "PLACE",
+          "source": "fillers.places_to_go"
+        }
+      ]
+    },
+    {
+      "id": "p2_pln_5",
+      "text": "那我们{TIME}见。",
+      "pinyin": "nà wǒmen {TIME} jiàn.",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "TIME",
+          "source": "fillers.times"
+        }
+      ]
+    },
+    {
+      "id": "p2_op_1",
+      "text": "你觉得这个怎么样？",
+      "pinyin": "nǐ juéde zhège zěnmeyàng?",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_op_3",
+      "text": "我觉得挺不错的。",
+      "pinyin": "wǒ juéde tǐng búcuò de.",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": []
+    },
+    {
+      "id": "p2_op_4",
+      "text": "因为{REASON_POS}，所以我很喜欢。",
+      "pinyin": "yīnwèi {REASON_POS}, suǒyǐ wǒ hěn xǐhuan.",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "REASON_POS",
+          "source": "fillers.reasons_positive"
+        }
+      ]
+    },
+    {
+      "id": "p2_st_1",
+      "text": "昨天我{ACTION}了。",
+      "pinyin": "zuótiān wǒ {ACTION} le.",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "ACTION",
+          "source": "fillers.actions"
+        }
+      ]
+    },
+    {
+      "id": "p2_st_2",
+      "text": "后来我们又去{PLACE}。",
+      "pinyin": "hòulái wǒmen yòu qù {PLACE}.",
+      "engine": "life",
+      "difficulty": 3,
+      "slots": [
+        {
+          "name": "PLACE",
+          "source": "fillers.places_to_go"
+        }
+      ]
+    }
+  ]
+}

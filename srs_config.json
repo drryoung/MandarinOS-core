@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "engine": "SM-2",
+  "grading": {
+    "grade_scale": "0-3",
+    "meaning": {
+      "0": "fail",
+      "1": "hard",
+      "2": "good",
+      "3": "easy"
+    },
+    "grade_to_sm2_q": {
+      "0": 1,
+      "1": 3,
+      "2": 4,
+      "3": 5
+    }
+  },
+  "ef_bounds": {
+    "min": 1.3,
+    "max": 2.8
+  },
+  "item_types": {
+    "word": {
+      "start_ef": 2.5,
+      "lapse_ef_penalty": 0.2,
+      "learning_steps": [
+        "10m",
+        "1d"
+      ]
+    },
+    "frame": {
+      "start_ef": 2.6,
+      "lapse_ef_penalty": 0.15,
+      "learning_steps": [
+        "10m",
+        "1d",
+        "3d"
+      ]
+    },
+    "character": {
+      "start_ef": 2.4,
+      "lapse_ef_penalty": 0.25,
+      "learning_steps": [
+        "5m",
+        "1d"
+      ]
+    },
+    "radical": {
+      "start_ef": 2.4,
+      "lapse_ef_penalty": 0.25,
+      "learning_steps": [
+        "5m",
+        "1d"
+      ]
+    }
+  },
+  "sm2": {
+    "first_interval_days": 1,
+    "second_interval_days": 6,
+    "ease_update_formula": "EF' = EF + (0.1 - (5-q)*(0.08 + (5-q)*0.02))",
+    "review_success_threshold_q": 3
+  },
+  "session_policy": {
+    "default_session_minutes": 10,
+    "targets": {
+      "review_total_min": 12,
+      "review_total_max": 18,
+      "review_words_min": 8,
+      "review_words_max": 12,
+      "review_frames_min": 4,
+      "review_frames_max": 6,
+      "conversation_loop_turns_min": 3,
+      "conversation_loop_turns_max": 5,
+      "new_bundles_default": 2,
+      "visual_repairs_max": 2
+    },
+    "backlog_control": {
+      "due_reviews_ge_40": {
+        "new_bundles": 0,
+        "note": "Backlog protection: reviews + repairs only."
+      },
+      "due_reviews_ge_20_and_lt_40": {
+        "new_bundles": 1,
+        "note": "Controlled intake: allow 1 new bundle if review accuracy remains acceptable."
+      },
+      "due_reviews_lt_20": {
+        "new_bundles": 2,
+        "note": "Normal intake: allow 2 new bundles."
+      }
+    },
+    "session_structure": [
+      {
+        "name": "due_reviews",
+        "minutes": 6,
+        "policy": "Interleave 2 words then 1 frame."
+      },
+      {
+        "name": "conversation_loop",
+        "minutes": 2,
+        "policy": "Choose one engine loop per day; prioritize due/weak words inside frames."
+      },
+      {
+        "name": "new_bundles_and_learning_steps",
+        "minutes": 2,
+        "policy": "Introduce 1-2 new bundles depending on backlog; run immediate learning step."
+      }
+    ]
+  },
+  "bundling": {
+    "rule": "Never introduce a word without at least 2 linked frames that use it.",
+    "default_bundle": {
+      "items": [
+        {
+          "type": "word",
+          "count": 1
+        },
+        {
+          "type": "frame",
+          "count": 2
+        }
+      ]
+    },
+    "bundle_selection_priority": [
+      "high_frequency",
+      "high_frame_degree",
+      "engine_gap_bonus",
+      "radical_relatedness_bonus",
+      "low_confusability"
+    ]
+  },
+  "visual_triggers": {
+    "note": "Characters/radicals are support items; schedule only when triggered.",
+    "triggers": [
+      {
+        "id": "char_confusion_pair",
+        "when": "Repeated confusion between visually similar characters in a word (e.g., 计/记).",
+        "action": "Schedule 1 discrimination drill + 1 handwriting attempt + show decomposition."
+      },
+      {
+        "id": "two_lapses_seven_days",
+        "when": "Item has 2+ lapses in last 7 days.",
+        "action": "Schedule decomposition + handwriting mini-card, then re-run word in a frame."
+      },
+      {
+        "id": "homophone_overload",
+        "when": "Multiple words with same pinyin are confused.",
+        "action": "Schedule character contrast and semantic radical highlight."
+      }
+    ],
+    "caps": {
+      "visual_repairs_per_session_max": 2
+    }
+  },
+  "engine_rotation": {
+    "policy": "Rotate the conversation loop engine daily to reduce boredom and increase coverage.",
+    "default_week_cycle": [
+      "identity",
+      "place",
+      "family",
+      "work",
+      "hobby",
+      "travel",
+      "mixed_planning_story"
+    ]
+  },
+  "srs_state_schema": {
+    "fields": {
+      "state": "new|learning|review|relearning",
+      "step_index": "integer|null",
+      "reps": "integer",
+      "lapses": "integer",
+      "ease": "number",
+      "interval_days": "number",
+      "due_at": "timestamp|null",
+      "last_grade": "0-3|null",
+      "last_seen_at": "timestamp|null"
+    },
+    "defaults": {
+      "state": "new",
+      "step_index": 0,
+      "reps": 0,
+      "lapses": 0,
+      "ease": 2.5,
+      "interval_days": 0,
+      "due_at": null,
+      "last_grade": null,
+      "last_seen_at": null
+    }
+  }
+}

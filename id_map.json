@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "description": "Maps content-pack IDs to internal app IDs. Use when the app already has its own ID convention. If not needed, leave empty.",
+  "maps": {
+    "words": {
+      "w_ni": null,
+      "w_wo": null,
+      "w_shenme": null
+    },
+    "frames": {
+      "f_name_1": null,
+      "f_name_2": null,
+      "f_ask_you_name": null
+    },
+    "engines": {
+      "P1.identity": null,
+      "P1.place": null,
+      "P2.life": null
+    }
+  },
+  "rules": {
+    "default_strategy": "use_content_ids_if_internal_id_missing",
+    "conflict_strategy": "prefer_internal_id",
+    "validation": {
+      "require_unique_internal_ids": true,
+      "require_mapped_items_exist_in_content": true
+    }
+  },
+  "notes_for_app_ai": [
+    "If a map value is null, the app should use the content-pack ID as the internal ID.",
+    "To reconcile with an existing ID system, fill in values progressively during import.",
+    "This supports incremental migration without breaking previously stored SRS state."
+  ]
+}

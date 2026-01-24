@@ -1,0 +1,543 @@
+{
+  "schema_version": "1.0",
+  "phase": "P2",
+  "name": "Phase 2 Diagnostic",
+  "description": "Task-based diagnostic for Daily Life & Social Independence. Measures planning, opinion+reasons, story grammar, and deeper engine loops.",
+  "dependencies": [
+    "P1"
+  ],
+  "scoring": {
+    "grade_scale": "0-3",
+    "meaning": {
+      "0": "fail",
+      "1": "hard",
+      "2": "good",
+      "3": "easy"
+    },
+    "pass_threshold": {
+      "per_task_average_min": 2,
+      "overall_average_min": 2
+    },
+    "routing_thresholds": {
+      "engine_gap_if_avg_below": 2,
+      "skill_gap_if_avg_below": 2
+    }
+  },
+  "tasks": [
+    {
+      "id": "p2_t1_planning_core",
+      "name": "Planning a Meet-up",
+      "category": "skill_planning",
+      "engine": "life",
+      "prompts": [
+        {
+          "type": "production",
+          "text": "问：你周末有什么计划？"
+        },
+        {
+          "type": "production",
+          "text": "答：我打算___。"
+        },
+        {
+          "type": "production",
+          "text": "问：我们什么时候见面？"
+        },
+        {
+          "type": "production",
+          "text": "答：那我们___见。"
+        }
+      ],
+      "target_frames": [
+        "p2_pln_1",
+        "p2_pln_2",
+        "p2_pln_3",
+        "p2_pln_5"
+      ],
+      "target_words": [
+        "w_jihua",
+        "w_dasuan",
+        "w_shenme",
+        "w_shenmeshihou",
+        "w_jianmian",
+        "w_na",
+        "w_jian"
+      ],
+      "slots": [
+        {
+          "name": "TIME",
+          "source": "fillers.times"
+        },
+        {
+          "name": "ACTION",
+          "source": "fillers.actions"
+        }
+      ],
+      "rubric": [
+        {
+          "dimension": "production",
+          "note": "Produces the planning loop with correct patterns and time/action slots."
+        },
+        {
+          "dimension": "fluency",
+          "note": "Can respond with minimal hesitation; uses the turn-taking rhythm."
+        }
+      ]
+    },
+    {
+      "id": "p2_t2_opinion_reason",
+      "name": "Opinion + Reason (Because/So)",
+      "category": "skill_opinion_reason",
+      "engine": "life",
+      "prompts": [
+        {
+          "type": "production",
+          "text": "问：你觉得这个怎么样？"
+        },
+        {
+          "type": "production",
+          "text": "答：我觉得挺不错的。"
+        },
+        {
+          "type": "production",
+          "text": "追问：为什么？"
+        },
+        {
+          "type": "production",
+          "text": "答：因为___，所以我很喜欢。"
+        }
+      ],
+      "target_frames": [
+        "p2_op_1",
+        "p2_op_3",
+        "p2_op_4"
+      ],
+      "target_words": [
+        "w_juede",
+        "w_zenmeyang",
+        "w_ting",
+        "w_bucuode",
+        "w_weishenme",
+        "w_yinwei",
+        "w_suoyi",
+        "w_xihuan"
+      ],
+      "slots": [
+        {
+          "name": "REASON_POS",
+          "source": "fillers.reasons_positive"
+        }
+      ],
+      "rubric": [
+        {
+          "dimension": "grammar",
+          "note": "Uses 因为…所以… pattern correctly."
+        },
+        {
+          "dimension": "meaning",
+          "note": "Reason matches the opinion (not random filler)."
+        }
+      ]
+    },
+    {
+      "id": "p2_t3_story_two_steps",
+      "name": "Simple Story (Yesterday → Later)",
+      "category": "skill_story_grammar",
+      "engine": "life",
+      "prompts": [
+        {
+          "type": "production",
+          "text": "说两句小故事：昨天我___了。后来我们又去___。"
+        }
+      ],
+      "target_frames": [
+        "p2_st_1",
+        "p2_st_2"
+      ],
+      "target_words": [
+        "w_zuotian",
+        "w_le",
+        "w_houlai",
+        "w_you",
+        "w_qu"
+      ],
+      "slots": [
+        {
+          "name": "ACTION",
+          "source": "fillers.actions"
+        },
+        {
+          "name": "PLACE",
+          "source": "fillers.places_to_go"
+        }
+      ],
+      "rubric": [
+        {
+          "dimension": "sequence",
+          "note": "Maintains correct temporal order (yesterday → later) and uses 了 appropriately."
+        },
+        {
+          "dimension": "production",
+          "note": "Produces both sentences intelligibly."
+        }
+      ]
+    },
+    {
+      "id": "p2_t4_identity_depth",
+      "name": "Identity Depth (Name Meaning)",
+      "category": "engine_identity",
+      "engine": "identity",
+      "prompts": [
+        {
+          "type": "production",
+          "text": "说：我的名字有意思，因为___。"
+        },
+        {
+          "type": "production",
+          "text": "问：这个名字对你有什么意义？"
+        }
+      ],
+      "target_frames": [
+        "p2_id_1",
+        "p2_id_5"
+      ],
+      "target_words": [
+        "w_wode",
+        "w_mingzi",
+        "w_yiyisi",
+        "w_yinwei",
+        "w_yiyi",
+        "w_shenme"
+      ],
+      "slots": [
+        {
+          "name": "REASON_POS",
+          "source": "fillers.reasons_positive"
+        }
+      ],
+      "rubric": [
+        {
+          "dimension": "production",
+          "note": "Can produce the pattern smoothly and answer follow-up without collapsing into English."
+        },
+        {
+          "dimension": "comprehension",
+          "note": "Understands '意义' question and responds appropriately."
+        }
+      ]
+    },
+    {
+      "id": "p2_t5_place_food_fun",
+      "name": "Place Loop (Food & Fun)",
+      "category": "engine_place",
+      "engine": "place",
+      "prompts": [
+        {
+          "type": "production",
+          "text": "问：{CITY}有什么好吃的？"
+        },
+        {
+          "type": "production",
+          "text": "答：我觉得{CITY}___。"
+        },
+        {
+          "type": "production",
+          "text": "问：你平时喜欢去{PLACE}吗？"
+        }
+      ],
+      "target_frames": [
+        "p2_pl_2",
+        "p2_pl_5",
+        "p2_pl_3"
+      ],
+      "target_words": [
+        "w_haochi",
+        "w_juede",
+        "w_xihuan",
+        "w_ma"
+      ],
+      "slots": [
+        {
+          "name": "CITY",
+          "source": "fillers.cities"
+        },
+        {
+          "name": "PLACE",
+          "source": "fillers.places_to_go"
+        },
+        {
+          "name": "REASON_POS",
+          "source": "fillers.reasons_positive"
+        }
+      ],
+      "rubric": [
+        {
+          "dimension": "production",
+          "note": "Handles CITY/PLACE slots; maintains topic coherence."
+        },
+        {
+          "dimension": "fluency",
+          "note": "Keeps the conversation going with a bounce-back question."
+        }
+      ]
+    },
+    {
+      "id": "p2_t6_family_routine",
+      "name": "Family Routine",
+      "category": "engine_family",
+      "engine": "family",
+      "prompts": [
+        {
+          "type": "production",
+          "text": "问：你多久见一次家人？"
+        },
+        {
+          "type": "production",
+          "text": "答：我跟家人关系很好。"
+        },
+        {
+          "type": "production",
+          "text": "说：___最近很忙。"
+        }
+      ],
+      "target_frames": [
+        "p2_fa_2",
+        "p2_fa_3",
+        "p2_fa_4"
+      ],
+      "target_words": [
+        "w_duojiu",
+        "w_yici",
+        "w_jiaren",
+        "w_gen",
+        "w_guanxi",
+        "w_henhao",
+        "w_zuijin",
+        "w_mang"
+      ],
+      "slots": [
+        {
+          "name": "FAMILY_ROLE",
+          "source": "fillers.family_roles"
+        }
+      ],
+      "rubric": [
+        {
+          "dimension": "comprehension",
+          "note": "Understands frequency question; responds appropriately."
+        },
+        {
+          "dimension": "production",
+          "note": "Produces the family role sentence correctly."
+        }
+      ]
+    },
+    {
+      "id": "p2_t7_work_problem_solving",
+      "name": "Work Problem Solving",
+      "category": "engine_work",
+      "engine": "work",
+      "prompts": [
+        {
+          "type": "production",
+          "text": "问：你最近工作忙不忙？"
+        },
+        {
+          "type": "production",
+          "text": "答：我最近工作有点___。"
+        },
+        {
+          "type": "production",
+          "text": "问：遇到问题你会怎么解决？"
+        }
+      ],
+      "target_frames": [
+        "p2_wk_2",
+        "p2_wk_3",
+        "p2_wk_5"
+      ],
+      "target_words": [
+        "w_zuijin",
+        "w_gongzuo",
+        "w_mang",
+        "w_youdian",
+        "w_yudao",
+        "w_wenti",
+        "w_hui",
+        "w_zenme",
+        "w_jiejue"
+      ],
+      "slots": [
+        {
+          "name": "REASON_NEG",
+          "source": "fillers.reasons_negative"
+        }
+      ],
+      "rubric": [
+        {
+          "dimension": "production",
+          "note": "Uses 最近/有点/工作 patterns correctly; can attempt a solution response."
+        },
+        {
+          "dimension": "fluency",
+          "note": "Can sustain 3-turn loop without stopping."
+        }
+      ]
+    },
+    {
+      "id": "p2_t8_hobby_reason",
+      "name": "Hobby Explanation",
+      "category": "engine_hobby",
+      "engine": "hobby",
+      "prompts": [
+        {
+          "type": "production",
+          "text": "问：你为什么喜欢{HOBBY}？"
+        },
+        {
+          "type": "production",
+          "text": "答：因为___，所以我很喜欢。"
+        },
+        {
+          "type": "production",
+          "text": "问：你觉得{HOBBY}难不难？"
+        }
+      ],
+      "target_frames": [
+        "p2_hb_2",
+        "p2_op_4",
+        "p2_hb_4"
+      ],
+      "target_words": [
+        "w_weishenme",
+        "w_xihuan",
+        "w_yinwei",
+        "w_suoyi",
+        "w_nanbunan"
+      ],
+      "slots": [
+        {
+          "name": "HOBBY",
+          "source": "fillers.hobbies"
+        },
+        {
+          "name": "REASON_POS",
+          "source": "fillers.reasons_positive"
+        }
+      ],
+      "rubric": [
+        {
+          "dimension": "meaning",
+          "note": "Reason matches hobby; not random filler."
+        },
+        {
+          "dimension": "production",
+          "note": "Produces the hard/not-hard question and response patterns correctly."
+        }
+      ]
+    },
+    {
+      "id": "p2_t9_travel_preference_memory",
+      "name": "Travel Preferences & Memory",
+      "category": "engine_travel",
+      "engine": "travel",
+      "prompts": [
+        {
+          "type": "production",
+          "text": "问：你去过哪些国家？"
+        },
+        {
+          "type": "production",
+          "text": "问：你最喜欢哪里？"
+        },
+        {
+          "type": "production",
+          "text": "说：我最难忘的是___。"
+        }
+      ],
+      "target_frames": [
+        "p2_tr_1",
+        "p2_tr_2",
+        "p2_tr_5"
+      ],
+      "target_words": [
+        "w_quguo",
+        "w_naxie",
+        "w_guojia",
+        "w_zui",
+        "w_nanwange"
+      ],
+      "slots": [
+        {
+          "name": "PLACE",
+          "source": "fillers.places_to_go"
+        }
+      ],
+      "rubric": [
+        {
+          "dimension": "production",
+          "note": "Produces at least one coherent travel preference and memory statement."
+        },
+        {
+          "dimension": "fluency",
+          "note": "Can keep the loop going with a follow-up question."
+        }
+      ]
+    }
+  ],
+  "placement_logic": {
+    "note": "This diagnostic supports Phase 2 routing and Phase 3 readiness signals (future).",
+    "skill_routing": [
+      {
+        "category": "skill_planning",
+        "if_task_avg_below": 2,
+        "route_to_engine": "life"
+      },
+      {
+        "category": "skill_opinion_reason",
+        "if_task_avg_below": 2,
+        "route_to_engine": "life"
+      },
+      {
+        "category": "skill_story_grammar",
+        "if_task_avg_below": 2,
+        "route_to_engine": "life"
+      }
+    ],
+    "engine_routing": [
+      {
+        "category": "engine_identity",
+        "if_task_avg_below": 2,
+        "route_to_engine": "identity"
+      },
+      {
+        "category": "engine_place",
+        "if_task_avg_below": 2,
+        "route_to_engine": "place"
+      },
+      {
+        "category": "engine_family",
+        "if_task_avg_below": 2,
+        "route_to_engine": "family"
+      },
+      {
+        "category": "engine_work",
+        "if_task_avg_below": 2,
+        "route_to_engine": "work"
+      },
+      {
+        "category": "engine_hobby",
+        "if_task_avg_below": 2,
+        "route_to_engine": "hobby"
+      },
+      {
+        "category": "engine_travel",
+        "if_task_avg_below": 2,
+        "route_to_engine": "travel"
+      }
+    ],
+    "overall_pass": {
+      "if_overall_avg_at_least": 2,
+      "then": "Continue Phase 2 bundles normally (SM-2 backlog policy)."
+    }
+  }
+}

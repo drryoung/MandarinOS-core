@@ -1,0 +1,316 @@
+{
+  "schema_version": "1.0",
+  "name": "Word–Character Link Index",
+  "description": "Cross-index linking words to their component characters, and characters back to words. Enables word-first learning with character-level visual support and SRS routing.",
+  "conventions": {
+    "word_id": "Should match entries in p1_words.json and p2_words.json (or your internal word list).",
+    "character_id": "Should match entries in characters_1200.json (or your internal character list).",
+    "role": [
+      "semantic_core",
+      "phonetic_support",
+      "grammar_utility",
+      "classifier",
+      "proper_noun"
+    ],
+    "strength": "0.0–1.0, how important the character is for the word's meaning/recognition"
+  },
+  "links": [
+    {
+      "word_id": "w_wode",
+      "word_hanzi": "我的",
+      "characters": [
+        {
+          "character_id": "c_wo",
+          "hanzi": "我",
+          "role": "grammar_utility",
+          "strength": 0.8
+        },
+        {
+          "character_id": "c_de",
+          "hanzi": "的",
+          "role": "grammar_utility",
+          "strength": 0.9
+        }
+      ],
+      "notes": "Possessive construction. Useful for early fluency and high-frequency comprehension."
+    },
+    {
+      "word_id": "w_mingzi",
+      "word_hanzi": "名字",
+      "characters": [
+        {
+          "character_id": "c_ming",
+          "hanzi": "名",
+          "role": "semantic_core",
+          "strength": 0.8
+        },
+        {
+          "character_id": "c_zi",
+          "hanzi": "字",
+          "role": "semantic_core",
+          "strength": 0.7
+        }
+      ],
+      "notes": "Good candidate for radical+component teaching (名/字 are visually distinct and frequent)."
+    },
+    {
+      "word_id": "w_xihuan",
+      "word_hanzi": "喜欢",
+      "characters": [
+        {
+          "character_id": "c_xi",
+          "hanzi": "喜",
+          "role": "semantic_core",
+          "strength": 0.8
+        },
+        {
+          "character_id": "c_huan",
+          "hanzi": "欢",
+          "role": "semantic_core",
+          "strength": 0.8
+        }
+      ],
+      "notes": "High utility for conversation engines. Consider linking to emotion/heart components where relevant."
+    },
+    {
+      "word_id": "w_juede",
+      "word_hanzi": "觉得",
+      "characters": [
+        {
+          "character_id": "c_jue",
+          "hanzi": "觉",
+          "role": "semantic_core",
+          "strength": 0.7
+        },
+        {
+          "character_id": "c_de2",
+          "hanzi": "得",
+          "role": "grammar_utility",
+          "strength": 0.6
+        }
+      ],
+      "notes": "Word-level fluency is more important than per-character meaning for early phases."
+    },
+    {
+      "word_id": "w_weishenme",
+      "word_hanzi": "为什么",
+      "characters": [
+        {
+          "character_id": "c_wei",
+          "hanzi": "为",
+          "role": "grammar_utility",
+          "strength": 0.6
+        },
+        {
+          "character_id": "c_shen",
+          "hanzi": "什",
+          "role": "grammar_utility",
+          "strength": 0.5
+        },
+        {
+          "character_id": "c_me",
+          "hanzi": "么",
+          "role": "grammar_utility",
+          "strength": 0.5
+        }
+      ],
+      "notes": "Treat as a chunk. Character-level decomposition is optional, mainly for handwriting learners."
+    },
+    {
+      "word_id": "w_yinwei",
+      "word_hanzi": "因为",
+      "characters": [
+        {
+          "character_id": "c_yin",
+          "hanzi": "因",
+          "role": "semantic_core",
+          "strength": 0.7
+        },
+        {
+          "character_id": "c_wei2",
+          "hanzi": "为",
+          "role": "grammar_utility",
+          "strength": 0.6
+        }
+      ],
+      "notes": "Pairs with 所以; helpful for reason expansion and meaningful conversation."
+    },
+    {
+      "word_id": "w_suoyi",
+      "word_hanzi": "所以",
+      "characters": [
+        {
+          "character_id": "c_suo",
+          "hanzi": "所",
+          "role": "grammar_utility",
+          "strength": 0.6
+        },
+        {
+          "character_id": "c_yi2",
+          "hanzi": "以",
+          "role": "grammar_utility",
+          "strength": 0.6
+        }
+      ],
+      "notes": "Treat as a chunk for speed; later you can deepen with character origins."
+    },
+    {
+      "word_id": "w_dasuan",
+      "word_hanzi": "打算",
+      "characters": [
+        {
+          "character_id": "c_da",
+          "hanzi": "打",
+          "role": "semantic_core",
+          "strength": 0.6
+        },
+        {
+          "character_id": "c_suan",
+          "hanzi": "算",
+          "role": "semantic_core",
+          "strength": 0.6
+        }
+      ],
+      "notes": "Planning engine anchor word; can connect 打 (hand radical 扌) visually."
+    },
+    {
+      "word_id": "w_jihua",
+      "word_hanzi": "计划",
+      "characters": [
+        {
+          "character_id": "c_ji",
+          "hanzi": "计",
+          "role": "semantic_core",
+          "strength": 0.6
+        },
+        {
+          "character_id": "c_hua",
+          "hanzi": "划",
+          "role": "semantic_core",
+          "strength": 0.6
+        }
+      ],
+      "notes": "Planning vocabulary; good for radical teaching (讠 in 计; 刂 in 划)."
+    },
+    {
+      "word_id": "w_gongzuo",
+      "word_hanzi": "工作",
+      "characters": [
+        {
+          "character_id": "c_gong",
+          "hanzi": "工",
+          "role": "semantic_core",
+          "strength": 0.7
+        },
+        {
+          "character_id": "c_zuo",
+          "hanzi": "作",
+          "role": "semantic_core",
+          "strength": 0.7
+        }
+      ],
+      "notes": "High-frequency. Consider early handwriting drill for 工 and 亻 radical in 作."
+    },
+    {
+      "word_id": "w_zuijin",
+      "word_hanzi": "最近",
+      "characters": [
+        {
+          "character_id": "c_zui",
+          "hanzi": "最",
+          "role": "semantic_core",
+          "strength": 0.5
+        },
+        {
+          "character_id": "c_jin",
+          "hanzi": "近",
+          "role": "semantic_core",
+          "strength": 0.6
+        }
+      ],
+      "notes": "Time adverb. 近 links to movement radical 辶 for visual learning."
+    },
+    {
+      "word_id": "w_jianmian",
+      "word_hanzi": "见面",
+      "characters": [
+        {
+          "character_id": "c_jian",
+          "hanzi": "见",
+          "role": "semantic_core",
+          "strength": 0.7
+        },
+        {
+          "character_id": "c_mian",
+          "hanzi": "面",
+          "role": "semantic_core",
+          "strength": 0.7
+        }
+      ],
+      "notes": "Useful bridge between social planning and travel engines."
+    },
+    {
+      "word_id": "w_quguo",
+      "word_hanzi": "去过",
+      "characters": [
+        {
+          "character_id": "c_qu",
+          "hanzi": "去",
+          "role": "semantic_core",
+          "strength": 0.7
+        },
+        {
+          "character_id": "c_guo",
+          "hanzi": "过",
+          "role": "grammar_utility",
+          "strength": 0.7
+        }
+      ],
+      "notes": "Experience marker; character 过 contains movement radical 辶 (good visual cue)."
+    },
+    {
+      "word_id": "w_hui",
+      "word_hanzi": "会",
+      "characters": [
+        {
+          "character_id": "c_hui",
+          "hanzi": "会",
+          "role": "grammar_utility",
+          "strength": 0.9
+        }
+      ],
+      "notes": "Auxiliary 'can/will' and noun 'meeting'. Character-level origin note can be shown as optional enrichment."
+    }
+  ],
+  "reverse_index": {
+    "c_wo": {
+      "hanzi": "我",
+      "word_ids": [
+        "w_wode"
+      ]
+    },
+    "c_ni": {
+      "hanzi": "你",
+      "word_ids": [
+        "w_nihao"
+      ]
+    },
+    "c_hui": {
+      "hanzi": "会",
+      "word_ids": [
+        "w_hui"
+      ]
+    }
+  },
+  "routing_rules": {
+    "default": "word_first",
+    "character_review_triggers": [
+      "If a word is repeatedly failed and a specific character within it is repeatedly misrecognized, schedule that character as a support item.",
+      "If handwriting mode is enabled, schedule component/radical drills for the most errorful character components."
+    ],
+    "srs_linkage": {
+      "word_mastery_unlocks_character_detail": true,
+      "character_support_does_not_block_word_progression": true
+    }
+  }
+}

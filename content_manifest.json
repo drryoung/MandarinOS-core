@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "product": "MandarinOS",
+  "description": "Conversation-first Mandarin operating system with word-centric learning, sentence frames, conversation engines, diagnostics, and SM-2 spaced repetition.",
+  "phases": {
+    "P1": {
+      "name": "Survival Conversation Engine",
+      "description": "Bootstrap conversational survival: identity, place, family, work, hobby, travel.",
+      "targets": {
+        "words": 200,
+        "characters": 300
+      },
+      "files": {
+        "words": "p1_words.json",
+        "frames": "p1_frames.json",
+        "fillers": "p1_fillers.json",
+        "engines": "p1_engines.json",
+        "diagnostic": "diagnostic_p1.json"
+      }
+    },
+    "P2": {
+      "name": "Daily Life & Social Independence",
+      "description": "Planning, daily life, socialising, opinions, stories, problem solving.",
+      "targets": {
+        "words": 500,
+        "characters": 900
+      },
+      "dependencies": [
+        "P1"
+      ],
+      "files": {
+        "words": "p2_words.json",
+        "frames": "p2_frames.json",
+        "fillers": "p2_fillers.json",
+        "engines": "p2_engines.json",
+        "diagnostic": "diagnostic_p2.json"
+      }
+    }
+  },
+  "srs": {
+    "engine": "SM-2",
+    "description": "Anki-style spaced repetition with learning steps, lapse handling, and 10-minute session policy.",
+    "config": "srs_config.json"
+  },
+  "characters": {
+    "description": "Character dataset with frequency, radicals, components, etymology, and handwriting support.",
+    "files": {
+      "dataset": "characters_1200.json",
+      "radicals": "radicals_core.json"
+    }
+  },
+  "integration": {
+    "id_mapping": "id_map.json",
+    "notes": "Optional mapping file if internal app IDs differ from content pack IDs."
+  }
+}

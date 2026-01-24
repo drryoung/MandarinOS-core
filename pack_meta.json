@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "pack_id": "mandarinos_core_v1",
+  "pack_name": "MandarinOS Core",
+  "language": "zh-Hans",
+  "region_hint": "CN",
+  "version": "1.0.0",
+  "created_at": "2026-01-13",
+  "author": "REDACTED",
+  "description": "Conversation-first Mandarin content pack organized by frequency, relatedness (radicals/components/word families), and conversation engines. Includes diagnostics and SM-2 spaced repetition configuration.",
+  "entrypoint": "content_manifest.json",
+  "requirements": {
+    "encoding": "UTF-8",
+    "json_strict": true,
+    "required_files": [
+      "content_manifest.json",
+      "srs_config.json",
+      "p1_engines.json",
+      "p1_fillers.json",
+      "p1_frames.json",
+      "p1_words.json",
+      "diagnostic_p1.json",
+      "p2_engines.json",
+      "p2_fillers.json",
+      "p2_frames.json",
+      "p2_words.json",
+      "diagnostic_p2.json"
+    ],
+    "optional_files": [
+      "id_map.json",
+      "characters_1200.json",
+      "radicals_core.json"
+    ]
+  },
+  "compatibility": {
+    "min_app_version": "0.1.0",
+    "migration_supported_from": [
+      "0.9.x",
+      "1.0.0"
+    ]
+  },
+  "integrity": {
+    "checksums": {
+      "content_manifest.json": null,
+      "srs_config.json": null,
+      "p1_engines.json": null,
+      "p1_fillers.json": null,
+      "p1_frames.json": null,
+      "p1_words.json": null,
+      "diagnostic_p1.json": null,
+      "p2_engines.json": null,
+      "p2_fillers.json": null,
+      "p2_frames.json": null,
+      "p2_words.json": null,
+      "diagnostic_p2.json": null,
+      "id_map.json": null,
+      "characters_1200.json": null,
+      "radicals_core.json": null
+    },
+    "checksum_type": "sha256",
+    "notes": "Populate checksums during your build/export step if you want tamper detection."
+  },
+  "content_stats": {
+    "phase_targets": {
+      "P1_target_words": 200,
+      "P2_target_words": 500
+    },
+    "includes": [
+      "conversation_engines",
+      "sentence_frames",
+      "slot_fillers",
+      "diagnostics",
+      "sm2_config"
+    ]
+  },
+  "licensing": {
+    "license": "proprietary",
+    "notes": "Replace with a license identifier if you plan to open-source any portion."
+  }
+}

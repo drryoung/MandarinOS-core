@@ -1,0 +1,151 @@
+{
+  "schema_version": "1.0",
+  "name": "Runtime Index Definitions",
+  "description": "Derived indexes built after content import. Used by the conversation engine, diagnostic router, and SM-2 scheduler.",
+  "indexes": {
+    "word_to_frames": {
+      "key": "word_id",
+      "value": "frame_ids[]",
+      "source": [
+        {
+          "file": "p1_words.json",
+          "path": "words[*].frame_ids[*]"
+        },
+        {
+          "file": "p2_words.json",
+          "path": "words[*].frame_ids[*]"
+        }
+      ],
+      "notes": "Which frames introduce or practice a given word."
+    },
+    "frame_to_words": {
+      "key": "frame_id",
+      "value": "word_ids[]",
+      "source": [
+        {
+          "file": "p1_words.json",
+          "path": "words[*].frame_ids[*]"
+        },
+        {
+          "file": "p2_words.json",
+          "path": "words[*].frame_ids[*]"
+        }
+      ],
+      "reverse_of": "word_to_frames",
+      "notes": "Which words are embedded in each frame."
+    },
+    "engine_to_frames": {
+      "key": "engine_id",
+      "value": "frame_ids[]",
+      "source": [
+        {
+          "file": "p1_frames.json",
+          "path": "frames[*].engine"
+        },
+        {
+          "file": "p2_frames.json",
+          "path": "frames[*].engine"
+        }
+      ],
+      "notes": "Used for engine routing and daily session planning."
+    },
+    "phase_to_engines": {
+      "key": "phase_id",
+      "value": "engine_ids[]",
+      "source": [
+        {
+          "file": "p1_engines.json",
+          "path": "engines.*"
+        },
+        {
+          "file": "p2_engines.json",
+          "path": "engines.*"
+        }
+      ],
+      "notes": "Used for phase rotation policies."
+    },
+    "word_to_characters": {
+      "key": "word_id",
+      "value": "character_ids[]",
+      "source": [
+        {
+          "file": "word_character_links.json",
+          "path": "links[*].characters[*].character_id"
+        }
+      ],
+      "optional": true,
+      "notes": "Used for visual support and handwriting routing."
+    },
+    "character_to_words": {
+      "key": "character_id",
+      "value": "word_ids[]",
+      "source": [
+        {
+          "file": "word_character_links.json",
+          "path": "reverse_index.*.word_ids[*]"
+        }
+      ],
+      "optional": true,
+      "notes": "Used to schedule character review based on word failures."
+    },
+    "radical_to_characters": {
+      "key": "radical_id",
+      "value": "character_ids[]",
+      "source": [
+        {
+          "file": "characters_1200.json",
+          "path": "characters[*].primary_radical.id"
+        }
+      ],
+      "optional": true,
+      "notes": "Used by radical drill engine and visual clustering."
+    },
+    "confusion_sets": {
+      "key": "character_id",
+      "value": "confusable_character_ids[]",
+      "source": [
+        {
+          "file": "characters_1200.json",
+          "path": "characters[*].confusables[*].hanzi"
+        }
+      ],
+      "optional": true,
+      "notes": "Used for visual discrimination training."
+    },
+    "engine_word_priority": {
+      "key": "engine_id",
+      "value": "word_ids[]",
+      "derived_from": [
+        "word_to_frames",
+        "engine_to_frames"
+      ],
+      "notes": "Used to select the most relevant vocabulary per engine loop."
+    }
+  },
+  "build_rules": {
+    "build_on_import": true,
+    "persist_indexes": true,
+    "rebuild_on_pack_update": true,
+    "allow_lazy_build": false
+  },
+  "validation": {
+    "require_non_empty": [
+      "engine_to_frames",
+      "phase_to_engines"
+    ],
+    "allow_empty_if_optional_missing": [
+      "word_to_characters",
+      "character_to_words",
+      "radical_to_characters",
+      "confusion_sets"
+    ]
+  },
+  "performance_hints": {
+    "index_storage": "key_value_store",
+    "recommended_cache": [
+      "engine_to_frames",
+      "engine_word_priority"
+    ],
+    "notes": "Engine routing and SRS selection hit these indexes most often."
+  }
+}

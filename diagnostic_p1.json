@@ -1,0 +1,628 @@
+{
+  "schema_version": "1.0",
+  "phase_id": "P1",
+  "name": "Phase 1 Survival Diagnostic",
+  "description": "Conversation-based placement for survival Mandarin.",
+  "welcome_prompt": {
+    "en": "We'll practice a short conversation about meeting someone new — greetings, your name, where you're from, and where you live."
+  },
+  "tasks": [
+    {
+      "id": "p1_greeting",
+      "type": "greeting_recognition",
+      "mode": "tap_choice",
+      "prompt": {
+        "zh": "你好！"
+      },
+      "hints": {
+        "layer1": {
+          "en": "This is a greeting meaning 'Hello'"
+        },
+        "layer2": {
+          "pinyin": "nǐ hǎo",
+          "structure": "你 = you, 好 = good"
+        },
+        "layer3": {
+          "full": "你好 = Hello"
+        }
+      },
+      "target_frames": [
+        "frame.greeting.hello"
+      ],
+      "target_words": [
+        "word.你好"
+      ],
+      "choices": [
+        {
+          "id": "a",
+          "text_zh": "你好",
+          "hints": {
+            "layer1": "Hello",
+            "layer2": "nǐ hǎo",
+            "layer3": "你好 = Hello"
+          },
+          "is_correct": true
+        },
+        {
+          "id": "b",
+          "text_zh": "谢谢",
+          "hints": {
+            "layer1": "Thank you",
+            "layer2": "xiè xiè",
+            "layer3": "谢谢 = Thank you"
+          }
+        },
+        {
+          "id": "c",
+          "text_zh": "再见",
+          "hints": {
+            "layer1": "Goodbye",
+            "layer2": "zài jiàn",
+            "layer3": "再见 = Goodbye"
+          }
+        },
+        {
+          "id": "d",
+          "text_zh": "对不起",
+          "hints": {
+            "layer1": "Sorry",
+            "layer2": "duì bù qǐ",
+            "layer3": "对不起 = Sorry"
+          }
+        }
+      ],
+      "feedback": {
+        "correct": {
+          "zh": "对！你好！很高兴认识你 🙂"
+        },
+        "incorrect": {
+          "zh": "没关系，我们再试一次 🙂"
+        }
+      },
+      "signals": [
+        "word_coverage",
+        "comprehension",
+        "confidence"
+      ],
+      "scoring": {
+        "pass_threshold": 0.8,
+        "partial_threshold": 0.5,
+        "metrics": [
+          {
+            "id": "accuracy",
+            "type": "accuracy",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "p1_name",
+      "type": "frame_production",
+      "mode": "typed_text",
+      "prompt": {
+        "zh": "你叫什么名字？"
+      },
+      "hints": {
+        "layer1": {
+          "en": "Someone is asking your name"
+        },
+        "layer2": {
+          "pinyin": "nǐ jiào shénme míngzi?",
+          "structure": "你 = you, 叫 = called, 什么 = what, 名字 = name"
+        },
+        "layer3": {
+          "full": "What is your name? Answer: 我叫... (wǒ jiào...)"
+        }
+      },
+      "target_frames": [
+        "frame.identity.name"
+      ],
+      "target_words": [
+        "word.我",
+        "word.叫",
+        "word.名字"
+      ],
+      "choices": [
+        {
+          "id": "a",
+          "text_zh": "我叫...",
+          "hints": {
+            "layer1": "My name is...",
+            "layer2": "wǒ jiào...",
+            "layer3": "我叫... = My name is..."
+          },
+          "is_correct": true
+        },
+        {
+          "id": "b",
+          "text_zh": "我是...",
+          "hints": {
+            "layer1": "I am...",
+            "layer2": "wǒ shì...",
+            "layer3": "我是... = I am..."
+          },
+          "is_correct": true
+        },
+        {
+          "id": "c",
+          "text_zh": "你好",
+          "hints": {
+            "layer1": "Hello",
+            "layer2": "nǐ hǎo",
+            "layer3": "你好 = Hello"
+          }
+        },
+        {
+          "id": "d",
+          "text_zh": "谢谢",
+          "hints": {
+            "layer1": "Thank you",
+            "layer2": "xiè xiè",
+            "layer3": "谢谢 = Thank you"
+          }
+        }
+      ],
+      "expected": {
+        "accepted_patterns": [
+          "^我叫.+",
+          "^我是.+"
+        ],
+        "semantic_intents": [
+          "name_introduce"
+        ]
+      },
+      "feedback": {
+        "correct": {
+          "zh": "很好！很高兴认识你 🙂"
+        },
+        "incorrect": {
+          "zh": "没关系！你可以说：我叫..."
+        }
+      },
+      "signals": [
+        "frame_control",
+        "production"
+      ],
+      "scoring": {
+        "pass_threshold": 0.8,
+        "partial_threshold": 0.5,
+        "metrics": [
+          {
+            "id": "production",
+            "type": "production_correctness",
+            "weight": 0.7
+          },
+          {
+            "id": "latency",
+            "type": "latency_seconds",
+            "weight": 0.3,
+            "params": {
+              "max_ok_seconds": 10
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "p1_nationality",
+      "type": "reply_selection",
+      "mode": "tap_choice",
+      "prompt": {
+        "zh": "你是哪国人？"
+      },
+      "hints": {
+        "layer1": {
+          "en": "Someone is asking about your nationality"
+        },
+        "layer2": {
+          "pinyin": "nǐ shì nǎ guó rén?",
+          "structure": "哪国 = which country, 人 = person"
+        },
+        "layer3": {
+          "full": "What nationality are you?"
+        }
+      },
+      "target_frames": [
+        "frame.identity.nationality"
+      ],
+      "target_words": [
+        "word.是",
+        "word.哪",
+        "word.国",
+        "word.人"
+      ],
+      "choices": [
+        {
+          "id": "a",
+          "text_zh": "我是美国人",
+          "hints": {
+            "layer1": "I am American",
+            "layer2": "wǒ shì měiguó rén",
+            "layer3": "我是美国人 = I am American"
+          },
+          "is_correct": true
+        },
+        {
+          "id": "b",
+          "text_zh": "我是老师",
+          "hints": {
+            "layer1": "I am a teacher",
+            "layer2": "wǒ shì lǎoshī",
+            "layer3": "我是老师 = I am a teacher"
+          }
+        },
+        {
+          "id": "c",
+          "text_zh": "我喜欢咖啡",
+          "hints": {
+            "layer1": "I like coffee",
+            "layer2": "wǒ xǐhuān kāfēi",
+            "layer3": "我喜欢咖啡 = I like coffee"
+          }
+        },
+        {
+          "id": "d",
+          "text_zh": "我住在北京",
+          "hints": {
+            "layer1": "I live in Beijing",
+            "layer2": "wǒ zhù zài běijīng",
+            "layer3": "我住在北京 = I live in Beijing"
+          }
+        }
+      ],
+      "feedback": {
+        "correct": {
+          "zh": "很好！🙂"
+        },
+        "incorrect": {
+          "zh": "没关系，这个问题是问你的国籍 🙂"
+        }
+      },
+      "signals": [
+        "comprehension",
+        "frame_control"
+      ],
+      "scoring": {
+        "pass_threshold": 0.8,
+        "partial_threshold": 0.5,
+        "metrics": [
+          {
+            "id": "accuracy",
+            "type": "accuracy",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "p1_location",
+      "type": "frame_production",
+      "mode": "typed_text",
+      "prompt": {
+        "zh": "你现在住在哪里？"
+      },
+      "hints": {
+        "layer1": {
+          "en": "Someone is asking where you live"
+        },
+        "layer2": {
+          "pinyin": "nǐ xiànzài zhù zài nǎlǐ?",
+          "structure": "现在 = now, 住 = live, 哪里 = where"
+        },
+        "layer3": {
+          "full": "Where do you live now? Answer: 我住在... (wǒ zhù zài...)"
+        }
+      },
+      "target_frames": [
+        "frame.location.live"
+      ],
+      "target_words": [
+        "word.住",
+        "word.在",
+        "word.哪里",
+        "word.现在"
+      ],
+      "choices": [
+        {
+          "id": "a",
+          "text_zh": "我住在纽约",
+          "hints": {
+            "layer1": "I live in New York",
+            "layer2": "wǒ zhù zài niǔyuē",
+            "layer3": "我住在纽约 = I live in New York"
+          },
+          "is_correct": true
+        },
+        {
+          "id": "b",
+          "text_zh": "我住在北京",
+          "hints": {
+            "layer1": "I live in Beijing",
+            "layer2": "wǒ zhù zài běijīng",
+            "layer3": "我住在北京 = I live in Beijing"
+          },
+          "is_correct": true
+        },
+        {
+          "id": "c",
+          "text_zh": "我是学生",
+          "hints": {
+            "layer1": "I am a student",
+            "layer2": "wǒ shì xuéshēng",
+            "layer3": "我是学生 = I am a student"
+          }
+        },
+        {
+          "id": "d",
+          "text_zh": "我喜欢这里",
+          "hints": {
+            "layer1": "I like it here",
+            "layer2": "wǒ xǐhuān zhèlǐ",
+            "layer3": "我喜欢这里 = I like it here"
+          }
+        }
+      ],
+      "expected": {
+        "accepted_patterns": [
+          "^我住在.+",
+          "^我在.+住"
+        ],
+        "semantic_intents": [
+          "location_state"
+        ]
+      },
+      "feedback": {
+        "correct": {
+          "zh": "好的！🙂"
+        },
+        "incorrect": {
+          "zh": "没关系！你可以说：我住在..."
+        }
+      },
+      "signals": [
+        "frame_control",
+        "production"
+      ],
+      "scoring": {
+        "pass_threshold": 0.8,
+        "partial_threshold": 0.5,
+        "metrics": [
+          {
+            "id": "production",
+            "type": "production_correctness",
+            "weight": 0.7
+          },
+          {
+            "id": "latency",
+            "type": "latency_seconds",
+            "weight": 0.3,
+            "params": {
+              "max_ok_seconds": 12
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "p1_yesno",
+      "type": "frame_comprehension",
+      "mode": "tap_choice",
+      "prompt": {
+        "zh": "你现在住在北京吗？"
+      },
+      "hints": {
+        "layer1": {
+          "en": "Someone is asking if you live in Beijing"
+        },
+        "layer2": {
+          "pinyin": "nǐ xiànzài zhù zài běijīng ma?",
+          "structure": "吗 = question marker (yes/no)"
+        },
+        "layer3": {
+          "full": "Do you live in Beijing now?"
+        }
+      },
+      "target_frames": [
+        "frame.location.live_question"
+      ],
+      "target_words": [
+        "word.住",
+        "word.在",
+        "word.北京",
+        "word.吗"
+      ],
+      "choices": [
+        {
+          "id": "yes",
+          "text_zh": "是的",
+          "hints": {
+            "layer1": "Yes",
+            "layer2": "shì de",
+            "layer3": "是的 = Yes"
+          },
+          "is_correct": true
+        },
+        {
+          "id": "no",
+          "text_zh": "不是",
+          "hints": {
+            "layer1": "No",
+            "layer2": "bù shì",
+            "layer3": "不是 = No"
+          },
+          "is_correct": true
+        },
+        {
+          "id": "idk",
+          "text_zh": "我不知道",
+          "hints": {
+            "layer1": "I don't know",
+            "layer2": "wǒ bù zhīdào",
+            "layer3": "我不知道 = I don't know"
+          }
+        },
+        {
+          "id": "thanks",
+          "text_zh": "谢谢",
+          "hints": {
+            "layer1": "Thank you",
+            "layer2": "xiè xiè",
+            "layer3": "谢谢 = Thank you"
+          }
+        }
+      ],
+      "feedback": {
+        "correct": {
+          "zh": "明白了！🙂"
+        },
+        "incorrect": {
+          "zh": "没关系，这是一个是/不是的问题 🙂"
+        }
+      },
+      "signals": [
+        "comprehension"
+      ],
+      "scoring": {
+        "pass_threshold": 0.8,
+        "partial_threshold": 0.5,
+        "metrics": [
+          {
+            "id": "accuracy",
+            "type": "accuracy",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "p1_opinion",
+      "type": "frame_production",
+      "mode": "typed_text",
+      "prompt": {
+        "zh": "你喜欢现在住的地方吗？"
+      },
+      "hints": {
+        "layer1": {
+          "en": "Someone is asking if you like where you live"
+        },
+        "layer2": {
+          "pinyin": "nǐ xǐhuān xiànzài zhù de dìfāng ma?",
+          "structure": "喜欢 = like, 地方 = place"
+        },
+        "layer3": {
+          "full": "Do you like where you live? Answer: 喜欢 (yes) or 不喜欢 (no)"
+        }
+      },
+      "target_frames": [
+        "frame.opinion.like"
+      ],
+      "target_words": [
+        "word.喜欢",
+        "word.地方"
+      ],
+      "choices": [
+        {
+          "id": "a",
+          "text_zh": "喜欢",
+          "hints": {
+            "layer1": "Yes, I like it",
+            "layer2": "xǐhuān",
+            "layer3": "喜欢 = Like"
+          },
+          "is_correct": true
+        },
+        {
+          "id": "b",
+          "text_zh": "不喜欢",
+          "hints": {
+            "layer1": "No, I don't like it",
+            "layer2": "bù xǐhuān",
+            "layer3": "不喜欢 = Don't like"
+          },
+          "is_correct": true
+        },
+        {
+          "id": "c",
+          "text_zh": "还可以",
+          "hints": {
+            "layer1": "It's okay",
+            "layer2": "hái kěyǐ",
+            "layer3": "还可以 = It's okay"
+          },
+          "is_correct": true
+        },
+        {
+          "id": "d",
+          "text_zh": "谢谢",
+          "hints": {
+            "layer1": "Thank you",
+            "layer2": "xiè xiè",
+            "layer3": "谢谢 = Thank you"
+          }
+        }
+      ],
+      "expected": {
+        "accepted_patterns": [
+          "喜欢",
+          "不喜欢",
+          "还可以",
+          "很喜欢"
+        ],
+        "semantic_intents": [
+          "opinion_express"
+        ]
+      },
+      "feedback": {
+        "correct": {
+          "zh": "很好！聊得很开心 🙂"
+        },
+        "incorrect": {
+          "zh": "没关系！你可以说：喜欢 或 不喜欢"
+        }
+      },
+      "signals": [
+        "production",
+        "frame_control",
+        "confidence"
+      ],
+      "scoring": {
+        "pass_threshold": 0.7,
+        "partial_threshold": 0.4,
+        "metrics": [
+          {
+            "id": "production",
+            "type": "production_correctness",
+            "weight": 0.6
+          },
+          {
+            "id": "latency",
+            "type": "latency_seconds",
+            "weight": 0.2,
+            "params": {
+              "max_ok_seconds": 15
+            }
+          },
+          {
+            "id": "comprehension",
+            "type": "comprehension",
+            "weight": 0.2
+          }
+        ]
+      }
+    }
+  ],
+  "placement_rules": {
+    "phase_thresholds": [
+      {
+        "phase_id": "P1",
+        "min_score": 0.4
+      },
+      {
+        "phase_id": "P2",
+        "min_score": 0.85
+      }
+    ],
+    "engine_selection": "lowest_gap_first"
+  }
+}

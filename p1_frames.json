@@ -1,0 +1,304 @@
+{
+  "schema_version": "1.0",
+  "phase": "P1",
+  "name": "Survival Sentence Frames",
+  "description": "Recombinable P1 sentence frames for survival conversation. Uses slot fillers from p1_fillers.json.",
+  "frames": [
+    {
+      "id": "f_name_1",
+      "text": "你好！",
+      "pinyin": "nǐ hǎo!",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_name_1_reply",
+      "text": "你好！",
+      "pinyin": "nǐ hǎo!",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "user"
+    },
+    {
+      "id": "f_ask_you_name",
+      "text": "你叫什么名字？",
+      "pinyin": "nǐ jiào shénme míngzi?",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_name_2",
+      "text": "我叫{NAME}。",
+      "pinyin": "wǒ jiào {NAME}.",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [
+        {
+          "name": "NAME",
+          "source": "fillers.names"
+        }
+      ],
+      "speaker": "user"
+    },
+    {
+      "id": "f_you_ne",
+      "text": "你呢？",
+      "pinyin": "nǐ ne?",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "user"
+    },
+    {
+      "id": "f_partner_name",
+      "text": "我叫李明。",
+      "pinyin": "wǒ jiào Lǐ Míng.",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_thanks",
+      "text": "谢谢！",
+      "pinyin": "xièxie!",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "user"
+    },
+    {
+      "id": "f_no_problem",
+      "text": "不客气。",
+      "pinyin": "bú kèqi.",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_from_where",
+      "text": "你是哪里人？",
+      "pinyin": "nǐ shì nǎlǐ rén?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_i_from_city",
+      "text": "我是{CITY}人。",
+      "pinyin": "wǒ shì {CITY} rén.",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [
+        {
+          "name": "CITY",
+          "source": "fillers.cities"
+        }
+      ],
+      "speaker": "user"
+    },
+    {
+      "id": "f_live_where",
+      "text": "你现在住哪里？",
+      "pinyin": "nǐ xiànzài zhù nǎlǐ?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_live_in_city",
+      "text": "我现在住在{CITY}。",
+      "pinyin": "wǒ xiànzài zhù zài {CITY}.",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [
+        {
+          "name": "CITY",
+          "source": "fillers.cities"
+        }
+      ],
+      "speaker": "user"
+    },
+    {
+      "id": "f_have_family",
+      "text": "你有家人吗？",
+      "pinyin": "nǐ yǒu jiārén ma?",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_yes_have_family",
+      "text": "有，我有家人。",
+      "pinyin": "yǒu, wǒ yǒu jiārén.",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user"
+    },
+    {
+      "id": "f_have_siblings",
+      "text": "你有兄弟姐妹吗？",
+      "pinyin": "nǐ yǒu xiōngdì jiěmèi ma?",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_have_brother",
+      "text": "我有哥哥。",
+      "pinyin": "wǒ yǒu gēge.",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user"
+    },
+    {
+      "id": "f_have_sister",
+      "text": "我有姐姐。",
+      "pinyin": "wǒ yǒu jiějie.",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user"
+    },
+    {
+      "id": "f_what_work",
+      "text": "你做什么工作？",
+      "pinyin": "nǐ zuò shénme gōngzuò?",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_i_am_job",
+      "text": "我是{JOB}。",
+      "pinyin": "wǒ shì {JOB}.",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [
+        {
+          "name": "JOB",
+          "source": "fillers.jobs"
+        }
+      ],
+      "speaker": "user"
+    },
+    {
+      "id": "f_like_work",
+      "text": "你喜欢你的工作吗？",
+      "pinyin": "nǐ xǐhuan nǐ de gōngzuò ma?",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_like_work_yes",
+      "text": "喜欢，我很喜欢。",
+      "pinyin": "xǐhuan, wǒ hěn xǐhuan.",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user"
+    },
+    {
+      "id": "f_what_hobby",
+      "text": "你有什么爱好？",
+      "pinyin": "nǐ yǒu shénme àihào?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_i_like_hobby",
+      "text": "我喜欢{HOBBY}。",
+      "pinyin": "wǒ xǐhuan {HOBBY}.",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [
+        {
+          "name": "HOBBY",
+          "source": "fillers.hobbies"
+        }
+      ],
+      "speaker": "user"
+    },
+    {
+      "id": "f_weekend_do",
+      "text": "你周末做什么？",
+      "pinyin": "nǐ zhōumò zuò shénme?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_weekend_rest",
+      "text": "我周末休息。",
+      "pinyin": "wǒ zhōumò xiūxi.",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user"
+    },
+    {
+      "id": "f_travel_where",
+      "text": "你去过哪里？",
+      "pinyin": "nǐ qù guo nǎlǐ?",
+      "engine": "travel",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_been_to_place",
+      "text": "我去过{PLACE}。",
+      "pinyin": "wǒ qù guo {PLACE}.",
+      "engine": "travel",
+      "difficulty": 2,
+      "slots": [
+        {
+          "name": "PLACE",
+          "source": "fillers.travel_places"
+        }
+      ],
+      "speaker": "user"
+    },
+    {
+      "id": "f_want_go_where",
+      "text": "你想去哪里？",
+      "pinyin": "nǐ xiǎng qù nǎlǐ?",
+      "engine": "travel",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner"
+    },
+    {
+      "id": "f_want_go_place",
+      "text": "我想去{PLACE}。",
+      "pinyin": "wǒ xiǎng qù {PLACE}.",
+      "engine": "travel",
+      "difficulty": 2,
+      "slots": [
+        {
+          "name": "PLACE",
+          "source": "fillers.travel_places"
+        }
+      ],
+      "speaker": "user"
+    }
+  ]
+}

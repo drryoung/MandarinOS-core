@@ -1,0 +1,229 @@
+{
+  "schema_version": "1.0",
+  "phase": "P2",
+  "name": "Daily Life & Social Independence",
+  "description": "Phase 2 deepens the same six conversation engines with planning, opinion, story grammar, and problem-solving loops. Uses P2 frames and fillers; depends on P1 vocabulary foundations.",
+  "dependencies": [
+    "P1"
+  ],
+  "engines": {
+    "identity": {
+      "name": "Identity",
+      "goal": "Sustain identity conversation with meaning and self-description (name meaning, personal style, stories).",
+      "entry_frames": [
+        "p2_id_1",
+        "p2_id_2",
+        "p2_id_3"
+      ],
+      "followup_frames": [
+        "p2_id_4",
+        "p2_id_5",
+        "p2_op_1",
+        "p2_op_3"
+      ],
+      "slot_sources": [
+        "fillers.names"
+      ],
+      "mastery_checks": [
+        {
+          "type": "produce",
+          "frame_id": "p2_id_1"
+        },
+        {
+          "type": "produce",
+          "frame_id": "p2_id_2"
+        }
+      ]
+    },
+    "place": {
+      "name": "Place",
+      "goal": "Discuss lifestyle and convenience; describe what’s good to eat/do in a place; compare places.",
+      "entry_frames": [
+        "p2_pl_1",
+        "p2_pl_2",
+        "p2_pl_3",
+        "p2_pl_4"
+      ],
+      "followup_frames": [
+        "p2_pl_5",
+        "p2_op_1",
+        "p2_op_4"
+      ],
+      "slot_sources": [
+        "fillers.cities"
+      ],
+      "mastery_checks": [
+        {
+          "type": "produce",
+          "frame_id": "p2_pl_1"
+        },
+        {
+          "type": "produce",
+          "frame_id": "p2_pl_5"
+        }
+      ]
+    },
+    "family": {
+      "name": "Family",
+      "goal": "Discuss family dynamics, closeness, and frequency of meeting; who is busy; who supports whom.",
+      "entry_frames": [
+        "p2_fa_1",
+        "p2_fa_2",
+        "p2_fa_3"
+      ],
+      "followup_frames": [
+        "p2_fa_4",
+        "p2_fa_5",
+        "p2_op_1",
+        "p2_op_4"
+      ],
+      "slot_sources": [
+        "fillers.family_roles"
+      ],
+      "mastery_checks": [
+        {
+          "type": "produce",
+          "frame_id": "p2_fa_3"
+        },
+        {
+          "type": "produce",
+          "frame_id": "p2_fa_4"
+        }
+      ]
+    },
+    "work": {
+      "name": "Work",
+      "goal": "Discuss routine, busyness, and challenges; problem-solving and coping patterns.",
+      "entry_frames": [
+        "p2_wk_1",
+        "p2_wk_2",
+        "p2_wk_3"
+      ],
+      "followup_frames": [
+        "p2_wk_4",
+        "p2_wk_5",
+        "p2_pb_1",
+        "p2_pb_2"
+      ],
+      "slot_sources": [
+        "fillers.jobs"
+      ],
+      "mastery_checks": [
+        {
+          "type": "produce",
+          "frame_id": "p2_wk_3"
+        },
+        {
+          "type": "produce",
+          "frame_id": "p2_wk_5"
+        }
+      ]
+    },
+    "hobby": {
+      "name": "Hobby",
+      "goal": "Explain why you like something, how you started, difficulty, achievement and meaning.",
+      "entry_frames": [
+        "p2_hb_1",
+        "p2_hb_2",
+        "p2_hb_3"
+      ],
+      "followup_frames": [
+        "p2_hb_4",
+        "p2_hb_5",
+        "p2_op_3"
+      ],
+      "slot_sources": [
+        "fillers.hobbies"
+      ],
+      "mastery_checks": [
+        {
+          "type": "produce",
+          "frame_id": "p2_hb_2"
+        },
+        {
+          "type": "produce",
+          "frame_id": "p2_hb_3"
+        }
+      ]
+    },
+    "travel": {
+      "name": "Travel",
+      "goal": "Discuss where you’ve been, preferences, memorable travel, and what makes it special.",
+      "entry_frames": [
+        "p2_tr_1",
+        "p2_tr_2",
+        "p2_tr_3"
+      ],
+      "followup_frames": [
+        "p2_tr_4",
+        "p2_tr_5",
+        "p2_op_3"
+      ],
+      "slot_sources": [
+        "fillers.countries",
+        "fillers.cities"
+      ],
+      "mastery_checks": [
+        {
+          "type": "produce",
+          "frame_id": "p2_tr_2"
+        },
+        {
+          "type": "produce",
+          "frame_id": "p2_tr_5"
+        }
+      ]
+    },
+    "life": {
+      "name": "Cross-cutting Daily Life (Planning/Opinion/Story)",
+      "goal": "Universal daily-life loops: planning, scheduling, opinion, reasons, story sequencing.",
+      "entry_frames": [
+        "p2_pln_1",
+        "p2_pln_2",
+        "p2_pln_3"
+      ],
+      "followup_frames": [
+        "p2_pln_4",
+        "p2_pln_5",
+        "p2_op_1",
+        "p2_op_4",
+        "p2_st_1",
+        "p2_st_2"
+      ],
+      "slot_sources": [
+        "fillers.actions",
+        "fillers.times"
+      ],
+      "mastery_checks": [
+        {
+          "type": "produce",
+          "frame_id": "p2_pln_1"
+        },
+        {
+          "type": "produce",
+          "frame_id": "p2_op_3"
+        }
+      ]
+    }
+  },
+  "routing_policy": {
+    "note": "Use diagnostic weakness + SRS due items to choose which engine loop to run each session.",
+    "session_engine_selection": [
+      "If any engine mastery check fails recently, prioritize that engine.",
+      "Else rotate engines daily (see srs_config engine_rotation).",
+      "Always embed due words in frames when possible."
+    ]
+  },
+  "bundle_policy": {
+    "note": "Phase 2 introduces words via bundles. Each bundle: 1 word + 2 frames that use it.",
+    "bundle_shape": {
+      "word_count": 1,
+      "frame_count": 2
+    },
+    "bundle_preference_rules": [
+      "Prefer high-frequency words.",
+      "Prefer words that unlock multiple engines.",
+      "Prefer words with radicals/components related to known items."
+    ]
+  }
+}
