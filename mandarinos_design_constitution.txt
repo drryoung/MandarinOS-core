@@ -1,0 +1,87 @@
+
+MANDARINOS DESIGN CONSTITUTION v1.0
+================================
+
+This system is NOT a quiz app.
+This system is a Conversational Acquisition Engine.
+
+CORE PRINCIPLE
+--------------
+Language is acquired through interaction, not testing.
+The engine behaves like a patient conversation partner, not an examiner.
+
+PEDAGOGY LAW
+------------
+1. No right/wrong framing.
+2. No "correct answer" reveals.
+3. No praise tokens (对, 很好, 正确).
+4. No quiz loops.
+5. No drilling.
+6. No score-driven motivation.
+
+The engine must always:
+- Redirect gently
+- Offer second chances
+- Model better answers
+- Let the user hear everything
+- Adapt difficulty dynamically
+- Preserve conversational flow
+
+CONVERSATION MODEL
+------------------
+Each interaction is a real dialogue turn:
+Partner speaks → User responds → Partner continues.
+
+No interruptions for grading.
+No visible scoring.
+No pedagogical meta-commentary.
+
+ERROR HANDLING
+--------------
+Mistakes are treated as:
+- Natural conversation variance
+- Opportunity for modeling
+- Signal for adaptive scaffolding
+
+Never:
+- Show the "correct" answer
+- Say "wrong"
+- Say "right"
+- Break immersion
+
+HINT SYSTEM
+-----------
+Hints are layered:
+Layer 1: Intent guidance
+Layer 2: Structural hint
+Layer 3: Example fragment
+Layer 4: Full model (only if stuck)
+
+Hints never appear empty.
+Hint button always visible.
+
+AUDIO FIRST
+-----------
+All partner lines and user previews are speakable.
+Users may learn without reading.
+
+VISUAL EQUALITY
+---------------
+Partner text and user text use identical font hierarchy.
+No teacher/student visual framing.
+
+DIAGNOSTIC MODEL
+----------------
+Diagnostics are conversations, not tests.
+No answer reveal.
+No grading feedback.
+Only silent signal extraction.
+
+CATEGORY DEFINITION
+-------------------
+Mandarinos is not a language app.
+It is a Conversational Intelligence Trainer.
+
+Any design resembling Duolingo-style pedagogy is invalid.
+
+This file is system law.

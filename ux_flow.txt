@@ -1,0 +1,125 @@
+
+MANDARINOS UX FLOW
+Conversation-first. Visual-first. Word-first. 10 minutes/day.
+
+Author: Raymond Young
+System: MandarinOS
+Version: 1.0
+
+============================================================
+
+PRODUCT UX PRINCIPLES
+
+1) 10-minute daily default
+   Minimal friction
+   High compliance
+   Clear done state
+
+2) Word-first, frame-driven
+   Users feel they are learning to speak, not study
+
+3) Visual reinforcement is always optional
+   Enabled by a simple toggle
+   Never blocks forward progress
+
+4) User controls learn vs practice
+   A single slider or dial
+   Makes the app feel responsive
+
+5) Diagnostic is invisible
+   Feels like a normal session
+   Routes learner automatically
+
+============================================================
+
+PRIMARY SCREENS
+
+A Onboarding
+B Placement Diagnostic
+C Home Dashboard (Today)
+D Session Player
+E Visual Mode Overlay
+F Review Queue
+G Progress and Gaps
+H Engines and Topics
+I Settings
+
+============================================================
+
+ONBOARDING FLOW
+
+Step 1 Welcome Screen
+Start 10 minute session
+
+Step 2 Preferences
+Learning style
+Conversation-first
+Visual-first
+Balanced
+
+Daily time selector
+Handwriting toggle
+
+Step 3 Learn vs Practice slider
+
+Step 4 Diagnostic begins
+
+============================================================
+
+SESSION PLAYER
+
+Top
+Timer
+Pause
+
+Middle
+Conversation cards
+
+Bottom
+Input options
+
+Micro Loop
+Preview
+Produce
+Feedback
+Repeat
+Rate difficulty
+
+============================================================
+
+VISUAL MODE
+
+Character display
+Radical highlight
+Component split
+Stroke hints
+Handwriting input
+
+============================================================
+
+REVIEW QUEUE
+
+Due today
+Overdue
+Weak items
+Focus mode
+
+============================================================
+
+PROGRESS
+
+Phase progress
+Vocabulary count
+Conversation stamina
+
+============================================================
+
+UX VOICE
+
+Calm
+Encouraging
+Forward moving
+
+============================================================
+
+END OF FILE
