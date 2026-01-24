@@ -1,0 +1,265 @@
+MandarinOS Developer Handoff
+Author: Raymond Young
+Pack: MandarinOS Core
+Version: 1.0
+Language: zh-Hans (Simplified Chinese)
+
+1. System Philosophy
+MandarinOS is a conversation-first, visual-first, word-first Mandarin learning system.
+Core design principles:
+1. Words are the unit of utility
+o Characters are visual support units
+o Radicals are visual decoding units
+o Words are what users actually speak and understand
+2. Conversation drives retention
+o Users learn through meaningful conversation loops
+o Boring sentences like “The sky is blue” are avoided
+o Engines simulate real social conversation
+3. Visual language model
+o Chinese is treated as a visual language
+o Radicals and components are used for comprehension
+o Handwriting input is first-class
+4. Frequency + relatedness
+o Words are introduced by frequency priority
+o Related words, characters, and radicals are clustered
+5. Spaced repetition is mandatory
+o SM-2 algorithm
+o 10-minute daily sessions
+o Diagnostic-driven scheduling
+
+2. Learning Architecture
+The system is built around Phases, Engines, Frames, and Words.
+Phases
+Phases define learning depth:
+PhaseGoalP1Survival conversationP2Daily life & social independenceP3(future) Fluency expansionP4(future) Native-like comprehension
+3. Conversation Engines
+Each phase has Conversation Engines.
+Engines represent real-life conversational domains:
+* Identity (name, background)
+* Place (where you live, lifestyle)
+* Family (relationships)
+* Work (routine, challenges)
+* Hobby (interests)
+* Travel (experiences)
+* Life (planning, opinions, stories)
+Engines are defined in:
+p1_engines.json
+p2_engines.json
+Each engine defines:
+* Entry frames
+* Follow-up frames
+* Slot sources
+* Mastery checks
+* Routing rules
+Engines are used by:
+* Session planner
+* Diagnostic router
+* SRS scheduler
+
+4. Sentence Frames
+Frames are sentence templates with variable slots.
+Example:
+? ? {name}
+Slots are filled using fillers:
+fillers.names
+Frames are defined in:
+p1_frames.json
+p2_frames.json
+Frames are:
+* The main teaching unit
+* Used for production drills
+* Used for comprehension drills
+* Used for conversation simulation
+
+5. Fillers
+Fillers provide real-world vocabulary for frames.
+Examples:
+* Names
+* Cities
+* Jobs
+* Hobbies
+* Times
+* Actions
+* Food
+* Places
+Fillers are defined in:
+p1_fillers.json
+p2_fillers.json
+They prevent boring sentences and allow:
+* Endless sentence variation
+* Natural conversation feel
+* High memorability
+
+6. Word Spine
+Words are introduced via bundles:
+Each bundle:
+* Introduces 1 new word
+* Uses 2+ frames that contain that word
+* Uses previously known words
+Words are defined in:
+p1_words.json
+p2_words.json
+Each word contains:
+* Frequency rank
+* HSK level
+* Phase
+* Frame IDs
+* Meaning
+* Pinyin
+* Tags
+
+7. Visual Language Layer
+Chinese is treated as a visual language.
+Radicals
+25 high-coverage radicals form the visual decoding layer.
+Defined in:
+radicals_core.json
+Used for:
+* Radical drills
+* Character decomposition
+* Visual recognition training
+
+Characters
+1200 core characters with:
+* Frequency rank
+* Stroke count
+* Radical
+* Components
+* Etymology
+* Mnemonics
+* Confusables
+* Handwriting support
+Defined in:
+characters_1200.json
+Characters are support units, not primary learning units.
+
+Word–Character Links
+This connects the word system to the visual system.
+Defined in:
+word_character_links.json
+Allows:
+* Word ? character support
+* Character ? word reinforcement
+* Error-driven character scheduling
+
+8. Spaced Repetition (SM-2)
+SM-2 is configured in:
+srs_config.json
+Features:
+* 10-minute daily session policy
+* Adaptive scheduling
+* Ease factor
+* Interval growth
+* Failure decay
+* Diagnostic priority
+Items scheduled:
+* Words
+* Frames
+* Radicals
+* Characters (optional support)
+
+9. Diagnostic Engine
+Diagnostics place users at the correct level and detect gaps.
+Defined in:
+diagnostic_p1.json
+diagnostic_p2.json
+Diagnostics test:
+* Frame production
+* Frame comprehension
+* Core word knowledge
+* Engine readiness
+Used for:
+* Phase placement
+* Engine routing
+* Weakness targeting
+
+10. Import System
+Entry Point
+content_manifest.json
+Pack Metadata
+pack_meta.json
+Import Order
+import_order.json
+Validation Rules
+import_validation_rules.json
+Runtime Indexes
+runtime_indexes.json
+These guarantee:
+* Deterministic loading
+* Reference integrity
+* Schema validation
+* Stable ID mapping
+* Backward compatibility
+
+11. ID Mapping
+If the app already has an internal ID system:
+id_map.json
+Allows:
+* External content IDs ? internal IDs
+* Stable SRS history
+* Incremental migration
+Null = use content ID as internal ID.
+
+12. Runtime Indexes
+Derived at import time:
+* word ? frames
+* frame ? words
+* engine ? frames
+* phase ? engines
+* word ? characters
+* character ? words
+* radical ? characters
+* confusion sets
+Defined in:
+runtime_indexes.json
+
+13. Session Flow
+Each 10-minute session:
+1. Diagnostic check (if new or weak area)
+2. Select engine loop
+3. Pull due SRS items
+4. Generate frames
+5. Inject fillers
+6. Run production drills
+7. Run comprehension drills
+8. Update SM-2 state
+
+14. Visual Learning Flow
+When handwriting mode is enabled:
+* Characters appear with:
+o Radical highlighted
+o Components separated
+o Stroke order hints
+* Radical drills are scheduled
+* Confusable sets are used
+* Error-driven character support is injected
+
+15. Design Outcome
+This architecture creates:
+* Conversation-driven learning
+* Visual decoding of Chinese
+* Memory retention through repetition
+* Natural speaking ability
+* High learner motivation
+This is not a vocabulary app.
+This is not a grammar app.
+This is a conversation operating system for Mandarin.
+
+16. Implementation Notes
+* All files are UTF-8
+* Strict JSON (no comments)
+* No trailing commas
+* Deterministic import
+* Schema versioning supported
+* Migration-safe
+
+17. Core Insight
+Most language apps fail because:
+* They teach isolated vocabulary
+* They teach boring sentences
+* They ignore visual cognition
+* They ignore conversation psychology
+MandarinOS solves all four.
+
+End of file.
+
