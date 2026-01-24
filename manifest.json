@@ -1,0 +1,318 @@
+{
+  "created_at": "2026-01-16T06:49:52.015Z",
+  "app_name": "MandarinOS",
+  "app_version": "1.0.0",
+  "git_commit": "d18bd8f1",
+  "environment": {
+    "replit": true,
+    "node_env": "development"
+  },
+  "included_files": [
+    {
+      "path": "repo/attached_assets/characters_1200_1768289652383.json",
+      "bytes": 7472,
+      "sha256": "12659edc2dfdf00bdef5bcabe9caf4abf24592e4b2244c1cbc19ecdf813e18eb",
+      "mtime_iso": "2026-01-13T07:34:12.828Z"
+    },
+    {
+      "path": "repo/attached_assets/content_manifest_1768289038508.json",
+      "bytes": 1770,
+      "sha256": "813c794680889b01e2d68f67c28e11a35394a060b1863b17463556328472a732",
+      "mtime_iso": "2026-01-13T07:23:58.892Z"
+    },
+    {
+      "path": "repo/attached_assets/diagnostic_p1_1768289453551.json",
+      "bytes": 7899,
+      "sha256": "f62589660892cfa10137034e33eca1c030003f83a55d7fb8e76c52cc70ae1679",
+      "mtime_iso": "2026-01-13T07:30:53.935Z"
+    },
+    {
+      "path": "repo/attached_assets/diagnostic_p1_example_1768411777145.json",
+      "bytes": 3236,
+      "sha256": "d02ea4c98e93a16a3af3632e4a8486983daa73a33e91ecaa7d571e1287b4529a",
+      "mtime_iso": "2026-01-14T17:29:37.684Z"
+    },
+    {
+      "path": "repo/attached_assets/diagnostic_p2_1768289453551.json",
+      "bytes": 12856,
+      "sha256": "9d3d30319ab31f4f3645e9dd2de4a9b086409a5a1cc9d72e26bf2a8406af516e",
+      "mtime_iso": "2026-01-13T07:30:53.932Z"
+    },
+    {
+      "path": "repo/attached_assets/diagnostic_schema_1768411494998.json",
+      "bytes": 14374,
+      "sha256": "1ed6994ff422460f25f4ee3e4954e5a53a58257f81c963e51ea6622785b074d8",
+      "mtime_iso": "2026-01-14T17:24:55.583Z"
+    },
+    {
+      "path": "repo/attached_assets/id_map_1768289038508.json",
+      "bytes": 1021,
+      "sha256": "70d6bf015f0cf54037a5fa80bd0e6477e48ba58799706f3811c5556d61a8a1bd",
+      "mtime_iso": "2026-01-13T07:23:58.884Z"
+    },
+    {
+      "path": "repo/attached_assets/import_order_1768289038508.json",
+      "bytes": 5271,
+      "sha256": "43a1c35b41df4d9ffaea72471c540cb736ad415d1bf05872f18bbf11b3a4bba6",
+      "mtime_iso": "2026-01-13T07:23:58.890Z"
+    },
+    {
+      "path": "repo/attached_assets/import_validation_rules_1768289038508.json",
+      "bytes": 7900,
+      "sha256": "736e8ddc42f2dc7aedd4b2ce317a8394098cd89aaf97e734aa7ebf26de52a61d",
+      "mtime_iso": "2026-01-13T07:23:58.884Z"
+    },
+    {
+      "path": "repo/attached_assets/p1_engines_1768289453551.json",
+      "bytes": 4090,
+      "sha256": "35283cf72ab91d7a61824eb8cb67e8669b746ad86dbce5b5ee1c75d393bbf5d4",
+      "mtime_iso": "2026-01-13T07:30:53.937Z"
+    },
+    {
+      "path": "repo/attached_assets/p1_fillers_1768289453551.json",
+      "bytes": 1443,
+      "sha256": "f3d891f659b0c52ec9aa0ebfdb26c6e0594dd59790ce31b52005096585047a69",
+      "mtime_iso": "2026-01-13T07:30:53.936Z"
+    },
+    {
+      "path": "repo/attached_assets/p1_frames_1768289453551.json",
+      "bytes": 5094,
+      "sha256": "e5cb7ab3838f05ae11c010c8ebe9fedfbdd73f46ced4ebabbae97d39624b0013",
+      "mtime_iso": "2026-01-13T07:30:53.978Z"
+    },
+    {
+      "path": "repo/attached_assets/p1_words_1768289453551.json",
+      "bytes": 12152,
+      "sha256": "d3b098565e9e7cc6eb5d43d4638b4342589a1a1bb7d15dedcf94a45b48415ecd",
+      "mtime_iso": "2026-01-13T07:30:53.932Z"
+    },
+    {
+      "path": "repo/attached_assets/p2_engines_1768289453551.json",
+      "bytes": 5486,
+      "sha256": "09d6cda895abbe3ca45344e9e6f1f0dda3284191d15e327e3d7e06becce52196",
+      "mtime_iso": "2026-01-13T07:30:53.939Z"
+    },
+    {
+      "path": "repo/attached_assets/p2_fillers_1768289453551.json",
+      "bytes": 2782,
+      "sha256": "3c83b2bec18b10ab150d93d4a190e900582486d9346e59382c5db77f9983f43f",
+      "mtime_iso": "2026-01-13T07:30:53.935Z"
+    },
+    {
+      "path": "repo/attached_assets/p2_frames_1768289453551.json",
+      "bytes": 10765,
+      "sha256": "2ea43c5b6979775c4059793bed21bfd107976ce448c32085ba7f060e2eb32972",
+      "mtime_iso": "2026-01-13T07:30:53.977Z"
+    },
+    {
+      "path": "repo/attached_assets/p2_words_1768289453551.json",
+      "bytes": 22550,
+      "sha256": "8714662a274d2b1247ecc580a45064fb99ef662054ae92967f0a054babe2abb4",
+      "mtime_iso": "2026-01-13T07:30:53.946Z"
+    },
+    {
+      "path": "repo/attached_assets/pack_meta_1768289038508.json",
+      "bytes": 2176,
+      "sha256": "6491845d3808283d6deb7beaf3eba879d75df7cff8791eba070fae87ee91b907",
+      "mtime_iso": "2026-01-13T07:23:58.884Z"
+    },
+    {
+      "path": "repo/attached_assets/radicals_core_1768289652383.json",
+      "bytes": 13199,
+      "sha256": "ab615c629f77c4d08a4a09bcc7a99c1ee4b24f1b6001705f4209ec7add2bf8ca",
+      "mtime_iso": "2026-01-13T07:34:12.831Z"
+    },
+    {
+      "path": "repo/attached_assets/runtime_indexes_1768289038508.json",
+      "bytes": 3950,
+      "sha256": "76757b74e482d21ce66a3d68dd085481ae2b22dbbf86fbb5a3bf8538d33fa088",
+      "mtime_iso": "2026-01-13T07:23:58.893Z"
+    },
+    {
+      "path": "repo/attached_assets/scaffolding_policy_1768442885171.json",
+      "bytes": 2751,
+      "sha256": "4610307469371a7cf8f0f971b00a17899d9f8c6ef6e724450065009a3d04e0d1",
+      "mtime_iso": "2026-01-15T02:08:05.746Z"
+    },
+    {
+      "path": "repo/attached_assets/srs_config_1768289453551.json",
+      "bytes": 4661,
+      "sha256": "ad94b259f8e98b442f59a15992e0ebbfbe8e644efadbd05185809368f6a86cce",
+      "mtime_iso": "2026-01-13T07:30:53.979Z"
+    },
+    {
+      "path": "repo/attached_assets/word_character_links_1768289652383.json",
+      "bytes": 8367,
+      "sha256": "50b5fd198b4c5ed85d4187fe22ec70db77d6780575dadb6e195ea1a274b50a7a",
+      "mtime_iso": "2026-01-13T07:34:12.776Z"
+    },
+    {
+      "path": "repo/components.json",
+      "bytes": 423,
+      "sha256": "10b63cbc0ffd2d7db81d44404367c7a46218c82b67be6145744f11a14456ac0b",
+      "mtime_iso": "2026-01-10T06:19:46.661Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/characters_1200.json",
+      "bytes": 6397,
+      "sha256": "25cffbcca6c7dd02fbf25163b0a3a74c9071724941208afc05ae83441284fcf7",
+      "mtime_iso": "2026-01-13T07:49:13.590Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/content_manifest.json",
+      "bytes": 1770,
+      "sha256": "813c794680889b01e2d68f67c28e11a35394a060b1863b17463556328472a732",
+      "mtime_iso": "2026-01-13T07:31:32.050Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/diagnostic_p1.json",
+      "bytes": 15168,
+      "sha256": "90ab8262cdf38cc73e4e054e00597f94fa9161b62e7f0d54e812e8ca61ce1db1",
+      "mtime_iso": "2026-01-15T02:20:39.001Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/diagnostic_p2.json",
+      "bytes": 12856,
+      "sha256": "9d3d30319ab31f4f3645e9dd2de4a9b086409a5a1cc9d72e26bf2a8406af516e",
+      "mtime_iso": "2026-01-13T07:31:32.030Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/id_map.json",
+      "bytes": 1021,
+      "sha256": "70d6bf015f0cf54037a5fa80bd0e6477e48ba58799706f3811c5556d61a8a1bd",
+      "mtime_iso": "2026-01-13T07:31:32.078Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/import_order.json",
+      "bytes": 5271,
+      "sha256": "43a1c35b41df4d9ffaea72471c540cb736ad415d1bf05872f18bbf11b3a4bba6",
+      "mtime_iso": "2026-01-13T07:31:32.058Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/import_validation_rules.json",
+      "bytes": 7900,
+      "sha256": "736e8ddc42f2dc7aedd4b2ce317a8394098cd89aaf97e734aa7ebf26de52a61d",
+      "mtime_iso": "2026-01-13T07:31:32.064Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/p1_engines.json",
+      "bytes": 4143,
+      "sha256": "4f90558e2bf153c981243f4d9ccc8d51cd425944637412cb18ba191f82974150",
+      "mtime_iso": "2026-01-14T15:12:12.803Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/p1_fillers.json",
+      "bytes": 1443,
+      "sha256": "f3d891f659b0c52ec9aa0ebfdb26c6e0594dd59790ce31b52005096585047a69",
+      "mtime_iso": "2026-01-13T07:31:31.981Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/p1_frames.json",
+      "bytes": 6985,
+      "sha256": "56dbd2778dc847ac858c8ddccccf24728ec5c0a836e29d297a84247593830f2d",
+      "mtime_iso": "2026-01-14T11:04:47.953Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/p1_words.json",
+      "bytes": 12152,
+      "sha256": "d3b098565e9e7cc6eb5d43d4638b4342589a1a1bb7d15dedcf94a45b48415ecd",
+      "mtime_iso": "2026-01-13T07:31:31.967Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/p2_engines.json",
+      "bytes": 5486,
+      "sha256": "09d6cda895abbe3ca45344e9e6f1f0dda3284191d15e327e3d7e06becce52196",
+      "mtime_iso": "2026-01-13T07:31:32.023Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/p2_fillers.json",
+      "bytes": 2782,
+      "sha256": "3c83b2bec18b10ab150d93d4a190e900582486d9346e59382c5db77f9983f43f",
+      "mtime_iso": "2026-01-13T07:31:32.016Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/p2_frames.json",
+      "bytes": 10765,
+      "sha256": "2ea43c5b6979775c4059793bed21bfd107976ce448c32085ba7f060e2eb32972",
+      "mtime_iso": "2026-01-13T07:31:32.009Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/p2_words.json",
+      "bytes": 22550,
+      "sha256": "8714662a274d2b1247ecc580a45064fb99ef662054ae92967f0a054babe2abb4",
+      "mtime_iso": "2026-01-13T07:31:32.002Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/pack_meta.json",
+      "bytes": 2176,
+      "sha256": "6491845d3808283d6deb7beaf3eba879d75df7cff8791eba070fae87ee91b907",
+      "mtime_iso": "2026-01-13T07:31:32.044Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/radicals_core.json",
+      "bytes": 12704,
+      "sha256": "302f24b5bd267bec0fd3b3a98369123f30d3febb72363ecf86c7055862c5e34a",
+      "mtime_iso": "2026-01-13T07:48:37.095Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/runtime_indexes.json",
+      "bytes": 3950,
+      "sha256": "76757b74e482d21ce66a3d68dd085481ae2b22dbbf86fbb5a3bf8538d33fa088",
+      "mtime_iso": "2026-01-13T07:31:32.071Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/srs_config.json",
+      "bytes": 4661,
+      "sha256": "ad94b259f8e98b442f59a15992e0ebbfbe8e644efadbd05185809368f6a86cce",
+      "mtime_iso": "2026-01-13T07:31:32.037Z"
+    },
+    {
+      "path": "repo/content_packs/mandarinos_core_v1/word_character_links.json",
+      "bytes": 8365,
+      "sha256": "9726a6038cacb6d4213b2bf7431c91b75412d0071f433884a0ed07cf9fbb962d",
+      "mtime_iso": "2026-01-13T07:49:53.182Z"
+    },
+    {
+      "path": "repo/package-lock.json",
+      "bytes": 382827,
+      "sha256": "01bdddcecc3c7fcfd96aa2392c515131c2f204f86b4d1e3a3bd07e5d521414f6",
+      "mtime_iso": "2026-01-16T06:09:28.054Z"
+    },
+    {
+      "path": "repo/package.json",
+      "bytes": 4124,
+      "sha256": "11a7d19eca7b74feabf82c39e2fa05ecae7fec3931eb15cc2bdf0fe2c3f8662c",
+      "mtime_iso": "2026-01-16T06:09:27.884Z"
+    },
+    {
+      "path": "repo/test_data/session_test_2026-01-15_practice.json",
+      "bytes": 25100,
+      "sha256": "0889a0f9b13ee01d0e750e9d287a1191cd4d3b9e55119b1140fc261b54794e75",
+      "mtime_iso": "2026-01-15T05:53:51.927Z"
+    },
+    {
+      "path": "repo/tsconfig.json",
+      "bytes": 766,
+      "sha256": "1c101cc48959cb9a840f35b9b66364cafe7f5471ad7331fad234b811d88573ad",
+      "mtime_iso": "2026-01-10T06:19:46.662Z"
+    }
+  ],
+  "excluded_paths": [
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    ".next",
+    ".cache",
+    "coverage",
+    ".replit",
+    ".upm",
+    "__pycache__",
+    "tmp",
+    ".nix-profile",
+    ".local"
+  ],
+  "warnings": [
+    "localStorage export required for client state - use \"Export Browser Storage\" button"
+  ]
+}

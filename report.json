@@ -1,0 +1,60 @@
+{
+  "content_like_files": [
+    "attached_assets/p1_engines_1768289453551.json",
+    "attached_assets/p1_fillers_1768289453551.json",
+    "attached_assets/p1_frames_1768289453551.json",
+    "attached_assets/p1_words_1768289453551.json",
+    "attached_assets/p2_engines_1768289453551.json",
+    "attached_assets/p2_fillers_1768289453551.json",
+    "attached_assets/p2_frames_1768289453551.json",
+    "attached_assets/p2_words_1768289453551.json",
+    "attached_assets/pack_meta_1768289038508.json",
+    "attached_assets/radicals_core_1768289652383.json",
+    "components.json",
+    "content_packs/mandarinos_core_v1/characters_1200.json",
+    "content_packs/mandarinos_core_v1/content_manifest.json",
+    "content_packs/mandarinos_core_v1/diagnostic_p1.json",
+    "content_packs/mandarinos_core_v1/diagnostic_p2.json",
+    "content_packs/mandarinos_core_v1/id_map.json",
+    "content_packs/mandarinos_core_v1/import_order.json",
+    "content_packs/mandarinos_core_v1/import_validation_rules.json",
+    "content_packs/mandarinos_core_v1/p1_engines.json",
+    "content_packs/mandarinos_core_v1/p1_fillers.json",
+    "content_packs/mandarinos_core_v1/p1_frames.json",
+    "content_packs/mandarinos_core_v1/p1_words.json",
+    "content_packs/mandarinos_core_v1/p2_engines.json",
+    "content_packs/mandarinos_core_v1/p2_fillers.json",
+    "content_packs/mandarinos_core_v1/p2_frames.json",
+    "content_packs/mandarinos_core_v1/p2_words.json",
+    "content_packs/mandarinos_core_v1/pack_meta.json",
+    "content_packs/mandarinos_core_v1/radicals_core.json",
+    "content_packs/mandarinos_core_v1/runtime_indexes.json",
+    "content_packs/mandarinos_core_v1/srs_config.json",
+    "content_packs/mandarinos_core_v1/word_character_links.json",
+    "package-lock.json",
+    "package.json"
+  ],
+  "config_like_files": [
+    "attached_assets/diagnostic_schema_1768411494998.json",
+    "attached_assets/srs_config_1768289453551.json",
+    "tsconfig.json"
+  ],
+  "runtime_like_files": [
+    "attached_assets/diagnostic_p1_1768289453551.json",
+    "attached_assets/diagnostic_p1_example_1768411777145.json",
+    "attached_assets/diagnostic_p2_1768289453551.json",
+    "test_data/session_test_2026-01-15_practice.json"
+  ],
+  "unknown_files": [
+    "attached_assets/characters_1200_1768289652383.json",
+    "attached_assets/content_manifest_1768289038508.json",
+    "attached_assets/id_map_1768289038508.json",
+    "attached_assets/import_order_1768289038508.json",
+    "attached_assets/import_validation_rules_1768289038508.json",
+    "attached_assets/runtime_indexes_1768289038508.json",
+    "attached_assets/scaffolding_policy_1768442885171.json",
+    "attached_assets/word_character_links_1768289652383.json"
+  ],
+  "total_files": 48,
+  "total_bytes": 723050
+}
