@@ -1,2 +1,2 @@
 # MandarinOS-core
-Mandarin OS 21st Century Chinese Learning System 
+MandarinOS is the adaptive learning infrastructure for Chinese
