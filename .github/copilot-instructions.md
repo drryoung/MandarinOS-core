@@ -3,6 +3,8 @@ _Last updated: 2026-01-25_
 
 This file is intended to be used as **repository instructions** for GitHub Copilot and as a working contract for contributors.
 
+If there is any conflict, follow .github/copilot-instructions.md first, then Design Constitution, then Developer Handoff. If still ambiguous, ask before coding.
+
 ## 1) Product intent (non-negotiable)
 MandarinOS is a **mobile-first (iPhone-first)** Mandarin speaking trainer focused on:
 - Short, repeatable dialogue turns
@@ -108,7 +110,9 @@ Define `validateOption(option, targetItem)` with these checks:
 Place this file at:
 - `.github/copilot-instructions.md`
 
-Also consider:
+## 8) Authoritative references:
+- docs/mandarinos_design_constitution.txt (authoritative for UX rules)
+- docs/MandarinOS Developer Handoff.txt (authoritative for architecture + data pack rules)
 - `.github/pull_request_template.md` (include “tripwires added?” checkbox)
 - `docs/` for the larger design constitution / developer handoff (link from README)
 
