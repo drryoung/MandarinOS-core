@@ -11,3 +11,10 @@ The system is built around:
 - A multi-layer hint system
 - Content packs defined entirely in JSON (portable and migratable
 
+## Guardrails (Read Before Making Changes)
+
+MandarinOS is conversation-first, frame-driven, and learner-centered.
+If proposed changes introduce vocabulary-first flows, teacher-style explanations,
+or schema refactors “for cleanliness”, stop and re-evaluate.
+
+See MandarinOS Design Constitution for non-negotiable principles.
