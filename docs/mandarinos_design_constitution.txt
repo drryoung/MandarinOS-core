@@ -84,4 +84,26 @@ It is a Conversational Intelligence Trainer.
 
 Any design resembling Duolingo-style pedagogy is invalid.
 
+Tripwires & Early-Warning Signals
+---------------------------------
+🚨 Tripwire: Vocabulary-first logic
+If the system starts introducing isolated vocabulary before dialogue frames, stop. MandarinOS is conversation-first by design.
+
+🚨 Tripwire: Teacher voice
+If prompts or feedback sound like a classroom explanation rather than conversational support, reject the change.
+
+🚨 Tripwire: “Correct answer” obsession
+If grading logic prioritizes grammatical perfection over communicative intent, the system is drifting.
+
+🚨 Tripwire: Copilot suggests schema refactors
+If Copilot proposes changing JSON schemas “for cleanliness” or “best practice”, stop. Schema stability is more important than elegance.
+
+🚨 Tripwire: Framework evangelism
+If a tool suggests adding React/Vue/state libraries “for scalability”, pause. MandarinOS prioritizes clarity and portability.
+
+🚨 Tripwire: Silent rewrites
+Never accept Copilot changes that touch more than one concern at a time without review.
+
+
+
 This file is system law.
