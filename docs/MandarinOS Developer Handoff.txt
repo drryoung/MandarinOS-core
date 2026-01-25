@@ -13,7 +13,7 @@ o Radicals are visual decoding units
 o Words are what users actually speak and understand
 2. Conversation drives retention
 o Users learn through meaningful conversation loops
-o Boring sentences like “The sky is blue” are avoided
+o Boring sentences like â€œThe sky is blueâ€ are avoided
 o Engines simulate real social conversation
 3. Visual language model
 o Chinese is treated as a visual language
@@ -31,7 +31,17 @@ o Diagnostic-driven scheduling
 The system is built around Phases, Engines, Frames, and Words.
 Phases
 Phases define learning depth:
-PhaseGoalP1Survival conversationP2Daily life & social independenceP3(future) Fluency expansionP4(future) Native-like comprehension
+Phase
+Goal
+P1
+Survival conversation
+P2
+Daily life & social independence
+P3
+(future) Fluency expansion
+P4
+(future) Native-like comprehension
+
 3. Conversation Engines
 Each phase has Conversation Engines.
 Engines represent real-life conversational domains:
@@ -133,7 +143,7 @@ Defined in:
 characters_1200.json
 Characters are support units, not primary learning units.
 
-Word–Character Links
+Wordâ€“Character Links
 This connects the word system to the visual system.
 Defined in:
 word_character_links.json
