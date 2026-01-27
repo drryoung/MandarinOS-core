@@ -9,18 +9,16 @@
   "scoring": {
     "grade_scale": "0-3",
     "meaning": {
-      "0": "fail",
-      "1": "hard",
-      "2": "good",
-      "3": "easy"
+      "0": "lapse_signal",
+      "1": "slow_recall_signal",
+      "2": "routine_recall_signal",
+      "3": "fluent_recall_signal"
     },
-    "pass_threshold": {
-      "per_task_average_min": 2,
-      "overall_average_min": 2
-    },
-    "routing_thresholds": {
-      "engine_gap_if_avg_below": 2,
-      "skill_gap_if_avg_below": 2
+    "signal_extraction": {
+      "description": "Diagnostic silently extracts behavioral signals from task responses; no threshold gates applied.",
+      "frame_match_confidence": "Inferred from option selection patterns and frame production consistency",
+      "gap_hypothesis": "Accumulated from task-level signal mismatches and frame comprehension patterns",
+      "routing_signal": "Engine readiness score (0-1 internal; never exposed to user)"
     }
   },
   "tasks": [
@@ -75,7 +73,7 @@
       "rubric": [
         {
           "dimension": "production",
-          "note": "Produces the planning loop with correct patterns and time/action slots."
+          "note": "User demonstrates planning intent via coherent action + time frame slots; routing signal: engine_Life.planning = ready"
         },
         {
           "dimension": "fluency",
@@ -130,7 +128,7 @@
       "rubric": [
         {
           "dimension": "grammar",
-          "note": "Uses 因为…所以… pattern correctly."
+          "note": "User demonstrates causal reasoning intent via 因为…所以… frame; can link opinion to supporting reason"
         },
         {
           "dimension": "meaning",
@@ -173,7 +171,7 @@
       "rubric": [
         {
           "dimension": "sequence",
-          "note": "Maintains correct temporal order (yesterday → later) and uses 了 appropriately."
+          "note": "User demonstrates narrative sequencing intent; manages temporal markers (yesterday → later) and aspect (了) to convey story coherence"
         },
         {
           "dimension": "production",
@@ -327,7 +325,7 @@
         },
         {
           "dimension": "production",
-          "note": "Produces the family role sentence correctly."
+          "note": "User demonstrates family relationship identification intent; can produce role-aware responses using {FAMILY_ROLE} slots"
         }
       ]
     },
@@ -375,7 +373,7 @@
       "rubric": [
         {
           "dimension": "production",
-          "note": "Uses 最近/有点/工作 patterns correctly; can attempt a solution response."
+          "note": "User demonstrates problem-solving communication intent via 最近/有点/工作 frames; can articulate a work issue and suggest a solution"
         },
         {
           "dimension": "fluency",
@@ -431,7 +429,7 @@
         },
         {
           "dimension": "production",
-          "note": "Produces the hard/not-hard question and response patterns correctly."
+          "note": "User demonstrates preference comparison intent via hard/not-hard frame; can produce both question and opinion response patterns"
         }
       ]
     },
