@@ -4,10 +4,10 @@
   "grading": {
     "grade_scale": "0-3",
     "meaning": {
-      "0": "fail",
-      "1": "hard",
-      "2": "good",
-      "3": "easy"
+      "0": "lapse_signal",
+      "1": "slow_recall_signal",
+      "2": "routine_recall_signal",
+      "3": "fluent_recall_signal"
     },
     "grade_to_sm2_q": {
       "0": 1,
