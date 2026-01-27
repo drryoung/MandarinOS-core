@@ -41,7 +41,10 @@
             "layer2": "nǐ hǎo",
             "layer3": "你好 = Hello"
           },
-          "is_correct": true
+          "target_frame": "frame.greeting.hello",
+          "frame_slots_satisfied": [],
+          "intent_tags": ["greeting_reciprocal"],
+          "quality_signal": "gold"
         },
         {
           "id": "b",
@@ -71,12 +74,11 @@
           }
         }
       ],
-      "feedback": {
-        "correct": {
-          "zh": "对！你好！很高兴认识你 🙂"
-        },
-        "incorrect": {
-          "zh": "没关系，我们再试一次 🙂"
+      "response_model": {
+        "after_selection": {
+          "zh": "你好！很高兴认识你。",
+          "pinyin": "nǐ hǎo! hěn gāoxìng rènshi nǐ.",
+          "purpose": "Model the next turn; continue conversation without evaluating prior input."
         }
       },
       "signals": [
@@ -84,16 +86,11 @@
         "comprehension",
         "confidence"
       ],
-      "scoring": {
-        "pass_threshold": 0.8,
-        "partial_threshold": 0.5,
-        "metrics": [
-          {
-            "id": "accuracy",
-            "type": "accuracy",
-            "weight": 1
-          }
-        ]
+      "signal_tracking": {
+        "primary_signal": "comprehension",
+        "secondary_signals": ["word_coverage", "confidence"],
+        "silent_extraction": true,
+        "note": "Signal extraction happens silently; no threshold gating, no user-visible score."
       }
     },
     {
@@ -132,7 +129,10 @@
             "layer2": "wǒ jiào...",
             "layer3": "我叫... = My name is..."
           },
-          "is_correct": true
+          "target_frame": "frame.identity.name",
+          "frame_slots_satisfied": [{"slot": "NAME", "position": "after_verb"}],
+          "intent_tags": ["name_introduce"],
+          "quality_signal": "gold"
         },
         {
           "id": "b",
@@ -142,7 +142,10 @@
             "layer2": "wǒ shì...",
             "layer3": "我是... = I am..."
           },
-          "is_correct": true
+          "target_frame": "frame.identity.name",
+          "frame_slots_satisfied": [{"slot": "NAME", "position": "after_verb"}],
+          "intent_tags": ["name_introduce"],
+          "quality_signal": "gold"
         },
         {
           "id": "c",
@@ -172,36 +175,22 @@
           "name_introduce"
         ]
       },
-      "feedback": {
-        "correct": {
-          "zh": "很好！很高兴认识你 🙂"
-        },
-        "incorrect": {
-          "zh": "没关系！你可以说：我叫..."
+      "response_model": {
+        "after_selection": {
+          "zh": "很高兴认识你！",
+          "pinyin": "hěn gāoxìng rènshi nǐ!",
+          "purpose": "Acknowledge the name introduction and continue dialogue."
         }
       },
       "signals": [
         "frame_control",
         "production"
       ],
-      "scoring": {
-        "pass_threshold": 0.8,
-        "partial_threshold": 0.5,
-        "metrics": [
-          {
-            "id": "production",
-            "type": "production_correctness",
-            "weight": 0.7
-          },
-          {
-            "id": "latency",
-            "type": "latency_seconds",
-            "weight": 0.3,
-            "params": {
-              "max_ok_seconds": 10
-            }
-          }
-        ]
+      "signal_tracking": {
+        "primary_signal": "frame_control",
+        "secondary_signals": ["production"],
+        "silent_extraction": true,
+        "note": "Frame production patterns extracted silently; no threshold applied."
       }
     },
     {
@@ -241,7 +230,10 @@
             "layer2": "wǒ shì měiguó rén",
             "layer3": "我是美国人 = I am American"
           },
-          "is_correct": true
+          "target_frame": "frame.identity.nationality",
+          "frame_slots_satisfied": [{"slot": "NATIONALITY", "position": "after_verb"}],
+          "intent_tags": ["nationality_identify"],
+          "quality_signal": "gold"
         },
         {
           "id": "b",
@@ -271,28 +263,22 @@
           }
         }
       ],
-      "feedback": {
-        "correct": {
-          "zh": "很好！🙂"
-        },
-        "incorrect": {
-          "zh": "没关系，这个问题是问你的国籍 🙂"
+      "response_model": {
+        "after_selection": {
+          "zh": "太好了。我是中国人。",
+          "pinyin": "tài hǎole. wǒ shì zhōngguó rén.",
+          "purpose": "Model the next conversational turn with partner sharing their own nationality."
         }
       },
       "signals": [
         "comprehension",
         "frame_control"
       ],
-      "scoring": {
-        "pass_threshold": 0.8,
-        "partial_threshold": 0.5,
-        "metrics": [
-          {
-            "id": "accuracy",
-            "type": "accuracy",
-            "weight": 1
-          }
-        ]
+      "signal_tracking": {
+        "primary_signal": "comprehension",
+        "secondary_signals": ["frame_control"],
+        "silent_extraction": true,
+        "note": "Frame comprehension and response appropriateness tracked; no score computed."
       }
     },
     {
@@ -332,7 +318,10 @@
             "layer2": "wǒ zhù zài niǔyuē",
             "layer3": "我住在纽约 = I live in New York"
           },
-          "is_correct": true
+          "target_frame": "frame.location.live",
+          "frame_slots_satisfied": [{"slot": "LOCATION", "position": "after_verb"}],
+          "intent_tags": ["location_state"],
+          "quality_signal": "gold"
         },
         {
           "id": "b",
@@ -342,7 +331,10 @@
             "layer2": "wǒ zhù zài běijīng",
             "layer3": "我住在北京 = I live in Beijing"
           },
-          "is_correct": true
+          "target_frame": "frame.location.live",
+          "frame_slots_satisfied": [{"slot": "LOCATION", "position": "after_verb"}],
+          "intent_tags": ["location_state"],
+          "quality_signal": "gold"
         },
         {
           "id": "c",
@@ -372,36 +364,22 @@
           "location_state"
         ]
       },
-      "feedback": {
-        "correct": {
-          "zh": "好的！🙂"
-        },
-        "incorrect": {
-          "zh": "没关系！你可以说：我住在..."
+      "response_model": {
+        "after_selection": {
+          "zh": "你在那儿住得怎么样？",
+          "pinyin": "nǐ zài nàr zhù de zěnyàng?",
+          "purpose": "Model the next turn: partner follows up with a natural related question about their experience in that location."
         }
       },
       "signals": [
         "frame_control",
         "production"
       ],
-      "scoring": {
-        "pass_threshold": 0.8,
-        "partial_threshold": 0.5,
-        "metrics": [
-          {
-            "id": "production",
-            "type": "production_correctness",
-            "weight": 0.7
-          },
-          {
-            "id": "latency",
-            "type": "latency_seconds",
-            "weight": 0.3,
-            "params": {
-              "max_ok_seconds": 12
-            }
-          }
-        ]
+      "signal_tracking": {
+        "primary_signal": "frame_control",
+        "secondary_signals": ["production"],
+        "silent_extraction": true,
+        "note": "Frame production patterns and latency captured; diagnostic uses patterns, not thresholds."
       }
     },
     {
@@ -441,7 +419,10 @@
             "layer2": "shì de",
             "layer3": "是的 = Yes"
           },
-          "is_correct": true
+          "target_frame": "frame.location.live_question",
+          "frame_slots_satisfied": [],
+          "intent_tags": ["affirmative_response"],
+          "quality_signal": "gold"
         },
         {
           "id": "no",
@@ -451,7 +432,10 @@
             "layer2": "bù shì",
             "layer3": "不是 = No"
           },
-          "is_correct": true
+          "target_frame": "frame.location.live_question",
+          "frame_slots_satisfied": [],
+          "intent_tags": ["negative_response"],
+          "quality_signal": "gold"
         },
         {
           "id": "idk",
@@ -472,27 +456,21 @@
           }
         }
       ],
-      "feedback": {
-        "correct": {
-          "zh": "明白了！🙂"
-        },
-        "incorrect": {
-          "zh": "没关系，这是一个是/不是的问题 🙂"
+      "response_model": {
+        "after_selection": {
+          "zh": "你在那儿住多久了？",
+          "pinyin": "nǐ zài nàr zhù duōjiǔle?",
+          "purpose": "Model the next turn: partner deepens the conversation with a follow-up about time spent in that location."
         }
       },
       "signals": [
         "comprehension"
       ],
-      "scoring": {
-        "pass_threshold": 0.8,
-        "partial_threshold": 0.5,
-        "metrics": [
-          {
-            "id": "accuracy",
-            "type": "accuracy",
-            "weight": 1
-          }
-        ]
+      "signal_tracking": {
+        "primary_signal": "comprehension",
+        "secondary_signals": [],
+        "silent_extraction": true,
+        "note": "Yes/no comprehension and response timing tracked; routing determined from pattern, not threshold."
       }
     },
     {
@@ -530,7 +508,10 @@
             "layer2": "xǐhuān",
             "layer3": "喜欢 = Like"
           },
-          "is_correct": true
+          "target_frame": "frame.opinion.like",
+          "frame_slots_satisfied": [],
+          "intent_tags": ["opinion_express", "affirmative"],
+          "quality_signal": "gold"
         },
         {
           "id": "b",
@@ -540,7 +521,10 @@
             "layer2": "bù xǐhuān",
             "layer3": "不喜欢 = Don't like"
           },
-          "is_correct": true
+          "target_frame": "frame.opinion.like",
+          "frame_slots_satisfied": [],
+          "intent_tags": ["opinion_express", "negative"],
+          "quality_signal": "gold"
         },
         {
           "id": "c",
@@ -550,7 +534,10 @@
             "layer2": "hái kěyǐ",
             "layer3": "还可以 = It's okay"
           },
-          "is_correct": true
+          "target_frame": "frame.opinion.like",
+          "frame_slots_satisfied": [],
+          "intent_tags": ["opinion_express", "neutral"],
+          "quality_signal": "gold"
         },
         {
           "id": "d",
@@ -573,12 +560,11 @@
           "opinion_express"
         ]
       },
-      "feedback": {
-        "correct": {
-          "zh": "很好！聊得很开心 🙂"
-        },
-        "incorrect": {
-          "zh": "没关系！你可以说：喜欢 或 不喜欢"
+      "response_model": {
+        "after_selection": {
+          "zh": "我也喜欢这儿。天气很好，人很友好。",
+          "pinyin": "wǒ yě xǐhuān zhèr. tiānqì hěn hǎo, rén hěn yǒuhǎo.",
+          "purpose": "Model the next turn: partner shares their own related opinion and adds context to deepen the conversation."
         }
       },
       "signals": [
@@ -586,43 +572,25 @@
         "frame_control",
         "confidence"
       ],
-      "scoring": {
-        "pass_threshold": 0.7,
-        "partial_threshold": 0.4,
-        "metrics": [
-          {
-            "id": "production",
-            "type": "production_correctness",
-            "weight": 0.6
-          },
-          {
-            "id": "latency",
-            "type": "latency_seconds",
-            "weight": 0.2,
-            "params": {
-              "max_ok_seconds": 15
-            }
-          },
-          {
-            "id": "comprehension",
-            "type": "comprehension",
-            "weight": 0.2
-          }
-        ]
+      "signal_tracking": {
+        "primary_signal": "production",
+        "secondary_signals": ["frame_control", "confidence"],
+        "silent_extraction": true,
+        "note": "Multi-valid response patterns (喜欢/不喜欢/还可以) all tracked as valid conversational intents; no 'correctness' judgment."
       }
     }
   ],
-  "placement_rules": {
-    "phase_thresholds": [
-      {
-        "phase_id": "P1",
-        "min_score": 0.4
-      },
-      {
-        "phase_id": "P2",
-        "min_score": 0.85
-      }
-    ],
-    "engine_selection": "lowest_gap_first"
+  "signal_aggregation": {
+    "description": "Diagnostic aggregates behavioral signals from all tasks; no explicit pass/fail gates applied.",
+    "routing_model": {
+      "phase_readiness": "Inferred from consistent frame_control and production signals across tasks.",
+      "engine_selection": "Based on pattern consistency and latency signals; lowest_gap_first routing.",
+      "confidence_downgrade_triggers": [
+        "option_count < 3 on any tap turn",
+        "gold_option_present == false on any turn",
+        "signal_extraction failed or incomplete"
+      ]
+    },
+    "note": "Routing and placement happen silently based on observed conversational patterns; no score threshold gating."
   }
 }
