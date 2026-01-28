@@ -228,6 +228,7 @@
           "intent_tags": ["name_introduce"],
           "quality_signal": "distractor",
           "slots_complete": false,
+          "slot_selectors": [],
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_name_c_hints",
@@ -247,6 +248,7 @@
           "intent_tags": ["name_introduce"],
           "quality_signal": "distractor",
           "slots_complete": false,
+          "slot_selectors": [],
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_name_d_hints",
@@ -268,7 +270,7 @@
         "after_selection": {
           "zh": "很高兴认识你！",
           "pinyin": "hěn gāoxìng rènshi nǐ!",
-          "purpose": "Acknowledge the name introduction and continue dialogue."
+          "purpose": "Model the next conversational turn: acknowledge name introduction and continue dialogue."
         }
       },
       "signals": [
@@ -352,6 +354,7 @@
           "intent_tags": ["nationality_identify"],
           "quality_signal": "distractor",
           "slots_complete": false,
+          "slot_selectors": [],
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_nationality_b_hints",
@@ -371,6 +374,7 @@
           "intent_tags": ["nationality_identify"],
           "quality_signal": "distractor",
           "slots_complete": false,
+          "slot_selectors": [],
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_nationality_c_hints",
@@ -390,6 +394,7 @@
           "intent_tags": ["nationality_identify"],
           "quality_signal": "distractor",
           "slots_complete": false,
+          "slot_selectors": [],
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_nationality_d_hints",
@@ -515,6 +520,7 @@
           "intent_tags": ["location_state"],
           "quality_signal": "distractor",
           "slots_complete": false,
+          "slot_selectors": [],
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_location_c_hints",
@@ -534,6 +540,7 @@
           "intent_tags": ["location_state"],
           "quality_signal": "distractor",
           "slots_complete": false,
+          "slot_selectors": [],
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_location_d_hints",

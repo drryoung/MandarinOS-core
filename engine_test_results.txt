@@ -1,0 +1,38 @@
+
+======================================================================
+DIAGNOSTIC ENGINE RUNTIME TEST
+======================================================================
+
+1️⃣  TESTING OPTION GENERATION FOR EACH TASK...
+
+2️⃣  TESTING FRAME-SLOT BINDING (§3.2 Frame-Slot Invariant)...
+
+3️⃣  TESTING HINT AFFORDANCE PERSISTENCE (§3.3 Hint Affordance Invariant)...
+
+4️⃣  TESTING SILENT SIGNAL EXTRACTION (§3.4 Diagnostic Confidence)...
+
+5️⃣  TESTING RESPONSE MODELS (Conversational, No Evaluation)...
+
+6️⃣  TESTING SRS CONFIG (Signal-Based Grading)...
+
+======================================================================
+TEST SUMMARY
+======================================================================
+
+✅ PASSED: 141 checks
+   ✅ p1_greeting: Generated 4 options
+   ✅ p1_greeting: Gold option(s) present [1]
+   ✅ p1_greeting option a: Validation metadata complete
+   ✅ p1_greeting option b: Validation metadata complete
+   ✅ p1_greeting option c: Validation metadata complete
+   ✅ p1_greeting option d: Validation metadata complete
+   ✅ p1_name: Generated 4 options
+   ✅ p1_name: Gold option(s) present [2]
+   ✅ p1_name option a: Validation metadata complete
+   ✅ p1_name option b: Validation metadata complete
+   ... and 131 more
+
+❌ FAILED: 0 checks
+
+======================================================================
+❌ 0 test(s) failed - see above.
