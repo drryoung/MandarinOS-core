@@ -1,0 +1,18 @@
+{
+  "trace_version": "1.0",
+  "trace_id": "fail_003_hint_effects_missing",
+  "created_at": "2026-01-28T10:00:00Z",
+  "app_build": { "repo": "full-app", "commit": "abc123", "env": "dev" },
+  "locale": "zh-CN",
+  "user_profile": { "user_id": "user_fail_003", "level": "BEGINNER" },
+  "scenario": { "scenario_id": "describe_hobby", "description": "Hint available but has no effects block", "initial_task_id": "task_hobby" },
+  "expected": { "result": "FAIL", "error_code": "HINT_NO_EFFECTS_BLOCK" },
+  "steps": [
+    {
+      "step_id": "step_001",
+      "event": { "type": "OPEN_HINT", "timestamp": "2026-01-28T10:12:00Z", "payload": {"action_id": null} },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_a"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_a"}], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_fail", "payload": {"text": "Try something"}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "trace_version": "1.0",
+  "trace_id": "fail_006_slots_lost_after_narrow",
+  "created_at": "2026-01-28T10:00:00Z",
+  "app_build": { "repo": "full-app", "commit": "abc123", "env": "dev" },
+  "locale": "zh-CN",
+  "user_profile": { "user_id": "user_fail_006", "level": "BEGINNER" },
+  "scenario": { "scenario_id": "introduce_yourself", "description": "Scaffolding narrow loses slot selectors that user needs", "initial_task_id": "task_intro_name" },
+  "expected": { "result": "FAIL", "error_code": "CONTRACT_SLOT_UNEXECUTABLE" },
+  "steps": [
+    {
+      "step_id": "step_001",
+      "event": { "type": "SYSTEM_NARROW", "timestamp": "2026-01-28T10:15:00Z", "payload": {"reason": "uncertainty", "from_level": "HIGH", "to_level": "MED"} },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_slot_frame", "option_kind": "FRAME_WITH_SLOTS", "frame_id": "frame.intro.name", "text_zh": "我叫{NAME}。", "required_slots": ["NAME"], "slot_selectors": {"NAME": ["张三", "李四", "王五"]}}], "hints": null, "slots": {"required": ["NAME"], "filled": {}, "selectors_present": ["NAME"]}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "MED", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_frame_no_selector", "option_kind": "FRAME_WITH_SLOTS", "frame_id": "frame.intro.name", "text_zh": "我叫{NAME}。", "required_slots": ["NAME"]}], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_006", "payload": {"text": "Try again", "effects": {"narrow": true}}}, "slots": {"required": ["NAME"], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    }
+  ]
+}

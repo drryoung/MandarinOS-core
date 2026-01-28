@@ -1,0 +1,48 @@
+{
+  "trace_id": "pass_010_cascading_scaffolding_across_all_levels",
+  "description": "Complete scaffolding flow HIGH→MED→LOW with toggles at each level",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "HIGH",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint", "select_option"],
+    "options": [
+      { "option_id": "a", "frame_id": "frame.work.job", "text_zh": "我是{JOB}。" },
+      { "option_id": "b", "frame_id": "frame.work.company", "text_zh": "我在{COMPANY}工作。" },
+      { "option_id": "c", "frame_id": "frame.hobby.sport", "text_zh": "我喜欢{SPORT}。" },
+      { "option_id": "d", "frame_id": "frame.hobby.music", "text_zh": "我喜欢唱歌。" }
+    ]
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": { "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [ { "option_id": "a", "frame_id": "frame.work.job", "text_zh": "我是{JOB}。" }, { "option_id": "b", "frame_id": "frame.work.company", "text_zh": "我在{COMPANY}工作。" }, { "option_id": "c", "frame_id": "frame.hobby.sport", "text_zh": "我喜欢{SPORT}。" }, { "option_id": "d", "frame_id": "frame.hobby.music", "text_zh": "我喜欢唱歌。" } ], "hints": { "available": false } },
+      "after": { "scaffolding_level": "HIGH", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "options": [], "hints": { "available": false } }
+    },
+    {
+      "step_num": 2,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TYPE", "to": "TAP" },
+      "before": { "scaffolding_level": "HIGH", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "options": [], "hints": { "available": false } },
+      "after": { "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [ { "option_id": "a", "frame_id": "frame.work.job", "text_zh": "我是{JOB}。" }, { "option_id": "b", "frame_id": "frame.work.company", "text_zh": "我在{COMPANY}工作。" }, { "option_id": "c", "frame_id": "frame.hobby.sport", "text_zh": "我喜欢{SPORT}。" }, { "option_id": "d", "frame_id": "frame.hobby.music", "text_zh": "我喜欢唱歌。" } ], "hints": { "available": false } }
+    },
+    {
+      "step_num": 3,
+      "event": { "type": "SCAFFOLDING_NARROW", "reason": "uncertainty" },
+      "before": { "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [ { "option_id": "a" }, { "option_id": "b" }, { "option_id": "c" }, { "option_id": "d" } ], "hints": { "available": false } },
+      "after": { "scaffolding_level": "MED", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint"], "options": [ { "option_id": "a", "frame_id": "frame.work.job", "text_zh": "我是{JOB}。" }, { "option_id": "b", "frame_id": "frame.work.company", "text_zh": "我在{COMPANY}工作。" } ], "hints": { "available": true, "step": 0, "cascade_state_key": "step_3_hints", "payload": { "effects": { "narrow": { "frames_allowed": ["frame.work.job", "frame.work.company"] } } } } }
+    },
+    {
+      "step_num": 4,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": { "scaffolding_level": "MED", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint"], "options": [ { "option_id": "a" }, { "option_id": "b" } ], "hints": { "available": true } },
+      "after": { "scaffolding_level": "MED", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "options": [], "hints": { "available": true, "cascade_state_key": "step_3_hints" } }
+    },
+    {
+      "step_num": 5,
+      "event": { "type": "SCAFFOLDING_NARROW", "reason": "continued_uncertainty" },
+      "before": { "scaffolding_level": "MED", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "options": [], "hints": { "available": true } },
+      "after": { "scaffolding_level": "LOW", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "options": [], "hints": { "available": true, "step": 1, "cascade_state_key": "step_3_hints" } }
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MandarinOS TurnState Trace Contract v1",
+  "description": "Canonical trace format for app-to-core integration. Records full turn state before/after each event for regression detection.",
+  "type": "object",
+  "required": ["trace_version", "trace_id", "created_at", "app_build", "locale", "user_profile", "scenario", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "trace_version": {
+      "type": "string",
+      "enum": ["1.0"],
+      "description": "Trace schema version; must be 1.0"
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "Unique identifier for this trace (UUID or similar)"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 datetime when trace was created"
+    },
+    "app_build": {
+      "type": "object",
+      "required": ["repo", "commit", "env"],
+      "additionalProperties": false,
+      "properties": {
+        "repo": {
+          "type": "string",
+          "description": "Full app repository name or URL"
+        },
+        "commit": {
+          "type": "string",
+          "description": "Git commit hash of full app at trace time"
+        },
+        "env": {
+          "type": "string",
+          "enum": ["dev", "staging", "prod"],
+          "description": "Environment where trace was captured"
+        }
+      }
+    },
+    "locale": {
+      "type": "string",
+      "enum": ["zh-CN", "zh-TW", "en-US"],
+      "description": "Locale of the trace"
+    },
+    "user_profile": {
+      "type": "object",
+      "required": ["user_id", "level"],
+      "additionalProperties": false,
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "description": "Anonymized user identifier"
+        },
+        "level": {
+          "type": "string",
+          "enum": ["BEGINNER", "INTERMEDIATE", "ADVANCED"],
+          "description": "User's starting level for this trace"
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "required": ["scenario_id", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": {
+          "type": "string",
+          "description": "Scenario identifier (e.g., 'introduce_yourself', 'order_coffee')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable scenario description"
+        },
+        "initial_task_id": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "First task in scenario, or null"
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Sequence of traced steps (events + state transitions)",
+      "items": { "$ref": "TraceStep.schema.json" }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "trace_version": "1.0",
+  "trace_id": "pass_005_narrow_then_structure_then_model",
+  "created_at": "2026-01-28T10:00:00Z",
+  "app_build": { "repo": "full-app", "commit": "abc123", "env": "dev" },
+  "locale": "zh-CN",
+  "user_profile": { "user_id": "user_005", "level": "BEGINNER" },
+  "scenario": { "scenario_id": "order_coffee", "description": "Progressive scaffolding: narrow > structure > model", "initial_task_id": "task_order" },
+  "expected": { "result": "PASS" },
+  "steps": [
+    {
+      "step_id": "step_001",
+      "event": { "type": "SYSTEM_NARROW", "timestamp": "2026-01-28T10:04:00Z", "payload": {"reason": "uncertainty", "from_level": "HIGH", "to_level": "MED"} },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a"}, {"option_id": "b"}, {"option_id": "c"}, {"option_id": "d"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "MED", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a", "text_zh": "我要一杯咖啡。"}, {"option_id": "b", "text_zh": "我要一杯茶。"}], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_narrow_001", "payload": {"text": "What do you want?", "effects": {"narrow": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    },
+    {
+      "step_id": "step_002",
+      "event": { "type": "SYSTEM_STRUCTURE", "timestamp": "2026-01-28T10:04:05Z", "payload": {"reason": "clarify_intent"} },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "MED", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a"}, {"option_id": "b"}], "hints": {"available": true, "cascade_state_key": "hint_narrow_001"}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "MED", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a", "text_zh": "我要一杯咖啡。", "frame_id": "frame.order.coffee"}], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_narrow_001", "payload": {"text": "Good: coffee is clear", "effects": {"structure": true, "frame": "frame.order.coffee"}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    },
+    {
+      "step_id": "step_003",
+      "event": { "type": "SYSTEM_MODEL", "timestamp": "2026-01-28T10:04:10Z", "payload": {"reason": "teach_full_exchange"} },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "MED", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a"}], "hints": {"available": true, "cascade_state_key": "hint_narrow_001"}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "LOW", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a", "text_zh": "我要一杯咖啡。"}], "hints": {"available": true, "step": 1, "cascade_state_key": "hint_narrow_001", "payload": {"text": "This is how you order coffee. Try it.", "effects": {"model": true, "full_exchange": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": "HIGH"} }
+    }
+  ]
+}

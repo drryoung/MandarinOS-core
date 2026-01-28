@@ -1,0 +1,245 @@
+MandarinOS — TurnState Trace Contract v1 (CORE → APP) Directive
+================================================================
+
+Objective
+---------
+Publish a canonical trace format that any full app repository MUST emit so MandarinOS-core
+can validate real integration behavior (scaffolding transitions, hint continuity, affordances).
+This enables CI-level regression detection without relying on screenshots or manual QA.
+
+Context
+-------
+Already locked in core:
+- Hint Cascade Test Suite (actionable hints, no single-answer modeling)
+- Conformance Harness (schemas + golden turn fixtures)
+- Scaffolding Transition Harness v1 (synthetic transition traces + validators)
+
+Missing piece:
+- A canonical, app-facing TurnState Trace Contract schema + integration instructions.
+
+Deliverables (CORE REPO)
+-----------------------
+1) schemas/TurnStateTrace.schema.json
+2) schemas/TurnState.schema.json
+3) schemas/Event.schema.json
+4) schemas/TraceStep.schema.json
+5) docs/TRACE_CONTRACT_v1.md
+6) golden/traces/v1/pass/*.json
+7) golden/traces/v1/fail/*.json
+8) conformance/run_trace_conformance.py  (or tests/test_trace_contract_v1.py)
+
+Design Principles (Non-negotiable)
+----------------------------------
+- Conversation > quiz
+- Never show a single “correct answer”
+- Always provide a way forward (options OR slot-fill OR actionable hint)
+- No “teacher correction reveal” caused by integration
+- Scaffolding may narrow, never amputate affordances
+
+Contract Overview
+-----------------
+A “Trace” is a JSON document representing a sequence of conversation states and transitions
+captured from the full app runtime. It is NOT UI screenshots and NOT DB dumps.
+
+The full app MUST export traces that conform exactly to this schema.
+Core validators will reject traces that:
+- lose affordances across toggles/scaffolding changes,
+- flatten structured options,
+- break hint cascade continuity,
+- create dead states.
+
+Trace Schema (TurnStateTrace.schema.json)
+-----------------------------------------
+Top-level object:
+{
+  "trace_version": "1.0",
+  "trace_id": "string",
+  "created_at": "ISO-8601 datetime",
+  "app_build": { "repo": "string", "commit": "string", "env": "string" },
+  "locale": "string",
+  "user_profile": { "user_id": "string", "level": "string" },
+  "scenario": {
+    "scenario_id": "string",
+    "description": "string",
+    "initial_task_id": "string|null"
+  },
+  "steps": [ TraceStep ]
+}
+
+TraceStep Schema (TraceStep.schema.json)
+----------------------------------------
+Each step records one event and the before/after states.
+{
+  "step_id": "string",
+  "event": Event,
+  "before": TurnState,
+  "after": TurnState,
+  "notes": "string|null"
+}
+
+Event Schema (Event.schema.json)
+-------------------------------
+Standard event types (extendable but must not break existing):
+- USER_SELECT_OPTION
+- USER_FILL_SLOT
+- USER_UNCERTAIN
+- OPEN_HINT
+- ADVANCE_HINT
+- TOGGLE_INPUT_MODE
+- SYSTEM_REPROMPT
+- SYSTEM_NARROW
+- SYSTEM_MODEL
+- SYSTEM_STRUCTURE
+- END_TURN
+
+Event object:
+{
+  "type": "string",
+  "timestamp": "ISO-8601 datetime",
+  "payload": { "any": "json" }
+}
+
+Required payload shapes for key events:
+- USER_SELECT_OPTION: { "option_id": "string" }
+- USER_FILL_SLOT: { "slot": "string", "value": "string" }
+- TOGGLE_INPUT_MODE: { "to": "TAP|TYPE" }
+- OPEN_HINT / ADVANCE_HINT: { "action_id": "string|null" }
+
+TurnState Schema (TurnState.schema.json)
+----------------------------------------
+TurnState must preserve the full core contract (NO flattening).
+Minimum required fields:
+{
+  "turn_id": "string",
+  "scaffolding_level": "HIGH|MED|LOW",
+  "input_mode": "TAP|TYPE",
+  "affordances": ["string", "..."],
+  "options": [ Option ],            # references schemas/Option.schema.json
+  "hints": Hint|null,               # references schemas/Hint.schema.json
+  "slots": {
+    "required": ["SLOT", "..."],
+    "filled": { "SLOT": "value" },
+    "selectors_present": ["SLOT", "..."]
+  },
+  "diagnostic": {
+    "mode": "conversation|diagnostic",
+    "confidence": "HIGH|MED|LOW|null"
+  }
+}
+
+Notes:
+- options may be empty ONLY if hints.available == true and "open_hint" in affordances.
+- hints must include non-empty effects when available == true (already enforced by conformance).
+- slots block is a trace-level summary for debugging; do not treat it as authoritative over Option tokens/selectors.
+
+Schema References
+-----------------
+Reuse or reference existing schemas from conformance harness:
+- schemas/Option.schema.json
+- schemas/Hint.schema.json
+- schemas/Effects.schema.json
+- schemas/Token.schema.json
+
+Hard Gates enforced by Trace Validators
+---------------------------------------
+Gate 1: Schema validity
+- Entire trace must validate against TurnStateTrace.schema.json
+
+Gate 2: Forward-path guarantee at every AFTER state
+Valid AFTER state requires at least one:
+- after.options length >= 1
+OR
+- slot-fill path exists (template + candidates) via options/hints
+OR
+- after.hints.available == true AND "open_hint" in affordances
+If violated => DEAD_STATE_NO_FORWARD_PATH
+
+Gate 3: Affordance preservation across TOGGLE_INPUT_MODE events
+- Must preserve at least: "what_can_i_say", "open_hint" (if hints.available), and any slot-fill affordance if slots incomplete.
+If violated => TOGGLE_AFFORDANCE_DROP
+
+Gate 4: Scaffolding non-amputation across scaffolding changes
+- If scaffolding_level decreases (HIGH->MED->LOW), it may reduce options but must not remove "what_can_i_say"
+- If user is uncertain, "open_hint" must remain available.
+If violated => SCAFFOLDING_AFFORDANCE_DROP
+
+Gate 5: Hint cascade continuity across steps
+- ADVANCE_HINT must satisfy actionable delta rules (already locked in hint cascade suite)
+If violated => HINT_NON_ACTIONABLE or HINT_NO_EFFECTS_BLOCK
+
+Gate 6: No flattened options in trace states
+- For any option with required_slots, must have tokens or slot_selectors
+If violated => CONTRACT_OPTION_FLATTENED / CONTRACT_SLOT_UNEXECUTABLE
+
+Standard Error Codes for Trace Validation
+-----------------------------------------
+- TRACE_SCHEMA_INVALID
+- DEAD_STATE_NO_FORWARD_PATH
+- TOGGLE_AFFORDANCE_DROP
+- SCAFFOLDING_AFFORDANCE_DROP
+- HINT_NO_EFFECTS_BLOCK
+- HINT_NON_ACTIONABLE
+- TEACHER_SINGLE_ANSWER
+- CONTRACT_OPTION_FLATTENED
+- CONTRACT_SLOT_UNEXECUTABLE
+
+Golden Trace Pack (golden/traces/v1)
+------------------------------------
+Create:
+- golden/traces/v1/pass/
+- golden/traces/v1/fail/
+
+PASS traces (minimum 6):
+1) pass_high_to_low_with_hints.json
+2) pass_toggle_tap_type_preserves_affordances.json
+3) pass_hint_advance_across_toggle.json
+4) pass_slot_fill_flow.json
+5) pass_narrow_then_structure_then_model.json
+6) pass_diagnostic_confidence_changes_without_affordance_loss.json
+
+FAIL traces (minimum 6):
+1) fail_dead_state_after_scaffold.json  -> DEAD_STATE_NO_FORWARD_PATH
+2) fail_toggle_drops_open_hint.json     -> TOGGLE_AFFORDANCE_DROP
+3) fail_hint_effects_missing.json       -> HINT_NO_EFFECTS_BLOCK
+4) fail_single_answer_model.json        -> TEACHER_SINGLE_ANSWER
+5) fail_flattened_option.json           -> CONTRACT_OPTION_FLATTENED
+6) fail_slots_lost_after_narrow.json    -> CONTRACT_SLOT_UNEXECUTABLE
+
+Trace Conformance Runner
+------------------------
+Implement: conformance/run_trace_conformance.py
+
+Behavior:
+- Validate all pass traces: must PASS
+- Validate all fail traces: must FAIL with expected error code per fixture metadata
+
+Fixture metadata pattern:
+Include in each trace file:
+{
+  "expected": { "result": "PASS" }
+}
+or
+{
+  "expected": { "result": "FAIL", "error_code": "TOGGLE_AFFORDANCE_DROP" }
+}
+
+Integration Instructions for Full App (docs/TRACE_CONTRACT_v1.md)
+-----------------------------------------------------------------
+Provide a short “How to export traces” section:
+- The app should capture TurnState BEFORE and AFTER each key event.
+- Export as JSON file matching TurnStateTrace schema.
+- Run in CI:
+  python -m conformance.run_trace_conformance --path exported_traces/
+
+Full app MUST ensure:
+- Raw engine TurnResponse is preserved (tokens/selectors/effects).
+- UI/DTO mapping does not flatten options or discard hint effects.
+- Input mode toggles and scaffolding changes do not remove affordances.
+
+Done Criteria
+-------------
+- Schemas committed under /schemas
+- docs/TRACE_CONTRACT_v1.md committed
+- golden traces committed (>=6 pass, >=6 fail)
+- run_trace_conformance.py passes in CI
+- Error codes are crisp and stable

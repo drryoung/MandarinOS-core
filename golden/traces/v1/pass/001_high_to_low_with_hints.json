@@ -1,0 +1,42 @@
+{
+  "trace_version": "1.0",
+  "trace_id": "pass_001_high_to_low_with_hints",
+  "created_at": "2026-01-28T10:00:00Z",
+  "app_build": { "repo": "full-app", "commit": "abc123", "env": "dev" },
+  "locale": "zh-CN",
+  "user_profile": { "user_id": "user_001", "level": "BEGINNER" },
+  "scenario": { "scenario_id": "introduce_yourself", "description": "User introduces themselves", "initial_task_id": "task_intro_name" },
+  "expected": { "result": "PASS" },
+  "steps": [
+    {
+      "step_id": "step_001",
+      "event": { "type": "USER_SELECT_OPTION", "timestamp": "2026-01-28T10:00:01Z", "payload": { "option_id": "opt_frame_job" } },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_frame_job", "option_kind": "FRAME_WITH_SLOTS", "frame_id": "frame.work.job", "text_zh": "我是{JOB}。", "required_slots": ["JOB"], "slot_selectors": {"JOB": ["医生", "老师", "工程师"]}}], "hints": null, "slots": {"required": ["JOB"], "filled": {}, "selectors_present": ["JOB"]}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_doc", "option_kind": "FRAME", "frame_id": "frame.work.job", "text_zh": "我是医生。"}, {"option_id": "opt_teacher", "option_kind": "FRAME", "text_zh": "我是老师。"}, {"option_id": "opt_eng", "option_kind": "FRAME", "text_zh": "我是工程师。"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    },
+    {
+      "step_id": "step_002",
+      "event": { "type": "OPEN_HINT", "timestamp": "2026-01-28T10:00:05Z", "payload": {"action_id": null} },
+      "before": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_doc"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_doc"}], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_001", "payload": {"text": "Select your job", "effects": {"narrow": false}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    },
+    {
+      "step_id": "step_003",
+      "event": { "type": "SYSTEM_NARROW", "timestamp": "2026-01-28T10:00:10Z", "payload": {"reason": "uncertainty", "from_level": "HIGH", "to_level": "MED"} },
+      "before": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_doc"}, {"option_id": "opt_teacher"}], "hints": {"available": true, "cascade_state_key": "hint_001", "payload": {}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_002", "scaffolding_level": "MED", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_doc", "text_zh": "我是医生。"}, {"option_id": "opt_teacher", "text_zh": "我是老师。"}], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_001", "payload": {"text": "Doctor or teacher?", "effects": {"narrow": true, "frames": ["frame.work.job"]}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    },
+    {
+      "step_id": "step_004",
+      "event": { "type": "SYSTEM_NARROW", "timestamp": "2026-01-28T10:00:15Z", "payload": {"reason": "continued_uncertainty", "from_level": "MED", "to_level": "LOW"} },
+      "before": { "turn_id": "turn_002", "scaffolding_level": "MED", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_doc"}, {"option_id": "opt_teacher"}], "hints": {"available": true, "cascade_state_key": "hint_001"}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_002", "scaffolding_level": "LOW", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_doc", "text_zh": "我是医生。"}], "hints": {"available": true, "step": 1, "cascade_state_key": "hint_001", "payload": {"text": "You are: 医生", "effects": {"structure": true, "highlight": "opt_doc"}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": "MED"} }
+    },
+    {
+      "step_id": "step_005",
+      "event": { "type": "USER_SELECT_OPTION", "timestamp": "2026-01-28T10:00:20Z", "payload": {"option_id": "opt_doc"} },
+      "before": { "turn_id": "turn_002", "scaffolding_level": "LOW", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_doc", "text_zh": "我是医生。"}], "hints": {"available": true, "cascade_state_key": "hint_001"}, "slots": {"required": ["JOB"], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": "MED"} },
+      "after": { "turn_id": "turn_003", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_next_1"}, {"option_id": "opt_next_2"}], "hints": null, "slots": {"required": [], "filled": {"JOB": "医生"}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": "HIGH"} }
+    }
+  ]
+}

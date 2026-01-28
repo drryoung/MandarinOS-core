@@ -1,0 +1,40 @@
+{
+  "trace_id": "pass_009_toggle_with_hint_available_preserves_hints",
+  "description": "Toggle input mode while hints available; hints must remain accessible",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "MED",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint"],
+    "options": [
+      { "option_id": "a", "frame_id": "frame.family.brother", "text_zh": "我有哥哥。" },
+      { "option_id": "b", "frame_id": "frame.family.sister", "text_zh": "我有姐姐。" }
+    ],
+    "hints": {
+      "available": true,
+      "step": 0,
+      "max_step": 2,
+      "cascade_state_key": "family_hints_v1"
+    }
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": {
+        "input_mode": "TAP",
+        "hints": { "available": true, "step": 0, "cascade_state_key": "family_hints_v1" }
+      },
+      "after": {
+        "input_mode": "TYPE",
+        "hints": { "available": true, "step": 0, "cascade_state_key": "family_hints_v1" },
+        "affordances": ["what_can_i_say", "open_hint", "submit_response"]
+      },
+      "validation": {
+        "hints_still_available": true,
+        "cascade_state_preserved": true,
+        "affordance_preserved": ["what_can_i_say", "open_hint"]
+      }
+    }
+  ]
+}

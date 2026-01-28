@@ -1,0 +1,111 @@
+{
+  "trace_id": "pass_001_high_to_med_to_low_with_uncertainty",
+  "description": "User is uncertain → scaffolding adapts HIGH→MED→LOW while preserving affordances",
+  "initial": {
+    "turn_id": "initial_state",
+    "scaffolding_level": "HIGH",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint", "select_option"],
+    "options": [
+      {
+        "option_id": "a",
+        "frame_id": "frame.identity.name",
+        "text_zh": "我叫{NAME}。",
+        "required_slots": ["NAME"],
+        "slots_complete": false,
+        "tokens": [
+          { "type": "literal", "value": "我叫" },
+          { "type": "slot", "name": "NAME", "required": true },
+          { "type": "literal", "value": "。" }
+        ],
+        "slot_selectors": { "NAME": ["张三", "李四", "王五", "赵六", "孙七"] }
+      },
+      {
+        "option_id": "b",
+        "frame_id": "frame.greeting.hello",
+        "text_zh": "你好"
+      },
+      {
+        "option_id": "c",
+        "frame_id": "frame.greeting.hihi",
+        "text_zh": "嗨嗨"
+      },
+      {
+        "option_id": "d",
+        "frame_id": "frame.identity.introduce",
+        "text_zh": "我是学生。"
+      }
+    ],
+    "hints": { "available": false },
+    "quality_signal": "none"
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "USER_UNCERTAIN", "reason": "user hesitated 3+ seconds" },
+      "before": {
+        "scaffolding_level": "HIGH",
+        "input_mode": "TAP",
+        "affordances": ["what_can_i_say", "open_hint", "select_option"],
+        "options": [
+          { "option_id": "a", "frame_id": "frame.identity.name", "text_zh": "我叫{NAME}。", "required_slots": ["NAME"], "tokens": [{ "type": "literal", "value": "我叫" }, { "type": "slot", "name": "NAME" }, { "type": "literal", "value": "。" }], "slot_selectors": { "NAME": ["张三", "李四", "王五", "赵六"] } },
+          { "option_id": "b", "frame_id": "frame.greeting.hello", "text_zh": "你好" },
+          { "option_id": "c", "frame_id": "frame.greeting.hihi", "text_zh": "嗨嗨" },
+          { "option_id": "d", "frame_id": "frame.identity.introduce", "text_zh": "我是学生。" }
+        ],
+        "hints": { "available": false }
+      },
+      "after": {
+        "scaffolding_level": "MED",
+        "input_mode": "TAP",
+        "affordances": ["what_can_i_say", "open_hint"],
+        "options": [
+          { "option_id": "a", "frame_id": "frame.identity.name", "text_zh": "我叫{NAME}。", "required_slots": ["NAME"], "tokens": [{ "type": "literal", "value": "我叫" }, { "type": "slot", "name": "NAME" }, { "type": "literal", "value": "。" }], "slot_selectors": { "NAME": ["张三", "李四"] } },
+          { "option_id": "b", "frame_id": "frame.greeting.hello", "text_zh": "你好" }
+        ],
+        "hints": {
+          "available": true,
+          "step": 0,
+          "max_step": 2,
+          "cascade_state_key": "step_1_hints",
+          "payload": {
+            "text": "Focus on introducing yourself.",
+            "effects": { "narrow": { "frames_allowed": ["frame.identity.name", "frame.greeting.hello"] } }
+          }
+        }
+      }
+    },
+    {
+      "step_num": 2,
+      "event": { "type": "USER_UNCERTAIN", "reason": "user still hesitant" },
+      "before": {
+        "scaffolding_level": "MED",
+        "input_mode": "TAP",
+        "affordances": ["what_can_i_say", "open_hint"],
+        "options": [
+          { "option_id": "a", "frame_id": "frame.identity.name", "text_zh": "我叫{NAME}。", "required_slots": ["NAME"], "tokens": [{ "type": "literal", "value": "我叫" }, { "type": "slot", "name": "NAME" }, { "type": "literal", "value": "。" }], "slot_selectors": { "NAME": ["张三", "李四"] } },
+          { "option_id": "b", "frame_id": "frame.greeting.hello", "text_zh": "你好" }
+        ],
+        "hints": { "available": true, "step": 0, "cascade_state_key": "step_1_hints" }
+      },
+      "after": {
+        "scaffolding_level": "LOW",
+        "input_mode": "TAP",
+        "affordances": ["what_can_i_say", "open_hint"],
+        "options": [
+          { "option_id": "a", "frame_id": "frame.identity.name", "text_zh": "我叫{NAME}。", "required_slots": ["NAME"], "tokens": [{ "type": "literal", "value": "我叫" }, { "type": "slot", "name": "NAME" }, { "type": "literal", "value": "。" }], "slot_selectors": { "NAME": ["张三", "李四"] } }
+        ],
+        "hints": {
+          "available": true,
+          "step": 1,
+          "max_step": 2,
+          "cascade_state_key": "step_1_hints",
+          "payload": {
+            "text": "Pick your name from the dropdown.",
+            "effects": { "narrow": { "slot_domains": { "NAME": ["张三", "李四"] } } }
+          }
+        }
+      }
+    }
+  ]
+}

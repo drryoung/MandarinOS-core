@@ -1,0 +1,30 @@
+{
+  "trace_version": "1.0",
+  "trace_id": "pass_006_diagnostic_confidence_changes_without_affordance_loss",
+  "created_at": "2026-01-28T10:00:00Z",
+  "app_build": { "repo": "full-app", "commit": "abc123", "env": "dev" },
+  "locale": "zh-CN",
+  "user_profile": { "user_id": "user_006", "level": "INTERMEDIATE" },
+  "scenario": { "scenario_id": "diagnostic_session", "description": "Diagnostic confidence changes without losing affordances", "initial_task_id": "task_diagnostic_1" },
+  "expected": { "result": "PASS" },
+  "steps": [
+    {
+      "step_id": "step_001",
+      "event": { "type": "USER_SELECT_OPTION", "timestamp": "2026-01-28T10:05:00Z", "payload": {"option_id": "opt_correct"} },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_correct"}, {"option_id": "opt_distractor1"}, {"option_id": "opt_distractor2"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "diagnostic", "confidence": null} },
+      "after": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_next_1"}, {"option_id": "opt_next_2"}, {"option_id": "opt_next_3"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "diagnostic", "confidence": "HIGH"} }
+    },
+    {
+      "step_id": "step_002",
+      "event": { "type": "USER_UNCERTAIN", "timestamp": "2026-01-28T10:05:05Z", "payload": {"intent": "request_help"} },
+      "before": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_next_1"}, {"option_id": "opt_next_2"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "diagnostic", "confidence": "HIGH"} },
+      "after": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_next_1"}, {"option_id": "opt_next_2"}], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_diag_002", "payload": {"text": "Try describing...", "effects": {"hint": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "diagnostic", "confidence": "MED"} }
+    },
+    {
+      "step_id": "step_003",
+      "event": { "type": "TOGGLE_INPUT_MODE", "timestamp": "2026-01-28T10:05:10Z", "payload": {"to": "TYPE"} },
+      "before": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_next_1"}, {"option_id": "opt_next_2"}], "hints": {"available": true, "cascade_state_key": "hint_diag_002", "payload": {"text": "Try describing...", "effects": {"hint": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "diagnostic", "confidence": "MED"} },
+      "after": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "options": [], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_diag_002", "payload": {"text": "Try describing...", "effects": {"hint": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "diagnostic", "confidence": "MED"} }
+    }
+  ]
+}

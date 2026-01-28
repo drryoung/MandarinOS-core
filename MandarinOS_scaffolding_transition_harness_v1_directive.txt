@@ -1,0 +1,190 @@
+MandarinOS — Scaffolding Transition Harness v1 (CORE REPO) Directive
+=================================================================
+
+Objective
+---------
+Lock HIGH→MED→LOW scaffolding + tap/type input-mode toggles so they can NEVER:
+- remove “what_can_i_say” / “open_hint” / slot-fill affordances,
+- break hint cascade continuity,
+- create dead states (no way forward),
+- revert to assessment/quiz behaviors.
+
+This is a SYSTEM DESIGN + DEBUGGING directive for MandarinOS-core.
+It parallels the Hint Cascade and Conformance Harness approach:
+synthetic transition traces + validators + standardized error codes.
+
+Prerequisites (already locked)
+------------------------------
+- Hint Cascade test suite locked
+- Conformance harness (schemas + golden turn fixtures) locked
+
+Scope
+-----
+Core repo only:
+- JSON config packs
+- Python test harnesses
+- Synthetic traces
+Not dependent on full-app logs.
+
+Definitions
+-----------
+Scaffolding level: one of HIGH | MED | LOW
+Input mode: one of TAP | TYPE (may exist as UI state; core must preserve affordances regardless)
+
+Forward path:
+At any turn state, learner must have at least one of:
+- selectable option(s), OR
+- slot-fill affordance with candidates/template, OR
+- actionable hint path (open_hint + non-empty effects upon next step)
+
+Non-amputation principle:
+Scaffolding may narrow, but must never amputate core affordances.
+
+Required Policy Spec (single source of truth)
+---------------------------------------------
+Create file: policy/scaffolding_policy.json
+
+Example structure:
+{
+  "levels": {
+    "HIGH": { "min_options": 4, "must_have_affordances": ["what_can_i_say","open_hint","select_option"] },
+    "MED":  { "min_options": 2, "must_have_affordances": ["what_can_i_say","open_hint"] },
+    "LOW":  { "min_options": 1, "must_have_affordances": ["what_can_i_say","open_hint"] }
+  },
+  "toggle_invariants": {
+    "TAP_TO_TYPE": { "must_preserve_affordances": ["what_can_i_say","open_hint"] },
+    "TYPE_TO_TAP": { "must_preserve_affordances": ["what_can_i_say","open_hint"] }
+  },
+  "dead_state_rules": {
+    "allow_empty_options_only_if_hint_available": true
+  }
+}
+
+Policy rules:
+- “what_can_i_say” is non-removable at ALL levels.
+- If user is not progressing and options narrow, “open_hint” must remain present.
+- LOW may reduce options, but must ensure hint structure/model step is available if user is stuck.
+
+Transition Trace Format (new fixture type)
+------------------------------------------
+Create directory: golden/transitions/v1/
+
+Each fixture is a JSON trace with ordered steps:
+{
+  "trace_id": "scaffold_high_to_low_with_toggles",
+  "initial": { ...TurnState... },
+  "steps": [
+    {
+      "event": { "type": "USER_UNCERTAIN" },  # triggers scaffolding adaptation
+      "before": { ...TurnState... },
+      "after":  { ...TurnState... }
+    },
+    {
+      "event": { "type": "TOGGLE_INPUT_MODE", "to": "TYPE" },
+      "before": { ...TurnState... },
+      "after":  { ...TurnState... }
+    },
+    {
+      "event": { "type": "OPEN_HINT" },
+      "before": { ...TurnState... },
+      "after":  { ...TurnState... }
+    }
+  ]
+}
+
+TurnState fields (minimum):
+- scaffolding_level: "HIGH"|"MED"|"LOW"
+- input_mode: "TAP"|"TYPE"
+- affordances: string[]
+- options: Option[]  (same schema as conformance harness)
+- hints: Hint (same schema; if available must include effects)
+- slot_state: optional summary (e.g., required_slots, selectors present)
+
+Reuse existing schemas from conformance harness for TurnResponse/Option/Hint,
+or define TurnState.schema.json that references them.
+
+Synthetic Transition Fixtures (MUST INCLUDE)
+-------------------------------------------
+Create >= 10 fixtures (PASS unless stated FAIL). Suggested set:
+
+PASS 1: HIGH → MED → LOW under repeated uncertainty
+- Ensure “what_can_i_say” + “open_hint” always present.
+- Ensure forward path always exists.
+
+PASS 2: TAP→TYPE toggle at HIGH
+- Affordances preserved; hint remains available; options remain executable.
+
+PASS 3: TAP→TYPE toggle at MED
+
+PASS 4: TAP→TYPE toggle at LOW
+
+PASS 5: TYPE→TAP toggle at each level (3 fixtures or one combined)
+
+PASS 6: Hint cascade continuity across toggle
+- Open hint at HIGH, toggle, open next hint step; effects remain valid and monotonic.
+
+PASS 7: Narrowing via scaffolding does not break slot executability
+- Required slots still present via tokens/slot_selectors.
+
+PASS 8: LOW with options reduced to 1 still provides non-teacher modeling/hint path
+- If the single option is incomplete, structure/model hint must provide >=2 ways forward or template+slots.
+
+FAIL 1: Affordance drop on toggle
+- After toggle, missing “open_hint” while hints.available==true
+Expected error: SCAFFOLDING_AFFORDANCE_DROP or TOGGLE_BREAKS_HINTS
+
+FAIL 2: Dead state produced by scaffolding
+- options empty and hints.available==false after adaptation
+Expected error: SCAFFOLDING_DEAD_STATE
+
+Validators (Python test suite)
+------------------------------
+Create: test_scaffolding_transitions_v1.py
+
+Core validators (mirrors Copilot’s style from hint cascade + conformance):
+1) Policy compliance:
+   - check required affordances per scaffolding level
+2) Forward-path guarantee:
+   - at every “after” state, ensure at least one forward path exists
+3) Affordance preservation across transitions:
+   - for TOGGLE events, ensure policy.must_preserve_affordances subset holds
+4) Hint continuity across transitions:
+   - if hints.available before, ensure available after unless explicitly exhausted
+   - if hint step advances, must satisfy hint delta/actionability rules already locked
+5) No regression in executability:
+   - required_slots must remain completable (tokens OR slot_selectors)
+   - forbid flattened options (already in conformance but re-check)
+6) Non-teacher single-answer gate:
+   - if modeling occurs at any state, must have >=2 options
+
+Standard Error Codes (add constants)
+-----------------------------------
+- SCAFFOLDING_DEAD_STATE
+- SCAFFOLDING_AFFORDANCE_DROP
+- TOGGLE_BREAKS_HINTS
+- TOGGLE_BREAKS_SLOTS
+- SCAFFOLDING_POLICY_VIOLATION
+
+Test Runner Behavior
+--------------------
+- PASS fixtures must pass.
+- FAIL fixtures must fail with the expected error codes.
+- Print concise per-fixture summary and exit non-zero on unexpected outcomes.
+
+CI Integration
+--------------
+- Add this test suite to core CI alongside existing hint cascade and conformance suites.
+- Ensure it runs fast (<5s ideally); keep fixtures minimal and reusable.
+
+Developer Notes (tell full-app devs later)
+------------------------------------------
+- UI input mode changes must NOT drop affordances (“what_can_i_say”, “open_hint”).
+- Any state machine that rebuilds options from display strings risks slot/hint loss and will fail these tests if core state is used as source of truth.
+- If the app cannot keep the contract, it must be fixed; do not weaken the contract.
+
+Done Criteria
+-------------
+- policy/scaffolding_policy.json committed
+- golden/transitions/v1/ fixtures committed (>=10)
+- test_scaffolding_transitions_v1.py committed and passing
+- FAIL fixtures fail as expected with correct error codes

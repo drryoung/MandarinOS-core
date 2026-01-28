@@ -1,0 +1,35 @@
+{
+  "trace_id": "fail_001_affordance_drop_on_toggle",
+  "description": "FAIL: Toggle removes 'open_hint' while hints available (contract violation)",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "MED",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint", "select_option"],
+    "options": [
+      { "option_id": "a", "frame_id": "frame.greeting.hello", "text_zh": "你好" }
+    ],
+    "hints": { "available": true, "step": 0 }
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": {
+        "input_mode": "TAP",
+        "affordances": ["what_can_i_say", "open_hint", "select_option"],
+        "hints": { "available": true }
+      },
+      "after": {
+        "input_mode": "TYPE",
+        "affordances": ["what_can_i_say", "submit_response"],
+        "hints": { "available": true },
+        "dropped_affordances": ["open_hint"]
+      },
+      "validation": {
+        "error_code": "TOGGLE_BREAKS_HINTS",
+        "message": "Hints available but 'open_hint' affordance missing after toggle"
+      }
+    }
+  ]
+}

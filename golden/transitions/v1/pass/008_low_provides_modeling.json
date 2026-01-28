@@ -1,0 +1,68 @@
+{
+  "trace_id": "pass_008_low_single_option_provides_modeling_or_structure_hint",
+  "description": "At LOW with 1 option, if incomplete, hint must provide >=2 modeling ways or template+slots",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "LOW",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint"],
+    "options": [
+      {
+        "option_id": "a",
+        "frame_id": "frame.life.plan",
+        "text_zh": "我想{ACTION}。",
+        "required_slots": ["ACTION"],
+        "slots_complete": false,
+        "tokens": [
+          { "type": "literal", "value": "我想" },
+          { "type": "slot", "name": "ACTION" },
+          { "type": "literal", "value": "。" }
+        ],
+        "slot_selectors": { "ACTION": ["学中文"] }
+      }
+    ],
+    "hints": {
+      "available": true,
+      "step": 2,
+      "max_step": 3
+    }
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "OPEN_HINT", "action": "next_hint" },
+      "before": {
+        "scaffolding_level": "LOW",
+        "num_options": 1,
+        "hints": { "step": 2, "max_step": 3, "cascade_state_key": "low_hints" },
+        "affordances": ["what_can_i_say", "open_hint"],
+        "options": [
+          { "option_id": "a", "frame_id": "frame.life.plan", "text_zh": "我想{ACTION}。", "required_slots": ["ACTION"], "slots_complete": false, "tokens": [{ "type": "literal", "value": "我想" }, { "type": "slot", "name": "ACTION" }, { "type": "literal", "value": "。" }], "slot_selectors": { "ACTION": ["学中文"] } }
+        ]
+      },
+      "after": {
+        "scaffolding_level": "LOW",
+        "num_options": 1,
+        "hints": {
+          "step": 3,
+          "max_step": 3,
+          "cascade_state_key": "low_hints",
+          "payload": {
+            "effects": {
+              "model": {
+                "options": [
+                  { "option_id": "model_plan", "frame_id": "frame.life.plan", "text_zh": "我想学中文。" },
+                  { "option_id": "model_travel", "frame_id": "frame.life.travel", "text_zh": "我想去旅游。" }
+                ]
+              }
+            }
+          }
+        },
+        "affordances": ["what_can_i_say", "open_hint"],
+        "options": [
+          { "option_id": "a", "frame_id": "frame.life.plan", "text_zh": "我想{ACTION}。", "required_slots": ["ACTION"], "tokens": [{ "type": "literal", "value": "我想" }, { "type": "slot", "name": "ACTION" }, { "type": "literal", "value": "。" }], "slot_selectors": { "ACTION": ["学中文"] } }
+        ]
+      }
+    }
+  ]
+}

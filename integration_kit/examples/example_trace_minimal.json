@@ -1,0 +1,23 @@
+{
+  "trace_version": "1.0",
+  "trace_id": "example_minimal_slot_fill",
+  "created_at": "2026-01-28T10:00:00Z",
+  "app_build": { "repo": "full-app", "commit": "example", "env": "dev" },
+  "locale": "zh-CN",
+  "user_profile": { "user_id": "example_user", "level": "BEGINNER" },
+  "scenario": { "scenario_id": "S1_basic_slot_fill", "description": "Minimal example: select slot-bearing frame and fill slot", "initial_task_id": null },
+  "steps": [
+    {
+      "step_id": "step_001",
+      "event": { "type": "USER_SELECT_OPTION", "timestamp": "2026-01-28T10:00:01Z", "payload": { "option_id": "frame_name" } },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "frame_name", "option_kind": "FRAME_WITH_SLOTS", "frame_id": "frame.intro.name", "text_zh": "我叫{NAME}。", "required_slots": ["NAME"], "slot_selectors": {"NAME": ["Alice", "Bob", "Carol"]}}], "hints": null, "slots": {"required": ["NAME"], "filled": {}, "selectors_present": ["NAME"]}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "name_alice", "option_kind": "FRAME", "frame_id": "frame.intro.name", "text_zh": "我叫Alice。"}, {"option_id": "name_bob", "text_zh": "我叫Bob。"}, {"option_id": "name_carol", "text_zh": "我叫Carol。"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    },
+    {
+      "step_id": "step_002",
+      "event": { "type": "USER_SELECT_OPTION", "timestamp": "2026-01-28T10:00:05Z", "payload": { "option_id": "name_alice" } },
+      "before": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "name_alice"}, {"option_id": "name_bob"}, {"option_id": "name_carol"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_003", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "next_1", "text_zh": "你好，Alice。"}], "hints": null, "slots": {"required": [], "filled": {"NAME": "Alice"}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": "HIGH"} }
+    }
+  ]
+}

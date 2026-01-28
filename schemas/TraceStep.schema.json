@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TraceStep",
+  "description": "A single step in a trace, recording one event and the before/after turn states",
+  "type": "object",
+  "required": ["step_id", "event", "before", "after"],
+  "additionalProperties": false,
+  "properties": {
+    "step_id": {
+      "type": "string",
+      "description": "Unique identifier for this step (e.g., 'step_001', 'step_002')"
+    },
+    "event": {
+      "$ref": "Event.schema.json"
+    },
+    "before": {
+      "$ref": "TurnState.schema.json"
+    },
+    "after": {
+      "$ref": "TurnState.schema.json"
+    },
+    "notes": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ],
+      "description": "Optional trace-level note about this step"
+    }
+  }
+}

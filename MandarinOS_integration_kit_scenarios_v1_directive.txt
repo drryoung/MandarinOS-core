@@ -1,0 +1,155 @@
+MandarinOS — Integration Kit Packaging + Scenario IDs (CORE REPO) Directive
+=============================================================================
+
+Objective
+---------
+Package a minimal “integration kit” in MandarinOS-core so any full-app repo can:
+1) Export TurnStateTrace v1 JSON traces
+2) Validate them in CI using the core conformance runner
+3) Implement a small set of required Scenario IDs that cover the critical regressions
+   (slots, hints, scaffolding transitions, toggles).
+
+This reduces handoff friction and makes integration mechanical.
+
+Deliverables (CORE REPO)
+-----------------------
+1) integration_kit/README.md
+2) integration_kit/schemas/  (copy or symlink from /schemas)
+3) integration_kit/examples/
+   - example_trace_minimal.json
+   - example_trace_toggle.json
+   - example_trace_hint_cascade.json
+4) integration_kit/ts_exporter_snippets/
+   - trace_exporter.ts (pseudocode)
+   - capture_helpers.ts (pseudocode)
+5) scripts/validate_traces.sh  (mac/linux)
+6) scripts/validate_traces.ps1 (windows)
+7) scripts/validate_traces.py  (pure python wrapper; optional but recommended)
+8) docs/SCENARIOS_REQUIRED_v1.md
+9) (Optional) Makefile target or npm script notes in README
+
+Integration Kit Layout
+----------------------
+integration_kit/
+  README.md
+  schemas/                    # includes TurnStateTrace.schema.json and referenced schemas
+  examples/
+  ts_exporter_snippets/
+scripts/
+  validate_traces.sh
+  validate_traces.ps1
+
+README.md Requirements
+----------------------
+Must include:
+- What this kit is
+- How to export traces in the full app
+- How to validate traces locally
+- How to validate in CI (GitHub Actions example snippet)
+- “Do not flatten structured options” warning
+- Supported error codes reference (list the 9 standard codes)
+
+Trace Validation Scripts
+------------------------
+Goal: One-liners that work in the full app repo with minimal Python knowledge.
+
+scripts/validate_traces.sh (example behavior):
+- ensure python available
+- pip install -r requirements.txt (or minimal deps)
+- run: python -m conformance.run_trace_conformance --path "$1"
+- exit non-zero on failure
+
+scripts/validate_traces.ps1 similar for Windows.
+
+If you want to avoid pip install in full app CI, document vendoring options:
+- pin requirements
+- or provide a minimal Docker job
+(Keep simple; text-only instructions.)
+
+TypeScript Exporter Snippets (pseudocode)
+----------------------------------------
+Provide minimal capture patterns; DO NOT assume any specific app structure.
+Include:
+1) A TraceBuilder class
+2) captureStep(event, beforeState, afterState)
+3) writeJson(trace, path)
+
+Example pseudo-API:
+- const tb = new TraceBuilder({ trace_id, app_build, scenario });
+- tb.step(event, beforeState, afterState);
+- tb.exportToFile("traces/scenario_S1.json");
+
+Also include “what must be captured in TurnState”:
+- scaffolding_level
+- input_mode
+- affordances
+- options (structured)
+- hints (structured, effects present)
+- slots summary (required/filled/selectors_present)
+- diagnostic.mode + confidence
+
+Scenario IDs (docs/SCENARIOS_REQUIRED_v1.md)
+--------------------------------------------
+Publish a short, mandatory list the full app must implement and export traces for.
+Each scenario includes: ID, intent, required events, success criteria.
+
+Required Scenario Set v1 (minimum 6)
+------------------------------------
+S1_basic_slot_fill
+- Intent: Ensure slot-bearing frames remain executable end-to-end.
+- Events: SYSTEM prompt -> USER_SELECT_OPTION (slot frame) -> USER_FILL_SLOT -> END_TURN
+- Must preserve: tokens/selectors; no flattening; forward-path always present.
+
+S2_hint_narrow_structure_model
+- Intent: Ensure hint cascade effects are preserved and actionable.
+- Events: OPEN_HINT -> ADVANCE_HINT (narrow) -> ADVANCE_HINT (structure) -> ADVANCE_HINT (model)
+- Must preserve: effects non-empty; model options >=2.
+
+S3_toggle_preserves_affordances
+- Intent: Ensure TAP<->TYPE toggles do not drop what_can_i_say/open_hint.
+- Events: TOGGLE_INPUT_MODE multiple times + OPEN_HINT + ADVANCE_HINT
+- Must preserve: affordances and hint continuity; no dead state.
+
+S4_scaffolding_high_to_low
+- Intent: Ensure narrowing under scaffolding does not amputate affordances.
+- Events: USER_UNCERTAIN repeated -> scaffolding_level HIGH->MED->LOW transitions
+- Must preserve: what_can_i_say always; open_hint when stuck; forward-path guarantee.
+
+S5_narrow_then_slot_integrity
+- Intent: Ensure SYSTEM_NARROW does not drop slot tokens/selectors.
+- Events: SYSTEM_NARROW -> USER_SELECT_OPTION -> (slot fill path)
+- Must preserve: required_slots executable after narrowing.
+
+S6_diagnostic_confidence_changes_no_assessment
+- Intent: Ensure diagnostic confidence downgrades don’t trigger quiz behavior.
+- Events: USER_UNCERTAIN -> diagnostic.confidence HIGH->MED->LOW changes
+- Must preserve: affordances and hint availability; no “correct answer” reveal.
+
+For each scenario, add:
+- “Trace must export” file naming convention:
+  traces/scenario_<ID>.json
+- “Validator to run”:
+  python -m conformance.run_trace_conformance --path traces/
+
+Examples (integration_kit/examples)
+-----------------------------------
+Provide 3 example traces that pass schema and illustrate capture:
+1) minimal 2-step trace
+2) toggle trace
+3) hint cascade trace
+These are documentation artifacts, not test fixtures (but should validate).
+
+GitHub Actions CI Snippet (in README)
+-------------------------------------
+Provide a minimal job example (no repo-specific assumptions):
+- checkout
+- setup-python
+- pip install -r requirements.txt (or install jsonschema only)
+- run validation script on traces directory
+
+Done Criteria
+-------------
+- integration_kit folder exists with schemas + examples + TS snippets
+- scripts/validate_traces.{sh,ps1} exist and work with a traces folder path argument
+- docs/SCENARIOS_REQUIRED_v1.md lists required scenarios with success criteria
+- README includes a copy-paste CI snippet and clear export instructions

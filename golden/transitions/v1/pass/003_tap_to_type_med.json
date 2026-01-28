@@ -1,0 +1,53 @@
+{
+  "trace_id": "pass_003_tap_to_type_toggle_med",
+  "description": "TAP→TYPE toggle at MED scaffolding; core affordances preserved",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "MED",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint"],
+    "options": [
+      {
+        "option_id": "a",
+        "frame_id": "frame.identity.nationality",
+        "text_zh": "我是{NATIONALITY}人。",
+        "required_slots": ["NATIONALITY"],
+        "tokens": [
+          { "type": "literal", "value": "我是" },
+          { "type": "slot", "name": "NATIONALITY" },
+          { "type": "literal", "value": "人。" }
+        ],
+        "slot_selectors": { "NATIONALITY": ["中国", "美国"] }
+      },
+      {
+        "option_id": "b",
+        "frame_id": "frame.identity.job",
+        "text_zh": "我是医生。"
+      }
+    ],
+    "hints": { "available": false }
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": {
+        "scaffolding_level": "MED",
+        "input_mode": "TAP",
+        "affordances": ["what_can_i_say", "open_hint"],
+        "options": [
+          { "option_id": "a", "frame_id": "frame.identity.nationality", "text_zh": "我是{NATIONALITY}人。", "required_slots": ["NATIONALITY"], "tokens": [{ "type": "literal", "value": "我是" }, { "type": "slot", "name": "NATIONALITY" }, { "type": "literal", "value": "人。" }], "slot_selectors": { "NATIONALITY": ["中国", "美国"] } },
+          { "option_id": "b", "frame_id": "frame.identity.job", "text_zh": "我是医生。" }
+        ],
+        "hints": { "available": false }
+      },
+      "after": {
+        "scaffolding_level": "MED",
+        "input_mode": "TYPE",
+        "affordances": ["what_can_i_say", "open_hint", "submit_response"],
+        "options": [],
+        "hints": { "available": false }
+      }
+    }
+  ]
+}

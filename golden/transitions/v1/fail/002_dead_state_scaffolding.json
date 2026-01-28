@@ -1,0 +1,37 @@
+{
+  "trace_id": "fail_002_scaffolding_creates_dead_state",
+  "description": "FAIL: Scaffolding narrows to empty options with no hint available (dead state)",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "MED",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint", "select_option"],
+    "options": [
+      { "option_id": "a", "frame_id": "frame.greeting.hello", "text_zh": "你好" },
+      { "option_id": "b", "frame_id": "frame.greeting.hihi", "text_zh": "嗨嗨" }
+    ],
+    "hints": { "available": false }
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "SCAFFOLDING_NARROW", "reason": "user_uncertainty" },
+      "before": {
+        "scaffolding_level": "MED",
+        "num_options": 2,
+        "hints_available": false
+      },
+      "after": {
+        "scaffolding_level": "LOW",
+        "num_options": 0,
+        "affordances": ["what_can_i_say"],
+        "hints": { "available": false },
+        "dead_state": true
+      },
+      "validation": {
+        "error_code": "SCAFFOLDING_DEAD_STATE",
+        "message": "No forward path: empty options, hints unavailable, 'open_hint' absent"
+      }
+    }
+  ]
+}

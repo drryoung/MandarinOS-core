@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TurnState",
+  "description": "Full state of a turn at a moment in time. Preserves structured options, hints, slots, and affordances.",
+  "type": "object",
+  "required": ["turn_id", "scaffolding_level", "input_mode", "affordances", "options", "hints", "slots", "diagnostic"],
+  "additionalProperties": false,
+  "properties": {
+    "turn_id": {
+      "type": "string",
+      "description": "Unique identifier for this turn"
+    },
+    "scaffolding_level": {
+      "type": "string",
+      "enum": ["HIGH", "MED", "LOW"],
+      "description": "Current scaffolding level"
+    },
+    "input_mode": {
+      "type": "string",
+      "enum": ["TAP", "TYPE"],
+      "description": "Current input method"
+    },
+    "affordances": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Available affordances (e.g., 'what_can_i_say', 'open_hint', 'select_option', 'submit_response')"
+    },
+    "options": {
+      "type": "array",
+      "description": "Array of selectable options; may be empty if hints.available == true",
+      "items": {
+        "type": "object",
+        "required": ["option_id"],
+        "properties": {
+          "option_id": { "type": "string" },
+          "option_kind": {
+            "type": "string",
+            "enum": ["FRAME", "WORD", "FILLER", "FREE_TEXT", "FRAME_WITH_SLOTS"]
+          },
+          "text_zh": { "type": "string" },
+          "text_en": { "type": "string" },
+          "frame_id": { "type": "string" },
+          "required_slots": { "type": "array", "items": { "type": "string" } },
+          "tokens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "token": { "type": "string" },
+                "type": { "type": "string" },
+                "slot": { "type": "string" }
+              }
+            }
+          },
+          "slot_selectors": {
+            "type": "object",
+            "description": "Slot name -> list of candidates",
+            "additionalProperties": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "hints": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["available"],
+          "additionalProperties": false,
+          "properties": {
+            "available": { "type": "boolean", "enum": [true] },
+            "step": { "type": "integer", "minimum": 0 },
+            "cascade_state_key": { "type": "string" },
+            "payload": { "type": "object" }
+          }
+        },
+        { "type": "null" }
+      ],
+      "description": "Hint state; null if no hints available"
+    },
+    "slots": {
+      "type": "object",
+      "required": ["required", "filled", "selectors_present"],
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of required slots for this turn"
+        },
+        "filled": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Slot name -> filled value"
+        },
+        "selectors_present": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Slots that have selector UI available"
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["conversation", "diagnostic"]
+        },
+        "confidence": {
+          "oneOf": [
+            { "type": "string", "enum": ["HIGH", "MED", "LOW"] },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}

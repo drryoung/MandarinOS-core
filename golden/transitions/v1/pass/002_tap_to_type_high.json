@@ -1,0 +1,59 @@
+{
+  "trace_id": "pass_002_tap_to_type_toggle_high",
+  "description": "TAP→TYPE toggle at HIGH scaffolding; affordances and slot structure preserved",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "HIGH",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint", "select_option"],
+    "options": [
+      {
+        "option_id": "a",
+        "frame_id": "frame.identity.name",
+        "text_zh": "我叫{NAME}。",
+        "required_slots": ["NAME"],
+        "slots_complete": false,
+        "tokens": [
+          { "type": "literal", "value": "我叫" },
+          { "type": "slot", "name": "NAME" },
+          { "type": "literal", "value": "。" }
+        ],
+        "slot_selectors": { "NAME": ["张三", "李四"] }
+      }
+    ],
+    "hints": { "available": false }
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": {
+        "input_mode": "TAP",
+        "affordances": ["what_can_i_say", "open_hint", "select_option"]
+      },
+      "after": {
+        "input_mode": "TYPE",
+        "affordances": ["what_can_i_say", "open_hint", "submit_response"],
+        "options": [
+          {
+            "option_id": "a",
+            "frame_id": "frame.identity.name",
+            "text_zh": "我叫{NAME}。",
+            "required_slots": ["NAME"],
+            "slots_complete": false,
+            "tokens": [
+              { "type": "literal", "value": "我叫" },
+              { "type": "slot", "name": "NAME" },
+              { "type": "literal", "value": "。" }
+            ]
+          }
+        ]
+      },
+      "validation": {
+        "affordance_preserved": ["what_can_i_say", "open_hint"],
+        "input_mode_changed": "TAP→TYPE",
+        "tokens_preserved": true
+      }
+    }
+  ]
+}

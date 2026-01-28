@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Token Schema — MandarinOS",
+  "description": "A single displayable or structural unit within an Option or Hint template.",
+  "type": "object",
+  "oneOf": [
+    {
+      "description": "Literal text token",
+      "type": "object",
+      "properties": {
+        "type": { "const": "literal" },
+        "value": { "type": "string" }
+      },
+      "required": ["type", "value"],
+      "additionalProperties": false
+    },
+    {
+      "description": "Slot token (placeholder for user input)",
+      "type": "object",
+      "properties": {
+        "type": { "const": "slot" },
+        "name": { "type": "string", "description": "Slot variable name (e.g., NAME, CITY)" },
+        "required": { "type": "boolean", "default": true },
+        "hint": { "type": "string", "description": "Optional hint for slot" }
+      },
+      "required": ["type", "name"],
+      "additionalProperties": false
+    }
+  ]
+}

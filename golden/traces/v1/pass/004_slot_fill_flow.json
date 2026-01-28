@@ -1,0 +1,24 @@
+{
+  "trace_version": "1.0",
+  "trace_id": "pass_004_slot_fill_flow",
+  "created_at": "2026-01-28T10:00:00Z",
+  "app_build": { "repo": "full-app", "commit": "abc123", "env": "dev" },
+  "locale": "zh-CN",
+  "user_profile": { "user_id": "user_004", "level": "BEGINNER" },
+  "scenario": { "scenario_id": "introduce_yourself", "description": "Full slot-fill flow with selector", "initial_task_id": "task_intro_name" },
+  "expected": { "result": "PASS" },
+  "steps": [
+    {
+      "step_id": "step_001",
+      "event": { "type": "USER_FILL_SLOT", "timestamp": "2026-01-28T10:03:00Z", "payload": {"slot": "NAME", "value": "张三"} },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_name", "option_kind": "FRAME_WITH_SLOTS", "frame_id": "frame.intro.name", "text_zh": "我叫{NAME}。", "required_slots": ["NAME"], "slot_selectors": {"NAME": ["张三", "李四", "王五"]}}], "hints": null, "slots": {"required": ["NAME"], "filled": {}, "selectors_present": ["NAME"]}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_name_filled", "option_kind": "FRAME", "frame_id": "frame.intro.name", "text_zh": "我叫张三。"}], "hints": null, "slots": {"required": [], "filled": {"NAME": "张三"}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": "HIGH"} }
+    },
+    {
+      "step_id": "step_002",
+      "event": { "type": "USER_SELECT_OPTION", "timestamp": "2026-01-28T10:03:05Z", "payload": {"option_id": "opt_name_filled"} },
+      "before": { "turn_id": "turn_002", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_name_filled", "text_zh": "我叫张三。"}], "hints": null, "slots": {"required": [], "filled": {"NAME": "张三"}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": "HIGH"} },
+      "after": { "turn_id": "turn_003", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_next1"}, {"option_id": "opt_next2"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": "HIGH"} }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "trace_version": "1.0",
+  "trace_id": "example_hint_cascade",
+  "created_at": "2026-01-28T10:00:00Z",
+  "app_build": { "repo": "full-app", "commit": "example", "env": "dev" },
+  "locale": "zh-CN",
+  "user_profile": { "user_id": "example_user", "level": "BEGINNER" },
+  "scenario": { "scenario_id": "S2_hint_narrow_structure_model", "description": "Demonstrate hint cascade through narrow → structure → model", "initial_task_id": null },
+  "steps": [
+    {
+      "step_id": "step_001",
+      "event": { "type": "OPEN_HINT", "timestamp": "2026-01-28T10:00:01Z", "payload": { "action_id": null } },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a"}, {"option_id": "b"}, {"option_id": "c"}, {"option_id": "d"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a"}, {"option_id": "b"}, {"option_id": "c"}, {"option_id": "d"}], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_cascade_001", "payload": {"text": "Think about what you want to order", "effects": {"suggest": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    },
+    {
+      "step_id": "step_002",
+      "event": { "type": "ADVANCE_HINT", "timestamp": "2026-01-28T10:00:05Z", "payload": { "action_id": "hint_step_1" } },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a"}, {"option_id": "b"}], "hints": {"available": true, "step": 0, "cascade_state_key": "hint_cascade_001"}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a"}, {"option_id": "b"}], "hints": {"available": true, "step": 1, "cascade_state_key": "hint_cascade_001", "payload": {"text": "Coffee or tea?", "effects": {"narrow": true, "frames": ["frame.order.coffee", "frame.order.tea"]}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    },
+    {
+      "step_id": "step_003",
+      "event": { "type": "ADVANCE_HINT", "timestamp": "2026-01-28T10:00:10Z", "payload": { "action_id": "hint_step_2" } },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a"}], "hints": {"available": true, "step": 1, "cascade_state_key": "hint_cascade_001"}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "a"}], "hints": {"available": true, "step": 2, "cascade_state_key": "hint_cascade_001", "payload": {"text": "Example: 我要一杯咖啡。", "effects": {"structure": true, "model": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    }
+  ]
+}

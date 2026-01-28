@@ -1,0 +1,46 @@
+{
+  "fixture_id": "020_hint_cascade_preserves_state",
+  "name": "Hint cascade preserves state across all transitions",
+  "description": "Verifies that when a hint is opened and cascaded into state, all input mode toggles and scaffolding transitions preserve the hint cascade state correctly.",
+  "target_frames": ["frame.work.job", "frame.work.company"],
+  "input_modes_tested": ["TAP", "TYPE"],
+  "scaffolding_levels_tested": ["HIGH", "MED"],
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "OPEN_HINT" },
+      "before": { "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "hints": { "available": true, "step": 0 } },
+      "after": { "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "hints": { "visible": true, "step": 0, "cascade_state_key": "step_1_hints", "payload": { "text": "Try describing your job..." } } }
+    },
+    {
+      "step_num": 2,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": { "scaffolding_level": "HIGH", "input_mode": "TAP", "hints": { "visible": true, "cascade_state_key": "step_1_hints" } },
+      "after": { "scaffolding_level": "HIGH", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "hints": { "visible": true, "cascade_state_key": "step_1_hints", "preserved": true } }
+    },
+    {
+      "step_num": 3,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TYPE", "to": "TAP" },
+      "before": { "scaffolding_level": "HIGH", "input_mode": "TYPE", "hints": { "visible": true, "cascade_state_key": "step_1_hints", "preserved": true } },
+      "after": { "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "hints": { "visible": true, "cascade_state_key": "step_1_hints", "preserved": true, "payload": { "text": "Try describing your job..." } } }
+    },
+    {
+      "step_num": 4,
+      "event": { "type": "SCAFFOLDING_NARROW", "reason": "user_request_for_more_support" },
+      "before": { "scaffolding_level": "HIGH", "hints": { "visible": true, "cascade_state_key": "step_1_hints", "preserved": true } },
+      "after": { "scaffolding_level": "MED", "hints": { "available": true, "step": 0, "cascade_state_key": "step_1_hints", "preserved": true, "payload": { "effects": { "narrow": true } } } }
+    },
+    {
+      "step_num": 5,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": { "scaffolding_level": "MED", "input_mode": "TAP", "hints": { "available": true, "cascade_state_key": "step_1_hints", "preserved": true } },
+      "after": { "scaffolding_level": "MED", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "hints": { "visible": true, "cascade_state_key": "step_1_hints", "preserved": true } }
+    }
+  ],
+  "validation": {
+    "all_transitions_completed": true,
+    "hint_cascade_preserved_throughout": true,
+    "affordances_correct_per_mode": true,
+    "no_unexpected_state_loss": true
+  }
+}

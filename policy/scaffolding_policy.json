@@ -1,0 +1,64 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created": "2026-01-28",
+    "description": "Core scaffolding policy: enforces non-amputation of affordances across levels and transitions"
+  },
+  "levels": {
+    "HIGH": {
+      "description": "Full support: all affordances, >=4 options, structured hints available",
+      "min_options": 4,
+      "must_have_affordances": ["what_can_i_say", "open_hint", "select_option"],
+      "hint_requirement": "all_steps_available",
+      "slot_handling": "full_candidates_shown"
+    },
+    "MED": {
+      "description": "Moderate support: reduced options, focused hints, core affordances preserved",
+      "min_options": 2,
+      "must_have_affordances": ["what_can_i_say", "open_hint"],
+      "hint_requirement": "structure_and_model_available",
+      "slot_handling": "narrowed_candidates_shown"
+    },
+    "LOW": {
+      "description": "Minimal support: single option or template, focused modeling, core affordances preserved",
+      "min_options": 1,
+      "must_have_affordances": ["what_can_i_say", "open_hint"],
+      "hint_requirement": "model_or_structure_available",
+      "slot_handling": "template_plus_candidates"
+    }
+  },
+  "toggle_invariants": {
+    "TAP_TO_TYPE": {
+      "description": "Switch from tap (select) to type (write) mode",
+      "must_preserve_affordances": ["what_can_i_say", "open_hint", "submit_response"],
+      "must_preserve_hints": true,
+      "must_preserve_slots": true
+    },
+    "TYPE_TO_TAP": {
+      "description": "Switch from type (write) to tap (select) mode",
+      "must_preserve_affordances": ["what_can_i_say", "open_hint", "select_option"],
+      "must_preserve_hints": true,
+      "must_preserve_slots": true
+    }
+  },
+  "dead_state_rules": {
+    "allow_empty_options_only_if_hint_available": true,
+    "allow_empty_options_only_if_open_hint_in_affordances": true,
+    "allow_no_hints_only_if_options_available": true
+  },
+  "non_amputation_principle": {
+    "description": "Core constraint: narrowing acceptable, removal unacceptable",
+    "rule_1": "'what_can_i_say' is non-removable at ALL levels and transitions",
+    "rule_2": "'open_hint' is non-removable when options are narrowing or user is stuck",
+    "rule_3": "Slot executability (tokens or slot_selectors) is non-removable during narrowing",
+    "rule_4": "Hint effects (if available) must satisfy monotonic actionability across cascade steps"
+  },
+  "affordance_semantics": {
+    "what_can_i_say": "Displays context-aware sample utterances (never removed)",
+    "open_hint": "Triggers progressive hint cascade (H0→H1→H2→H3); removed only when hints exhausted",
+    "select_option": "Tap to choose from options (removed only if TAP→TYPE toggle or options empty with hint available)",
+    "fill_slot": "Fill a slot dropdown/input (removed only if slot not present or complete)",
+    "submit_response": "Submit typed response (TYPE mode only)",
+    "select_option": "Choose from tap options (TAP mode only)"
+  }
+}

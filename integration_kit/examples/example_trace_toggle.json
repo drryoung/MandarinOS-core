@@ -1,0 +1,23 @@
+{
+  "trace_version": "1.0",
+  "trace_id": "example_toggle_affordances",
+  "created_at": "2026-01-28T10:00:00Z",
+  "app_build": { "repo": "full-app", "commit": "example", "env": "dev" },
+  "locale": "zh-CN",
+  "user_profile": { "user_id": "example_user", "level": "INTERMEDIATE" },
+  "scenario": { "scenario_id": "S3_toggle_preserves_affordances", "description": "Demonstrate TAP to TYPE toggle preserving affordances", "initial_task_id": null },
+  "steps": [
+    {
+      "step_id": "step_001",
+      "event": { "type": "TOGGLE_INPUT_MODE", "timestamp": "2026-01-28T10:00:01Z", "payload": { "to": "TYPE" } },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_a", "text_zh": "我喜欢体育。"}, {"option_id": "opt_b", "text_zh": "我喜欢音乐。"}], "hints": null, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "options": [], "hints": {"available": true, "step": 0, "cascade_state_key": "toggle_hint_001", "payload": {"text": "Type what you like...", "effects": {"suggest": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    },
+    {
+      "step_id": "step_002",
+      "event": { "type": "TOGGLE_INPUT_MODE", "timestamp": "2026-01-28T10:00:05Z", "payload": { "to": "TAP" } },
+      "before": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TYPE", "affordances": ["what_can_i_say", "open_hint", "submit_response"], "options": [], "hints": {"available": true, "step": 0, "cascade_state_key": "toggle_hint_001", "payload": {"text": "Type what you like...", "effects": {"suggest": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} },
+      "after": { "turn_id": "turn_001", "scaffolding_level": "HIGH", "input_mode": "TAP", "affordances": ["what_can_i_say", "open_hint", "select_option"], "options": [{"option_id": "opt_a", "text_zh": "我喜欢体育。"}, {"option_id": "opt_b", "text_zh": "我喜欢音乐。"}], "hints": {"available": true, "step": 0, "cascade_state_key": "toggle_hint_001", "payload": {"text": "Type what you like...", "effects": {"suggest": true}}}, "slots": {"required": [], "filled": {}, "selectors_present": []}, "diagnostic": {"mode": "conversation", "confidence": null} }
+    }
+  ]
+}

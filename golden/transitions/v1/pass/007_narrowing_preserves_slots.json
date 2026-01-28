@@ -1,0 +1,68 @@
+{
+  "trace_id": "pass_007_narrowing_preserves_slot_executability",
+  "description": "Scaffolding narrows options but preserves slot executability via tokens/slot_selectors",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "HIGH",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint", "select_option"],
+    "options": [
+      {
+        "option_id": "a",
+        "frame_id": "frame.identity.nationality",
+        "text_zh": "我是{NATIONALITY}人。",
+        "required_slots": ["NATIONALITY"],
+        "tokens": [
+          { "type": "literal", "value": "我是" },
+          { "type": "slot", "name": "NATIONALITY" },
+          { "type": "literal", "value": "人。" }
+        ],
+        "slot_selectors": { "NATIONALITY": ["中国", "美国", "英国", "日本", "韩国"] }
+      },
+      { "option_id": "b", "frame_id": "frame.greeting.hello", "text_zh": "你好" },
+      { "option_id": "c", "frame_id": "frame.greeting.hihi", "text_zh": "嗨嗨" },
+      { "option_id": "d", "frame_id": "frame.identity.job", "text_zh": "我是医生。" }
+    ]
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "SCAFFOLDING_NARROW", "reason": "user_uncertainty" },
+      "before": {
+        "scaffolding_level": "HIGH",
+        "options_count": 4,
+        "slot_candidates": { "NATIONALITY": 5 }
+      },
+      "after": {
+        "scaffolding_level": "MED",
+        "options_count": 2,
+        "options_kept": ["a", "b"],
+        "slot_candidates": { "NATIONALITY": 3 },
+        "affordances": ["what_can_i_say", "open_hint"],
+        "options": [
+          {
+            "option_id": "a",
+            "frame_id": "frame.identity.nationality",
+            "text_zh": "我是{NATIONALITY}人。",
+            "required_slots": ["NATIONALITY"],
+            "tokens": [
+              { "type": "literal", "value": "我是" },
+              { "type": "slot", "name": "NATIONALITY" },
+              { "type": "literal", "value": "人。" }
+            ],
+            "slot_selectors": { "NATIONALITY": ["中国", "美国", "英国"] }
+          },
+          { "option_id": "b", "frame_id": "frame.greeting.hello", "text_zh": "你好" }
+        ],
+        "hints": { "available": false }
+      },
+      "validation": {
+        "option_narrowed": true,
+        "slot_still_executable": true,
+        "tokens_preserved": true,
+        "slot_selectors_preserved": true,
+        "slot_candidates_narrowed_not_removed": true
+      }
+    }
+  ]
+}

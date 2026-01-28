@@ -1,0 +1,40 @@
+{
+  "trace_id": "pass_005_type_to_tap_toggle_high",
+  "description": "TYPE→TAP toggle at HIGH; options regenerated, affordances preserved",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "HIGH",
+    "input_mode": "TYPE",
+    "affordances": ["what_can_i_say", "open_hint", "submit_response"],
+    "options": [],
+    "hints": { "available": false }
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TYPE", "to": "TAP" },
+      "before": {
+        "input_mode": "TYPE",
+        "affordances": ["what_can_i_say", "open_hint", "submit_response"],
+        "num_options": 0
+      },
+      "after": {
+        "input_mode": "TAP",
+        "affordances": ["what_can_i_say", "open_hint", "select_option"],
+        "num_options": 4,
+        "options": [
+          { "option_id": "a", "frame_id": "frame.identity.name", "text_zh": "我叫{NAME}。" },
+          { "option_id": "b", "frame_id": "frame.greeting.hello", "text_zh": "你好" },
+          { "option_id": "c", "frame_id": "frame.greeting.hihi", "text_zh": "嗨嗨" },
+          { "option_id": "d", "frame_id": "frame.identity.job", "text_zh": "我是医生。" }
+        ]
+      },
+      "validation": {
+        "affordance_preserved": ["what_can_i_say", "open_hint"],
+        "input_mode_changed": "TYPE→TAP",
+        "options_regenerated": true,
+        "high_scaffolding_respected": true
+      }
+    }
+  ]
+}

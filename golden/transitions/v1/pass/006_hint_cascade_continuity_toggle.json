@@ -1,0 +1,93 @@
+{
+  "trace_id": "pass_006_hint_cascade_continuity_across_toggle",
+  "description": "Open hint at HIGH→TAP/TYPE toggle→continue hint steps; effects remain monotonic",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "HIGH",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint", "select_option"],
+    "options": [
+      { "option_id": "a", "frame_id": "frame.identity.name", "text_zh": "我叫{NAME}。" },
+      { "option_id": "b", "frame_id": "frame.greeting.hello", "text_zh": "你好" }
+    ],
+    "hints": {
+      "available": true,
+      "step": 0,
+      "cascade_state_key": "turn_001_hints"
+    }
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "OPEN_HINT", "action": "next_hint" },
+      "before": {
+        "input_mode": "TAP",
+        "hints": { "step": 0, "max_step": 3, "cascade_state_key": "turn_001_hints" },
+        "affordances": ["what_can_i_say", "open_hint", "select_option"]
+      },
+      "after": {
+        "input_mode": "TAP",
+        "hints": {
+          "step": 1,
+          "max_step": 3,
+          "cascade_state_key": "turn_001_hints",
+          "payload": { "effects": { "narrow": { "frames_allowed": ["frame.identity.name"] } } }
+        },
+        "affordances": ["what_can_i_say", "open_hint", "select_option"]
+      }
+    },
+    {
+      "step_num": 2,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": {
+        "input_mode": "TAP",
+        "hints": { "step": 1, "cascade_state_key": "turn_001_hints" }
+      },
+      "after": {
+        "input_mode": "TYPE",
+        "hints": {
+          "step": 1,
+          "cascade_state_key": "turn_001_hints",
+          "payload": { "effects": { "narrow": { "frames_allowed": ["frame.identity.name"] } } }
+        },
+        "affordances": ["what_can_i_say", "open_hint", "submit_response"]
+      },
+      "validation": {
+        "hint_step_preserved": true,
+        "cascade_state_key_unchanged": true,
+        "affordances_preserved": ["what_can_i_say", "open_hint"]
+      }
+    },
+    {
+      "step_num": 3,
+      "event": { "type": "OPEN_HINT", "action": "next_hint" },
+      "before": {
+        "input_mode": "TYPE",
+        "hints": { "step": 1, "cascade_state_key": "turn_001_hints" }
+      },
+      "after": {
+        "input_mode": "TYPE",
+        "hints": {
+          "step": 2,
+          "cascade_state_key": "turn_001_hints",
+          "payload": {
+            "effects": {
+              "structure": {
+                "template": [
+                  { "type": "literal", "value": "我叫" },
+                  { "type": "slot", "name": "NAME" },
+                  { "type": "literal", "value": "。" }
+                ],
+                "slot_selectors": { "NAME": ["张三", "李四"] }
+              }
+            }
+          }
+        }
+      },
+      "validation": {
+        "hint_delta_satisfied": true,
+        "effects_monotonically_advance": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "trace_id": "pass_004_tap_to_type_toggle_low",
+  "description": "TAP→TYPE toggle at LOW scaffolding; must preserve affordances even with single option",
+  "initial": {
+    "turn_id": "initial",
+    "scaffolding_level": "LOW",
+    "input_mode": "TAP",
+    "affordances": ["what_can_i_say", "open_hint"],
+    "options": [
+      {
+        "option_id": "a",
+        "frame_id": "frame.location.live",
+        "text_zh": "我住在{CITY}。",
+        "required_slots": ["CITY"],
+        "tokens": [
+          { "type": "literal", "value": "我住在" },
+          { "type": "slot", "name": "CITY" },
+          { "type": "literal", "value": "。" }
+        ],
+        "slot_selectors": { "CITY": ["北京"] }
+      }
+    ],
+    "hints": { "available": false }
+  },
+  "steps": [
+    {
+      "step_num": 1,
+      "event": { "type": "TOGGLE_INPUT_MODE", "from": "TAP", "to": "TYPE" },
+      "before": {
+        "scaffolding_level": "LOW",
+        "input_mode": "TAP",
+        "affordances": ["what_can_i_say", "open_hint"],
+        "options": [
+          { "option_id": "a", "frame_id": "frame.location.live", "text_zh": "我住在{CITY}。", "required_slots": ["CITY"], "tokens": [{ "type": "literal", "value": "我住在" }, { "type": "slot", "name": "CITY" }, { "type": "literal", "value": "。" }], "slot_selectors": { "CITY": ["北京"] } }
+        ],
+        "hints": { "available": false }
+      },
+      "after": {
+        "scaffolding_level": "LOW",
+        "input_mode": "TYPE",
+        "affordances": ["what_can_i_say", "open_hint", "submit_response"],
+        "options": [],
+        "hints": { "available": false }
+      }
+    }
+  ]
+}
