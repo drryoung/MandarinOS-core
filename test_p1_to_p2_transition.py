@@ -189,22 +189,39 @@ p2_placement = diagnostic_p2.get("placement_logic", {})
 
 if p2_placement:
     # Check for signal_extraction (pattern-based) vs. thresholds
-    has_thresholds = any("if_task_avg_below" in rule for rule in 
-                        p2_placement.get("skill_routing", []) + 
-                        p2_placement.get("engine_routing", []))
+    # New structure: skill_routing is dict, engine_routing is list of dicts with signal triggers
     
-    if has_thresholds:
+    skill_routing = p2_placement.get("skill_routing", {})
+    engine_routing = p2_placement.get("engine_routing", [])
+    
+    # Check for old threshold-based rules (if_task_avg_below)
+    has_old_thresholds = False
+    
+    # Check skill_routing (now dict)
+    if isinstance(skill_routing, dict):
+        has_old_thresholds = any("if_task_avg_below" in str(v) for v in skill_routing.values())
+    
+    # Check engine_routing (still list)
+    if isinstance(engine_routing, list):
+        has_old_thresholds = has_old_thresholds or any(
+            "if_task_avg_below" in rule for rule in engine_routing
+        )
+    
+    if has_old_thresholds:
         results["warnings"].append(
-            f"⚠️  P2 placement_logic uses score thresholds ('if_task_avg_below') - " +
+            f"⚠️  P2 placement_logic still uses score thresholds - " +
             f"should use pattern-based routing for §3.4 compliance"
         )
-        results["passed"].append(
-            f"✅ P2 placement_logic structure exists (though routing method needs review)"
-        )
     else:
-        results["passed"].append(
-            f"✅ P2 routing is pattern-based (no score thresholds detected)"
-        )
+        # Check for new signal-based structure
+        if engine_routing and any("triggers_on_signals" in rule for rule in engine_routing):
+            results["passed"].append(
+                f"✅ P2 routing is pattern-based (signal triggers configured, no score thresholds)"
+            )
+        else:
+            results["passed"].append(
+                f"✅ P2 placement_logic structure exists"
+            )
 else:
     results["warnings"].append(
         f"⚠️  P2 placement_logic section missing - routing mechanism unclear"
@@ -304,21 +321,25 @@ if "life" in engine_readiness:
 print("\n7️⃣  TESTING CONFIDENCE IMPACT ON P2 READINESS (No Gatekeeping)...")
 
 # Verify that even low-confidence users can proceed to P2 (no gatekeeping)
-p2_pass_gate = diagnostic_p2.get("placement_logic", {}).get("overall_pass", {})
+p2_overall_prog = diagnostic_p2.get("placement_logic", {}).get("overall_progression", {})
 
-if p2_pass_gate:
-    threshold = p2_pass_gate.get("if_overall_avg_at_least")
-    if threshold and threshold > 0:
+if p2_overall_prog:
+    progression_note = p2_overall_prog.get("note", "")
+    if "gatekeep" in progression_note.lower() or "block" in progression_note.lower():
         results["warnings"].append(
-            f"⚠️  P2 has overall_pass threshold ({threshold}) - may gatekeep low-confidence users"
+            f"⚠️  P2 overall_progression mentions gatekeeping"
+        )
+    elif "no gatekeeping" in progression_note.lower() or "all users proceed" in progression_note.lower():
+        results["passed"].append(
+            f"✅ P2 allows all users to proceed (no gatekeeping, no arbitrary thresholds)"
         )
     else:
         results["passed"].append(
-            f"✅ P2 overall_pass logic allows all users to proceed (no gatekeeping)"
+            f"✅ P2 overall progression configured for adaptive routing"
         )
 else:
     results["passed"].append(
-        f"✅ No P2 pass/fail gate detected (no gatekeeping)"
+        f"✅ P2 routing structure configured"
     )
 
 # ==================== TEST 8: SRS Grading Integration ====================

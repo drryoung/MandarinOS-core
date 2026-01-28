@@ -483,59 +483,76 @@
     }
   ],
   "placement_logic": {
-    "note": "This diagnostic supports Phase 2 routing and Phase 3 readiness signals (future).",
-    "skill_routing": [
-      {
-        "category": "skill_planning",
-        "if_task_avg_below": 2,
-        "route_to_engine": "life"
-      },
-      {
-        "category": "skill_opinion_reason",
-        "if_task_avg_below": 2,
-        "route_to_engine": "life"
-      },
-      {
-        "category": "skill_story_grammar",
-        "if_task_avg_below": 2,
-        "route_to_engine": "life"
-      }
-    ],
+    "note": "Signal-based routing: P1 intent patterns determine P2 engine assignment. No threshold gates applied; all users proceed to P2. (§3.4 Diagnostic confidence downgrade: only system faults trigger downgrades, not arbitrary thresholds.)",
+    "signal_to_engine_mapping": {
+      "description": "Maps P1 intent patterns to P2 engine readiness. Signal presence (not score averaging) determines engine selection.",
+      "identity_signals": ["name_introduce", "nationality_identify", "greeting_reciprocal"],
+      "place_signals": ["location_state"],
+      "family_signals": ["family_relationship"],
+      "work_signals": ["job_describe", "work_routine"],
+      "hobby_signals": ["hobby_express", "preference_compare"],
+      "travel_signals": ["experience_narrative", "travel_describe"],
+      "life_signals": ["planning_intent", "opinion_express", "causal_reasoning"]
+    },
+    "skill_routing": {
+      "description": "No threshold gates. All users proceed through Phase 2 skill bundles (planning, opinion+reason, story grammar). Engine selection is adaptive within each skill.",
+      "life_skills": [
+        "skill_planning",
+        "skill_opinion_reason",
+        "skill_story_grammar"
+      ],
+      "routing_strategy": "Route all users to life engine skill bundles. Life engine provides scaffolding for all P2 skills. Other engines (identity, place, family, work, hobby, travel) available based on P1 signal strength."
+    },
     "engine_routing": [
       {
-        "category": "engine_identity",
-        "if_task_avg_below": 2,
-        "route_to_engine": "identity"
+        "engine_name": "identity",
+        "triggers_on_signals": ["name_introduce", "nationality_identify", "greeting_reciprocal"],
+        "priority": "high",
+        "note": "User demonstrated self-introduction intent in P1; start with identity engine entry frames."
       },
       {
-        "category": "engine_place",
-        "if_task_avg_below": 2,
-        "route_to_engine": "place"
+        "engine_name": "place",
+        "triggers_on_signals": ["location_state"],
+        "priority": "medium",
+        "note": "User demonstrated location awareness in P1; place engine ready."
       },
       {
-        "category": "engine_family",
-        "if_task_avg_below": 2,
-        "route_to_engine": "family"
+        "engine_name": "family",
+        "triggers_on_signals": ["family_relationship"],
+        "priority": "medium",
+        "note": "If P1 included family reference; family engine ready."
       },
       {
-        "category": "engine_work",
-        "if_task_avg_below": 2,
-        "route_to_engine": "work"
+        "engine_name": "work",
+        "triggers_on_signals": ["job_describe", "work_routine"],
+        "priority": "medium",
+        "note": "If P1 included work reference; work engine ready."
       },
       {
-        "category": "engine_hobby",
-        "if_task_avg_below": 2,
-        "route_to_engine": "hobby"
+        "engine_name": "hobby",
+        "triggers_on_signals": ["hobby_express", "preference_compare"],
+        "priority": "medium",
+        "note": "If P1 included hobby/preference reference; hobby engine ready."
       },
       {
-        "category": "engine_travel",
-        "if_task_avg_below": 2,
-        "route_to_engine": "travel"
+        "engine_name": "travel",
+        "triggers_on_signals": ["experience_narrative", "travel_describe"],
+        "priority": "low",
+        "note": "If P1 included travel reference; travel engine ready."
+      },
+      {
+        "engine_name": "life",
+        "triggers_on_signals": ["planning_intent", "opinion_express", "causal_reasoning"],
+        "priority": "high",
+        "note": "Universal engine for planning, opinions, and stories. Available to all users."
       }
     ],
-    "overall_pass": {
-      "if_overall_avg_at_least": 2,
-      "then": "Continue Phase 2 bundles normally (SM-2 backlog policy)."
+    "overall_progression": {
+      "rule": "All users proceed to Phase 2 regardless of P1 confidence level.",
+      "high_confidence_path": "User has strong signal patterns. Start with high-priority engines (identity, life). Other engines available as electives.",
+      "medium_confidence_path": "User has some signal patterns. Start with life engine (planning/opinion/story scaffolding). Other engines available.",
+      "low_confidence_path": "User has sparse signals. Start with life engine (foundational planning/opinion) and identity engine (self-introduction review). Other engines available.",
+      "note": "All users advance. No arbitrary thresholds block progression. Routing is adaptive and non-blocking per §3.4 Diagnostic Confidence."
     }
   }
 }
