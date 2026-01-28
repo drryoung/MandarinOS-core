@@ -1,0 +1,31 @@
+{
+  "turn_id": "pass_008_type_mode",
+  "run_id": "run_003",
+  "task_id": "p2_life",
+  "phase": "P2",
+  "options": [
+    {
+      "option_id": "a",
+      "frame_id": "frame.life.plan",
+      "text_zh": "我想{ACTION}。",
+      "required_slots": ["ACTION"],
+      "slots_complete": false,
+      "tokens": [
+        { "type": "literal", "value": "我想" },
+        { "type": "slot", "name": "ACTION", "required": true },
+        { "type": "literal", "value": "。" }
+      ],
+      "slot_selectors": {
+        "ACTION": ["学中文", "看电影", "去旅游", "工作"]
+      },
+      "intent_tags": ["planning_intent"],
+      "quality_signal": "gold"
+    }
+  ],
+  "affordances": ["open_hint", "select_option", "fill_slot", "submit_response"],
+  "hints": {
+    "available": false
+  },
+  "input_mode": "type",
+  "metadata": {}
+}

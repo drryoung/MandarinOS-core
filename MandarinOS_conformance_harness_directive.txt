@@ -1,0 +1,166 @@
+MandarinOS — Full-App Conformance Harness Directive (CORE REPO)
+=============================================================
+
+Objective
+---------
+Lock the core->full-app contract so the React/Express layer cannot reintroduce
+teacher/quiz behavior by dropping metadata, flattening options, or removing affordances.
+
+This directive defines:
+1) JSON Schemas for TurnResponse/Option/Hint (+ effects)
+2) A Golden Payload Pack (exportable fixtures)
+3) A Conformance Test Runner runnable in CI (core repo and full app)
+
+Non-Negotiable Principles (system-level)
+----------------------------------------
+- Conversation > quiz
+- Never show a single “correct answer”
+- No teacher feedback (“对/正确/你说错了/正确答案/很好” etc.)
+- Always provide a way forward (options OR slot-fill OR actionable hints)
+- Errors trigger modeling/reformulation/narrowing — not rejection
+
+Core Contract: TurnResponse MUST preserve structure (NO flattening)
+-------------------------------------------------------------------
+The full app MUST NOT convert structured payloads into plain strings in any DTO mapping.
+UI must render from tokens/slot selectors/effects. Display text is optional, never authoritative.
+
+Required Schemas (add under /schemas)
+-------------------------------------
+1) schemas/TurnResponse.schema.json
+2) schemas/Option.schema.json
+3) schemas/Hint.schema.json
+4) schemas/Effects.schema.json
+5) schemas/Token.schema.json
+
+Schema Requirements (high priority)
+-----------------------------------
+TurnResponse fields (minimum):
+- turn_id: string
+- options: Option[] (may be empty only if hints.available == true)
+- affordances: string[]  (must include open_hint when hints.available==true)
+- hints: Hint (required when hints.available==true)
+
+Option fields (minimum):
+- option_id: string
+- frame_id: string
+- required_slots: string[]
+- slots_complete: boolean
+- tokens: Token[]  (required unless slot_selectors provided)
+- slot_selectors: object|null  (slot -> candidates OR selector spec)
+Rule: A slot-bearing option MUST preserve slots via tokens and/or slot_selectors.
+No option may be “selectable complete” if required_slots cannot be completed in-turn.
+
+Token:
+- type: "literal" | "slot"
+- value: string (when literal)
+- name: string  (when slot)
+- required: boolean (when slot)
+
+Hint fields (minimum):
+- available: boolean
+- step: integer
+- max_step: integer
+- actions: HintAction[]
+- payload:
+    text: string
+    effects: Effects  (REQUIRED and must be non-empty when available==true)
+
+Effects rules:
+- Must contain >=1 effect when hints.available==true
+- Allowed keys:
+  - narrow.frames_allowed: string[]
+  - narrow.options_allowed: string[]
+  - narrow.slot_domains: object
+  - structure.template: Token[]
+  - structure.slot_selectors: object
+  - model.options: Option[]  (MUST be len>=2)
+
+Hard Gates (must be enforced by schemas OR conformance runner)
+-------------------------------------------------------------
+Gate A: Effects presence
+- If hints.available == true => payload.effects must exist AND not be empty
+
+Gate B: No “single correct answer” modeling
+- If effects.model.options exists => len(model.options) >= 2
+
+Gate C: Forward-path guarantee
+- Turn is invalid if:
+  options is empty AND (no slot-fill path) AND (hints.available != true)
+  In practice: allow options empty only if hints.available == true and open_hint affordance exists.
+
+Gate D: Affordance preservation
+- If hints.available == true => affordances must include "open_hint"
+- Conformance runner will also simulate a “mode toggle” if your golden payload includes it (optional).
+
+Golden Payload Pack (exportable fixtures)
+----------------------------------------
+Create directory: golden/turns/
+
+Include 10–20 JSON files representing realistic TurnResponses:
+1) slot_option_turn.json
+   - option contains slot token and required_slots
+2) hint_narrow_turn.json
+   - effects.narrow frames_allowed + slot_domains narrowing
+3) hint_structure_turn.json
+   - effects.structure.template + structure.slot_selectors
+4) hint_model_turn.json
+   - effects.model.options length >=2
+5) mixed_slots_and_hints_turn.json
+6) empty_options_but_hint_available_turn.json (allowed)
+7) negative_fixture_missing_effects.json (must FAIL conformance)
+8) negative_fixture_single_answer_model.json (must FAIL conformance)
+9) negative_fixture_missing_open_hint_affordance.json (must FAIL conformance)
+10) negative_fixture_flattened_option.json (must FAIL conformance)
+   - tokens missing and slot_selectors missing for required slots
+
+Store both PASS and FAIL fixtures under:
+- golden/turns/pass/
+- golden/turns/fail/
+
+Conformance Runner (Python)
+---------------------------
+Add module: conformance/run_conformance.py
+
+Capabilities:
+1) Validate each JSON file against schemas (jsonschema)
+2) Run semantic validators (same rules as hint cascade + slot executability)
+3) Return crisp error codes and non-zero exit for failures
+
+Output format:
+- For each file, print:
+  PASS/FAIL, filename, error_code, human-readable message
+- Exit code:
+  0 if all pass-fixtures pass AND all fail-fixtures fail as expected
+  1 otherwise
+
+Standard error codes (add as constants):
+- SCHEMA_INVALID
+- CONTRACT_EFFECTS_MISSING
+- CONTRACT_HINT_MODEL_SINGLE_ANSWER
+- CONTRACT_FORWARD_PATH_VIOLATION
+- CONTRACT_AFFORDANCE_MISSING_OPEN_HINT
+- CONTRACT_OPTION_FLATTENED
+- CONTRACT_SLOT_UNEXECUTABLE
+
+CI Integration Targets
+----------------------
+1) Core repo CI: run conformance runner over golden fixtures.
+2) Full app CI:
+   - Export or capture API responses for the same scenarios
+   - Run the conformance runner on those outputs
+   - Fail build if contract violated
+
+Developer Instructions (for Copilot / full-app team)
+----------------------------------------------------
+- Do NOT flatten Option structure into a single display string.
+- Preserve tokens and/or slot selectors end-to-end.
+- Render UI from tokens/selectors/effects; displayText is secondary.
+- If schema says hints.available=true, the UI MUST provide open_hint affordance.
+- If effects.model.options provided, MUST contain >=2 options. Never present a single “correct answer”.
+
+Done Criteria
+-------------
+- JSON Schemas committed under /schemas
+- Golden fixtures committed under /golden/turns/(pass|fail)
+- Conformance runner passes locally and in CI
+- Full app can run conformance runner in CI against its API output/DTO output

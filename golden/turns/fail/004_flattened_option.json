@@ -1,0 +1,25 @@
+{
+  "turn_id": "fail_004_flattened_option",
+  "run_id": "run_001",
+  "task_id": "p1_name",
+  "phase": "P1",
+  "options": [
+    {
+      "option_id": "a",
+      "frame_id": "frame.identity.name",
+      "text_zh": "我叫张三。",
+      "required_slots": ["NAME"],
+      "slots_complete": true,
+      "tokens": null,
+      "slot_selectors": null,
+      "intent_tags": ["greeting_reciprocal"],
+      "quality_signal": "gold"
+    }
+  ],
+  "affordances": ["select_option"],
+  "hints": {
+    "available": false
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

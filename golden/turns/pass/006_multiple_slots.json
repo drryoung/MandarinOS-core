@@ -1,0 +1,34 @@
+{
+  "turn_id": "pass_006_multiple_slots",
+  "run_id": "run_002",
+  "task_id": "p2_family",
+  "phase": "P2",
+  "options": [
+    {
+      "option_id": "a",
+      "frame_id": "frame.family.introduce",
+      "text_zh": "我有{COUNT}个{RELATION}。",
+      "required_slots": ["COUNT", "RELATION"],
+      "slots_complete": false,
+      "tokens": [
+        { "type": "literal", "value": "我有" },
+        { "type": "slot", "name": "COUNT", "required": true },
+        { "type": "literal", "value": "个" },
+        { "type": "slot", "name": "RELATION", "required": true },
+        { "type": "literal", "value": "。" }
+      ],
+      "slot_selectors": {
+        "COUNT": ["一", "两", "三", "四"],
+        "RELATION": ["哥哥", "姐姐", "弟弟", "妹妹"]
+      },
+      "intent_tags": ["family_describe"],
+      "quality_signal": "gold"
+    }
+  ],
+  "affordances": ["open_hint", "select_option", "fill_slot"],
+  "hints": {
+    "available": false
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

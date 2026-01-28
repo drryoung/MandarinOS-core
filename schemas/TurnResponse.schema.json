@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TurnResponse Schema — MandarinOS",
+  "description": "Response for a single turn in diagnostic session. Must preserve structure end-to-end.",
+  "type": "object",
+  "properties": {
+    "turn_id": {
+      "type": "string",
+      "description": "Unique identifier for this turn"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Session/run identifier"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task being performed (e.g., p1_greeting)"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["P1", "P2", "P3"],
+      "description": "Phase identifier"
+    },
+    "options": {
+      "type": "array",
+      "description": "Available response options (may be empty only if hints.available==true)",
+      "items": { "$ref": "Option.schema.json" }
+    },
+    "affordances": {
+      "type": "array",
+      "description": "Available UI affordances for this turn",
+      "items": {
+        "type": "string",
+        "enum": [
+          "open_hint",
+          "select_option",
+          "fill_slot",
+          "what_can_i_say",
+          "submit_response",
+          "cancel"
+        ]
+      }
+    },
+    "hints": {
+      "$ref": "Hint.schema.json"
+    },
+    "input_mode": {
+      "type": "string",
+      "enum": ["tap", "type"],
+      "description": "Current input mode"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional context (diagnostic confidence, routing signals, etc.)",
+      "additionalProperties": true
+    }
+  },
+  "required": ["turn_id", "options", "affordances"],
+  "if": {
+    "properties": {
+      "options": { "maxItems": 0 }
+    }
+  },
+  "then": {
+    "properties": {
+      "hints": {
+        "properties": {
+          "available": { "const": true },
+          "payload": {
+            "properties": {
+              "effects": { "minProperties": 1 }
+            }
+          }
+        },
+        "required": ["available"]
+      },
+      "affordances": {
+        "contains": { "const": "open_hint" }
+      }
+    },
+    "required": ["hints"]
+  },
+  "additionalProperties": false
+}

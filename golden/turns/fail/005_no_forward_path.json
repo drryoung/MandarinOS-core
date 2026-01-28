@@ -1,0 +1,13 @@
+{
+  "turn_id": "fail_005_no_forward_path",
+  "run_id": "run_001",
+  "task_id": "p1_location",
+  "phase": "P1",
+  "options": [],
+  "affordances": ["select_option"],
+  "hints": {
+    "available": false
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

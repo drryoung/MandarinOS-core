@@ -1,0 +1,50 @@
+{
+  "turn_id": "pass_002_hint_narrow",
+  "run_id": "run_001",
+  "task_id": "p1_greeting",
+  "phase": "P1",
+  "options": [
+    {
+      "option_id": "a",
+      "frame_id": "frame.greeting.hello",
+      "text_zh": "你好",
+      "required_slots": [],
+      "slots_complete": true,
+      "tokens": [{ "type": "literal", "value": "你好" }],
+      "intent_tags": ["greeting_reciprocal"],
+      "quality_signal": "gold"
+    },
+    {
+      "option_id": "b",
+      "frame_id": "frame.greeting.hihi",
+      "text_zh": "嗨嗨",
+      "required_slots": [],
+      "slots_complete": true,
+      "tokens": [{ "type": "literal", "value": "嗨嗨" }],
+      "intent_tags": ["greeting_reciprocal"],
+      "quality_signal": "silver"
+    }
+  ],
+  "affordances": ["open_hint", "select_option"],
+  "hints": {
+    "available": true,
+    "step": 0,
+    "max_step": 3,
+    "actions": [
+      { "action_id": "next_hint", "label": "Show hint" }
+    ],
+    "payload": {
+      "text": "Focus on ways to say hello in Chinese.",
+      "effects": {
+        "narrow": {
+          "frames_allowed": ["frame.greeting.hello", "frame.greeting.hihi"]
+        }
+      }
+    },
+    "cascade_state_key": "p1_greeting_h0_hints"
+  },
+  "input_mode": "tap",
+  "metadata": {
+    "confidence": "medium"
+  }
+}

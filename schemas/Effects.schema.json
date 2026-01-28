@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Effects Schema — MandarinOS Hint Cascade",
+  "description": "Effects block describing what changes when a hint is invoked.",
+  "type": "object",
+  "properties": {
+    "narrow": {
+      "type": "object",
+      "description": "Narrowing effects (reduce choice space)",
+      "properties": {
+        "frames_allowed": {
+          "type": "array",
+          "description": "If present, only these frame IDs remain valid",
+          "items": { "type": "string" }
+        },
+        "options_allowed": {
+          "type": "array",
+          "description": "If present, only these option IDs remain valid",
+          "items": { "type": "string" }
+        },
+        "slot_domains": {
+          "type": "object",
+          "description": "Narrowed slot candidate lists",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "structure": {
+      "type": "object",
+      "description": "Structuring effects (make completion possible)",
+      "properties": {
+        "template": {
+          "type": "array",
+          "description": "Sentence template with slot tokens",
+          "items": { "$ref": "Token.schema.json" }
+        },
+        "slot_selectors": {
+          "type": "object",
+          "description": "Available candidates for each slot",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "description": "Modeling effects (>=2 complete options, no teacher)",
+      "properties": {
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "description": "MUST have >=2 options (never a single 'correct answer')",
+          "items": { "$ref": "Option.schema.json" }
+        }
+      },
+      "required": ["options"],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "minProperties": 1,
+  "description": "At least one effect key (narrow/structure/model) must be present"
+}

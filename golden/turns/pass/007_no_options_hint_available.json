@@ -1,0 +1,48 @@
+{
+  "turn_id": "pass_007_no_options_hint_available",
+  "run_id": "run_001",
+  "task_id": "p1_yesno",
+  "phase": "P1",
+  "options": [],
+  "affordances": ["open_hint"],
+  "hints": {
+    "available": true,
+    "step": 0,
+    "max_step": 2,
+    "actions": [
+      { "action_id": "next_hint", "label": "Show hint" }
+    ],
+    "payload": {
+      "text": "This is a yes/no question. Think about how to respond.",
+      "effects": {
+        "model": {
+          "options": [
+            {
+              "option_id": "yes",
+              "frame_id": "frame.response.yes",
+              "text_zh": "是的。",
+              "required_slots": [],
+              "slots_complete": true,
+              "tokens": [{ "type": "literal", "value": "是的。" }],
+              "intent_tags": ["affirmation"],
+              "quality_signal": "gold"
+            },
+            {
+              "option_id": "no",
+              "frame_id": "frame.response.no",
+              "text_zh": "不是。",
+              "required_slots": [],
+              "slots_complete": true,
+              "tokens": [{ "type": "literal", "value": "不是。" }],
+              "intent_tags": ["negation"],
+              "quality_signal": "gold"
+            }
+          ]
+        }
+      }
+    },
+    "cascade_state_key": "p1_yesno_h0_hints"
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

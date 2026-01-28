@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Hint Schema — MandarinOS",
+  "description": "Hint system with actionable effects and cascade state management.",
+  "type": "object",
+  "properties": {
+    "available": {
+      "type": "boolean",
+      "description": "Whether hint is available for this turn"
+    },
+    "step": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Current hint step (0=H0/Nudge, 1=H1/Narrow, 2=H2/Structure, 3=H3/Model)"
+    },
+    "max_step": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Maximum hint step available for this turn"
+    },
+    "actions": {
+      "type": "array",
+      "description": "Possible hint actions (e.g., open_hint, show_more, reset)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action_id": { "type": "string" },
+          "label": { "type": "string" }
+        },
+        "required": ["action_id"],
+        "additionalProperties": false
+      }
+    },
+    "payload": {
+      "type": "object",
+      "description": "Current hint content and effects",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Hint narrative (nudge, question, template, or modeling)"
+        },
+        "effects": {
+          "$ref": "Effects.schema.json",
+          "description": "Effects block describing state change (required when available==true)"
+        }
+      },
+      "required": ["text"],
+      "additionalProperties": false
+    },
+    "cascade_state_key": {
+      "type": "string",
+      "description": "Unique key for preserving hint state across input mode toggles"
+    }
+  },
+  "required": ["available"],
+  "if": {
+    "properties": { "available": { "const": true } }
+  },
+  "then": {
+    "required": ["available", "step", "max_step", "actions", "payload"],
+    "properties": {
+      "payload": {
+        "required": ["text", "effects"]
+      }
+    }
+  },
+  "additionalProperties": false
+}

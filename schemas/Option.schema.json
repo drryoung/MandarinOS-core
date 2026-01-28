@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Option Schema — MandarinOS",
+  "description": "A selectable response option preserving frame structure and slot metadata.",
+  "type": "object",
+  "properties": {
+    "option_id": {
+      "type": "string",
+      "description": "Unique identifier for this option"
+    },
+    "frame_id": {
+      "type": "string",
+      "description": "Reference to the frame definition (e.g., frame.identity.name)"
+    },
+    "text_zh": {
+      "type": "string",
+      "description": "Display text (optional; structure from tokens/selectors is authoritative)"
+    },
+    "required_slots": {
+      "type": "array",
+      "description": "Slot names that MUST be completed before submission",
+      "items": { "type": "string" }
+    },
+    "slots_complete": {
+      "type": "boolean",
+      "description": "If true, all required_slots are pre-filled; if false, user must fill them"
+    },
+    "tokens": {
+      "type": "array",
+      "description": "Structured representation (literals + slot placeholders)",
+      "items": { "$ref": "Token.schema.json" }
+    },
+    "slot_selectors": {
+      "type": "object",
+      "description": "For each slot, the available candidates (dropdown/selector spec)",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Simple list of candidates"
+          },
+          {
+            "type": "object",
+            "description": "Advanced selector spec (for future expansion)"
+          }
+        ]
+      }
+    },
+    "intent_tags": {
+      "type": "array",
+      "description": "Intent categories for signal extraction",
+      "items": { "type": "string" }
+    },
+    "quality_signal": {
+      "type": "string",
+      "enum": ["gold", "silver", "bronze"],
+      "description": "Quality tier for diagnostic routing"
+    }
+  },
+  "required": ["option_id", "frame_id"],
+  "not": {
+    "description": "Option is 'flattened' if it has required_slots but neither tokens nor slot_selectors",
+    "allOf": [
+      { "required": ["required_slots"] },
+      { "not": { "required": ["tokens"] } },
+      { "not": { "required": ["slot_selectors"] } }
+    ]
+  },
+  "additionalProperties": false
+}

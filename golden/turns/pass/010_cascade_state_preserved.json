@@ -1,0 +1,47 @@
+{
+  "turn_id": "pass_010_cascade_state_preserved",
+  "run_id": "run_001",
+  "task_id": "p1_name",
+  "phase": "P1",
+  "options": [
+    {
+      "option_id": "a",
+      "frame_id": "frame.identity.name",
+      "text_zh": "我叫{NAME}。",
+      "required_slots": ["NAME"],
+      "slots_complete": false,
+      "tokens": [
+        { "type": "literal", "value": "我叫" },
+        { "type": "slot", "name": "NAME", "required": true },
+        { "type": "literal", "value": "。" }
+      ],
+      "slot_selectors": {
+        "NAME": ["张三", "李四", "王五"]
+      },
+      "intent_tags": ["greeting_reciprocal"],
+      "quality_signal": "gold"
+    }
+  ],
+  "affordances": ["open_hint", "select_option", "fill_slot"],
+  "hints": {
+    "available": true,
+    "step": 1,
+    "max_step": 2,
+    "actions": [
+      { "action_id": "next_hint", "label": "More help" }
+    ],
+    "payload": {
+      "text": "Pick a name from the dropdown.",
+      "effects": {
+        "narrow": {
+          "slot_domains": {
+            "NAME": ["张三", "李四"]
+          }
+        }
+      }
+    },
+    "cascade_state_key": "p1_name_h1_hints_preserved_across_toggle"
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

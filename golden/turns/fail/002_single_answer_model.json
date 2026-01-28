@@ -1,0 +1,36 @@
+{
+  "turn_id": "fail_002_single_answer_model",
+  "run_id": "run_001",
+  "task_id": "p1_opinion",
+  "phase": "P1",
+  "options": [],
+  "affordances": ["open_hint"],
+  "hints": {
+    "available": true,
+    "step": 3,
+    "max_step": 3,
+    "actions": [],
+    "payload": {
+      "text": "The correct answer is here",
+      "effects": {
+        "model": {
+          "options": [
+            {
+              "option_id": "only_one",
+              "frame_id": "frame.opinion.like",
+              "text_zh": "我喜欢这个。",
+              "required_slots": [],
+              "slots_complete": true,
+              "tokens": [{ "type": "literal", "value": "我喜欢这个。" }],
+              "intent_tags": ["opinion_express"],
+              "quality_signal": "gold"
+            }
+          ]
+        }
+      }
+    },
+    "cascade_state_key": "p1_opinion_h3_hints"
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

@@ -1,0 +1,34 @@
+{
+  "turn_id": "pass_003_hint_structure",
+  "run_id": "run_001",
+  "task_id": "p1_location",
+  "phase": "P1",
+  "options": [],
+  "affordances": ["open_hint"],
+  "hints": {
+    "available": true,
+    "step": 1,
+    "max_step": 3,
+    "actions": [
+      { "action_id": "next_hint", "label": "More help" }
+    ],
+    "payload": {
+      "text": "Tell them where you live using this pattern.",
+      "effects": {
+        "structure": {
+          "template": [
+            { "type": "literal", "value": "我住在" },
+            { "type": "slot", "name": "CITY", "required": true },
+            { "type": "literal", "value": "。" }
+          ],
+          "slot_selectors": {
+            "CITY": ["北京", "上海", "深圳", "杭州", "成都"]
+          }
+        }
+      }
+    },
+    "cascade_state_key": "p1_location_h1_hints"
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

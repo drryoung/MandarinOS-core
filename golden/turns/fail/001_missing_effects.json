@@ -1,0 +1,23 @@
+{
+  "turn_id": "fail_001_missing_effects",
+  "run_id": "run_001",
+  "task_id": "p1_greeting",
+  "phase": "P1",
+  "options": [],
+  "affordances": ["open_hint"],
+  "hints": {
+    "available": true,
+    "step": 0,
+    "max_step": 2,
+    "actions": [
+      { "action_id": "next_hint", "label": "Show hint" }
+    ],
+    "payload": {
+      "text": "Try greeting someone",
+      "effects": {}
+    },
+    "cascade_state_key": "p1_greeting_h0_hints"
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

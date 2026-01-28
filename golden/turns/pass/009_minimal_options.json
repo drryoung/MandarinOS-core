@@ -1,0 +1,24 @@
+{
+  "turn_id": "pass_009_minimal_options",
+  "run_id": "run_001",
+  "task_id": "p1_greeting",
+  "phase": "P1",
+  "options": [
+    {
+      "option_id": "a",
+      "frame_id": "frame.greeting.hello",
+      "text_zh": "你好",
+      "required_slots": [],
+      "slots_complete": true,
+      "tokens": [{ "type": "literal", "value": "你好" }],
+      "intent_tags": ["greeting_reciprocal"],
+      "quality_signal": "gold"
+    }
+  ],
+  "affordances": ["select_option"],
+  "hints": {
+    "available": false
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

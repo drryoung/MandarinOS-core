@@ -1,0 +1,168 @@
+MandarinOS — Hint Cascade Contract + Test Directives (CORE REPO)
+========================================================
+
+Purpose
+-------
+Make “hints open but aren’t actionable” impossible by enforcing a strict, testable hint-cascade state machine.
+This is SYSTEM DESIGN + DEBUGGING guidance for MandarinOS-core. Not UX advice.
+
+Scope
+-----
+Applies to:
+- Diagnostic configuration JSON
+- Content packs (frames/fillers/words)
+- Session engine outputs used by tests (Python harness)
+Not dependent on full-app session logs.
+
+Non-Negotiable Principles (Re-stated)
+-------------------------------------
+1) Conversation > quiz
+2) No “correct/wrong” teacher feedback
+3) Never show a single “correct answer”
+4) Learner must always have a way forward (options / working hints / slot completion)
+5) Errors trigger modeling/reformulation/narrowing — not rejection
+
+Key Definitions
+---------------
+Actionable hint:
+A hint is actionable only if invoking it changes the state in a measurable way by doing at least one:
+A) Narrowing: reduces choice space
+   - fewer options OR fewer frames OR fewer slot candidates
+B) Structuring: makes completion possible
+   - provides a template with interactive slots OR provides slot candidates
+C) Modeling (non-teacher): offers multiple valid ways forward
+   - >= 2 complete selectable options, OR template + slot candidates
+
+Non-actionable hint:
+- Hint opens but produces no narrowing/structuring/modeling effect.
+- Hint text without effects is NOT acceptable.
+
+Canonical Hint Cascade
+----------------------
+Implement (or map to existing) 4 hint steps with monotonic progress:
+H0: Nudge      (context/intent clarification)
+H1: Narrow     (reduce frames/options or restrict slot domain)
+H2: Structure  (template with interactive slots OR provide slot candidates)
+H3: Model      (>=2 complete options; still not “correct answer”)
+
+Monotonicity rule:
+- Each hint step must move forward (never backwards) in at least one measurable dimension.
+- Actionability must never decrease across hint steps.
+- Affordances must not be removed by hint usage or scaffolding changes.
+
+Data Contract: TurnResponse (hint-relevant subset)
+-------------------------------------------------
+Every engine response used by tests MUST include:
+
+turn_id: string
+options: Option[]
+affordances: string[]  # must include “open_hint” whenever hints.available is true
+hints:
+  available: boolean
+  step: int
+  max_step: int
+  actions: HintAction[]
+  payload:
+    text: string
+    effects: Effects  # REQUIRED when hints.available == true
+
+Option object MUST preserve structure (no flattening to a single string):
+- frame_id: string
+- tokens[] or slot_selectors (or both)
+- required_slots[]
+- slots_complete: boolean
+
+Critical: Hint “effects” block (REQUIRED)
+-----------------------------------------
+A hint must include a non-empty effects object describing what changed.
+Allowed effects (one or more):
+1) narrow.frames_allowed: [frame_id]
+2) narrow.options_allowed: [option_id]
+3) narrow.slot_domains: { SLOT: domain_key }
+4) structure.template: token list including slot tokens
+5) structure.slot_selectors: { SLOT: [candidates...] }
+6) model.options: [Option...]  # MUST be >= 2
+
+If effects is missing or empty => FAIL TEST: HINT_NO_EFFECTS_BLOCK
+
+Quantitative Validator (Python harness)
+--------------------------------------
+Compute per-turn metrics:
+- num_options = len(options)
+- num_frames = count_unique(frame_id in options)
+- slot_candidate_count[SLOT] = len(slot_selectors[SLOT]) (0 if absent)
+- has_template = any(slot token in option.tokens) OR structure.template exists
+- affordances set includes open_hint / select_option / fill_slot / what_can_i_say
+
+Forward-path rule (no dead states):
+A turn is valid iff at least one forward path exists:
+- num_options >= 1
+OR
+- has_template AND some slot has candidates (>0)
+OR
+- (hints.available == true AND “open_hint” in affordances)
+
+Hint-step delta rule (core actionable rule):
+For each hint invocation step k -> k+1, at least ONE must be true comparing pre vs post:
+- num_frames decreases
+- num_options decreases (narrowing) OR increases ONLY at H3 due to modeling
+- any slot_candidate_count decreases (narrowing) OR becomes >0 (structuring)
+- has_template becomes true
+- affordances gains fill_slot or select_option
+
+If none => FAIL TEST: HINT_NON_ACTIONABLE
+
+Anti-Teacher Hard Gates
+-----------------------
+Gate 1: Never show a single “correct answer”.
+- If effects.model.options exists, require len(model.options) >= 2
+- If exactly 1 => FAIL TEST: TEACHER_SINGLE_ANSWER
+
+Gate 2: No teacher language.
+- Maintain existing forbidden-phrase checks (对/正确答案/你说错了/很棒/正确等).
+- Treat as secondary; structural gates are primary.
+
+Required Synthetic Fixtures (add to tests)
+------------------------------------------
+Create trace fixtures (turn sequences + hint actions):
+
+Fixture A (MUST FAIL): Hint opens but effects missing/empty
+Expected failure: HINT_NO_EFFECTS_BLOCK or HINT_NON_ACTIONABLE
+
+Fixture B (PASS): Narrow works
+Start: 8 options, 3 frames, CITY candidates 200
+After hint: frames_allowed=[live_in_city], options=3, CITY domain narrowed to ~20
+
+Fixture C (PASS): Structure works
+Start: options empty but hints.available=true
+After hint: structure.template contains slot CITY + slot_selectors CITY non-empty
+
+Fixture D (PASS): Model works (non-teacher)
+After hint: model.options includes 2–4 complete, selectable options
+
+Fixture E (MUST FAIL): Teacher single-answer modeling
+After hint: model.options length == 1
+Expected failure: TEACHER_SINGLE_ANSWER
+
+Error Codes (standardize)
+------------------------
+- HINT_NO_EFFECTS_BLOCK
+- HINT_NON_ACTIONABLE
+- TEACHER_SINGLE_ANSWER
+- DEAD_STATE_NO_FORWARD_PATH
+- AFFORDANCE_DROP_ON_HINT  (if affordances removed after hint)
+- AFFORDANCE_DROP_ON_TOGGLE (if your harness simulates mode toggle)
+
+Implementation Notes (what to tell Copilot)
+-------------------------------------------
+1) Add “effects” to hint payloads. Text-only hints are invalid.
+2) Implement validator over trace fixtures:
+   - pre/post metrics comparison per hint step
+   - enforce monotonic progress and anti-teacher gates
+3) Ensure output schemas preserve option structure (tokens/selectors); do not flatten.
+
+Done criteria
+-------------
+- All existing tests continue to pass.
+- New fixtures enforce: “hint must change state” and “no single correct answer”.
+- Any future regression triggers a crisp failure code, not silent UX degradation.

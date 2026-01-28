@@ -1,0 +1,46 @@
+{
+  "turn_id": "pass_001_slot_option",
+  "run_id": "run_001",
+  "task_id": "p1_name",
+  "phase": "P1",
+  "options": [
+    {
+      "option_id": "a",
+      "frame_id": "frame.identity.name",
+      "text_zh": "我叫{NAME}。",
+      "required_slots": ["NAME"],
+      "slots_complete": false,
+      "tokens": [
+        { "type": "literal", "value": "我叫" },
+        { "type": "slot", "name": "NAME", "required": true },
+        { "type": "literal", "value": "。" }
+      ],
+      "slot_selectors": {
+        "NAME": ["张三", "李四", "王五", "赵六"]
+      },
+      "intent_tags": ["greeting_reciprocal"],
+      "quality_signal": "gold"
+    },
+    {
+      "option_id": "c",
+      "frame_id": "frame.greeting.hello",
+      "text_zh": "你好",
+      "required_slots": [],
+      "slots_complete": true,
+      "tokens": [
+        { "type": "literal", "value": "你好" }
+      ],
+      "intent_tags": ["greeting_reciprocal"],
+      "quality_signal": "silver"
+    }
+  ],
+  "affordances": ["open_hint", "select_option", "fill_slot", "what_can_i_say"],
+  "hints": {
+    "available": false
+  },
+  "input_mode": "tap",
+  "metadata": {
+    "confidence": "high",
+    "signals_detected": ["greeting_reciprocal"]
+  }
+}

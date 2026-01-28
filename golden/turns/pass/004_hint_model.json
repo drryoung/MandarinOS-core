@@ -1,0 +1,67 @@
+{
+  "turn_id": "pass_004_hint_model",
+  "run_id": "run_001",
+  "task_id": "p1_opinion",
+  "phase": "P1",
+  "options": [
+    {
+      "option_id": "a",
+      "frame_id": "frame.opinion.like",
+      "text_zh": "我喜欢这个。",
+      "required_slots": [],
+      "slots_complete": true,
+      "tokens": [{ "type": "literal", "value": "我喜欢这个。" }],
+      "intent_tags": ["opinion_express"],
+      "quality_signal": "gold"
+    },
+    {
+      "option_id": "b",
+      "frame_id": "frame.opinion.dislike",
+      "text_zh": "我不喜欢这个。",
+      "required_slots": [],
+      "slots_complete": true,
+      "tokens": [{ "type": "literal", "value": "我不喜欢这个。" }],
+      "intent_tags": ["opinion_express"],
+      "quality_signal": "silver"
+    }
+  ],
+  "affordances": ["open_hint", "select_option"],
+  "hints": {
+    "available": true,
+    "step": 3,
+    "max_step": 3,
+    "actions": [],
+    "payload": {
+      "text": "Here are two natural ways to express your opinion.",
+      "effects": {
+        "model": {
+          "options": [
+            {
+              "option_id": "model_a",
+              "frame_id": "frame.opinion.like",
+              "text_zh": "我喜欢这个。",
+              "required_slots": [],
+              "slots_complete": true,
+              "tokens": [{ "type": "literal", "value": "我喜欢这个。" }],
+              "intent_tags": ["opinion_express"],
+              "quality_signal": "gold"
+            },
+            {
+              "option_id": "model_b",
+              "frame_id": "frame.opinion.dislike",
+              "text_zh": "我不喜欢这个。",
+              "required_slots": [],
+              "slots_complete": true,
+              "tokens": [{ "type": "literal", "value": "我不喜欢这个。" }],
+              "intent_tags": ["opinion_express"],
+              "quality_signal": "silver"
+            }
+          ]
+        }
+      }
+    },
+    "cascade_state_key": "p1_opinion_h3_hints"
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}

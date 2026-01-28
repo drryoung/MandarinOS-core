@@ -1,0 +1,47 @@
+{
+  "turn_id": "pass_005_mixed_slots_hints",
+  "run_id": "run_001",
+  "task_id": "p1_nationality",
+  "phase": "P1",
+  "options": [
+    {
+      "option_id": "a",
+      "frame_id": "frame.identity.nationality",
+      "text_zh": "我是{NATIONALITY}人。",
+      "required_slots": ["NATIONALITY"],
+      "slots_complete": false,
+      "tokens": [
+        { "type": "literal", "value": "我是" },
+        { "type": "slot", "name": "NATIONALITY", "required": true },
+        { "type": "literal", "value": "人。" }
+      ],
+      "slot_selectors": {
+        "NATIONALITY": ["中国", "美国", "英国", "加拿大", "澳大利亚", "日本", "韩国"]
+      },
+      "intent_tags": ["nationality_identify"],
+      "quality_signal": "gold"
+    }
+  ],
+  "affordances": ["open_hint", "select_option", "fill_slot"],
+  "hints": {
+    "available": true,
+    "step": 0,
+    "max_step": 2,
+    "actions": [
+      { "action_id": "next_hint", "label": "Show hint" }
+    ],
+    "payload": {
+      "text": "Choose your country from the list.",
+      "effects": {
+        "narrow": {
+          "slot_domains": {
+            "NATIONALITY": ["中国", "美国", "英国"]
+          }
+        }
+      }
+    },
+    "cascade_state_key": "p1_nationality_h0_hints"
+  },
+  "input_mode": "tap",
+  "metadata": {}
+}
