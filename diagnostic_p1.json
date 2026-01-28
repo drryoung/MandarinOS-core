@@ -61,11 +61,15 @@
             "layer2": "xiè xiè",
             "layer3": "谢谢 = Thank you"
           },
+          "target_frame": "frame.greeting.hello",
+          "intent_tags": ["greeting_reciprocal"],
           "quality_signal": "distractor",
+          "slots_complete": true,
           "hint_affordance": {
             "visible_in_modes": ["tap", "type"],
             "cascade_state_key": "p1_greeting_b_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         },
         {
@@ -76,11 +80,15 @@
             "layer2": "zài jiàn",
             "layer3": "再见 = Goodbye"
           },
+          "target_frame": "frame.greeting.hello",
+          "intent_tags": ["greeting_reciprocal"],
           "quality_signal": "distractor",
+          "slots_complete": true,
           "hint_affordance": {
             "visible_in_modes": ["tap", "type"],
             "cascade_state_key": "p1_greeting_c_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         },
         {
@@ -91,11 +99,15 @@
             "layer2": "duì bù qǐ",
             "layer3": "对不起 = Sorry"
           },
+          "target_frame": "frame.greeting.hello",
+          "intent_tags": ["greeting_reciprocal"],
           "quality_signal": "distractor",
+          "slots_complete": true,
           "hint_affordance": {
             "visible_in_modes": ["tap", "type"],
             "cascade_state_key": "p1_greeting_d_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         }
       ],
@@ -212,11 +224,15 @@
             "layer2": "nǐ hǎo",
             "layer3": "你好 = Hello"
           },
+          "target_frame": "frame.identity.name",
+          "intent_tags": ["name_introduce"],
           "quality_signal": "distractor",
+          "slots_complete": false,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_name_c_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         },
         {
@@ -227,11 +243,15 @@
             "layer2": "xiè xiè",
             "layer3": "谢谢 = Thank you"
           },
+          "target_frame": "frame.identity.name",
+          "intent_tags": ["name_introduce"],
           "quality_signal": "distractor",
+          "slots_complete": false,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_name_d_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         }
       ],
@@ -328,11 +348,15 @@
             "layer2": "wǒ shì lǎoshī",
             "layer3": "我是老师 = I am a teacher"
           },
+          "target_frame": "frame.identity.nationality",
+          "intent_tags": ["nationality_identify"],
           "quality_signal": "distractor",
+          "slots_complete": false,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_nationality_b_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         },
         {
@@ -343,11 +367,15 @@
             "layer2": "wǒ xǐhuān kāfēi",
             "layer3": "我喜欢咖啡 = I like coffee"
           },
+          "target_frame": "frame.identity.nationality",
+          "intent_tags": ["nationality_identify"],
           "quality_signal": "distractor",
+          "slots_complete": false,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_nationality_c_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         },
         {
@@ -358,11 +386,15 @@
             "layer2": "wǒ zhù zài běijīng",
             "layer3": "我住在北京 = I live in Beijing"
           },
+          "target_frame": "frame.identity.nationality",
+          "intent_tags": ["nationality_identify"],
           "quality_signal": "distractor",
+          "slots_complete": false,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_nationality_d_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         }
       ],
@@ -479,11 +511,15 @@
             "layer2": "wǒ shì xuéshēng",
             "layer3": "我是学生 = I am a student"
           },
+          "target_frame": "frame.location.live",
+          "intent_tags": ["location_state"],
           "quality_signal": "distractor",
+          "slots_complete": false,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_location_c_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         },
         {
@@ -494,11 +530,15 @@
             "layer2": "wǒ xǐhuān zhèlǐ",
             "layer3": "我喜欢这里 = I like it here"
           },
+          "target_frame": "frame.location.live",
+          "intent_tags": ["location_state"],
           "quality_signal": "distractor",
+          "slots_complete": false,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_location_d_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         }
       ],
@@ -606,11 +646,15 @@
             "layer2": "wǒ bù zhīdào",
             "layer3": "我不知道 = I don't know"
           },
+          "target_frame": "frame.location.live_question",
+          "intent_tags": ["affirmative_response"],
           "quality_signal": "distractor",
+          "slots_complete": true,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_yesno_idk_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         },
         {
@@ -621,11 +665,15 @@
             "layer2": "xiè xiè",
             "layer3": "谢谢 = Thank you"
           },
+          "target_frame": "frame.location.live_question",
+          "intent_tags": ["affirmative_response"],
           "quality_signal": "distractor",
+          "slots_complete": true,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_yesno_thanks_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         }
       ],
@@ -741,11 +789,15 @@
             "layer2": "xiè xiè",
             "layer3": "谢谢 = Thank you"
           },
+          "target_frame": "frame.opinion.like",
+          "intent_tags": ["opinion_express"],
           "quality_signal": "distractor",
+          "slots_complete": true,
           "hint_affordance": {
             "visible_in_modes": ["tap"],
             "cascade_state_key": "p1_opinion_d_hints",
-            "preserve_across_toggle": true
+            "preserve_across_toggle": true,
+            "optimized_for_mode": "tap"
           }
         }
       ],

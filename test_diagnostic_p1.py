@@ -6,7 +6,11 @@ Validates structure, metadata completeness, and compliance with copilot-instruct
 
 import json
 import sys
+import io
 from collections import defaultdict
+
+# Set UTF-8 encoding for stdout
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 def load_json(filepath):
     """Load and parse JSON file"""
@@ -108,6 +112,9 @@ for task in diagnostic.get("tasks", []):
 # ==================== TEST 5: Slot Selectors ====================
 print("\n5️⃣  CHECKING SLOT_SELECTORS VALIDITY...")
 
+# Extract fillers data (nested under "fillers" key)
+fillers_data = fillers.get("fillers", {})
+
 for task in diagnostic.get("tasks", []):
     task_id = task.get("id", "?")
     for option in task.get("choices", []):
@@ -120,11 +127,11 @@ for task in diagnostic.get("tasks", []):
                     parts = source.split(".")
                     if len(parts) == 2 and parts[0] == "fillers":
                         filler_key = parts[1]
-                        if filler_key not in fillers or not isinstance(fillers[filler_key], list):
+                        if filler_key not in fillers_data or not isinstance(fillers_data[filler_key], list):
                             failed.append(f"❌ {task_id} option {option_id}: Filler '{filler_key}' not found or invalid")
                         else:
                             slot_name = selector.get("slot_name", "?")
-                            count = len(fillers[filler_key])
+                            count = len(fillers_data[filler_key])
                             passed.append(f"✅ {task_id} option {option_id}: slot '{slot_name}' → '{filler_key}' ({count} items)")
                     else:
                         failed.append(f"❌ {task_id} option {option_id}: Invalid source format '{source}'")

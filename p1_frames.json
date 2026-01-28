@@ -5,7 +5,8 @@
   "description": "Recombinable P1 sentence frames for survival conversation. Uses slot fillers from p1_fillers.json.",
   "frames": [
     {
-      "id": "f_name_1",
+      "id": "frame.greeting.hello",
+      "id_legacy": "f_name_1",
       "text": "你好！",
       "pinyin": "nǐ hǎo!",
       "engine": "identity",
@@ -14,7 +15,8 @@
       "speaker": "partner"
     },
     {
-      "id": "f_name_1_reply",
+      "id": "frame.greeting.hello_reply",
+      "id_legacy": "f_name_1_reply",
       "text": "你好！",
       "pinyin": "nǐ hǎo!",
       "engine": "identity",
@@ -32,7 +34,8 @@
       "speaker": "partner"
     },
     {
-      "id": "f_name_2",
+      "id": "frame.identity.name",
+      "id_legacy": "f_name_2",
       "text": "我叫{NAME}。",
       "pinyin": "wǒ jiào {NAME}.",
       "engine": "identity",
@@ -91,21 +94,23 @@
       "speaker": "partner"
     },
     {
-      "id": "f_i_from_city",
-      "text": "我是{CITY}人。",
-      "pinyin": "wǒ shì {CITY} rén.",
+      "id": "frame.identity.nationality",
+      "id_legacy": "f_i_from_city",
+      "text": "我是{NATIONALITY}人。",
+      "pinyin": "wǒ shì {NATIONALITY} rén.",
       "engine": "place",
       "difficulty": 2,
       "slots": [
         {
-          "name": "CITY",
-          "source": "fillers.cities"
+          "name": "NATIONALITY",
+          "source": "fillers.nationalities"
         }
       ],
       "speaker": "user"
     },
     {
-      "id": "f_live_where",
+      "id": "frame.location.live_question",
+      "id_legacy": "f_live_where",
       "text": "你现在住哪里？",
       "pinyin": "nǐ xiànzài zhù nǎlǐ?",
       "engine": "place",
@@ -114,7 +119,8 @@
       "speaker": "partner"
     },
     {
-      "id": "f_live_in_city",
+      "id": "frame.location.live",
+      "id_legacy": "f_live_in_city",
       "text": "我现在住在{CITY}。",
       "pinyin": "wǒ xiànzài zhù zài {CITY}.",
       "engine": "place",
@@ -205,7 +211,8 @@
       "speaker": "partner"
     },
     {
-      "id": "f_like_work_yes",
+      "id": "frame.opinion.like",
+      "id_legacy": "f_like_work_yes",
       "text": "喜欢，我很喜欢。",
       "pinyin": "xǐhuan, wǒ hěn xǐhuan.",
       "engine": "work",
