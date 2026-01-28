@@ -1,0 +1,59 @@
+
+======================================================================
+P1ΓåÆP2 TRANSITION TEST SUITE - Signal Flow Validation
+======================================================================
+
+1∩╕ÅΓâú  TESTING P1 SIGNAL EXTRACTION & AGGREGATION...
+
+  Scenario: All gold options selected (6/6)
+
+  Scenario: 3 gold, 3 distractor (3/6)
+
+  Scenario: 2 gold, 4 distractor (2/6)
+
+2∩╕ÅΓâú  TESTING P1ΓåÆP2 DATA FLOW & READINESS DETERMINATION...
+
+3∩╕ÅΓâú  TESTING P2 ENGINE ROUTING (Pattern-Based, Not Threshold-Based)...
+
+4∩╕ÅΓâú  TESTING ENGINE READINESS SIGNALS (P2 Tasks Have Routing Markers)...
+
+5∩╕ÅΓâú  TESTING P2 ENGINE SELECTION BY INTENT PATTERNS...
+
+6∩╕ÅΓâú  TESTING SIGNAL PATTERN ΓåÆ ENGINE ROUTING DETERMINISM...
+
+7∩╕ÅΓâú  TESTING CONFIDENCE IMPACT ON P2 READINESS (No Gatekeeping)...
+
+8∩╕ÅΓâú  TESTING SRS GRADING INTEGRATION (Signal-Based, Not Score-Based)...
+
+9∩╕ÅΓâú  TESTING ROUTING FOR DIFFERENT CONFIDENCE OUTCOMES...
+
+======================================================================
+P1ΓåÆP2 TRANSITION TEST SUMMARY
+======================================================================
+
+Γ£à PASSED: 19 checks
+   Γ£à high_confidence: Confidence correct ('high' from 6/6 gold)
+   Γ£à high_confidence: Signals collected (7 unique patterns)
+   Γ£à medium_confidence: Signals collected (7 unique patterns)
+   Γ£à low_confidence: Signals collected (6 unique patterns)
+   Γ£à P2 declares dependency on P1 (phase ordering guaranteed)
+   Γ£à P2 routing is pattern-based (signal triggers configured, no score thresholds)
+   Γ£à p2_t1_planning_core: Rubric note includes routing signal marker
+   Γ£à P2 engines defined (7 engines: identity, place, family, work, hobby, travel)
+   Γ£à identity engine: 3 entry frames defined
+   Γ£à place engine: 4 entry frames defined
+   Γ£à family engine: 3 entry frames defined
+   Γ£à High-confidence P1 signals route to identity engine (reciprocal greetings + name + nationality)
+   ... and 7 more
+
+ΓÜá∩╕Å  WARNINGS: 5 items
+   ΓÜá∩╕Å  medium_confidence: Confidence is 'high' from 5/6 gold (note: p1_yesno accepts both yes/no as gold responses)
+   ΓÜá∩╕Å  low_confidence: Confidence is 'medium' from 3/6 gold (note: p1_yesno accepts both yes/no as gold responses)
+   ΓÜá∩╕Å  p2_t2_opinion_reason: Rubric note may lack explicit routing signal
+   ΓÜá∩╕Å  p2_t3_story_two_steps: Rubric note may lack explicit routing signal
+   ΓÜá∩╕Å  P2 overall_progression mentions gatekeeping
+
+Γ¥î FAILED: 0 checks
+
+======================================================================
+Γ¥î 0 test(s) failed - see above
