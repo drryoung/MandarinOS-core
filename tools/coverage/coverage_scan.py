@@ -312,7 +312,7 @@ def analyze_frame(frame: Dict[str, Any], src_file: str) -> Dict[str, Any]:
     return record
 
 
-def run_scan(cfg_path: Path):
+def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_arg: Optional[str] = None):
     repo_root = resolve_repo_root()
     try:
         cfg = load_config(cfg_path)
@@ -371,14 +371,32 @@ def run_scan(cfg_path: Path):
                     per_frame[fid]["scenarios"].append("S6_diagnostic_confidence_changes")
 
     # Load generated cards if present to compute card readiness and enable frame-card cross-checks
-    # cards path can be configured in coverage_config.json via "cards_path" / "cards_index_path"
-    cfg_cards_path = cfg.get("cards_path") if isinstance(cfg, dict) else None
-    if cfg_cards_path:
-        cards_path = Path(cfg_cards_path)
+    # Priority: CLI flags (--cards-path / --cards-index-path) -> config file -> default path
+    if cards_path_arg:
+        cards_path = Path(cards_path_arg)
         if not cards_path.is_absolute():
-            cards_path = repo_root / cfg_cards_path
+            cards_path = repo_root / cards_path_arg
     else:
-        cards_path = repo_root / "tools" / "cards" / "out" / "cards.json"
+        cfg_cards_path = cfg.get("cards_path") if isinstance(cfg, dict) else None
+        if cfg_cards_path:
+            cards_path = Path(cfg_cards_path)
+            if not cards_path.is_absolute():
+                cards_path = repo_root / cfg_cards_path
+        else:
+            cards_path = repo_root / "tools" / "cards" / "out" / "cards.json"
+
+    # cards index path (optional)
+    cards_index_path = None
+    if cards_index_arg:
+        cards_index_path = Path(cards_index_arg)
+        if not cards_index_path.is_absolute():
+            cards_index_path = repo_root / cards_index_arg
+    else:
+        cfg_cards_index = cfg.get("cards_index_path") if isinstance(cfg, dict) else None
+        if cfg_cards_index:
+            cards_index_path = Path(cfg_cards_index)
+            if not cards_index_path.is_absolute():
+                cards_index_path = repo_root / cfg_cards_index
     cards_obj = None
     cards_by_id = {}
     cards_by_word_id = {}
@@ -543,6 +561,8 @@ def run_scan(cfg_path: Path):
 def main(argv: Optional[List[str]] = None):
     ap = argparse.ArgumentParser(description="MandarinOS Content Coverage Scanner v1")
     ap.add_argument("--config", "-c", help="Path to config JSON (relative to repo root or absolute)", default=None)
+    ap.add_argument("--cards-path", help="Path to generated cards.json (overrides config)")
+    ap.add_argument("--cards-index-path", help="Path to generated cards_index.json (overrides config)")
     args = ap.parse_args(argv)
 
     repo_root = resolve_repo_root()
@@ -554,7 +574,7 @@ def main(argv: Optional[List[str]] = None):
     else:
         cfg_path = repo_root / "tools" / "coverage" / "coverage_config.json"
 
-    run_scan(cfg_path)
+    run_scan(cfg_path, cards_path_arg=args.cards_path, cards_index_arg=args.cards_index_path)
 
 
 if __name__ == "__main__":
