@@ -426,7 +426,10 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
     cards_by_word_id = {}
     cards_by_hanzi = defaultdict(list)
     card_readiness_map: Dict[str, int] = {}
+    # card_readiness_counts: counts of cards that support each level (cards can support multiple levels)
     card_readiness_counts = Counter()
+    # distribution of the maximum supported level per card
+    card_max_level_counts = Counter()
     # If a cards path was supplied explicitly (CLI or config), loading is mandatory.
     cards_path_used = None
     if cards_path:
@@ -461,23 +464,42 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
             if han:
                 cards_by_hanzi[han].append(cid)
 
-            # compute readiness level L0-L4
-            level = -1
-            meaning = bool(c.get("content", {}).get("meaning"))
-            audio_tts = bool(c.get("content", {}).get("headword", {}).get("audio", {}).get("tts"))
-            if meaning and audio_tts:
-                level = max(level, 0)
+            # compute which levels this card supports (cards can support multiple levels)
+            supported_levels = set()
+            content = c.get("content", {}) or {}
+            head = content.get("headword", {}) or {}
+            meaning = bool(content.get("meaning"))
+            hanzi = head.get("hanzi")
+            # L0: has headword hanzi and meaning (support for basic lookup)
+            if hanzi and meaning:
+                supported_levels.add(0)
+                card_readiness_counts[0] += 1
+
             action_ids = [a.get("action_id") for a in c.get("actions", []) if isinstance(a, dict)]
+            # L1: reveal_pinyin action available
             if "reveal_pinyin" in action_ids:
-                level = max(level, 1)
+                supported_levels.add(1)
+                card_readiness_counts[1] += 1
+
+            # L2: reveal_word_composition (preserve existing detection)
             if "reveal_word_composition" in action_ids:
-                level = max(level, 2)
-            if "reveal_characters" in action_ids and c.get("content", {}).get("characters"):
-                level = max(level, 3)
+                supported_levels.add(2)
+                card_readiness_counts[2] += 1
+
+            # L3: reveal_characters + non-empty characters content
+            if "reveal_characters" in action_ids and content.get("characters"):
+                supported_levels.add(3)
+                card_readiness_counts[3] += 1
+
+            # L4: open_trace_mode action
             if "open_trace_mode" in action_ids:
-                level = max(level, 4)
-            card_readiness_map[cid] = level
-            card_readiness_counts[level] += 1
+                supported_levels.add(4)
+                card_readiness_counts[4] += 1
+
+            # record the max supported level for the card (or -1 if none)
+            max_level = max(supported_levels) if supported_levels else -1
+            card_readiness_map[cid] = max_level
+            card_max_level_counts[max_level] += 1
 
     # number of cards loaded
     cards_loaded = 0
@@ -547,6 +569,7 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
         "scenario_counts": dict(scenario_counts),
         "top_blockers": blockers_counter.most_common(20),
         "card_readiness_counts": dict(card_readiness_counts),
+        "card_max_level_counts": dict(card_max_level_counts),
         "cards_path_used": cards_path_used,
         "cards_loaded": cards_loaded,
     }

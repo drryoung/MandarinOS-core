@@ -1395,6 +1395,11 @@
       ]
     ],
     "card_readiness_counts": {
+      "0": 118,
+      "1": 118,
+      "3": 118
+    },
+    "card_max_level_counts": {
       "3": 118
     },
     "cards_path_used": "C:\\Users\\Surface Pro7\\OneDrive\\Documents\\GitHub\\MandarinOS-core\\tools\\cards\\out\\cards.json",
