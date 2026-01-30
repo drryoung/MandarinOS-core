@@ -1,0 +1,256 @@
+MandarinOS — Card Contract v1 (Progressive Reveal, Refinement-Friendly)
+==========================================================================
+
+Objective
+---------
+Define a refinement-friendly Card Contract for MandarinOS that supports
+conversation-first learning with progressive depth, without locking UI decisions too early.
+
+This contract:
+- Treats each word as a single learning object (“the card”)
+- Uses effects-based reveals (aligned with hint cascade philosophy)
+- Separates stable semantic content from flexible visual presentation
+- Allows easy iteration on Level 0 / Level 1 behavior without schema churn
+
+Confirmed Design Philosophy (Locked)
+-----------------------------------
+1) Level 0 supports COMPREHENSION + FLOW, not training:
+   - Hanzi is primary
+   - Meaning is visible by default (secondary, muted)
+   - Audio (TTS) is always available as an affordance (not a reveal)
+   - No pinyin
+
+2) Level 1 supports PRODUCTION:
+   - Pinyin is revealed on demand
+   - No change to meaning or audio
+
+3) Audio availability is NOT a reveal:
+   - Audio exists whenever the word exists
+   - View layer controls prominence (icon size, placement)
+
+4) Meaning visibility is a VIEW decision:
+   - Can be toggled per card or per user preference
+   - Content schema does not change if meaning is hidden
+
+5) All deeper layers (composition, components, tracing) remain OPTIONAL and REVERSIBLE
+
+Top-Level Card Object
+--------------------
+{
+  "card_version": "1.0",
+  "card_id": "word:学习",
+  "type": "word",
+  "locale": "en",
+  "content": { ... },
+  "state": { ... },
+  "view": { ... },
+  "actions": [ ... ]
+}
+
+A. Card Content (Stable Semantic Layer)
+--------------------------------------
+Rarely changes. Curriculum truth.
+
+{
+  "headword": {
+    "hanzi": "学习",
+    "meaning": ["to study", "to learn"],
+    "pinyin": "xuéxí",
+    "audio": { "tts": true }
+  },
+
+  "word_composition": {
+    "kind": "two_char_compound",
+    "gloss": "学 = learn; 习 = practice; together = learn/study",
+    "notes": ["Short, card-sized explanation only."]
+  },
+
+  "characters": [
+    {
+      "char": "学",
+      "pinyin": "xué",
+      "meaning": "learn",
+      "etymology_short": "A child under a roof: learning in a place of study.",
+      "components": [
+        { "component": "冖", "role": "semantic", "gloss": "cover/roof" },
+        { "component": "子", "role": "semantic", "gloss": "child" }
+      ],
+      "strokes": {
+        "provider": "hanzi_writer",
+        "data_ref": "strokes:学:v1"
+      }
+    }
+  ]
+}
+
+Notes:
+- Do NOT embed long explanations.
+- Strokes are referenced, not embedded.
+- Meaning and pinyin always exist in content, even if hidden in view.
+
+B. Card State (Engine-Controlled, Traceable)
+-------------------------------------------
+Tracks what is currently revealed.
+
+{
+  "reveal_level": 0,
+  "revealed": {
+    "pinyin": false,
+    "word_composition": false,
+    "character_breakdown": false,
+    "trace_mode": false
+  },
+  "focus": {
+    "character_index": null,
+    "component": null
+  }
+}
+
+Reveal level semantics:
+- Level 0: hanzi + meaning (+ audio affordance)
+- Level 1: + pinyin
+- Level 2: + word composition
+- Level 3: + character breakdown
+- Level 4: trace mode
+
+IMPORTANT:
+- UI must render from state.revealed flags, not hardcoded levels.
+- reveal_level is for ordering/debugging, not logic branching.
+
+C. Card Actions (Effects-Based, Like Hints)
+-------------------------------------------
+Each action MUST change state (no-op actions forbidden).
+
+[
+  {
+    "id": "reveal_pinyin",
+    "label": "Show pronunciation",
+    "type": "reveal",
+    "effects": {
+      "revealed.pinyin": true,
+      "reveal_level": 1
+    }
+  },
+  {
+    "id": "reveal_word_composition",
+    "label": "How is this word built?",
+    "type": "reveal",
+    "effects": {
+      "revealed.word_composition": true,
+      "reveal_level": 2
+    }
+  },
+  {
+    "id": "reveal_characters",
+    "label": "Break down characters",
+    "type": "reveal",
+    "effects": {
+      "revealed.character_breakdown": true,
+      "reveal_level": 3
+    }
+  },
+  {
+    "id": "open_trace_mode",
+    "label": "Trace the characters",
+    "type": "mode",
+    "effects": {
+      "revealed.trace_mode": true,
+      "reveal_level": 4
+    }
+  }
+]
+
+D. Card View (Refinement-Friendly Presentation Layer)
+----------------------------------------------------
+This is where visual iteration happens safely.
+
+{
+  "layout_id": "word_card_default",
+  "density": "comfortable",
+  "visibility": {
+    "show_meaning_default": true,
+    "show_audio_icon": true,
+    "audio_prominence": "low"
+  },
+  "sections": [
+    { "id": "headword", "order": 10 },
+    {
+      "id": "meaning",
+      "visible_if": "view.visibility.show_meaning_default",
+      "order": 15
+    },
+    {
+      "id": "pinyin",
+      "visible_if": "state.revealed.pinyin",
+      "order": 20
+    },
+    {
+      "id": "word_composition",
+      "visible_if": "state.revealed.word_composition",
+      "order": 30
+    },
+    {
+      "id": "characters",
+      "visible_if": "state.revealed.character_breakdown",
+      "order": 40
+    },
+    {
+      "id": "trace",
+      "visible_if": "state.revealed.trace_mode",
+      "order": 50
+    }
+  ],
+  "labels": {
+    "composition_title": "Why this word means that",
+    "characters_title": "Characters",
+    "trace_title": "Trace"
+  },
+  "render_hints": {
+    "max_lines_etymology": 3,
+    "collapse_long_text": true,
+    "show_dividers": true
+  }
+}
+
+Key Refinement Rules
+-------------------
+- To hide meaning at Level 0: change view.visibility.show_meaning_default
+- To change audio prominence: adjust audio_prominence only
+- NEVER remove meaning or audio from content
+- NEVER gate conversation progress on card reveals
+
+Trace Integration (Required)
+----------------------------
+Card interactions MUST emit trace steps:
+- OPEN_CARD
+- REVEAL_CARD_LAYER
+- OPEN_TRACE_MODE
+
+Before/after TurnState must include:
+- card_id
+- reveal_level
+- revealed flags
+
+Golden Card Fixtures (Recommended)
+---------------------------------
+Create under: golden/cards/v1/
+
+Include:
+1) single_char_word.json
+2) two_char_word.json
+3) polysemous_word.json
+4) no_meaning_view_toggle.json
+5) trace_mode_entry.json
+
+Validator Rule (Minimal)
+-----------------------
+Add a validator:
+- Every card action must change card.state (no no-op reveals)
+- reveal_level must be monotonic non-decreasing
+
+Done Criteria
+-------------
+- Card schemas implemented
+- Card actions effects-based
+- View layer editable without touching content/state
+- Level 0/1 behavior matches confirmed philosophy
