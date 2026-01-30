@@ -211,6 +211,39 @@ def extract_hints(frame: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
     return ("partial" if stages else "none"), effects
 
 
+def normalize_affordances(raw: Any) -> Dict[str, bool]:
+    """Normalize affordances into a dict mapping affordance name -> True/False.
+
+    Accepts dict, list, string, or falsy values. Returns {} when none.
+    """
+    out: Dict[str, bool] = {}
+    if not raw:
+        return out
+    if isinstance(raw, dict):
+        # ensure boolean values
+        for k, v in raw.items():
+            out[str(k)] = bool(v)
+        return out
+    if isinstance(raw, list):
+        for item in raw:
+            if isinstance(item, str):
+                out[item] = True
+            elif isinstance(item, dict):
+                for k, v in item.items():
+                    out[str(k)] = bool(v)
+        return out
+    if isinstance(raw, str):
+        out[raw] = True
+        return out
+    # fallback: try to stringify
+    try:
+        s = str(raw)
+        out[s] = True
+    except Exception:
+        pass
+    return out
+
+
 def analyze_frame(frame: Dict[str, Any], src_file: str) -> Dict[str, Any]:
     fid = normalize_frame_id(frame)
     record: Dict[str, Any] = {
@@ -325,40 +358,6 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
     except Exception as e:
         print(f"Error loading config: {e}")
         sys.exit(2)
-
-
-def normalize_affordances(raw: Any) -> Dict[str, bool]:
-    """Normalize affordances into a dict mapping affordance name -> True/False.
-
-    Accepts dict, list, string, or falsy values. Returns {} when none.
-    """
-    out: Dict[str, bool] = {}
-    if not raw:
-        return out
-    if isinstance(raw, dict):
-        # ensure boolean values
-        for k, v in raw.items():
-            out[str(k)] = bool(v)
-        return out
-    if isinstance(raw, list):
-        for item in raw:
-            if isinstance(item, str):
-                out[item] = True
-            elif isinstance(item, dict):
-                for k, v in item.items():
-                    out[str(k)] = bool(v)
-        return out
-    if isinstance(raw, str):
-        out[raw] = True
-        return out
-    # fallback: try to stringify
-    try:
-        s = str(raw)
-        out[s] = True
-    except Exception:
-        pass
-    return out
-
     files = gather_files(repo_root, cfg)
     if not files:
         print("No content files found to scan.")
@@ -367,7 +366,8 @@ def normalize_affordances(raw: Any) -> Dict[str, bool]:
     per_frame: Dict[str, Dict[str, Any]] = {}
     frames_by_file: Dict[str, List[str]] = defaultdict(list)
     diagnostics_references: Dict[str, List[str]] = defaultdict(list)
-    engines_affordances: Dict[str, List[str]] = {}
+    engines_affordances: Dict[str, Dict[str, bool]] = {}
+    engine_map: Dict[str, Dict[str, Any]] = {}
 
     for p in files:
         try:
@@ -391,17 +391,32 @@ def normalize_affordances(raw: Any) -> Dict[str, bool]:
 
         if ftype == "engines":
             # collect engine affordances for later frame->engine checks
-            engines = []
-            if isinstance(raw, dict) and isinstance(raw.get("engines"), list):
-                engines = raw.get("engines")
+            # engines may be stored as a list or as a dict keyed by engine id
+            engines_list = []
+            if isinstance(raw, dict):
+                val = raw.get("engines")
+                if isinstance(val, list):
+                    engines_list = [(eng.get("id") or eng.get("engine_id"), eng) for eng in val]
+                elif isinstance(val, dict):
+                    # keyed by engine id: { "identity": { ... }, ... }
+                    engines_list = [(k, v) for k, v in val.items()]
+                else:
+                    # fallback: maybe raw itself is dict of engines keyed
+                    engines_list = [(k, v) for k, v in raw.get("engines", {}).items()] if isinstance(raw.get("engines"), dict) else []
             elif isinstance(raw, list):
-                engines = raw
-            for eng in engines:
-                eid = eng.get("id") or eng.get("engine_id")
+                engines_list = [(eng.get("id") or eng.get("engine_id"), eng) for eng in raw]
+            # populate engine_map and normalized affordances
+            for key, eng in engines_list:
+                if eng is None:
+                    continue
+                # determine engine id: prefer explicit id field; otherwise use dict key
+                eid = key or eng.get("id") or eng.get("engine_id")
                 raw_eng_aff = eng.get("affordances") or eng.get("affordance") or {}
                 eng_aff = normalize_affordances(raw_eng_aff)
                 if eid:
                     engines_affordances[eid] = eng_aff
+                    engine_map[eid] = dict(eng)
+                    engine_map[eid]["affordances"] = eng_aff
             continue
 
         if ftype != "frames":
@@ -434,6 +449,10 @@ def normalize_affordances(raw: Any) -> Dict[str, bool]:
         if isinstance(fr_aff, dict):
             merged.update(fr_aff)
         rec["affordances"] = merged
+
+    # summary info about engines
+    engines_loaded = len(engine_map)
+    engines_with_open_card = sum(1 for e in engine_map.values() if bool((e.get("affordances") or {}).get("open_card")))
 
     # Load generated cards if present to compute card readiness and enable frame-card cross-checks
     # Priority: CLI flags (--cards-path / --cards-index-path) -> config file -> default path
@@ -617,6 +636,8 @@ def normalize_affordances(raw: Any) -> Dict[str, bool]:
         "card_max_level_counts": dict(card_max_level_counts),
         "cards_path_used": cards_path_used,
         "cards_loaded": cards_loaded,
+        "engines_loaded": engines_loaded,
+        "engines_with_open_card": engines_with_open_card,
     }
 
     out_dir = repo_root / "tools" / "coverage"

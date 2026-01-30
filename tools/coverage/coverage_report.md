@@ -4,7 +4,7 @@
 
 | Readiness | Count |
 |---:|---:|
-| READY_NO_HINTS | 69 |
+| READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE | 69 |
 
 ## Card Readiness Distribution (L0-L4)
 
@@ -27,6 +27,7 @@
 | Blocker | Count |
 |---|---:|
 | no_hints | 69 |
+| conv_hint_missing_but_card_available | 69 |
 
 ## Scenario Coverage Summary
 
