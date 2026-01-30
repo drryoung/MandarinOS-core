@@ -119,5 +119,21 @@
         }
       }
     }
+    ,
+    "cardPanel": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "open": { "type": "boolean" },
+            "card_id": { "oneOf": [ { "type": "string" }, { "type": "null" } ] },
+            "reveal_level": { "oneOf": [ { "type": "integer" }, { "type": "null" } ] }
+          }
+        },
+        { "type": "null" }
+      ],
+      "description": "Optional UI card panel state; records whether a card panel is open and which card/reveal level is active"
+    }
   }
 }

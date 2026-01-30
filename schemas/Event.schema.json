@@ -8,11 +8,12 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": [
+        "enum": [
         "USER_SELECT_OPTION",
         "USER_FILL_SLOT",
         "USER_UNCERTAIN",
         "OPEN_HINT",
+        "OPEN_CARD",
         "ADVANCE_HINT",
         "TOGGLE_INPUT_MODE",
         "SYSTEM_REPROMPT",
