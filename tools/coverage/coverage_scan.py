@@ -1,0 +1,457 @@
+#!/usr/bin/env python3
+"""
+MandarinOS Content Coverage Scanner v1
+
+Implements the directive at project root: MandarinOS_content_coverage_scanner_v1_directive.txt
+
+Usage:
+  python tools/coverage/coverage_scan.py
+  python tools/coverage/coverage_scan.py --config tools/coverage/coverage_config.json
+
+Only uses Python standard library.
+"""
+
+import argparse
+import fnmatch
+import json
+import sys
+from collections import Counter, defaultdict
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+
+def load_config(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"Config not found: {path}")
+    with path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    return data
+
+
+def resolve_repo_root() -> Path:
+    # tools/coverage/coverage_scan.py -> repo root is two parents up
+    return Path(__file__).resolve().parents[2]
+
+
+def gather_files(repo_root: Path, cfg: Dict[str, Any]) -> List[Path]:
+    files: List[Path] = []
+
+    content_files = cfg.get("content_files", []) or []
+    content_globs = cfg.get("content_globs", []) or []
+    exclude_globs = cfg.get("exclude_globs", []) or []
+
+    for fn in content_files:
+        p = repo_root / fn
+        if p.exists():
+            files.append(p)
+        else:
+            print(f"Warning: declared content file not found: {fn}")
+
+    # globs relative to repo root
+    for g in content_globs:
+        for p in sorted(repo_root.glob(g)):
+            files.append(p)
+
+    # if nothing declared, try common files in repo root
+    if not files:
+        for p in sorted(repo_root.glob("*.json")):
+            files.append(p)
+
+    # apply exclude_globs
+    if exclude_globs:
+        filtered: List[Path] = []
+        for p in files:
+            rel = str(p.relative_to(repo_root))
+            if any(fnmatch.fnmatch(rel, ex) for ex in exclude_globs):
+                continue
+            filtered.append(p)
+        files = filtered
+
+    # unique preserve order
+    seen = set()
+    out = []
+    for p in files:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+def detect_file_type(p: Path, data: Any) -> str:
+    name = p.name.lower()
+    if name.startswith("diagnostic_"):
+        return "diagnostic"
+    if isinstance(data, dict):
+        if "frames" in data:
+            return "frames"
+        if "fillers" in data:
+            return "fillers"
+        if "words" in data:
+            return "words"
+        if "engines" in data:
+            return "engines"
+        if "tasks" in data or "diagnostic" in data:
+            return "diagnostic"
+    if isinstance(data, list):
+        # peek first item
+        if data:
+            item = data[0]
+            if isinstance(item, dict):
+                if "frame_id" in item:
+                    return "frames"
+                if "filler_id" in item:
+                    return "fillers"
+                if "word_id" in item:
+                    return "words"
+                if "engine_id" in item:
+                    return "engines"
+    if "frames" in name:
+        return "frames"
+    if "fillers" in name:
+        return "fillers"
+    if "words" in name:
+        return "words"
+    if "engines" in name:
+        return "engines"
+    return "unknown"
+
+
+def extract_frames_from_file(p: Path, data: Any) -> List[Dict[str, Any]]:
+    # Return list of candidate frame dicts
+    if isinstance(data, dict):
+        if "frames" in data and isinstance(data["frames"], list):
+            return data["frames"]
+        # some files may store frames at top-level list-like under another key
+        # fallback: search for list values containing frame-like items
+        for v in data.values():
+            if isinstance(v, list) and v and isinstance(v[0], dict) and "frame_id" in v[0]:
+                return v
+    if isinstance(data, list):
+        # list of frames
+        return [i for i in data if isinstance(i, dict) and ("frame_id" in i or "id" in i)]
+    return []
+
+
+def normalize_frame_id(frame: Dict[str, Any]) -> Optional[str]:
+    if "frame_id" in frame:
+        return str(frame["frame_id"])
+    if "id" in frame:
+        return str(frame["id"])
+    return None
+
+
+def get_required_slots(frame: Dict[str, Any]) -> List[str]:
+    if "required_slots" in frame and isinstance(frame["required_slots"], list):
+        return frame["required_slots"]
+    slots = frame.get("slots") or {}
+    if isinstance(slots, dict):
+        req = slots.get("required")
+        if isinstance(req, list):
+            return req
+    return []
+
+
+def get_selectors_present(frame: Dict[str, Any]) -> List[str]:
+    slots = frame.get("slots") or {}
+    if isinstance(slots, dict):
+        sel = slots.get("selectors_present") or slots.get("selectors")
+        if isinstance(sel, list):
+            return sel
+    # fallback
+    sel = frame.get("slot_selectors") or frame.get("selectors")
+    if isinstance(sel, list):
+        return sel
+    return []
+
+
+def has_tokens_for_slot(frame: Dict[str, Any], slot: str) -> bool:
+    # naive: check tokens or examples present
+    tokens = frame.get("tokens") or frame.get("templates") or frame.get("options")
+    if isinstance(tokens, list):
+        # if any token mentions slot name, assume present
+        for t in tokens:
+            if isinstance(t, str) and ("{" + slot + "}" in t or f"{slot}" in t):
+                return True
+    return False
+
+
+def extract_hints(frame: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    # returns coverage: none/partial/full, and effects dict
+    hints = frame.get("hints") or frame.get("hint")
+    if not hints:
+        return "none", {}
+    # hints might be dict or list
+    effects: Dict[str, Any] = {}
+    if isinstance(hints, dict):
+        payload = hints.get("payload") or hints
+        if isinstance(payload, dict):
+            effects = payload.get("effects") or payload.get("hint_effects") or {}
+    elif isinstance(hints, list):
+        # collect effects from list items
+        for h in hints:
+            if isinstance(h, dict):
+                payload = h.get("payload") or h
+                if isinstance(payload, dict):
+                    e = payload.get("effects") or payload.get("hint_effects") or {}
+                    if isinstance(e, dict):
+                        effects.update(e)
+
+    if not effects:
+        return "none", {}
+
+    stages = {k for k in ("narrow", "structure", "model") if k in effects}
+    if stages == {"narrow", "structure", "model"}:
+        # additional rule: if model present must include >=2 options
+        model_ok = True
+        if "model" in effects and isinstance(effects.get("model"), dict):
+            opts = effects["model"].get("options") or []
+            model_ok = len(opts) >= 2
+        return ("full" if model_ok else "partial"), effects
+
+    return ("partial" if stages else "none"), effects
+
+
+def analyze_frame(frame: Dict[str, Any], src_file: str) -> Dict[str, Any]:
+    fid = normalize_frame_id(frame)
+    record: Dict[str, Any] = {
+        "frame_id": fid,
+        "file": src_file,
+        "has_slots": False,
+        "slots_executable": True,
+        "required_slots": [],
+        "selectors_present": [],
+        "hint_coverage": "none",
+        "hint_effects": {},
+        "blockers": [],
+        "scenarios": [],
+    }
+
+    if not fid:
+        record["readiness_label"] = "READY_SCHEMA_ISSUES"
+        record["blockers"].append("missing_frame_id")
+        return record
+
+    required_slots = get_required_slots(frame)
+    record["required_slots"] = required_slots
+    record["has_slots"] = bool(required_slots)
+
+    selectors = get_selectors_present(frame)
+    record["selectors_present"] = selectors
+
+    # slots_executable: for each required slot, either token exists or selector present
+    slots_exec = True
+    blockers = []
+    for s in required_slots:
+        token_ok = has_tokens_for_slot(frame, s)
+        selector_ok = s in selectors or bool(selectors)
+        if not (token_ok or selector_ok):
+            slots_exec = False
+            blockers.append(f"slot_unexecutable:{s}")
+    record["slots_executable"] = slots_exec
+
+    hint_cov, effects = extract_hints(frame)
+    record["hint_coverage"] = hint_cov
+    record["hint_effects"] = effects
+
+    # readiness label
+    if not record.get("frame_id"):
+        label = "READY_SCHEMA_ISSUES"
+    elif record["has_slots"] and not record["slots_executable"]:
+        label = "READY_NO_SLOTS"
+    elif record["hint_coverage"] == "none":
+        label = "READY_NO_HINTS"
+    elif record["hint_coverage"] == "partial":
+        label = "READY_HINTS_PARTIAL"
+    else:
+        label = "READY_FOR_APP"
+
+    record["readiness_label"] = label
+
+    # blockers
+    if record["readiness_label"] == "READY_NO_SLOTS":
+        record["blockers"].extend(blockers or ["missing_slot_selectors_or_tokens"])
+    if record["readiness_label"] == "READY_NO_HINTS":
+        record["blockers"].append("no_hints")
+    if record["readiness_label"] == "READY_HINTS_PARTIAL":
+        record["blockers"].append("partial_hints")
+
+    # scenario heuristics
+    sc = []
+    if record["has_slots"]:
+        sc.append("S1_basic_slot_fill")
+    if record["hint_coverage"] == "full":
+        sc.append("S2_hint_narrow_structure_model")
+    if record["hint_coverage"] != "none":
+        sc.append("S3_toggle_preserves_affordances")
+        sc.append("S4_scaffolding_high_to_low")
+    if record["has_slots"] and ("narrow" in record["hint_effects"]):
+        sc.append("S5_narrow_then_slot_integrity")
+    # S6: diagnostics referencing frame_id will be attached later by caller
+    record["scenarios"] = sc
+
+    return record
+
+
+def run_scan(cfg_path: Path):
+    repo_root = resolve_repo_root()
+    try:
+        cfg = load_config(cfg_path)
+    except Exception as e:
+        print(f"Error loading config: {e}")
+        sys.exit(2)
+
+    files = gather_files(repo_root, cfg)
+    if not files:
+        print("No content files found to scan.")
+        sys.exit(0)
+
+    per_frame: Dict[str, Dict[str, Any]] = {}
+    frames_by_file: Dict[str, List[str]] = defaultdict(list)
+    diagnostics_references: Dict[str, List[str]] = defaultdict(list)
+
+    for p in files:
+        try:
+            raw = json.loads(p.read_text(encoding="utf-8"))
+        except Exception as e:
+            print(f"Warning: failed to parse {p}: {e}")
+            continue
+
+        ftype = detect_file_type(p, raw)
+        if ftype == "unknown":
+            print(f"Warning: skipping unknown file type: {p.name}")
+            continue
+
+        if ftype == "diagnostic":
+            # collect references to frame_id in diagnostics
+            # heuristic: search JSON for strings matching frame IDs used elsewhere
+            txt = json.dumps(raw)
+            # we'll attach later
+            # store raw for simple search
+            diagnostics_references[p.name] = []
+
+        if ftype != "frames":
+            continue
+
+        frames = extract_frames_from_file(p, raw)
+        for frame in frames:
+            rec = analyze_frame(frame, str(p.relative_to(repo_root)))
+            fid = rec.get("frame_id") or f"__MISSING__:{p.name}"
+            per_frame[fid] = rec
+            frames_by_file[str(p.relative_to(repo_root))].append(fid)
+
+    # Attach S6: check diagnostics files for references to frame ids
+    # naive approach: load diagnostics files and search for frame ids
+    for p in files:
+        if p.name.startswith("diagnostic_"):
+            txt = p.read_text(encoding="utf-8")
+            for fid in list(per_frame.keys()):
+                if fid and fid.startswith("__MISSING__"):
+                    continue
+                if fid in txt:
+                    per_frame[fid]["scenarios"].append("S6_diagnostic_confidence_changes")
+
+    # aggregate stats
+    readiness_counts = Counter()
+    scenario_counts = Counter()
+    blockers_counter = Counter()
+
+    for fid, rec in per_frame.items():
+        readiness_counts[rec["readiness_label"]] += 1
+        for s in rec.get("scenarios", []):
+            scenario_counts[s] += 1
+        for b in rec.get("blockers", []):
+            blockers_counter[b] += 1
+
+    summary = {
+        "total_frames": len(per_frame),
+        "readiness_counts": dict(readiness_counts),
+        "scenario_counts": dict(scenario_counts),
+        "top_blockers": blockers_counter.most_common(20),
+    }
+
+    out_dir = repo_root / "tools" / "coverage"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    report_json = {
+        "per_frame": per_frame,
+        "frames_by_file": frames_by_file,
+        "summary": summary,
+    }
+
+    json_path = out_dir / "coverage_report.json"
+    md_path = out_dir / "coverage_report.md"
+    csv_path = out_dir / "coverage_summary.csv"
+
+    json_path.write_text(json.dumps(report_json, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    # markdown
+    lines: List[str] = []
+    lines.append("# Content Coverage Report")
+    lines.append("")
+    lines.append("## Readiness Distribution")
+    lines.append("")
+    lines.append("| Readiness | Count |")
+    lines.append("|---:|---:|")
+    for k, v in sorted(summary["readiness_counts"].items(), key=lambda x: x[0]):
+        lines.append(f"| {k} | {v} |")
+    lines.append("")
+    lines.append("## Top Blockers")
+    lines.append("")
+    lines.append("| Blocker | Count |")
+    lines.append("|---|---:|")
+    for b, c in summary["top_blockers"]:
+        lines.append(f"| {b} | {c} |")
+    lines.append("")
+    lines.append("## Scenario Coverage Summary")
+    lines.append("")
+    lines.append("| Scenario | Count |")
+    lines.append("|---|---:|")
+    for s, c in sorted(summary["scenario_counts"].items(), key=lambda x: x[0]):
+        lines.append(f"| {s} | {c} |")
+    lines.append("")
+    lines.append("## READY_FOR_APP Frames (top 50)")
+    lines.append("")
+    ready_ids = [fid for fid, r in per_frame.items() if r.get("readiness_label") == "READY_FOR_APP"]
+    for fid in ready_ids[:50]:
+        f = per_frame[fid]
+        lines.append(f"- {fid} — {f.get('file')}")
+
+    md_path.write_text("\n".join(lines), encoding="utf-8")
+
+    # CSV
+    import csv
+
+    with csv_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(["frame_id", "file", "readiness_label", "blockers", "scenarios"])
+        for fid, r in per_frame.items():
+            writer.writerow([
+                fid,
+                r.get("file"),
+                r.get("readiness_label"),
+                ";".join(r.get("blockers", [])),
+                ";".join(sorted(set(r.get("scenarios", [])))),
+            ])
+
+    print(f"Scan complete. Frames: {len(per_frame)}. Reports: {json_path}, {md_path}, {csv_path}")
+
+
+def main(argv: Optional[List[str]] = None):
+    ap = argparse.ArgumentParser(description="MandarinOS Content Coverage Scanner v1")
+    ap.add_argument("--config", "-c", help="Path to config JSON (relative to repo root or absolute)", default=None)
+    args = ap.parse_args(argv)
+
+    repo_root = resolve_repo_root()
+    cfg_path = None
+    if args.config:
+        cfg_path = Path(args.config)
+        if not cfg_path.is_absolute():
+            cfg_path = repo_root / args.config
+    else:
+        cfg_path = repo_root / "tools" / "coverage" / "coverage_config.json"
+
+    run_scan(cfg_path)
+
+
+if __name__ == "__main__":
+    main()

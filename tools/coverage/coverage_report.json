@@ -1,0 +1,1191 @@
+{
+  "per_frame": {
+    "frame.greeting.hello": {
+      "frame_id": "frame.greeting.hello",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "frame.greeting.hello_reply": {
+      "frame_id": "frame.greeting.hello_reply",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_ask_you_name": {
+      "frame_id": "f_ask_you_name",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "frame.identity.name": {
+      "frame_id": "frame.identity.name",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_you_ne": {
+      "frame_id": "f_you_ne",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_partner_name": {
+      "frame_id": "f_partner_name",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_thanks": {
+      "frame_id": "f_thanks",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_no_problem": {
+      "frame_id": "f_no_problem",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_from_where": {
+      "frame_id": "f_from_where",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "frame.identity.nationality": {
+      "frame_id": "frame.identity.nationality",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "frame.location.live_question": {
+      "frame_id": "frame.location.live_question",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "frame.location.live": {
+      "frame_id": "frame.location.live",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_have_family": {
+      "frame_id": "f_have_family",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_yes_have_family": {
+      "frame_id": "f_yes_have_family",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_have_siblings": {
+      "frame_id": "f_have_siblings",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_have_brother": {
+      "frame_id": "f_have_brother",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_have_sister": {
+      "frame_id": "f_have_sister",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_what_work": {
+      "frame_id": "f_what_work",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_i_am_job": {
+      "frame_id": "f_i_am_job",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_like_work": {
+      "frame_id": "f_like_work",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "frame.opinion.like": {
+      "frame_id": "frame.opinion.like",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_what_hobby": {
+      "frame_id": "f_what_hobby",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_i_like_hobby": {
+      "frame_id": "f_i_like_hobby",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_weekend_do": {
+      "frame_id": "f_weekend_do",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_weekend_rest": {
+      "frame_id": "f_weekend_rest",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_travel_where": {
+      "frame_id": "f_travel_where",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_been_to_place": {
+      "frame_id": "f_been_to_place",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_want_go_where": {
+      "frame_id": "f_want_go_where",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "f_want_go_place": {
+      "frame_id": "f_want_go_place",
+      "file": "p1_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_id_1": {
+      "frame_id": "p2_id_1",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_id_2": {
+      "frame_id": "p2_id_2",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_id_3": {
+      "frame_id": "p2_id_3",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_id_4": {
+      "frame_id": "p2_id_4",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_id_5": {
+      "frame_id": "p2_id_5",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pl_1": {
+      "frame_id": "p2_pl_1",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pl_2": {
+      "frame_id": "p2_pl_2",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pl_3": {
+      "frame_id": "p2_pl_3",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pl_4": {
+      "frame_id": "p2_pl_4",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pl_5": {
+      "frame_id": "p2_pl_5",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_fa_1": {
+      "frame_id": "p2_fa_1",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_fa_2": {
+      "frame_id": "p2_fa_2",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_fa_3": {
+      "frame_id": "p2_fa_3",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_fa_4": {
+      "frame_id": "p2_fa_4",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_fa_5": {
+      "frame_id": "p2_fa_5",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_wk_1": {
+      "frame_id": "p2_wk_1",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_wk_2": {
+      "frame_id": "p2_wk_2",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_wk_3": {
+      "frame_id": "p2_wk_3",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_wk_4": {
+      "frame_id": "p2_wk_4",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_wk_5": {
+      "frame_id": "p2_wk_5",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_hb_1": {
+      "frame_id": "p2_hb_1",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_hb_2": {
+      "frame_id": "p2_hb_2",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_hb_3": {
+      "frame_id": "p2_hb_3",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_hb_4": {
+      "frame_id": "p2_hb_4",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_hb_5": {
+      "frame_id": "p2_hb_5",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_tr_1": {
+      "frame_id": "p2_tr_1",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_tr_2": {
+      "frame_id": "p2_tr_2",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_tr_3": {
+      "frame_id": "p2_tr_3",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_tr_4": {
+      "frame_id": "p2_tr_4",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_tr_5": {
+      "frame_id": "p2_tr_5",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pln_1": {
+      "frame_id": "p2_pln_1",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pln_2": {
+      "frame_id": "p2_pln_2",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pln_3": {
+      "frame_id": "p2_pln_3",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pln_4": {
+      "frame_id": "p2_pln_4",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_pln_5": {
+      "frame_id": "p2_pln_5",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_op_1": {
+      "frame_id": "p2_op_1",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_op_3": {
+      "frame_id": "p2_op_3",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_op_4": {
+      "frame_id": "p2_op_4",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_st_1": {
+      "frame_id": "p2_st_1",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    },
+    "p2_st_2": {
+      "frame_id": "p2_st_2",
+      "file": "p2_frames.json",
+      "has_slots": false,
+      "slots_executable": true,
+      "required_slots": [],
+      "selectors_present": [],
+      "hint_coverage": "none",
+      "hint_effects": {},
+      "blockers": [
+        "no_hints"
+      ],
+      "scenarios": [
+        "S6_diagnostic_confidence_changes"
+      ],
+      "readiness_label": "READY_NO_HINTS"
+    }
+  },
+  "frames_by_file": {
+    "p1_frames.json": [
+      "frame.greeting.hello",
+      "frame.greeting.hello_reply",
+      "f_ask_you_name",
+      "frame.identity.name",
+      "f_you_ne",
+      "f_partner_name",
+      "f_thanks",
+      "f_no_problem",
+      "f_from_where",
+      "frame.identity.nationality",
+      "frame.location.live_question",
+      "frame.location.live",
+      "f_have_family",
+      "f_yes_have_family",
+      "f_have_siblings",
+      "f_have_brother",
+      "f_have_sister",
+      "f_what_work",
+      "f_i_am_job",
+      "f_like_work",
+      "frame.opinion.like",
+      "f_what_hobby",
+      "f_i_like_hobby",
+      "f_weekend_do",
+      "f_weekend_rest",
+      "f_travel_where",
+      "f_been_to_place",
+      "f_want_go_where",
+      "f_want_go_place"
+    ],
+    "p2_frames.json": [
+      "p2_id_1",
+      "p2_id_2",
+      "p2_id_3",
+      "p2_id_4",
+      "p2_id_5",
+      "p2_pl_1",
+      "p2_pl_2",
+      "p2_pl_3",
+      "p2_pl_4",
+      "p2_pl_5",
+      "p2_fa_1",
+      "p2_fa_2",
+      "p2_fa_3",
+      "p2_fa_4",
+      "p2_fa_5",
+      "p2_wk_1",
+      "p2_wk_2",
+      "p2_wk_3",
+      "p2_wk_4",
+      "p2_wk_5",
+      "p2_hb_1",
+      "p2_hb_2",
+      "p2_hb_3",
+      "p2_hb_4",
+      "p2_hb_5",
+      "p2_tr_1",
+      "p2_tr_2",
+      "p2_tr_3",
+      "p2_tr_4",
+      "p2_tr_5",
+      "p2_pln_1",
+      "p2_pln_2",
+      "p2_pln_3",
+      "p2_pln_4",
+      "p2_pln_5",
+      "p2_op_1",
+      "p2_op_3",
+      "p2_op_4",
+      "p2_st_1",
+      "p2_st_2"
+    ]
+  },
+  "summary": {
+    "total_frames": 69,
+    "readiness_counts": {
+      "READY_NO_HINTS": 69
+    },
+    "scenario_counts": {
+      "S6_diagnostic_confidence_changes": 31
+    },
+    "top_blockers": [
+      [
+        "no_hints",
+        69
+      ]
+    ]
+  }
+}
