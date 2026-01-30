@@ -225,6 +225,8 @@ def analyze_frame(frame: Dict[str, Any], src_file: str) -> Dict[str, Any]:
         "blockers": [],
         "scenarios": [],
         "option_tokens": [],
+        "engine_id": None,
+        "affordances": [],
     }
 
     if not fid:
@@ -308,6 +310,9 @@ def analyze_frame(frame: Dict[str, Any], src_file: str) -> Dict[str, Any]:
                 if "label" in o and isinstance(o["label"], str):
                     opts.append(o["label"])
     record["option_tokens"] = opts
+    # engine id and affordances from frame
+    record["engine_id"] = frame.get("engine_id") or frame.get("engine")
+    record["affordances"] = frame.get("affordances") or frame.get("affordance") or []
 
     return record
 
@@ -328,6 +333,7 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
     per_frame: Dict[str, Dict[str, Any]] = {}
     frames_by_file: Dict[str, List[str]] = defaultdict(list)
     diagnostics_references: Dict[str, List[str]] = defaultdict(list)
+    engines_affordances: Dict[str, List[str]] = {}
 
     for p in files:
         try:
@@ -348,6 +354,20 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
             # we'll attach later
             # store raw for simple search
             diagnostics_references[p.name] = []
+
+        if ftype == "engines":
+            # collect engine affordances for later frame->engine checks
+            engines = []
+            if isinstance(raw, dict) and isinstance(raw.get("engines"), list):
+                engines = raw.get("engines")
+            elif isinstance(raw, list):
+                engines = raw
+            for eng in engines:
+                eid = eng.get("id") or eng.get("engine_id")
+                afford = eng.get("affordances") or eng.get("affordance") or []
+                if eid:
+                    engines_affordances[eid] = afford if isinstance(afford, list) else [afford]
+            continue
 
         if ftype != "frames":
             continue
@@ -438,30 +458,45 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
             print(f"Warning: failed to load cards.json: {e}")
 
     # Mark frames that have no hints but reference cards with readiness L0+
+    # Also, if a frame or its engine declares 'open_card' affordance and any card exists at L0+, reclassify
+    any_card_L0_plus = any((lvl is not None and lvl >= 0) for lvl in card_readiness_map.values())
     for fid, rec in per_frame.items():
-        if rec.get("readiness_label") == "READY_NO_HINTS":
-            tokens = rec.get("option_tokens", []) or []
-            found_card_available = False
-            for t in tokens:
-                if not isinstance(t, str):
-                    continue
-                # direct card id match
-                if t in cards_by_word_id:
-                    if card_readiness_map.get(cards_by_word_id[t], -1) >= 0:
+        if rec.get("readiness_label") != "READY_NO_HINTS":
+            continue
+
+        tokens = rec.get("option_tokens", []) or []
+        found_card_available = False
+
+        # token/hanzi matching as before
+        for t in tokens:
+            if not isinstance(t, str):
+                continue
+            if t in cards_by_word_id:
+                if card_readiness_map.get(cards_by_word_id[t], -1) >= 0:
+                    found_card_available = True
+                    break
+            if t in cards_by_hanzi:
+                for cid in cards_by_hanzi[t]:
+                    if card_readiness_map.get(cid, -1) >= 0:
                         found_card_available = True
                         break
-                # hanzi match
-                if t in cards_by_hanzi:
-                    for cid in cards_by_hanzi[t]:
-                        if card_readiness_map.get(cid, -1) >= 0:
-                            found_card_available = True
-                            break
-                if found_card_available:
-                    break
             if found_card_available:
-                rec["readiness_label"] = "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE"
-                rec.setdefault("blockers", []).append("conv_hint_missing_but_card_available")
-                # increment new label count in readiness_counts later
+                break
+
+        # affordance-triggered availability: open_card on frame or engine + any L0+ card exists
+        afford_open = False
+        fr_aff = rec.get("affordances") or []
+        if isinstance(fr_aff, list) and "open_card" in fr_aff:
+            afford_open = True
+        eng_id = rec.get("engine_id")
+        if not afford_open and eng_id and eng_id in engines_affordances:
+            eng_aff = engines_affordances.get(eng_id) or []
+            if isinstance(eng_aff, list) and "open_card" in eng_aff:
+                afford_open = True
+
+        if found_card_available or (afford_open and any_card_L0_plus):
+            rec["readiness_label"] = "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE"
+            rec.setdefault("blockers", []).append("conv_hint_missing_but_card_available")
 
 
     # aggregate stats
