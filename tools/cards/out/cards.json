@@ -1,0 +1,6856 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-01-30T08:14:09.802213Z",
+  "cards": [
+    {
+      "card_id": "w_ni",
+      "content": {
+        "headword": {
+          "hanzi": "你",
+          "pinyin": "nǐ",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "you",
+        "characters": [
+          {
+            "char": "你",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_wo",
+      "content": {
+        "headword": {
+          "hanzi": "我",
+          "pinyin": "wǒ",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "I; me",
+        "characters": [
+          {
+            "char": "我",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_ta",
+      "content": {
+        "headword": {
+          "hanzi": "他/她",
+          "pinyin": "tā",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "he/she",
+        "characters": [
+          {
+            "char": "他",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "/",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "她",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_hao",
+      "content": {
+        "headword": {
+          "hanzi": "好",
+          "pinyin": "hǎo",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "good",
+        "characters": [
+          {
+            "char": "好",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_nihao",
+      "content": {
+        "headword": {
+          "hanzi": "你好",
+          "pinyin": "nǐ hǎo",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "hello",
+        "characters": [
+          {
+            "char": "你",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "好",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_xiexie",
+      "content": {
+        "headword": {
+          "hanzi": "谢谢",
+          "pinyin": "xièxie",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "thanks",
+        "characters": [
+          {
+            "char": "谢",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "谢",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_bukeqi",
+      "content": {
+        "headword": {
+          "hanzi": "不客气",
+          "pinyin": "bú kèqi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "you're welcome",
+        "characters": [
+          {
+            "char": "不",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "客",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "气",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_shi",
+      "content": {
+        "headword": {
+          "hanzi": "是",
+          "pinyin": "shì",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to be",
+        "characters": [
+          {
+            "char": "是",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jiao",
+      "content": {
+        "headword": {
+          "hanzi": "叫",
+          "pinyin": "jiào",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to be called",
+        "characters": [
+          {
+            "char": "叫",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_shenme",
+      "content": {
+        "headword": {
+          "hanzi": "什么",
+          "pinyin": "shénme",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "what",
+        "characters": [
+          {
+            "char": "什",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "么",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_mingzi",
+      "content": {
+        "headword": {
+          "hanzi": "名字",
+          "pinyin": "míngzi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "name",
+        "characters": [
+          {
+            "char": "名",
+            "role": "semantic_core",
+            "strength": 0.8,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "字",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_ne",
+      "content": {
+        "headword": {
+          "hanzi": "呢",
+          "pinyin": "ne",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "and you? (particle)",
+        "characters": [
+          {
+            "char": "呢",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_nali",
+      "content": {
+        "headword": {
+          "hanzi": "哪里",
+          "pinyin": "nǎlǐ",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "where",
+        "characters": [
+          {
+            "char": "哪",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "里",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_ren",
+      "content": {
+        "headword": {
+          "hanzi": "人",
+          "pinyin": "rén",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "person",
+        "characters": [
+          {
+            "char": "人",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_xianzai",
+      "content": {
+        "headword": {
+          "hanzi": "现在",
+          "pinyin": "xiànzài",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "now",
+        "characters": [
+          {
+            "char": "现",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "在",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zhu",
+      "content": {
+        "headword": {
+          "hanzi": "住",
+          "pinyin": "zhù",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to live; reside",
+        "characters": [
+          {
+            "char": "住",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zai",
+      "content": {
+        "headword": {
+          "hanzi": "在",
+          "pinyin": "zài",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "at; in",
+        "characters": [
+          {
+            "char": "在",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_ma",
+      "content": {
+        "headword": {
+          "hanzi": "吗",
+          "pinyin": "ma",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "question particle",
+        "characters": [
+          {
+            "char": "吗",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_you",
+      "content": {
+        "headword": {
+          "hanzi": "有",
+          "pinyin": "yǒu",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to have",
+        "characters": [
+          {
+            "char": "有",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jiaren",
+      "content": {
+        "headword": {
+          "hanzi": "家人",
+          "pinyin": "jiārén",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "family members",
+        "characters": [
+          {
+            "char": "家",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "人",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_xiongdi",
+      "content": {
+        "headword": {
+          "hanzi": "兄弟",
+          "pinyin": "xiōngdì",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "brothers",
+        "characters": [
+          {
+            "char": "兄",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "弟",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jiemei",
+      "content": {
+        "headword": {
+          "hanzi": "姐妹",
+          "pinyin": "jiěmèi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "sisters",
+        "characters": [
+          {
+            "char": "姐",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "妹",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_gege",
+      "content": {
+        "headword": {
+          "hanzi": "哥哥",
+          "pinyin": "gēge",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "older brother",
+        "characters": [
+          {
+            "char": "哥",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "哥",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_didi",
+      "content": {
+        "headword": {
+          "hanzi": "弟弟",
+          "pinyin": "dìdi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "younger brother",
+        "characters": [
+          {
+            "char": "弟",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "弟",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jiejie",
+      "content": {
+        "headword": {
+          "hanzi": "姐姐",
+          "pinyin": "jiějie",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "older sister",
+        "characters": [
+          {
+            "char": "姐",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "姐",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_meimei",
+      "content": {
+        "headword": {
+          "hanzi": "妹妹",
+          "pinyin": "mèimei",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "younger sister",
+        "characters": [
+          {
+            "char": "妹",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "妹",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zuo",
+      "content": {
+        "headword": {
+          "hanzi": "做",
+          "pinyin": "zuò",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to do",
+        "characters": [
+          {
+            "char": "做",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_gongzuo",
+      "content": {
+        "headword": {
+          "hanzi": "工作",
+          "pinyin": "gōngzuò",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "work; job",
+        "characters": [
+          {
+            "char": "工",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "作",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_woshi",
+      "content": {
+        "headword": {
+          "hanzi": "我是",
+          "pinyin": "wǒ shì",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "I am (pattern)",
+        "characters": [
+          {
+            "char": "我",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "是",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_mang",
+      "content": {
+        "headword": {
+          "hanzi": "忙",
+          "pinyin": "máng",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "busy",
+        "characters": [
+          {
+            "char": "忙",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_xihuan",
+      "content": {
+        "headword": {
+          "hanzi": "喜欢",
+          "pinyin": "xǐhuan",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to like",
+        "characters": [
+          {
+            "char": "喜",
+            "role": "semantic_core",
+            "strength": 0.8,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "欢",
+            "role": "semantic_core",
+            "strength": 0.8,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_aihao",
+      "content": {
+        "headword": {
+          "hanzi": "爱好",
+          "pinyin": "àihào",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "hobby",
+        "characters": [
+          {
+            "char": "爱",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "好",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_quguo",
+      "content": {
+        "headword": {
+          "hanzi": "去过",
+          "pinyin": "qùguo",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "have been (to)",
+        "characters": [
+          {
+            "char": "去",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "过",
+            "role": "grammar_utility",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_haowan",
+      "content": {
+        "headword": {
+          "hanzi": "好玩",
+          "pinyin": "hǎowán",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "fun",
+        "characters": [
+          {
+            "char": "好",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "玩",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_beijing",
+      "content": {
+        "headword": {
+          "hanzi": "北京",
+          "pinyin": "Běijīng",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "Beijing",
+        "characters": [
+          {
+            "char": "北",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "京",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_shanghai",
+      "content": {
+        "headword": {
+          "hanzi": "上海",
+          "pinyin": "Shànghǎi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "Shanghai",
+        "characters": [
+          {
+            "char": "上",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "海",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zhongguo",
+      "content": {
+        "headword": {
+          "hanzi": "中国",
+          "pinyin": "Zhōngguó",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "China",
+        "characters": [
+          {
+            "char": "中",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "国",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_xinxilan",
+      "content": {
+        "headword": {
+          "hanzi": "新西兰",
+          "pinyin": "Xīnxīlán",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "New Zealand",
+        "characters": [
+          {
+            "char": "新",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "西",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "兰",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_de",
+      "content": {
+        "headword": {
+          "hanzi": "的",
+          "pinyin": "de",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "(possessive particle)",
+        "characters": [
+          {
+            "char": "的",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_he",
+      "content": {
+        "headword": {
+          "hanzi": "和",
+          "pinyin": "hé",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "and; with",
+        "characters": [
+          {
+            "char": "和",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_bu",
+      "content": {
+        "headword": {
+          "hanzi": "不",
+          "pinyin": "bù",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "not",
+        "characters": [
+          {
+            "char": "不",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_mei",
+      "content": {
+        "headword": {
+          "hanzi": "没",
+          "pinyin": "méi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "not (past); have not",
+        "characters": [
+          {
+            "char": "没",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zuijin",
+      "content": {
+        "headword": {
+          "hanzi": "最近",
+          "pinyin": "zuìjìn",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "recently",
+        "characters": [
+          {
+            "char": "最",
+            "role": "semantic_core",
+            "strength": 0.5,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "近",
+            "role": "semantic_core",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_juede",
+      "content": {
+        "headword": {
+          "hanzi": "觉得",
+          "pinyin": "juéde",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to feel; to think",
+        "characters": [
+          {
+            "char": "觉",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "得",
+            "role": "grammar_utility",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zenmeyang",
+      "content": {
+        "headword": {
+          "hanzi": "怎么样",
+          "pinyin": "zěnmeyàng",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "how is it",
+        "characters": [
+          {
+            "char": "怎",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "么",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "样",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_weishenme",
+      "content": {
+        "headword": {
+          "hanzi": "为什么",
+          "pinyin": "wèishénme",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "why",
+        "characters": [
+          {
+            "char": "为",
+            "role": "grammar_utility",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "什",
+            "role": "grammar_utility",
+            "strength": 0.5,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "么",
+            "role": "grammar_utility",
+            "strength": 0.5,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_yinwei",
+      "content": {
+        "headword": {
+          "hanzi": "因为",
+          "pinyin": "yīnwèi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "because",
+        "characters": [
+          {
+            "char": "因",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "为",
+            "role": "grammar_utility",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_suoyi",
+      "content": {
+        "headword": {
+          "hanzi": "所以",
+          "pinyin": "suǒyǐ",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "so; therefore",
+        "characters": [
+          {
+            "char": "所",
+            "role": "grammar_utility",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "以",
+            "role": "grammar_utility",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jihua",
+      "content": {
+        "headword": {
+          "hanzi": "计划",
+          "pinyin": "jìhuà",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "plan",
+        "characters": [
+          {
+            "char": "计",
+            "role": "semantic_core",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "划",
+            "role": "semantic_core",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_dasuan",
+      "content": {
+        "headword": {
+          "hanzi": "打算",
+          "pinyin": "dǎsuàn",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to plan; intend",
+        "characters": [
+          {
+            "char": "打",
+            "role": "semantic_core",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "算",
+            "role": "semantic_core",
+            "strength": 0.6,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_shenme",
+      "content": {
+        "headword": {
+          "hanzi": "什么",
+          "pinyin": "shénme",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "what",
+        "characters": [
+          {
+            "char": "什",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "么",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_shenmeshihou",
+      "content": {
+        "headword": {
+          "hanzi": "什么时候",
+          "pinyin": "shénme shíhou",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "when",
+        "characters": [
+          {
+            "char": "什",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "么",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "时",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "候",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_yiqi",
+      "content": {
+        "headword": {
+          "hanzi": "一起",
+          "pinyin": "yīqǐ",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "together",
+        "characters": [
+          {
+            "char": "一",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "起",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jianmian",
+      "content": {
+        "headword": {
+          "hanzi": "见面",
+          "pinyin": "jiànmiàn",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to meet",
+        "characters": [
+          {
+            "char": "见",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "面",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_na",
+      "content": {
+        "headword": {
+          "hanzi": "那",
+          "pinyin": "nà",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "then; that",
+        "characters": [
+          {
+            "char": "那",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jian",
+      "content": {
+        "headword": {
+          "hanzi": "见",
+          "pinyin": "jiàn",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "see (you)",
+        "characters": [
+          {
+            "char": "见",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_ting",
+      "content": {
+        "headword": {
+          "hanzi": "挺",
+          "pinyin": "tǐng",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "quite; pretty",
+        "characters": [
+          {
+            "char": "挺",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_bucuode",
+      "content": {
+        "headword": {
+          "hanzi": "不错",
+          "pinyin": "búcuò",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "not bad; pretty good",
+        "characters": [
+          {
+            "char": "不",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "错",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_xihuan",
+      "content": {
+        "headword": {
+          "hanzi": "喜欢",
+          "pinyin": "xǐhuan",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to like",
+        "characters": [
+          {
+            "char": "喜",
+            "role": "semantic_core",
+            "strength": 0.8,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "欢",
+            "role": "semantic_core",
+            "strength": 0.8,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_meitian",
+      "content": {
+        "headword": {
+          "hanzi": "每天",
+          "pinyin": "měitiān",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "every day",
+        "characters": [
+          {
+            "char": "每",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "天",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jidian",
+      "content": {
+        "headword": {
+          "hanzi": "几点",
+          "pinyin": "jǐ diǎn",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "what time",
+        "characters": [
+          {
+            "char": "几",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "点",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_xiaban",
+      "content": {
+        "headword": {
+          "hanzi": "下班",
+          "pinyin": "xiàbān",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "get off work",
+        "characters": [
+          {
+            "char": "下",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "班",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_yiban",
+      "content": {
+        "headword": {
+          "hanzi": "一般",
+          "pinyin": "yībān",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "usually",
+        "characters": [
+          {
+            "char": "一",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "般",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_anpai",
+      "content": {
+        "headword": {
+          "hanzi": "安排",
+          "pinyin": "ānpái",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "arrange; schedule",
+        "characters": [
+          {
+            "char": "安",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "排",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_yitiande",
+      "content": {
+        "headword": {
+          "hanzi": "一天",
+          "pinyin": "yītiān",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "a day; one day",
+        "characters": [
+          {
+            "char": "一",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "天",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_yudao",
+      "content": {
+        "headword": {
+          "hanzi": "遇到",
+          "pinyin": "yùdào",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to encounter",
+        "characters": [
+          {
+            "char": "遇",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "到",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_wenti",
+      "content": {
+        "headword": {
+          "hanzi": "问题",
+          "pinyin": "wèntí",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "problem; question",
+        "characters": [
+          {
+            "char": "问",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "题",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_hui",
+      "content": {
+        "headword": {
+          "hanzi": "会",
+          "pinyin": "huì",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "will; can",
+        "characters": [
+          {
+            "char": "会",
+            "role": "grammar_utility",
+            "strength": 0.9,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zenme",
+      "content": {
+        "headword": {
+          "hanzi": "怎么",
+          "pinyin": "zěnme",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "how",
+        "characters": [
+          {
+            "char": "怎",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "么",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jiejue",
+      "content": {
+        "headword": {
+          "hanzi": "解决",
+          "pinyin": "jiějué",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to solve",
+        "characters": [
+          {
+            "char": "解",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "决",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_shenghuo",
+      "content": {
+        "headword": {
+          "hanzi": "生活",
+          "pinyin": "shēnghuó",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "life; to live",
+        "characters": [
+          {
+            "char": "生",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "活",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zhuzai",
+      "content": {
+        "headword": {
+          "hanzi": "住在",
+          "pinyin": "zhù zài",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "live in",
+        "characters": [
+          {
+            "char": "住",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "在",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_fangbian",
+      "content": {
+        "headword": {
+          "hanzi": "方便",
+          "pinyin": "fāngbiàn",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "convenient",
+        "characters": [
+          {
+            "char": "方",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "便",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_haochi",
+      "content": {
+        "headword": {
+          "hanzi": "好吃",
+          "pinyin": "hǎochī",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "tasty",
+        "characters": [
+          {
+            "char": "好",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "吃",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_gen",
+      "content": {
+        "headword": {
+          "hanzi": "跟",
+          "pinyin": "gēn",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "with",
+        "characters": [
+          {
+            "char": "跟",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jiaren",
+      "content": {
+        "headword": {
+          "hanzi": "家人",
+          "pinyin": "jiārén",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "family",
+        "characters": [
+          {
+            "char": "家",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "人",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zhuyiqi",
+      "content": {
+        "headword": {
+          "hanzi": "住在一起",
+          "pinyin": "zhù zài yīqǐ",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "live together",
+        "characters": [
+          {
+            "char": "住",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "在",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "一",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "起",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_duojiu",
+      "content": {
+        "headword": {
+          "hanzi": "多久",
+          "pinyin": "duōjiǔ",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "how often/how long",
+        "characters": [
+          {
+            "char": "多",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "久",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_yici",
+      "content": {
+        "headword": {
+          "hanzi": "一次",
+          "pinyin": "yīcì",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "once (one time)",
+        "characters": [
+          {
+            "char": "一",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "次",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_guanxi",
+      "content": {
+        "headword": {
+          "hanzi": "关系",
+          "pinyin": "guānxi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "relationship",
+        "characters": [
+          {
+            "char": "关",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "系",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_henhao",
+      "content": {
+        "headword": {
+          "hanzi": "很好",
+          "pinyin": "hěn hǎo",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "very good",
+        "characters": [
+          {
+            "char": "很",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "好",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_pingshi",
+      "content": {
+        "headword": {
+          "hanzi": "平时",
+          "pinyin": "píngshí",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "usually; in daily life",
+        "characters": [
+          {
+            "char": "平",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "时",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_kaiShi",
+      "content": {
+        "headword": {
+          "hanzi": "开始",
+          "pinyin": "kāishǐ",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to start",
+        "characters": [
+          {
+            "char": "开",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "始",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_nanbunan",
+      "content": {
+        "headword": {
+          "hanzi": "难不难",
+          "pinyin": "nán bù nán",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "is it hard",
+        "characters": [
+          {
+            "char": "难",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "不",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "难",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_chengjiu",
+      "content": {
+        "headword": {
+          "hanzi": "成就",
+          "pinyin": "chéngjiù",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "achievement",
+        "characters": [
+          {
+            "char": "成",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "就",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zuida",
+      "content": {
+        "headword": {
+          "hanzi": "最大",
+          "pinyin": "zuìdà",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "biggest",
+        "characters": [
+          {
+            "char": "最",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "大",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_quguo",
+      "content": {
+        "headword": {
+          "hanzi": "去过",
+          "pinyin": "qùguo",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "have been to",
+        "characters": [
+          {
+            "char": "去",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "过",
+            "role": "grammar_utility",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_naxie",
+      "content": {
+        "headword": {
+          "hanzi": "哪些",
+          "pinyin": "nǎxiē",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "which (plural)",
+        "characters": [
+          {
+            "char": "哪",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "些",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_guojia",
+      "content": {
+        "headword": {
+          "hanzi": "国家",
+          "pinyin": "guójiā",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "country",
+        "characters": [
+          {
+            "char": "国",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "家",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zui",
+      "content": {
+        "headword": {
+          "hanzi": "最",
+          "pinyin": "zuì",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "most",
+        "characters": [
+          {
+            "char": "最",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_nanwange",
+      "content": {
+        "headword": {
+          "hanzi": "难忘",
+          "pinyin": "nánwàng",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "unforgettable",
+        "characters": [
+          {
+            "char": "难",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "忘",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zuotian",
+      "content": {
+        "headword": {
+          "hanzi": "昨天",
+          "pinyin": "zuótiān",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "yesterday",
+        "characters": [
+          {
+            "char": "昨",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "天",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_houlai",
+      "content": {
+        "headword": {
+          "hanzi": "后来",
+          "pinyin": "hòulái",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "later",
+        "characters": [
+          {
+            "char": "后",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "来",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_you",
+      "content": {
+        "headword": {
+          "hanzi": "又",
+          "pinyin": "yòu",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "again",
+        "characters": [
+          {
+            "char": "又",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jintian",
+      "content": {
+        "headword": {
+          "hanzi": "今天",
+          "pinyin": "jīntiān",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "today",
+        "characters": [
+          {
+            "char": "今",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "天",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_mingtian",
+      "content": {
+        "headword": {
+          "hanzi": "明天",
+          "pinyin": "míngtiān",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "tomorrow",
+        "characters": [
+          {
+            "char": "明",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "天",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zhoumò",
+      "content": {
+        "headword": {
+          "hanzi": "周末",
+          "pinyin": "zhōumò",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "weekend",
+        "characters": [
+          {
+            "char": "周",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "末",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_denghuier",
+      "content": {
+        "headword": {
+          "hanzi": "等会儿",
+          "pinyin": "děng huǐr",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "later (in a bit)",
+        "characters": [
+          {
+            "char": "等",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "会",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "儿",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_wanshang",
+      "content": {
+        "headword": {
+          "hanzi": "晚上",
+          "pinyin": "wǎnshang",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "evening",
+        "characters": [
+          {
+            "char": "晚",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "上",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_gongzuo",
+      "content": {
+        "headword": {
+          "hanzi": "工作",
+          "pinyin": "gōngzuò",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "work",
+        "characters": [
+          {
+            "char": "工",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "作",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_youdian",
+      "content": {
+        "headword": {
+          "hanzi": "有点",
+          "pinyin": "yǒudiǎn",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "a bit",
+        "characters": [
+          {
+            "char": "有",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "点",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_mang",
+      "content": {
+        "headword": {
+          "hanzi": "忙",
+          "pinyin": "máng",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "busy",
+        "characters": [
+          {
+            "char": "忙",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_wode",
+      "content": {
+        "headword": {
+          "hanzi": "我的",
+          "pinyin": "wǒ de",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "my",
+        "characters": [
+          {
+            "char": "我",
+            "role": "grammar_utility",
+            "strength": 0.8,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "的",
+            "role": "grammar_utility",
+            "strength": 0.9,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_mingzi",
+      "content": {
+        "headword": {
+          "hanzi": "名字",
+          "pinyin": "míngzi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "name",
+        "characters": [
+          {
+            "char": "名",
+            "role": "semantic_core",
+            "strength": 0.8,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "字",
+            "role": "semantic_core",
+            "strength": 0.7,
+            "pinyin": null,
+            "meaning": null,
+            "components": [],
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_yiyisi",
+      "content": {
+        "headword": {
+          "hanzi": "有意思",
+          "pinyin": "yǒu yìsi",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "interesting",
+        "characters": [
+          {
+            "char": "有",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "意",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "思",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_dajia",
+      "content": {
+        "headword": {
+          "hanzi": "大家",
+          "pinyin": "dàjiā",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "everyone",
+        "characters": [
+          {
+            "char": "大",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "家",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zenmejiao",
+      "content": {
+        "headword": {
+          "hanzi": "怎么叫",
+          "pinyin": "zěnme jiào",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "how (to) call/address",
+        "characters": [
+          {
+            "char": "怎",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "么",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "叫",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_yiyi",
+      "content": {
+        "headword": {
+          "hanzi": "意义",
+          "pinyin": "yìyì",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "meaning",
+        "characters": [
+          {
+            "char": "意",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "义",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_nide",
+      "content": {
+        "headword": {
+          "hanzi": "你的",
+          "pinyin": "nǐ de",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "your",
+        "characters": [
+          {
+            "char": "你",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "的",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_zhege",
+      "content": {
+        "headword": {
+          "hanzi": "这个",
+          "pinyin": "zhège",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "this",
+        "characters": [
+          {
+            "char": "这",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "个",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jiu",
+      "content": {
+        "headword": {
+          "hanzi": "就",
+          "pinyin": "jiù",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "then; just",
+        "characters": [
+          {
+            "char": "就",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_bijiao",
+      "content": {
+        "headword": {
+          "hanzi": "比较",
+          "pinyin": "bǐjiào",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "rather; relatively",
+        "characters": [
+          {
+            "char": "比",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "较",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_qu",
+      "content": {
+        "headword": {
+          "hanzi": "去",
+          "pinyin": "qù",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "to go",
+        "characters": [
+          {
+            "char": "去",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_difang",
+      "content": {
+        "headword": {
+          "hanzi": "地方",
+          "pinyin": "dìfang",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "place",
+        "characters": [
+          {
+            "char": "地",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "方",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_haowan",
+      "content": {
+        "headword": {
+          "hanzi": "好玩",
+          "pinyin": "hǎowán",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "fun",
+        "characters": [
+          {
+            "char": "好",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          },
+          {
+            "char": "玩",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_ma",
+      "content": {
+        "headword": {
+          "hanzi": "吗",
+          "pinyin": "ma",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "question particle",
+        "characters": [
+          {
+            "char": "吗",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_de",
+      "content": {
+        "headword": {
+          "hanzi": "的",
+          "pinyin": "de",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "possessive/attribute particle",
+        "characters": [
+          {
+            "char": "的",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_le",
+      "content": {
+        "headword": {
+          "hanzi": "了",
+          "pinyin": "le",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "completion particle",
+        "characters": [
+          {
+            "char": "了",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ]
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

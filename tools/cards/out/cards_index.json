@@ -1,0 +1,447 @@
+{
+  "by_word_id": {
+    "w_ni": "w_ni",
+    "w_wo": "w_wo",
+    "w_ta": "w_ta",
+    "w_hao": "w_hao",
+    "w_nihao": "w_nihao",
+    "w_xiexie": "w_xiexie",
+    "w_bukeqi": "w_bukeqi",
+    "w_shi": "w_shi",
+    "w_jiao": "w_jiao",
+    "w_shenme": "w_shenme",
+    "w_mingzi": "w_mingzi",
+    "w_ne": "w_ne",
+    "w_nali": "w_nali",
+    "w_ren": "w_ren",
+    "w_xianzai": "w_xianzai",
+    "w_zhu": "w_zhu",
+    "w_zai": "w_zai",
+    "w_ma": "w_ma",
+    "w_you": "w_you",
+    "w_jiaren": "w_jiaren",
+    "w_xiongdi": "w_xiongdi",
+    "w_jiemei": "w_jiemei",
+    "w_gege": "w_gege",
+    "w_didi": "w_didi",
+    "w_jiejie": "w_jiejie",
+    "w_meimei": "w_meimei",
+    "w_zuo": "w_zuo",
+    "w_gongzuo": "w_gongzuo",
+    "w_woshi": "w_woshi",
+    "w_mang": "w_mang",
+    "w_xihuan": "w_xihuan",
+    "w_aihao": "w_aihao",
+    "w_quguo": "w_quguo",
+    "w_haowan": "w_haowan",
+    "w_beijing": "w_beijing",
+    "w_shanghai": "w_shanghai",
+    "w_zhongguo": "w_zhongguo",
+    "w_xinxilan": "w_xinxilan",
+    "w_de": "w_de",
+    "w_he": "w_he",
+    "w_bu": "w_bu",
+    "w_mei": "w_mei",
+    "w_zuijin": "w_zuijin",
+    "w_juede": "w_juede",
+    "w_zenmeyang": "w_zenmeyang",
+    "w_weishenme": "w_weishenme",
+    "w_yinwei": "w_yinwei",
+    "w_suoyi": "w_suoyi",
+    "w_jihua": "w_jihua",
+    "w_dasuan": "w_dasuan",
+    "w_shenmeshihou": "w_shenmeshihou",
+    "w_yiqi": "w_yiqi",
+    "w_jianmian": "w_jianmian",
+    "w_na": "w_na",
+    "w_jian": "w_jian",
+    "w_ting": "w_ting",
+    "w_bucuode": "w_bucuode",
+    "w_meitian": "w_meitian",
+    "w_jidian": "w_jidian",
+    "w_xiaban": "w_xiaban",
+    "w_yiban": "w_yiban",
+    "w_anpai": "w_anpai",
+    "w_yitiande": "w_yitiande",
+    "w_yudao": "w_yudao",
+    "w_wenti": "w_wenti",
+    "w_hui": "w_hui",
+    "w_zenme": "w_zenme",
+    "w_jiejue": "w_jiejue",
+    "w_shenghuo": "w_shenghuo",
+    "w_zhuzai": "w_zhuzai",
+    "w_fangbian": "w_fangbian",
+    "w_haochi": "w_haochi",
+    "w_gen": "w_gen",
+    "w_zhuyiqi": "w_zhuyiqi",
+    "w_duojiu": "w_duojiu",
+    "w_yici": "w_yici",
+    "w_guanxi": "w_guanxi",
+    "w_henhao": "w_henhao",
+    "w_pingshi": "w_pingshi",
+    "w_kaiShi": "w_kaiShi",
+    "w_nanbunan": "w_nanbunan",
+    "w_chengjiu": "w_chengjiu",
+    "w_zuida": "w_zuida",
+    "w_naxie": "w_naxie",
+    "w_guojia": "w_guojia",
+    "w_zui": "w_zui",
+    "w_nanwange": "w_nanwange",
+    "w_zuotian": "w_zuotian",
+    "w_houlai": "w_houlai",
+    "w_jintian": "w_jintian",
+    "w_mingtian": "w_mingtian",
+    "w_zhoumò": "w_zhoumò",
+    "w_denghuier": "w_denghuier",
+    "w_wanshang": "w_wanshang",
+    "w_youdian": "w_youdian",
+    "w_wode": "w_wode",
+    "w_yiyisi": "w_yiyisi",
+    "w_dajia": "w_dajia",
+    "w_zenmejiao": "w_zenmejiao",
+    "w_yiyi": "w_yiyi",
+    "w_nide": "w_nide",
+    "w_zhege": "w_zhege",
+    "w_jiu": "w_jiu",
+    "w_bijiao": "w_bijiao",
+    "w_qu": "w_qu",
+    "w_difang": "w_difang",
+    "w_le": "w_le"
+  },
+  "by_hanzi": {
+    "你": [
+      "w_ni"
+    ],
+    "我": [
+      "w_wo"
+    ],
+    "他/她": [
+      "w_ta"
+    ],
+    "好": [
+      "w_hao"
+    ],
+    "你好": [
+      "w_nihao"
+    ],
+    "谢谢": [
+      "w_xiexie"
+    ],
+    "不客气": [
+      "w_bukeqi"
+    ],
+    "是": [
+      "w_shi"
+    ],
+    "叫": [
+      "w_jiao"
+    ],
+    "什么": [
+      "w_shenme",
+      "w_shenme"
+    ],
+    "名字": [
+      "w_mingzi",
+      "w_mingzi"
+    ],
+    "呢": [
+      "w_ne"
+    ],
+    "哪里": [
+      "w_nali"
+    ],
+    "人": [
+      "w_ren"
+    ],
+    "现在": [
+      "w_xianzai"
+    ],
+    "住": [
+      "w_zhu"
+    ],
+    "在": [
+      "w_zai"
+    ],
+    "吗": [
+      "w_ma",
+      "w_ma"
+    ],
+    "有": [
+      "w_you"
+    ],
+    "家人": [
+      "w_jiaren",
+      "w_jiaren"
+    ],
+    "兄弟": [
+      "w_xiongdi"
+    ],
+    "姐妹": [
+      "w_jiemei"
+    ],
+    "哥哥": [
+      "w_gege"
+    ],
+    "弟弟": [
+      "w_didi"
+    ],
+    "姐姐": [
+      "w_jiejie"
+    ],
+    "妹妹": [
+      "w_meimei"
+    ],
+    "做": [
+      "w_zuo"
+    ],
+    "工作": [
+      "w_gongzuo",
+      "w_gongzuo"
+    ],
+    "我是": [
+      "w_woshi"
+    ],
+    "忙": [
+      "w_mang",
+      "w_mang"
+    ],
+    "喜欢": [
+      "w_xihuan",
+      "w_xihuan"
+    ],
+    "爱好": [
+      "w_aihao"
+    ],
+    "去过": [
+      "w_quguo",
+      "w_quguo"
+    ],
+    "好玩": [
+      "w_haowan",
+      "w_haowan"
+    ],
+    "北京": [
+      "w_beijing"
+    ],
+    "上海": [
+      "w_shanghai"
+    ],
+    "中国": [
+      "w_zhongguo"
+    ],
+    "新西兰": [
+      "w_xinxilan"
+    ],
+    "的": [
+      "w_de",
+      "w_de"
+    ],
+    "和": [
+      "w_he"
+    ],
+    "不": [
+      "w_bu"
+    ],
+    "没": [
+      "w_mei"
+    ],
+    "最近": [
+      "w_zuijin"
+    ],
+    "觉得": [
+      "w_juede"
+    ],
+    "怎么样": [
+      "w_zenmeyang"
+    ],
+    "为什么": [
+      "w_weishenme"
+    ],
+    "因为": [
+      "w_yinwei"
+    ],
+    "所以": [
+      "w_suoyi"
+    ],
+    "计划": [
+      "w_jihua"
+    ],
+    "打算": [
+      "w_dasuan"
+    ],
+    "什么时候": [
+      "w_shenmeshihou"
+    ],
+    "一起": [
+      "w_yiqi"
+    ],
+    "见面": [
+      "w_jianmian"
+    ],
+    "那": [
+      "w_na"
+    ],
+    "见": [
+      "w_jian"
+    ],
+    "挺": [
+      "w_ting"
+    ],
+    "不错": [
+      "w_bucuode"
+    ],
+    "每天": [
+      "w_meitian"
+    ],
+    "几点": [
+      "w_jidian"
+    ],
+    "下班": [
+      "w_xiaban"
+    ],
+    "一般": [
+      "w_yiban"
+    ],
+    "安排": [
+      "w_anpai"
+    ],
+    "一天": [
+      "w_yitiande"
+    ],
+    "遇到": [
+      "w_yudao"
+    ],
+    "问题": [
+      "w_wenti"
+    ],
+    "会": [
+      "w_hui"
+    ],
+    "怎么": [
+      "w_zenme"
+    ],
+    "解决": [
+      "w_jiejue"
+    ],
+    "生活": [
+      "w_shenghuo"
+    ],
+    "住在": [
+      "w_zhuzai"
+    ],
+    "方便": [
+      "w_fangbian"
+    ],
+    "好吃": [
+      "w_haochi"
+    ],
+    "跟": [
+      "w_gen"
+    ],
+    "住在一起": [
+      "w_zhuyiqi"
+    ],
+    "多久": [
+      "w_duojiu"
+    ],
+    "一次": [
+      "w_yici"
+    ],
+    "关系": [
+      "w_guanxi"
+    ],
+    "很好": [
+      "w_henhao"
+    ],
+    "平时": [
+      "w_pingshi"
+    ],
+    "开始": [
+      "w_kaiShi"
+    ],
+    "难不难": [
+      "w_nanbunan"
+    ],
+    "成就": [
+      "w_chengjiu"
+    ],
+    "最大": [
+      "w_zuida"
+    ],
+    "哪些": [
+      "w_naxie"
+    ],
+    "国家": [
+      "w_guojia"
+    ],
+    "最": [
+      "w_zui"
+    ],
+    "难忘": [
+      "w_nanwange"
+    ],
+    "昨天": [
+      "w_zuotian"
+    ],
+    "后来": [
+      "w_houlai"
+    ],
+    "又": [
+      "w_you"
+    ],
+    "今天": [
+      "w_jintian"
+    ],
+    "明天": [
+      "w_mingtian"
+    ],
+    "周末": [
+      "w_zhoumò"
+    ],
+    "等会儿": [
+      "w_denghuier"
+    ],
+    "晚上": [
+      "w_wanshang"
+    ],
+    "有点": [
+      "w_youdian"
+    ],
+    "我的": [
+      "w_wode"
+    ],
+    "有意思": [
+      "w_yiyisi"
+    ],
+    "大家": [
+      "w_dajia"
+    ],
+    "怎么叫": [
+      "w_zenmejiao"
+    ],
+    "意义": [
+      "w_yiyi"
+    ],
+    "你的": [
+      "w_nide"
+    ],
+    "这个": [
+      "w_zhege"
+    ],
+    "就": [
+      "w_jiu"
+    ],
+    "比较": [
+      "w_bijiao"
+    ],
+    "去": [
+      "w_qu"
+    ],
+    "地方": [
+      "w_difang"
+    ],
+    "了": [
+      "w_le"
+    ]
+  }
+}

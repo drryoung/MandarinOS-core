@@ -1,0 +1,8 @@
+{
+  "words_files": ["p1_words.json", "p2_words.json"],
+  "links_file": "word_character_links.json",
+  "characters_file": "characters_1200.json",
+  "output_dir": "tools/cards/out",
+  "card_id_strategy": "word_id",
+  "include_pack": true
+}
