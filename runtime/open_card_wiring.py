@@ -24,6 +24,6 @@ def process_frame_and_emit_open_card(
     if not card_id:
         return None
 
-    ev = resolver.build_open_card_event(frame.get("engine_id"), frame.get("frame_id"), card_id)
+    ev = resolver.build_open_card_event(frame.get("engine_id"), frame.get("frame_id"), card_id, reason="card_available")
     emit(ev)
     return ev
