@@ -457,6 +457,9 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
         except Exception as e:
             print(f"Warning: failed to load cards.json: {e}")
 
+    # perform reclassification using a helper so it's testable
+    reclassify_frames_with_cards(per_frame, engines_affordances, card_readiness_map, cards_by_word_id, cards_by_hanzi)
+
     # Mark frames that have no hints but reference cards with readiness L0+
     # Also, if a frame or its engine declares 'open_card' affordance and any card exists at L0+, reclassify
     any_card_L0_plus = any((lvl is not None and lvl >= 0) for lvl in card_readiness_map.values())
@@ -610,6 +613,58 @@ def main(argv: Optional[List[str]] = None):
         cfg_path = repo_root / "tools" / "coverage" / "coverage_config.json"
 
     run_scan(cfg_path, cards_path_arg=args.cards_path, cards_index_arg=args.cards_index_path)
+
+
+def reclassify_frames_with_cards(per_frame: Dict[str, Dict[str, Any]],
+                                  engines_affordances: Dict[str, List[str]],
+                                  card_readiness_map: Dict[str, int],
+                                  cards_by_word_id: Dict[str, str],
+                                  cards_by_hanzi: Dict[str, List[str]]) -> None:
+    """Reclassify frames in-place when cards are available and affordances allow opening cards.
+
+    Rules:
+    - For frames labeled READY_NO_HINTS, if any option token directly matches a card (by word id or hanzi)
+      and that card has readiness L0+ (level >= 0), reclassify to READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE.
+    - Also, if the frame or its engine declares `open_card` affordance and the cards dataset contains any
+      L0+ card, reclassify as above.
+    """
+    any_card_L0_plus = any((lvl is not None and lvl >= 0) for lvl in card_readiness_map.values())
+
+    for fid, rec in list(per_frame.items()):
+        if rec.get("readiness_label") != "READY_NO_HINTS":
+            continue
+
+        tokens = rec.get("option_tokens", []) or []
+        found_card_available = False
+        for t in tokens:
+            if not isinstance(t, str):
+                continue
+            if t in cards_by_word_id:
+                if card_readiness_map.get(cards_by_word_id[t], -1) >= 0:
+                    found_card_available = True
+                    break
+            if t in cards_by_hanzi:
+                for cid in cards_by_hanzi[t]:
+                    if card_readiness_map.get(cid, -1) >= 0:
+                        found_card_available = True
+                        break
+            if found_card_available:
+                break
+
+        # affordance-triggered availability: open_card on frame or engine + any L0+ card exists
+        afford_open = False
+        fr_aff = rec.get("affordances") or []
+        if isinstance(fr_aff, list) and "open_card" in fr_aff:
+            afford_open = True
+        eng_id = rec.get("engine_id")
+        if not afford_open and eng_id and eng_id in engines_affordances:
+            eng_aff = engines_affordances.get(eng_id) or []
+            if isinstance(eng_aff, list) and "open_card" in eng_aff:
+                afford_open = True
+
+        if found_card_available or (afford_open and any_card_L0_plus):
+            rec["readiness_label"] = "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE"
+            rec.setdefault("blockers", []).append("conv_hint_missing_but_card_available")
 
 
 if __name__ == "__main__":
