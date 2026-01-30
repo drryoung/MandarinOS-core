@@ -224,6 +224,7 @@ def analyze_frame(frame: Dict[str, Any], src_file: str) -> Dict[str, Any]:
         "hint_effects": {},
         "blockers": [],
         "scenarios": [],
+        "option_tokens": [],
     }
 
     if not fid:
@@ -289,6 +290,25 @@ def analyze_frame(frame: Dict[str, Any], src_file: str) -> Dict[str, Any]:
     # S6: diagnostics referencing frame_id will be attached later by caller
     record["scenarios"] = sc
 
+    # extract option tokens/text for later cross-referencing with cards
+    opts = []
+    options = frame.get("options") or frame.get("templates") or frame.get("tokens")
+    if isinstance(options, list):
+        for o in options:
+            if isinstance(o, str):
+                opts.append(o)
+            elif isinstance(o, dict):
+                # common fields: text, tokens, label
+                if "text" in o and isinstance(o["text"], str):
+                    opts.append(o["text"])
+                if "tokens" in o and isinstance(o["tokens"], list):
+                    for t in o["tokens"]:
+                        if isinstance(t, str):
+                            opts.append(t)
+                if "label" in o and isinstance(o["label"], str):
+                    opts.append(o["label"])
+    record["option_tokens"] = opts
+
     return record
 
 
@@ -350,6 +370,75 @@ def run_scan(cfg_path: Path):
                 if fid in txt:
                     per_frame[fid]["scenarios"].append("S6_diagnostic_confidence_changes")
 
+    # Load generated cards if present to compute card readiness and enable frame-card cross-checks
+    cards_path = repo_root / "tools" / "cards" / "out" / "cards.json"
+    cards_obj = None
+    cards_by_id = {}
+    cards_by_word_id = {}
+    cards_by_hanzi = defaultdict(list)
+    card_readiness_map: Dict[str, int] = {}
+    card_readiness_counts = Counter()
+    if cards_path.exists():
+        try:
+            cards_obj = json.loads(cards_path.read_text(encoding="utf-8"))
+            for c in cards_obj.get("cards", []):
+                cid = c.get("card_id")
+                if not cid:
+                    continue
+                cards_by_id[cid] = c
+                # map by word_id (card_id assumed to be word_id)
+                cards_by_word_id[cid] = cid
+                han = c.get("content", {}).get("headword", {}).get("hanzi")
+                if han:
+                    cards_by_hanzi[han].append(cid)
+
+                # compute readiness level L0-L4
+                level = -1
+                meaning = bool(c.get("content", {}).get("meaning"))
+                audio_tts = bool(c.get("content", {}).get("headword", {}).get("audio", {}).get("tts"))
+                if meaning and audio_tts:
+                    level = max(level, 0)
+                action_ids = [a.get("action_id") for a in c.get("actions", []) if isinstance(a, dict)]
+                if "reveal_pinyin" in action_ids:
+                    level = max(level, 1)
+                if "reveal_word_composition" in action_ids:
+                    level = max(level, 2)
+                if "reveal_characters" in action_ids and c.get("content", {}).get("characters"):
+                    level = max(level, 3)
+                if "open_trace_mode" in action_ids:
+                    level = max(level, 4)
+                card_readiness_map[cid] = level
+                card_readiness_counts[level] += 1
+        except Exception as e:
+            print(f"Warning: failed to load cards.json: {e}")
+
+    # Mark frames that have no hints but reference cards with readiness L0+
+    for fid, rec in per_frame.items():
+        if rec.get("readiness_label") == "READY_NO_HINTS":
+            tokens = rec.get("option_tokens", []) or []
+            found_card_available = False
+            for t in tokens:
+                if not isinstance(t, str):
+                    continue
+                # direct card id match
+                if t in cards_by_word_id:
+                    if card_readiness_map.get(cards_by_word_id[t], -1) >= 0:
+                        found_card_available = True
+                        break
+                # hanzi match
+                if t in cards_by_hanzi:
+                    for cid in cards_by_hanzi[t]:
+                        if card_readiness_map.get(cid, -1) >= 0:
+                            found_card_available = True
+                            break
+                if found_card_available:
+                    break
+            if found_card_available:
+                rec["readiness_label"] = "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE"
+                rec.setdefault("blockers", []).append("conv_hint_missing_but_card_available")
+                # increment new label count in readiness_counts later
+
+
     # aggregate stats
     readiness_counts = Counter()
     scenario_counts = Counter()
@@ -367,6 +456,7 @@ def run_scan(cfg_path: Path):
         "readiness_counts": dict(readiness_counts),
         "scenario_counts": dict(scenario_counts),
         "top_blockers": blockers_counter.most_common(20),
+        "card_readiness_counts": dict(card_readiness_counts),
     }
 
     out_dir = repo_root / "tools" / "coverage"
@@ -394,6 +484,13 @@ def run_scan(cfg_path: Path):
     lines.append("|---:|---:|")
     for k, v in sorted(summary["readiness_counts"].items(), key=lambda x: x[0]):
         lines.append(f"| {k} | {v} |")
+    lines.append("")
+    lines.append("## Card Readiness Distribution (L0-L4)")
+    lines.append("")
+    lines.append("| Level | Count |")
+    lines.append("|---:|---:|")
+    for lvl, cnt in sorted(summary.get("card_readiness_counts", {}).items(), key=lambda x: (int(x[0]) if isinstance(x[0], int) or (isinstance(x[0], str) and x[0].lstrip('-').isdigit()) else x[0])):
+        lines.append(f"| {lvl} | {cnt} |")
     lines.append("")
     lines.append("## Top Blockers")
     lines.append("")

@@ -6,6 +6,12 @@
 |---:|---:|
 | READY_NO_HINTS | 69 |
 
+## Card Readiness Distribution (L0-L4)
+
+| Level | Count |
+|---:|---:|
+| 3 | 118 |
+
 ## Top Blockers
 
 | Blocker | Count |
