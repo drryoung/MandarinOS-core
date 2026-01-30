@@ -371,14 +371,21 @@ def run_scan(cfg_path: Path):
                     per_frame[fid]["scenarios"].append("S6_diagnostic_confidence_changes")
 
     # Load generated cards if present to compute card readiness and enable frame-card cross-checks
-    cards_path = repo_root / "tools" / "cards" / "out" / "cards.json"
+    # cards path can be configured in coverage_config.json via "cards_path" / "cards_index_path"
+    cfg_cards_path = cfg.get("cards_path") if isinstance(cfg, dict) else None
+    if cfg_cards_path:
+        cards_path = Path(cfg_cards_path)
+        if not cards_path.is_absolute():
+            cards_path = repo_root / cfg_cards_path
+    else:
+        cards_path = repo_root / "tools" / "cards" / "out" / "cards.json"
     cards_obj = None
     cards_by_id = {}
     cards_by_word_id = {}
     cards_by_hanzi = defaultdict(list)
     card_readiness_map: Dict[str, int] = {}
     card_readiness_counts = Counter()
-    if cards_path.exists():
+    if cards_path and cards_path.exists():
         try:
             cards_obj = json.loads(cards_path.read_text(encoding="utf-8"))
             for c in cards_obj.get("cards", []):

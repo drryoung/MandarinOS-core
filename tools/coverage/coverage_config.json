@@ -1,5 +1,35 @@
 {
-  "content_globs": [
-    "packs/*.json"
+  "content_files": [
+    "p1_frames.json",
+    "p1_fillers.json",
+    "p1_words.json",
+    "p1_engines.json",
+    "p2_frames.json",
+    "p2_fillers.json",
+    "p2_words.json",
+    "p2_engines.json",
+    "diagnostic_p1.json",
+    "diagnostic_p2.json",
+    "characters_1200.json",
+    "radicals_core.json",
+    "word_character_links.json"
+  ],
+  "ignore_files": [
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "manifest.json",
+    "content_manifest.json",
+    "pack_meta.json",
+    "components.json",
+    "runtime_indexes.json",
+    "import_order.json",
+    "import_validation_rules.json",
+    "id_map.json",
+    "report.json",
+    "srs_config.json"
   ]
+  ,
+  "cards_path": "tools/cards/out/cards.json",
+  "cards_index_path": "tools/cards/out/cards_index.json"
 }
