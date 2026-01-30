@@ -392,14 +392,18 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
 
     # Load generated cards if present to compute card readiness and enable frame-card cross-checks
     # Priority: CLI flags (--cards-path / --cards-index-path) -> config file -> default path
+    # Track whether cards path was explicitly provided (CLI or config)
+    cards_explicitly_provided = False
     if cards_path_arg:
         cards_path = Path(cards_path_arg)
+        cards_explicitly_provided = True
         if not cards_path.is_absolute():
             cards_path = repo_root / cards_path_arg
     else:
         cfg_cards_path = cfg.get("cards_path") if isinstance(cfg, dict) else None
         if cfg_cards_path:
             cards_path = Path(cfg_cards_path)
+            cards_explicitly_provided = True
             if not cards_path.is_absolute():
                 cards_path = repo_root / cfg_cards_path
         else:
@@ -423,39 +427,62 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
     cards_by_hanzi = defaultdict(list)
     card_readiness_map: Dict[str, int] = {}
     card_readiness_counts = Counter()
-    if cards_path and cards_path.exists():
-        try:
-            cards_obj = json.loads(cards_path.read_text(encoding="utf-8"))
-            for c in cards_obj.get("cards", []):
-                cid = c.get("card_id")
-                if not cid:
-                    continue
-                cards_by_id[cid] = c
-                # map by word_id (card_id assumed to be word_id)
-                cards_by_word_id[cid] = cid
-                han = c.get("content", {}).get("headword", {}).get("hanzi")
-                if han:
-                    cards_by_hanzi[han].append(cid)
+    # If a cards path was supplied explicitly (CLI or config), loading is mandatory.
+    cards_path_used = None
+    if cards_path:
+        cards_path_used = str(cards_path)
+        if not cards_path.exists():
+            if cards_explicitly_provided:
+                print(f"Error: cards.json specified but not found: {cards_path}")
+                sys.exit(2)
+            else:
+                # no cards file available; leave cards structures empty
+                cards_obj = None
+        else:
+            try:
+                cards_obj = json.loads(cards_path.read_text(encoding="utf-8"))
+            except Exception as e:
+                if cards_explicitly_provided:
+                    print(f"Error: failed to parse cards.json: {e}")
+                    sys.exit(2)
+                else:
+                    print(f"Warning: failed to load cards.json: {e}")
 
-                # compute readiness level L0-L4
-                level = -1
-                meaning = bool(c.get("content", {}).get("meaning"))
-                audio_tts = bool(c.get("content", {}).get("headword", {}).get("audio", {}).get("tts"))
-                if meaning and audio_tts:
-                    level = max(level, 0)
-                action_ids = [a.get("action_id") for a in c.get("actions", []) if isinstance(a, dict)]
-                if "reveal_pinyin" in action_ids:
-                    level = max(level, 1)
-                if "reveal_word_composition" in action_ids:
-                    level = max(level, 2)
-                if "reveal_characters" in action_ids and c.get("content", {}).get("characters"):
-                    level = max(level, 3)
-                if "open_trace_mode" in action_ids:
-                    level = max(level, 4)
-                card_readiness_map[cid] = level
-                card_readiness_counts[level] += 1
-        except Exception as e:
-            print(f"Warning: failed to load cards.json: {e}")
+    # If we have a cards_obj, populate lookup maps and readiness counts strictly from it.
+    if cards_obj and isinstance(cards_obj, dict):
+        for c in cards_obj.get("cards", []):
+            cid = c.get("card_id")
+            if not cid:
+                continue
+            cards_by_id[cid] = c
+            # map by word_id (card_id assumed to be word_id)
+            cards_by_word_id[cid] = cid
+            han = c.get("content", {}).get("headword", {}).get("hanzi")
+            if han:
+                cards_by_hanzi[han].append(cid)
+
+            # compute readiness level L0-L4
+            level = -1
+            meaning = bool(c.get("content", {}).get("meaning"))
+            audio_tts = bool(c.get("content", {}).get("headword", {}).get("audio", {}).get("tts"))
+            if meaning and audio_tts:
+                level = max(level, 0)
+            action_ids = [a.get("action_id") for a in c.get("actions", []) if isinstance(a, dict)]
+            if "reveal_pinyin" in action_ids:
+                level = max(level, 1)
+            if "reveal_word_composition" in action_ids:
+                level = max(level, 2)
+            if "reveal_characters" in action_ids and c.get("content", {}).get("characters"):
+                level = max(level, 3)
+            if "open_trace_mode" in action_ids:
+                level = max(level, 4)
+            card_readiness_map[cid] = level
+            card_readiness_counts[level] += 1
+
+    # number of cards loaded
+    cards_loaded = 0
+    if cards_obj and isinstance(cards_obj, dict):
+        cards_loaded = len(cards_obj.get("cards", []))
 
     # perform reclassification using a helper so it's testable
     reclassify_frames_with_cards(per_frame, engines_affordances, card_readiness_map, cards_by_word_id, cards_by_hanzi)
@@ -520,6 +547,8 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
         "scenario_counts": dict(scenario_counts),
         "top_blockers": blockers_counter.most_common(20),
         "card_readiness_counts": dict(card_readiness_counts),
+        "cards_path_used": cards_path_used,
+        "cards_loaded": cards_loaded,
     }
 
     out_dir = repo_root / "tools" / "coverage"
