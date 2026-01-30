@@ -312,7 +312,8 @@ def analyze_frame(frame: Dict[str, Any], src_file: str) -> Dict[str, Any]:
     record["option_tokens"] = opts
     # engine id and affordances from frame
     record["engine_id"] = frame.get("engine_id") or frame.get("engine")
-    record["affordances"] = frame.get("affordances") or frame.get("affordance") or []
+    raw_aff = frame.get("affordances") or frame.get("affordance") or {}
+    record["affordances"] = normalize_affordances(raw_aff)
 
     return record
 
@@ -324,6 +325,39 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
     except Exception as e:
         print(f"Error loading config: {e}")
         sys.exit(2)
+
+
+def normalize_affordances(raw: Any) -> Dict[str, bool]:
+    """Normalize affordances into a dict mapping affordance name -> True/False.
+
+    Accepts dict, list, string, or falsy values. Returns {} when none.
+    """
+    out: Dict[str, bool] = {}
+    if not raw:
+        return out
+    if isinstance(raw, dict):
+        # ensure boolean values
+        for k, v in raw.items():
+            out[str(k)] = bool(v)
+        return out
+    if isinstance(raw, list):
+        for item in raw:
+            if isinstance(item, str):
+                out[item] = True
+            elif isinstance(item, dict):
+                for k, v in item.items():
+                    out[str(k)] = bool(v)
+        return out
+    if isinstance(raw, str):
+        out[raw] = True
+        return out
+    # fallback: try to stringify
+    try:
+        s = str(raw)
+        out[s] = True
+    except Exception:
+        pass
+    return out
 
     files = gather_files(repo_root, cfg)
     if not files:
@@ -364,9 +398,10 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
                 engines = raw
             for eng in engines:
                 eid = eng.get("id") or eng.get("engine_id")
-                afford = eng.get("affordances") or eng.get("affordance") or []
+                raw_eng_aff = eng.get("affordances") or eng.get("affordance") or {}
+                eng_aff = normalize_affordances(raw_eng_aff)
                 if eid:
-                    engines_affordances[eid] = afford if isinstance(afford, list) else [afford]
+                    engines_affordances[eid] = eng_aff
             continue
 
         if ftype != "frames":
@@ -389,6 +424,16 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
                     continue
                 if fid in txt:
                     per_frame[fid]["scenarios"].append("S6_diagnostic_confidence_changes")
+
+    # Merge engine-level affordances into frame affordances (frame overrides engine)
+    for fid, rec in per_frame.items():
+        eng_id = rec.get("engine_id")
+        eng_aff = engines_affordances.get(eng_id) or {}
+        fr_aff = rec.get("affordances") or {}
+        merged = dict(eng_aff) if isinstance(eng_aff, dict) else {}
+        if isinstance(fr_aff, dict):
+            merged.update(fr_aff)
+        rec["affordances"] = merged
 
     # Load generated cards if present to compute card readiness and enable frame-card cross-checks
     # Priority: CLI flags (--cards-path / --cards-index-path) -> config file -> default path
@@ -720,13 +765,13 @@ def reclassify_frames_with_cards(per_frame: Dict[str, Dict[str, Any]],
 
         # affordance-triggered availability: open_card on frame or engine + any L0+ card exists
         afford_open = False
-        fr_aff = rec.get("affordances") or []
-        if isinstance(fr_aff, list) and "open_card" in fr_aff:
+        fr_aff = rec.get("affordances") or {}
+        if isinstance(fr_aff, dict) and bool(fr_aff.get("open_card")):
             afford_open = True
         eng_id = rec.get("engine_id")
         if not afford_open and eng_id and eng_id in engines_affordances:
-            eng_aff = engines_affordances.get(eng_id) or []
-            if isinstance(eng_aff, list) and "open_card" in eng_aff:
+            eng_aff = engines_affordances.get(eng_id) or {}
+            if isinstance(eng_aff, dict) and bool(eng_aff.get("open_card")):
                 afford_open = True
 
         if found_card_available or (afford_open and any_card_L0_plus):
