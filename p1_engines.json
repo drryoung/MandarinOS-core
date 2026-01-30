@@ -6,6 +6,9 @@
   "engines": {
     "identity": {
       "name": "Identity",
+      "affordances": {
+        "open_card": true
+      },
       "goal": "Introduce yourself and ask basic identity questions.",
       "entry_frames": [
         "f_name_1",
@@ -33,6 +36,9 @@
     },
     "place": {
       "name": "Place",
+      "affordances": {
+        "open_card": true
+      },
       "goal": "Ask and answer origin and current residence.",
       "entry_frames": [
         "f_from_where",
@@ -64,6 +70,9 @@
     },
     "family": {
       "name": "Family",
+      "affordances": {
+        "open_card": true
+      },
       "goal": "Ask about family and siblings.",
       "entry_frames": [
         "f_have_family",
@@ -88,6 +97,9 @@
     },
     "work": {
       "name": "Work",
+      "affordances": {
+        "open_card": true
+      },
       "goal": "Ask and answer what someone does; basic work status.",
       "entry_frames": [
         "f_what_work",
@@ -114,6 +126,9 @@
     },
     "hobby": {
       "name": "Hobby",
+      "affordances": {
+        "open_card": true
+      },
       "goal": "Ask and answer likes and hobbies.",
       "entry_frames": [
         "f_what_hobby",
@@ -140,6 +155,9 @@
     },
     "travel": {
       "name": "Travel",
+      "affordances": {
+        "open_card": true
+      },
       "goal": "Ask and answer whether someone has been somewhere; basic evaluation.",
       "entry_frames": [
         "f_been_to_country",
