@@ -604,7 +604,22 @@ def run_scan(cfg_path: Path, cards_path_arg: Optional[str] = None, cards_index_a
     lines.append("")
     lines.append("| Level | Count |")
     lines.append("|---:|---:|")
-    for lvl, cnt in sorted(summary.get("card_readiness_counts", {}).items(), key=lambda x: (int(x[0]) if isinstance(x[0], int) or (isinstance(x[0], str) and x[0].lstrip('-').isdigit()) else x[0])):
+    # Show support counts for L0-L4 explicitly (0..4) and any other levels present
+    crc = summary.get("card_readiness_counts", {}) or {}
+    for lvl in range(0, 5):
+        cnt = crc.get(str(lvl), crc.get(lvl, 0))
+        lines.append(f"| {lvl} | {cnt} |")
+    # also include any extra keys present in the summary map
+    extra_keys = [k for k in crc.keys() if str(k) not in {str(i) for i in range(0, 5)}]
+    for k in sorted(extra_keys):
+        lines.append(f"| {k} | {crc.get(k)} |")
+    lines.append("")
+    # Card max-level distribution
+    lines.append("## Card Max-Level Distribution")
+    lines.append("")
+    lines.append("| Max Level | Count |")
+    lines.append("|---:|---:|")
+    for lvl, cnt in sorted(summary.get("card_max_level_counts", {}).items(), key=lambda x: (int(x[0]) if (isinstance(x[0], int) or (isinstance(x[0], str) and x[0].lstrip('-').isdigit())) else x[0])):
         lines.append(f"| {lvl} | {cnt} |")
     lines.append("")
     lines.append("## Top Blockers")

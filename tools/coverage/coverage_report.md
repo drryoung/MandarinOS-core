@@ -12,6 +12,14 @@
 |---:|---:|
 | 0 | 118 |
 | 1 | 118 |
+| 2 | 0 |
+| 3 | 118 |
+| 4 | 0 |
+
+## Card Max-Level Distribution
+
+| Max Level | Count |
+|---:|---:|
 | 3 | 118 |
 
 ## Top Blockers
