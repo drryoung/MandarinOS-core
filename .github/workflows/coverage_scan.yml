@@ -1,0 +1,43 @@
+name: Coverage Scan
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  coverage_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Run coverage scanner
+        run: |
+          python tools/coverage/coverage_scan.py --config tools/coverage/coverage_config.json
+
+      - name: Verify reports generated
+        run: |
+          if [ ! -f tools/coverage/coverage_report.json ]; then echo "coverage_report.json missing"; exit 1; fi
+          if [ ! -f tools/coverage/coverage_report.md ]; then echo "coverage_report.md missing"; exit 1; fi
+
+      - name: Fail on READY_SCHEMA_ISSUES
+        run: |
+          python - <<'PY'
+          import json,sys
+          p = 'tools/coverage/coverage_report.json'
+          try:
+              j = json.load(open(p, encoding='utf-8'))
+          except Exception as e:
+              print('Failed to read report:', e); sys.exit(2)
+          per = j.get('per_frame', {})
+          bad = [fid for fid, r in per.items() if r.get('readiness_label') == 'READY_SCHEMA_ISSUES']
+          if bad:
+              print('Found READY_SCHEMA_ISSUES for frames:', bad)
+              sys.exit(1)
+          print('No READY_SCHEMA_ISSUES found')
+          PY
