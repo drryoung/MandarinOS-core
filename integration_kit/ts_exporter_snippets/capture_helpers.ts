@@ -24,6 +24,11 @@ export function buildTurnState(config: {
     filled: Record<string, string>;
     selectors_present: string[];
   };
+  cardPanel?: {
+    open: boolean;
+    card_id?: string | null;
+    reveal_level?: number | null;
+  };
   diagnostic?: {
     mode: "conversation" | "diagnostic";
     confidence: "HIGH" | "MED" | "LOW" | null;
@@ -38,6 +43,7 @@ export function buildTurnState(config: {
     hints: config.hints,
     slots: config.slots,
     diagnostic: config.diagnostic || { mode: "conversation", confidence: null },
+    cardPanel: config.cardPanel,
   };
 }
 

@@ -52,6 +52,7 @@ export type TraceEventType =
   | "USER_FILL_SLOT"
   | "USER_UNCERTAIN"
   | "OPEN_HINT"
+  | "OPEN_CARD"
   | "ADVANCE_HINT"
   | "TOGGLE_INPUT_MODE"
   | "SYSTEM_REPROMPT"
@@ -86,6 +87,13 @@ export interface TurnState {
   diagnostic: {
     mode: "conversation" | "diagnostic";
     confidence: "HIGH" | "MED" | "LOW" | null;
+  };
+  // Card panel state (optional) to record whether a card panel is open,
+  // which card is shown, and the current reveal level.
+  cardPanel?: {
+    open: boolean;
+    card_id?: string | null;
+    reveal_level?: number | null;
   };
 }
 
