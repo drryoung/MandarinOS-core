@@ -1,0 +1,33 @@
+{
+  "trace_id": "golden_open_card_fired",
+  "description": "Golden trace showing OPEN_CARD emitted for a resolved card",
+  "steps": [
+    {
+      "type": "TURN_START",
+      "timestamp": "2026-01-31T00:00:00Z",
+      "payload": {
+        "turn_uid": "turn_0001",
+        "engine_id": "eng1",
+        "frame_id": "frame_1"
+      }
+    },
+    {
+      "type": "OPEN_CARD",
+      "timestamp": "2026-01-31T00:00:01Z",
+      "payload": {
+        "engine_id": "eng1",
+        "frame_id": "frame_1",
+        "card_id": "card_hello",
+        "reason": "card_available"
+      }
+    },
+    {
+      "type": "TURN_END",
+      "timestamp": "2026-01-31T00:00:02Z",
+      "payload": {
+        "turn_uid": "turn_0001",
+        "result": "OPEN_CARD_FIRED"
+      }
+    }
+  ]
+}
