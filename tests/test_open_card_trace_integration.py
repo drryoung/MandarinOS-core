@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from runtime import open_card_wiring as wiring
+from runtime import engine
 
 
 class DummyEmitter:
@@ -28,29 +28,13 @@ class TestOpenCardTraceIntegration(unittest.TestCase):
 
         emitter = DummyEmitter()
 
-        # build a minimal trace: TURN_START, OPEN_CARD (emitted), TURN_END
-        trace_steps = []
-        trace_steps.append({
-            "type": "TURN_START",
-            "timestamp": "2026-01-31T00:00:00Z",
-            "payload": {"turn_uid": "turn_0001", "engine_id": "eng1", "frame_id": "frame_1"},
-        })
-
-        # invoke wiring which should emit an OPEN_CARD event
+        # run the minimal engine pipeline which emits TURN_START, OPEN_CARD (if any), TURN_END
         try:
-            wiring.process_frame_and_emit_open_card(frame, engine_affordances, cards_index, {}, emitter, env="dev")
+            engine.process_turn("turn_0001", frame, engine_affordances, cards_index, {}, emitter, env="dev")
         except Exception as e:
-            self.fail(f"Resolver/wiring raised unexpectedly: {e}")
+            self.fail(f"Engine pipeline raised unexpectedly: {e}")
 
-        # append emitted events into trace steps
-        for ev in emitter.events:
-            trace_steps.append(ev)
-
-        trace_steps.append({
-            "type": "TURN_END",
-            "timestamp": "2026-01-31T00:00:02Z",
-            "payload": {"turn_uid": "turn_0001", "result": "OPEN_CARD_FIRED"},
-        })
+        trace_steps = emitter.events
 
         # load golden
         golden_path = Path("tests/fixtures/traces/open_card_fired.golden.json")
