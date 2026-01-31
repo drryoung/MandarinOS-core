@@ -1,0 +1,157 @@
+MandarinOS — OPEN_CARD Unit Test & Fixture Directive
+================================================
+
+Branch: Resume MandarinOS — Runtime Card Integration
+Scope: Runtime resolver guardrails ONLY
+
+THIS DIRECTIVE EXISTS TO PREVENT ERROR-PRONE COPY/PASTE.
+Follow it literally.
+
+--------------------------------
+WHAT YOU ARE ADDING (ONLY THIS)
+--------------------------------
+1) Minimal fixtures for OPEN_CARD resolution
+2) Pytest unit tests that lock resolver + event schema behavior
+
+You are NOT:
+- Revisiting coverage
+- Touching scanners
+- Modifying card content
+- Expanding runtime behavior beyond OPEN_CARD
+
+--------------------------------
+FILES TO CREATE
+--------------------------------
+
+A) tests/fixtures/cards_index.fixture.json
+
+Exact contents:
+
+{
+  "你好": "card_greeting_001",
+  "identity.greeting": "card_greeting_001"
+}
+
+--------------------------------
+
+B) tests/fixtures/cards.fixture.json
+
+Exact contents:
+
+{
+  "card_greeting_001": {
+    "title": "Greeting",
+    "body": "Use a simple greeting frame."
+  }
+}
+
+--------------------------------
+
+C) tests/test_open_card_resolver.py
+
+Required imports:
+- resolve_card_for_frame
+- build_open_card_event
+- OpenCardResolutionError
+
+Required fixtures:
+- cards_index (loads cards_index.fixture.json)
+- cards (loads cards.fixture.json)
+
+--------------------------------
+REQUIRED TESTS (DO NOT ADD MORE)
+--------------------------------
+
+1) test_resolves_card_id_when_open_card_enabled_and_ready
+
+Asserts:
+- card_id == "card_greeting_001"
+- card_id exists in cards
+- event.type == "OPEN_CARD"
+- event.payload contains:
+    engine_id
+    frame_id
+    card_id
+    reason
+- event contains timestamp
+
+--------------------------------
+
+2) test_returns_none_when_open_card_disabled
+
+Asserts:
+- resolve_card_for_frame(...) returns None
+- no event is constructed
+
+--------------------------------
+
+3) test_fails_loud_when_ready_but_missing_index_mapping
+
+Setup:
+- readiness_label = READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE
+- open_card enabled
+- token + frame_id NOT present in index
+
+Asserts:
+- OpenCardResolutionError is raised in env="test"
+
+--------------------------------
+
+4) test_returns_none_in_prod_when_ready_but_missing_index_mapping
+
+Same setup as (3), but:
+- env = "prod"
+
+Asserts:
+- resolve_card_for_frame(...) returns None
+
+--------------------------------
+
+5) test_frame_affordances_override_engine_affordances
+
+Setup:
+- engine open_card = False
+- frame open_card = True
+
+Asserts:
+- card resolves successfully
+
+--------------------------------
+NON-NEGOTIABLE RULES
+--------------------------------
+
+- Tests must NOT load production cards.json
+- Fixtures must stay tiny (≤ 5 mappings)
+- Do NOT assert coverage counts
+- Do NOT test pedagogy or wording
+- Do NOT introduce UI logic
+
+--------------------------------
+EXPECTED RESULT
+--------------------------------
+
+After this directive is implemented:
+
+- OPEN_CARD runtime behavior is locked
+- Resolver regressions are caught immediately
+- UI + telemetry can be added safely
+- Copilot has a stable contract to work against
+
+--------------------------------
+SUGGESTED COMMIT MESSAGE
+--------------------------------
+
+Runtime: add OPEN_CARD resolver tests and fixtures
+
+--------------------------------
+STOP CONDITION
+--------------------------------
+
+Once tests pass:
+- Commit
+- Move on to OPEN_CARD event wiring and UI panel
+
+Do NOT add more tests.
+Do NOT refactor resolver.
+Do NOT revisit coverage.
+
