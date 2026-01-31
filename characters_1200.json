@@ -50,7 +50,7 @@
       },
       "mnemonic": {
         "type": "optional_story",
-        "story": "把"手"拿着"戈"，像在说"这是我"。",
+        "story": "把\"手\"拿着\"戈\"，像在说\"这是我\"。",
         "disclaimer": "Mnemonic may be invented; not a verified origin."
       },
       "handwriting": {
@@ -87,7 +87,7 @@
       },
       "mnemonic": {
         "type": "optional_story",
-        "story": "左边一个人(亻)，右边像在指"你"。",
+        "story": "左边一个人(亻)，右边像在指“你”。",
         "disclaimer": "Mnemonic may be invented; not a verified origin."
       },
       "handwriting": {
@@ -124,7 +124,7 @@
       },
       "mnemonic": {
         "type": "optional_story",
-        "story": "人 + 云：人聚在一起像云一样多 → 开会/会面；"会"也引申成"会(能)"。",
+        "story": "人 + 云：人聚在一起像云一样多 → 开会/会面；“会”也引申成“会(能)”。",
         "disclaimer": "This is partly mnemonic; origin details may differ by source."
       },
       "handwriting": {
