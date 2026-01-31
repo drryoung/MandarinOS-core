@@ -1,0 +1,199 @@
+MandarinOS — Content Coverage Scanner v1 (IMPLEMENTATION DIRECTIVE)
+================================================================
+
+Purpose
+-------
+Implement the missing Content Coverage Pipeline scanner for MandarinOS-core.
+This tool analyzes existing content JSON files and reports which frames are
+READY_FOR_APP versus blocked (hints, slots, schema), without altering any
+locked contracts.
+
+This directive is designed to be pasted directly into Copilot.
+
+----------------------------------------------------------------
+FILE TO CREATE
+----------------------------------------------------------------
+Path:
+tools/coverage/coverage_scan.py
+
+----------------------------------------------------------------
+COMMAND-LINE INTERFACE
+----------------------------------------------------------------
+Must support:
+
+python tools/coverage/coverage_scan.py
+python tools/coverage/coverage_scan.py --config tools/coverage/coverage_config.json
+
+Rules:
+- If --config is omitted, default to tools/coverage/coverage_config.json
+- All paths are resolved relative to repo root
+- Use ONLY Python standard library
+
+----------------------------------------------------------------
+CONFIG FORMAT (INPUT)
+----------------------------------------------------------------
+Accept the following keys (all optional, but at least one must be present):
+
+1) content_files : list[str]
+   Explicit list of JSON files to scan
+
+2) content_globs : list[str]
+   Glob patterns (e.g. p1_*.json)
+
+3) exclude_globs : list[str]
+   Patterns to ignore
+
+Example config:
+
+{
+  "content_files": [
+    "p1_frames.json",
+    "p1_fillers.json",
+    "p1_words.json",
+    "p1_engines.json",
+    "p2_frames.json",
+    "p2_fillers.json",
+    "p2_words.json",
+    "p2_engines.json",
+    "diagnostic_p1.json",
+    "diagnostic_p2.json"
+  ]
+}
+
+----------------------------------------------------------------
+CONTENT TYPE DETECTION
+----------------------------------------------------------------
+For each JSON file, detect type using filename and keys:
+
+FRAMES:
+- key "frames" present
+- OR items with "frame_id"
+- OR filename contains "frames"
+
+FILLERS:
+- key "fillers" present
+- OR items with "filler_id"
+
+WORDS:
+- key "words" present
+- OR items with "word_id"
+
+ENGINES:
+- key "engines" present
+- OR items with "engine_id"
+
+DIAGNOSTICS:
+- filename starts with "diagnostic_"
+- OR key "tasks" / "diagnostic" present
+
+Unknown files:
+- skip with a warning (do not crash)
+
+----------------------------------------------------------------
+PER-FRAME ANALYSIS (CORE LOGIC)
+----------------------------------------------------------------
+For EACH frame:
+
+Extract:
+- frame_id (required)
+- required_slots (default [])
+- options / templates / tokens (if present)
+- slot selectors / domains (if present)
+- hints (if present)
+- hint effects (narrow / structure / model)
+
+Compute flags:
+- has_slots = required_slots not empty
+- slots_executable =
+    True if for each required slot:
+      - slot token exists OR
+      - selector/domain exists
+
+Hint coverage:
+- none      : no hints or no effects
+- partial   : effects present but missing stages
+- full      : includes at least one of:
+              narrow, structure, model
+  NOTE: if model present, must include >=2 options
+
+Readiness label:
+- READY_FOR_APP
+    schema ok AND
+    (not has_slots OR slots_executable) AND
+    (hint_coverage != none OR explicitly no-hints-needed)
+
+- READY_NO_SLOTS
+    has_slots AND NOT slots_executable
+
+- READY_NO_HINTS
+    hint_coverage == none
+
+- READY_HINTS_PARTIAL
+    hint_coverage == partial
+
+- READY_SCHEMA_ISSUES
+    missing frame_id or structurally invalid
+
+----------------------------------------------------------------
+SCENARIO COVERAGE HEURISTICS (S1–S6)
+----------------------------------------------------------------
+Assign scenario IDs per frame:
+
+S1_basic_slot_fill
+- if has_slots
+
+S2_hint_narrow_structure_model
+- if hint_coverage == full
+
+S3_toggle_preserves_affordances
+- if hints present
+
+S4_scaffolding_high_to_low
+- if hints present OR scaffolding metadata exists
+
+S5_narrow_then_slot_integrity
+- if has_slots AND narrow effect exists
+
+S6_diagnostic_confidence_changes
+- if diagnostics reference this frame_id
+
+----------------------------------------------------------------
+OUTPUT FILES
+----------------------------------------------------------------
+Write to tools/coverage/ :
+
+1) coverage_report.json
+   - per_frame metrics
+   - readiness_label
+   - blockers
+   - scenario_coverage
+   - aggregate stats
+
+2) coverage_report.md
+   - readiness distribution table
+   - top blockers list
+   - scenario coverage summary
+   - READY_FOR_APP frame list (top N)
+
+(Optional)
+3) coverage_summary.csv
+
+----------------------------------------------------------------
+RUNTIME & SAFETY
+----------------------------------------------------------------
+- Runtime < 10 seconds
+- Do NOT modify any input files
+- Do NOT import non-stdlib libraries
+- Fail gracefully with clear error messages
+
+----------------------------------------------------------------
+DONE CRITERIA
+----------------------------------------------------------------
+- Script runs successfully with provided config
+- Reports generated deterministically
+- Frames classified into readiness buckets
+- Output suitable for backlog prioritization
+
+----------------------------------------------------------------
+END OF DIRECTIVE
+----------------------------------------------------------------
