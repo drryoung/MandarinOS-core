@@ -1,0 +1,103 @@
+MandarinOS — OPEN_CARD Trace Wiring Directive
+========================================
+
+Branch: Resume MandarinOS — Runtime Card Integration
+Scope: Wire OPEN_CARD resolver into runtime trace path + add ONE golden trace fixture.
+Do NOT touch UI.
+
+PREREQUISITE
+------------
+- The 5 unit tests for open_card_resolver.py are complete and passing.
+
+STEP 0 — COMMIT TESTS FIRST (SEPARATE COMMIT)
+--------------------------------------------
+Action:
+- Commit the new tests and fixtures exactly as-is, with no additional code changes.
+
+Commit message (exact):
+Runtime: lock OPEN_CARD resolver with unit tests
+
+STOP. Do not continue until this commit exists.
+
+STEP 1 — WIRE RESOLVER INTO RUNTIME TRACE PATH (NO UI)
+------------------------------------------------------
+Goal:
+- When a frame is READY and open_card is enabled, the runtime emits a trace event that a card should open.
+
+Canonical trace event name (exact):
+OPEN_CARD_FIRED
+
+When to emit:
+- After the frame readiness decision is made for the current turn
+- Only if resolve_card_for_frame(...) returns a non-null card_id
+
+Strict rule:
+- This step MUST NOT open any UI.
+- This step MUST NOT add new runtime prompts, dropdowns, or teacher-mode behavior.
+- This step MUST NOT change coverage/scanners/contracts.
+
+Inputs to resolver:
+- frame (includes engine_id, frame_id, readiness_label, option_tokens, affordances)
+- engine_affordances
+- cards_index
+- cards
+- env (use existing runtime env signal; if none exists, default to "prod" semantics)
+
+Trace payload schema (stable, minimal):
+{
+  "engine_id": "<engine_id>",
+  "frame_id": "<frame_id>",
+  "card_id": "<card_id>",
+  "reason": "frame_ready_cards_available"
+}
+
+Notes:
+- Keep payload minimal. No card body/title here.
+- If your trace system already includes timestamp/turn_id, rely on the existing wrapper; do not duplicate.
+
+STEP 2 — ADD ONE GOLDEN TRACE FIXTURE
+-------------------------------------
+Purpose:
+- Lock the runtime behavior end-to-end so future refactors cannot silently stop OPEN_CARD emission.
+
+Create:
+tests/fixtures/traces/open_card_fired.golden.json
+
+Fixture content requirements:
+- Represents a single turn where OPEN_CARD_FIRED occurs exactly once
+- Includes the event name OPEN_CARD_FIRED
+- Includes payload keys:
+  - engine_id
+  - frame_id
+  - card_id
+  - reason == "frame_ready_cards_available"
+- Event must occur after the frame readiness evaluation in the trace sequence (if ordering exists)
+
+Golden fixture test:
+- Add one test that runs the minimal runtime path (or trace builder) and compares emitted trace output to the golden JSON.
+- If your repo already uses snapshot testing, use the existing snapshot mechanism. Otherwise, implement a simple JSON equality check.
+
+STRICT CONSTRAINTS (NON-NEGOTIABLE)
+-----------------------------------
+- Do NOT add UI panel/overlay in this directive.
+- Do NOT add additional tracing events yet (CARD_SHOWN/CARD_DISMISSED comes later with UI).
+- Do NOT add more golden fixtures.
+- Do NOT refactor open_card_resolver.py unless a failing test forces it.
+- Do NOT revisit coverage, scanners, or content hygiene.
+
+STEP 3 — COMMIT TRACE WIRING (SECOND COMMIT)
+-------------------------------------------
+Commit message (recommended):
+Runtime: emit OPEN_CARD_FIRED trace + golden fixture
+
+Acceptance criteria:
+- All existing tests still pass
+- New golden trace test passes
+- Runtime emits OPEN_CARD_FIRED only when resolver returns a card_id
+
+STOP CONDITION
+--------------
+After STEP 3 commit is done:
+- Next work is UI panel/overlay + CARD_SHOWN/CARD_DISMISSED instrumentation.
+- Do not proceed to UI before trace wiring is merged.
+
