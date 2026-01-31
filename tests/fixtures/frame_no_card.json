@@ -1,0 +1,7 @@
+{
+  "engine_id": "identity",
+  "frame_id": "identity.greeting",
+  "readiness_label": "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE",
+  "option_tokens": ["你好"],
+  "affordances": { "open_card": false }
+}
