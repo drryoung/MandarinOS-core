@@ -1,0 +1,113 @@
+MandarinOS — Runtime Card Integration Directive
+===========================================
+
+Branch: Resume MandarinOS — Runtime Card Integration
+Status: Coverage LOCKED, Runtime work only
+
+CONTEXT (LOCKED)
+----------------
+- Coverage pipeline complete and verified
+- All frames reclassified to READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE
+- cards.json + cards_index.json exist and are correct
+- Engines declare affordances.open_card = true
+- Coverage, scanners, CI, and contracts are LOCKED
+
+DO NOT revisit:
+- Coverage logic
+- Scanners
+- Content hygiene
+- Taxonomy, labels, or card wording
+- CI coverage checks
+
+OBJECTIVE
+---------
+Proceed directly to runtime implementation of OPEN_CARD behavior,
+with a minimal unit-test guardrail to prevent silent regressions.
+
+MANDATORY TIDY-UP (DO THIS FIRST)
+--------------------------------
+Implement a small, tightly scoped unit test for OPEN_CARD resolution,
+as suggested by Copilot.
+
+Purpose:
+- Protect runtime wiring
+- Prevent index / resolver regressions
+- Lock OPEN_CARD event schema before UI + telemetry
+
+UNIT TEST SCOPE (STRICT)
+-----------------------
+Test responsibility:
+Given an engine + frame that is READY and open_card-enabled,
+the runtime can deterministically resolve a valid card_id
+from cards_index.json and emit a correctly shaped OPEN_CARD event.
+
+What the test MUST cover:
+1) Card resolution succeeds when:
+   - frame state = READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE
+   - affordances.open_card = true
+
+2) Card resolution does NOT occur when:
+   - affordances.open_card = false
+
+3) OPEN_CARD event schema is stable:
+   - type: "OPEN_CARD"
+   - engine_id
+   - frame_id
+   - card_id
+   - optional reason (e.g. "frame_ready_cards_available")
+   - timestamp or monotonic tick (if used elsewhere)
+
+What the test MUST NOT cover:
+- Coverage counts
+- Scanner logic
+- Card inventory size
+- Card text or pedagogy
+- CI coverage duplication
+
+FIXTURE RULES
+-------------
+- Use minimal fixtures only:
+  - cards_index.fixture.json (2–5 entries)
+  - cards.fixture.json (matching subset)
+- Do NOT load full production card sets unless already cheap and stable
+
+FAILURE BEHAVIOR (GUARDRAIL)
+---------------------------
+If a frame claims cards are available but no index mapping exists:
+- In dev/test: fail loudly (throw or hard error)
+- In prod: log clearly and return null
+- Never silently succeed
+
+WHERE THIS LIVES
+----------------
+- Runtime layer only
+- Suggested file names:
+  - openCardResolver.test.ts
+  - runtimeOpenCard.test.ts
+
+NEXT STEPS (AFTER TEST PASSES)
+-----------------------------
+1) Implement OPEN_CARD runtime event emission
+2) Wire UI side panel / overlay (read-only, non-interruptive)
+3) Add lightweight tracing:
+   - OPEN_CARD_FIRED
+   - CARD_SHOWN
+   - CARD_DISMISSED
+   - time_on_card
+
+DESIGN PRINCIPLES (NON-NEGOTIABLE)
+---------------------------------
+- Cards are assistive, not prompts
+- One card at a time
+- No dropdowns, no “choose the right answer”
+- Descriptive language only
+- No mid-turn grammar teaching
+
+STRATEGIC REMINDER
+------------------
+MandarinOS differentiates by:
+- Frame-driven interaction
+- Cards that support cognition, not test recall
+- Adaptation without forcing meta-thinking
+
+Do not dilute this by slipping back into teacher-mode UX.
