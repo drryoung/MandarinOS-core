@@ -1,0 +1,212 @@
+MandarinOS — Universal cards.json Builder v1 (IMPLEMENTATION DIRECTIVE)
+================================================================
+
+Decision (locked for this step)
+------------------------------
+Output a single universal artifact:
+- cards.json (all packs)
+- cards_index.json (optional; fast lookup)
+Cards are universal objects with progressive reveal via state/actions (NOT separate per level).
+
+Purpose
+-------
+Build Card Contract v1-compliant word cards by joining:
+- p1_words.json, p2_words.json (words)
+- word_character_links.json (word→character mapping)
+- characters_1200.json (character breakdown + components index)
+Optionally:
+- radicals_core.json (enrich component meanings if needed)
+
+This enables card-driven “hinting” (L0–L4) without bloating frame-level hints.
+
+----------------------------------------------------------------
+FILES TO CREATE
+----------------------------------------------------------------
+1) tools/cards/build_cards.py
+2) tools/cards/cards_config.json  (optional but recommended)
+3) docs/CARDS_BUILD_v1.md         (how to run + fields)
+
+OUTPUTS (repo root or tools/cards/out/)
+--------------------------------------
+- cards.json
+- cards_index.json (optional)
+
+Recommended output location:
+tools/cards/out/cards.json
+tools/cards/out/cards_index.json
+
+----------------------------------------------------------------
+CARD CONTRACT v1 (TARGET SHAPE)
+----------------------------------------------------------------
+Each card is a single object with:
+- id / card_id (stable)
+- content (static)
+- state (dynamic reveal flags + reveal_level)
+- actions (effects-based, no no-ops)
+
+Progressive disclosure is runtime-controlled via:
+- state.reveal_level: 0..4
+- state.revealed flags:
+  - pinyin
+  - word_composition
+  - character_breakdown
+  - trace_mode
+
+Actions toggle those flags and must always produce state delta.
+
+----------------------------------------------------------------
+INPUT FILES (YOUR REPO ROOT)
+----------------------------------------------------------------
+- p1_words.json
+- p2_words.json
+- word_character_links.json
+- characters_1200.json
+
+Assume these are in repo root (same level as package.json).
+
+----------------------------------------------------------------
+CONFIG (optional)
+----------------------------------------------------------------
+tools/cards/cards_config.json:
+
+{
+  "words_files": ["p1_words.json", "p2_words.json"],
+  "links_file": "word_character_links.json",
+  "characters_file": "characters_1200.json",
+  "output_dir": "tools/cards/out",
+  "card_id_strategy": "word_id",
+  "include_pack": true
+}
+
+If config is absent, script uses these defaults.
+
+----------------------------------------------------------------
+JOIN LOGIC
+----------------------------------------------------------------
+1) Load words from both p1_words.json and p2_words.json.
+   - Preserve pack label (p1/p2) if include_pack=true
+   - Each word must have:
+     - word_id (or equivalent stable id)
+     - hanzi (or headword text)
+     - meaning/gloss
+     - pinyin if present (can be revealed; still stored in content)
+
+2) Load word_character_links.json:
+   - Map word_id → list of { hanzi_char, role, strength } or similar
+   - If mapping uses a different key, create a resolver:
+     - Prefer word_id
+     - Else derive from hanzi string (fallback)
+
+3) Load characters_1200.json:
+   - Build char_index: hanzi_char → { pinyin, gloss_en, decomposition/components, mnemonic, etymology, handwriting flags }
+   - Build components_index (if present): component_id → meaning/gloss
+
+4) For each word:
+   - Determine card_id:
+     - default = word_id
+   - Build card.content:
+     - headword: hanzi, (pinyin stored but reveal-controlled), audio.tts=true
+     - meaning: english gloss / translation (always visible at L0)
+     - word_composition: optional (if available in words source; else omit)
+     - characters[]:
+       - for each hanzi_char in mapping:
+         - char
+         - pinyin (from char_index)
+         - meaning (gloss_en)
+         - role/strength (from links)
+         - components:
+           - from decomposition list; enrich meanings from components_index if available
+         - mnemonic/etymology_short: optional trimmed fields (keep short)
+         - handwriting_support:
+           - supports_drawing_input
+           - stroke_order_hint_available
+     - trace_refs:
+       - if handwriting_support indicates trace feasible:
+         - include trace_mode_available=true
+         - include provider_ref placeholder (do NOT embed stroke data)
+
+5) Build card.state (initial):
+   - reveal_level: 0
+   - revealed:
+       pinyin=false
+       word_composition=false
+       character_breakdown=false
+       trace_mode=false
+
+6) Build card.actions:
+   - Always include OPEN_CARD as an app-level affordance (not a card action), but include these card actions:
+     - reveal_pinyin (if pinyin exists)
+     - reveal_word_composition (if composition exists)
+     - reveal_characters (if characters[] exists)
+     - open_trace_mode (if trace feasible)
+   - Each action must define:
+     - action_id
+     - label
+     - effects: state delta (no no-ops)
+   - Enforce monotonic reveal:
+     - reveal_level can only increase; never decrease
+
+----------------------------------------------------------------
+VALIDATION RULES (MUST ENFORCE)
+----------------------------------------------------------------
+- Every card must have:
+  - card_id, headword.hanzi, meaning
+- If action exists, it must change state (no no-ops)
+- If reveal_level is used:
+  - must increment appropriately on each reveal action
+- Characters included must be resolvable via characters_1200.json when possible:
+  - if missing, still include char with minimal fields, and record warning
+
+Emit a build summary:
+- total_cards
+- cards_missing_links
+- chars_missing_in_1200
+- cards_trace_enabled_count
+- cards_with_composition_count
+
+----------------------------------------------------------------
+OUTPUT FORMAT
+----------------------------------------------------------------
+tools/cards/out/cards.json:
+{
+  "version": "1.0",
+  "generated_at": "...",
+  "cards": [ {card}, ... ]
+}
+
+Optional tools/cards/out/cards_index.json:
+{
+  "by_word_id": { "<word_id>": "<card_id>", ... },
+  "by_hanzi":   { "<hanzi>": ["<card_id>", ...], ... }
+}
+
+----------------------------------------------------------------
+HOW TO RUN (docs/CARDS_BUILD_v1.md)
+----------------------------------------------------------------
+From repo root:
+
+python tools/cards/build_cards.py
+# or
+python tools/cards/build_cards.py --config tools/cards/cards_config.json
+
+Then verify outputs exist in tools/cards/out/.
+
+----------------------------------------------------------------
+NEXT INTEGRATION (NOT PART OF THIS BUILD, BUT NOTE)
+---------------------------------------------------
+Update coverage_scan.py to compute CARD readiness (L0–L4) from cards.json:
+- CARD_READY_L0: meaning + audio
+- CARD_READY_L1: reveal_pinyin action exists
+- CARD_READY_L2: reveal_word_composition action exists
+- CARD_READY_L3: reveal_characters action exists with populated characters
+- CARD_READY_L4: open_trace_mode exists
+
+Also, downgrade frame “READY_NO_HINTS” if the turn affords OPEN_CARD and referenced words have CARD_READY_L0+.
+
+----------------------------------------------------------------
+DONE CRITERIA
+----------------------------------------------------------------
+- build_cards.py runs successfully and writes cards.json
+- cards satisfy Card Contract progressive reveal semantics (single universal object)
+- build summary printed
+- no third-party libs used
