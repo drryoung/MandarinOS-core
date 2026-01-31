@@ -297,57 +297,71 @@ class TraceValidator:
 def run_conformance_suite(base_path: str) -> Tuple[int, int]:
     """Run conformance on all pass and fail traces. Return (total, passed)."""
     base = Path(base_path)
-    pass_dir = base / "golden" / "traces" / "v1" / "pass"
-    fail_dir = base / "golden" / "traces" / "v1" / "fail"
-    
+    # Prefer explicit pass/fail directories if present.
+    direct_pass = base / "pass"
+    direct_fail = base / "fail"
+
+    legacy_pass = base / "golden" / "traces" / "v1" / "pass"
+    legacy_fail = base / "golden" / "traces" / "v1" / "fail"
+
+    if direct_pass.exists() and direct_fail.exists():
+        pass_files = sorted(direct_pass.glob("*.json"))
+        fail_files = sorted(direct_fail.glob("*.json"))
+    elif legacy_pass.exists() and legacy_fail.exists():
+        pass_files = sorted(legacy_pass.glob("*.json"))
+        fail_files = sorted(legacy_fail.glob("*.json"))
+    else:
+        # Otherwise accept any folder and recurse for JSON files. Fail set left empty.
+        pass_files = sorted(base.rglob("*.json"))
+        fail_files = []
+
     total = 0
     passed = 0
-    
+
     print("\n=== PASS TRACES ===")
-    if pass_dir.exists():
-        for trace_file in sorted(pass_dir.glob("*.json")):
-            validator = TraceValidator(str(trace_file))
-            validated, expected_error = validator.validate()
-            
-            expected_result = validator.trace.get("expected", {}).get("result") if validator.trace else None
-            
-            if expected_result == "PASS":
-                if validated:
-                    print(f"✓ {trace_file.name} (PASS as expected)")
+    for trace_file in pass_files:
+        validator = TraceValidator(str(trace_file))
+        validated, expected_error = validator.validate()
+
+        expected_result = validator.trace.get("expected", {}).get("result") if validator.trace else None
+
+        if expected_result == "PASS":
+            if validated:
+                print(f"✓ {trace_file.name} (PASS as expected)")
+                passed += 1
+            else:
+                print(f"❌ {trace_file.name} (should PASS but failed)")
+                for msg, code in validator.errors:
+                    print(f"   {code.value}: {msg}")
+            total += 1
+        else:
+            # If trace wasn't explicitly marked PASS, still report validator summary.
+            validator.report()
+
+    print("\n=== FAIL TRACES ===")
+    for trace_file in fail_files:
+        validator = TraceValidator(str(trace_file))
+        validated, expected_error = validator.validate()
+
+        expected_result = validator.trace.get("expected", {}).get("result") if validator.trace else None
+        expected_code = validator.trace.get("expected", {}).get("error_code") if validator.trace else None
+
+        if expected_result == "FAIL":
+            if not validated and validator.errors:
+                actual_code = validator.errors[0][1].value if validator.errors else "UNKNOWN"
+                if expected_code and actual_code == expected_code:
+                    print(f"✓ {trace_file.name} (FAIL as expected: {expected_code})")
                     passed += 1
                 else:
-                    print(f"❌ {trace_file.name} (should PASS but failed)")
-                    for msg, code in validator.errors:
-                        print(f"   {code.value}: {msg}")
-                total += 1
+                    print(f"❌ {trace_file.name} (FAIL but wrong error code)")
+                    print(f"   Expected: {expected_code}")
+                    print(f"   Got: {actual_code}")
             else:
-                validator.report()
-    
-    print("\n=== FAIL TRACES ===")
-    if fail_dir.exists():
-        for trace_file in sorted(fail_dir.glob("*.json")):
-            validator = TraceValidator(str(trace_file))
-            validated, expected_error = validator.validate()
-            
-            expected_result = validator.trace.get("expected", {}).get("result") if validator.trace else None
-            expected_code = validator.trace.get("expected", {}).get("error_code") if validator.trace else None
-            
-            if expected_result == "FAIL":
-                if not validated and validator.errors:
-                    actual_code = validator.errors[0][1].value if validator.errors else "UNKNOWN"
-                    if expected_code and actual_code == expected_code:
-                        print(f"✓ {trace_file.name} (FAIL as expected: {expected_code})")
-                        passed += 1
-                    else:
-                        print(f"❌ {trace_file.name} (FAIL but wrong error code)")
-                        print(f"   Expected: {expected_code}")
-                        print(f"   Got: {actual_code}")
-                else:
-                    print(f"❌ {trace_file.name} (should FAIL but passed)")
-                total += 1
-            else:
-                validator.report()
-    
+                print(f"❌ {trace_file.name} (should FAIL but passed)")
+            total += 1
+        else:
+            validator.report()
+
     return total, passed
 
 
