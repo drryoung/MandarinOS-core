@@ -1,0 +1,127 @@
+MandarinOS — Simulator Entrypoint (Copilot Directive)
+================================================
+
+Branch: Resume MandarinOS — Runtime Card Integration
+Purpose: Create the smallest possible simulator entrypoint that exercises engine.process_turn().
+
+This directive is written to be GIVEN DIRECTLY TO COPILOT.
+Do not paraphrase. Do not invent extra features.
+
+--------------------------------
+OBJECTIVE
+--------------------------------
+Add a minimal, script-based simulator that:
+- Calls engine.process_turn()
+- Loads a single frame from JSON
+- Emits trace events to stdout as JSON
+
+This is NOT an app.
+This is NOT UI.
+This is NOT production wiring.
+
+--------------------------------
+FILES TO CREATE
+--------------------------------
+
+1) scripts/run_turn.py
+
+Requirements:
+- Python script
+- CLI-driven
+- No side effects beyond stdout/stderr
+- Adapter only (do not modify engine.py)
+
+Behavior:
+- Accept a --frame JSON file
+- Load cards_index and cards JSON (default to test fixtures)
+- Infer engine_affordances if not supplied
+- Call engine.process_turn(...)
+- Print emitted trace events as JSON
+
+Implementation notes:
+- Import engine.process_turn inside main()
+- If the call signature differs, adapt ONLY in this script
+- Do not change engine.process_turn itself
+
+--------------------------------
+SCRIPT SPECIFICATION
+--------------------------------
+
+CLI arguments:
+--frame (required): path to frame JSON
+--cards-index (optional, default tests/fixtures/cards_index.fixture.json)
+--cards (optional, default tests/fixtures/cards.fixture.json)
+--engine-affordances (optional)
+--env (default: prod; allowed: test/dev/prod)
+--pretty (pretty-print JSON)
+
+Output:
+- JSON array of trace events
+- UTF-8, ensure_ascii=False
+
+--------------------------------
+FRAME FIXTURES TO ADD
+--------------------------------
+
+2) tests/fixtures/frame_open_card.json
+
+Exact contents:
+
+{
+  "engine_id": "identity",
+  "frame_id": "identity.greeting",
+  "readiness_label": "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE",
+  "option_tokens": ["你好"],
+  "affordances": { "open_card": true }
+}
+
+--------------------------------
+
+3) tests/fixtures/frame_no_card.json
+
+Exact contents:
+
+{
+  "engine_id": "identity",
+  "frame_id": "identity.greeting",
+  "readiness_label": "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE",
+  "option_tokens": ["你好"],
+  "affordances": { "open_card": false }
+}
+
+--------------------------------
+EXPECTED MANUAL RUN
+--------------------------------
+
+From repo root:
+
+python scripts/run_turn.py --frame tests/fixtures/frame_open_card.json --pretty
+
+Expected trace:
+- TURN_START
+- OPEN_CARD_FIRED
+- TURN_END
+
+--------------------------------
+NON-NEGOTIABLE CONSTRAINTS
+--------------------------------
+- Do NOT add UI
+- Do NOT change engine.py
+- Do NOT add new runtime concepts
+- Do NOT touch coverage, scanners, or content
+- This script is a simulator, not a pipeline
+
+--------------------------------
+COMMIT MESSAGE
+--------------------------------
+
+Sim: add run_turn simulator entrypoint
+
+--------------------------------
+STOP CONDITION
+--------------------------------
+Once this script runs successfully:
+- Simulator phase is complete
+- Next phase is UI shell or app integration
+- No further runtime plumbing needed
+

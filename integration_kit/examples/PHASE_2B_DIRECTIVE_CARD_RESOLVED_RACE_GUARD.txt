@@ -1,0 +1,161 @@
+PHASE_2B_DIRECTIVE_CARD_RESOLVED_RACE_GUARD.txt
+
+Phase: 2B
+Title: Guard CARD_RESOLVED against async race (apply only to current activeCardId)
+Status: IMPLEMENT NOW (do not start Phase 3 until Phase 2B is locked)
+Scope rule: UI-only changes. No engine/resolver refactors. No event/trace contract changes.
+
+Locked assumptions (DO NOT MODIFY)
+
+Locked and complete:
+
+Runtime/engine contracts unchanged:
+
+OPEN_CARD event type
+
+payload.card_id exists
+
+TURN_END.payload includes "OPEN_CARD_FIRED" label (unchanged)
+
+Phase 1 locked:
+
+ui/state/cardPanelState.js exports initialState and reduce
+
+node ui/tests/cardPanelReplay.test.mjs passes
+
+Phase 2A locked:
+
+Live UI wired to reducer
+
+app.js is ES module, dispatches TRACE_EVENT_RECEIVED and CARD_RESOLVED
+
+Card Panel render is driven by reducer state
+
+No contract changes
+
+Goal (Phase 2B objective)
+
+Prevent a stale/late CARD_RESOLVED result (e.g., slower fetch) from overwriting a newer OPEN_CARD selection.
+
+Rule:
+
+Apply CARD_RESOLVED only if action.payload.cardId matches the current state.activeCardId
+
+This is a correctness hardening step. No new features.
+
+Non-goals
+
+No new state fields required (unless strictly necessary)
+
+No new event types
+
+No changes to server endpoints
+
+No changes to trace events
+
+No history/back-forward features
+
+No performance optimizations beyond the guard
+
+Required changes
+
+A) Implement the guard in the reducer (preferred)
+
+In ui/state/cardPanelState.js:
+
+In the reducer case for action.type === "CARD_RESOLVED":
+
+Read: const { cardId, card, error } = action.payload
+
+If state.activeCardId is null:
+return state unchanged OR update error only if you already have deterministic behavior; prefer returning unchanged.
+
+If cardId !== state.activeCardId:
+RETURN state unchanged (ignore stale result)
+
+Else (cardId === state.activeCardId):
+Apply the normal update:
+- state.activeCard = card (or null)
+- state.error = error (or null)
+
+Important:
+
+This must be a pure, deterministic check inside the reducer.
+
+Do not mutate state.
+
+B) (Optional) Add a comment in app.js explaining the reducer handles races
+No functional changes required in app.js if reducer guard is implemented.
+
+Tests (must update to cover the race)
+
+Update ui/tests/cardPanelReplay.test.mjs to add ONE new test:
+
+Test name:
+
+test_stale_card_resolved_is_ignored
+
+Scenario:
+
+TRACE_EVENT_RECEIVED OPEN_CARD("card_a")
+
+TRACE_EVENT_RECEIVED OPEN_CARD("card_b") (user triggers a second open quickly)
+
+CARD_RESOLVED for "card_a" arrives late (stale)
+
+CARD_RESOLVED for "card_b" arrives later (current)
+
+Assertions:
+
+After step 3 (stale resolve), activeCardId must remain "card_b" and activeCard must NOT become card_a.
+
+After step 4, activeCard must become card_b and error null.
+
+Implementation detail:
+
+This is a pure reducer test; just dispatch actions in sequence.
+
+Acceptance criteria (Phase 2B lock gate)
+
+Phase 2B is LOCKED only when:
+
+Reducer ignores stale CARD_RESOLVED:
+
+CARD_RESOLVED with cardId != state.activeCardId has no effect
+
+Replay tests pass:
+
+node ui/tests/cardPanelReplay.test.mjs
+
+Must include the new stale-result test and still output ALL TESTS PASSED
+
+No contract changes:
+
+OPEN_CARD event type and payload keys unchanged
+
+No runtime/engine/resolver changes
+
+Live UI behavior unchanged except bug prevention:
+
+Normal OPEN_CARD flows still work
+
+Panel still opens/closes as before
+
+Implementation order (smallest irreversible steps)
+
+Step 1: Add guard in ui/state/cardPanelState.js CARD_RESOLVED case
+Step 2: Add the new replay test test_stale_card_resolved_is_ignored
+Step 3: Run node ui/tests/cardPanelReplay.test.mjs and confirm ALL TESTS PASSED
+Step 4: Commit with tight scope message (UI-only)
+
+Commit requirements
+
+Commit should include only:
+
+ui/state/cardPanelState.js (guard)
+
+ui/tests/cardPanelReplay.test.mjs (new test)
+
+No other refactors.
+
+END OF PHASE_2B_DIRECTIVE_CARD_RESOLVED_RACE_GUARD.txt

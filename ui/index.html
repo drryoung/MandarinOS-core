@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>MandarinOS UI Shell</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>MandarinOS UI Shell</h1>
+      </header>
+      <main>
+        <section class="left">
+          <div class="controls">
+            <label for="frameSelect">Frame:</label>
+            <select id="frameSelect">
+              <option value="tests/fixtures/frame_open_card.json">frame_open_card.json</option>
+              <option value="tests/fixtures/frame_no_card.json">frame_no_card.json</option>
+            </select>
+            <button id="runBtn">Run Turn</button>
+          </div>
+
+          <h2>Trace</h2>
+          <pre id="trace" class="trace">(no trace)</pre>
+        </section>
+        <aside class="right">
+          <h2>Card Panel</h2>
+          <div id="cardPanel" class="card hidden">
+            <div id="cardError" class="error"></div>
+            <button id="playBtn" class="play">Play</button>
+            <div id="cardId"></div>
+            <h3 id="cardTitle"></h3>
+            <div id="cardBody"></div>
+          </div>
+          <div id="noCard" class="nocard">No card opened</div>
+        </aside>
+      </main>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

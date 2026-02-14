@@ -1,0 +1,173 @@
+MandarinOS — UI Shell (Copilot Directive)
+==================================
+
+Branch: Resume MandarinOS — Runtime Card Integration
+Goal: Build a minimal local UI shell that visualizes trace events and shows the OPEN_CARD panel.
+Constraints: NO production app assumptions. NO new runtime semantics. Keep it tiny and reversible.
+
+This directive is written to be GIVEN DIRECTLY TO COPILOT.
+Do not paraphrase. Do not add features beyond what is specified.
+
+--------------------------------
+OBJECTIVE
+--------------------------------
+Create a minimal local web UI that:
+1) Runs a single turn via engine.process_turn (existing code)
+2) Displays emitted trace events (TURN_START, OPEN_CARD, TURN_END)
+3) If OPEN_CARD is present, shows a right-side "Card Panel" with card content resolved from cards.json
+
+This UI shell is for developer verification only.
+
+--------------------------------
+NON-NEGOTIABLE RULES
+--------------------------------
+- Do NOT modify engine.py behavior or event naming.
+- Do NOT change open_card_resolver.py logic.
+- Do NOT change tests/golden fixtures except where explicitly required (should not be required).
+- Do NOT add telemetry (CARD_SHOWN/CARD_DISMISSED) yet.
+- Use Python stdlib only for the server (no Flask/FastAPI). Frontend is vanilla HTML/CSS/JS.
+
+--------------------------------
+FILES TO CREATE
+--------------------------------
+
+1) scripts/ui_server.py
+2) ui/index.html
+3) ui/app.js
+4) ui/styles.css
+
+(If repo already has a ui/ or scripts/ convention, follow it. Otherwise create these paths.)
+
+--------------------------------
+BACKEND: scripts/ui_server.py
+--------------------------------
+
+Implement a tiny HTTP server using Python stdlib:
+- Use http.server.ThreadingHTTPServer + BaseHTTPRequestHandler
+- Serve static files from ./ui for:
+  - GET /            -> ui/index.html
+  - GET /app.js      -> ui/app.js
+  - GET /styles.css  -> ui/styles.css
+
+Add API endpoints (JSON):
+
+A) POST /api/run_turn
+- Request body JSON:
+  {
+    "frame_path": "tests/fixtures/frame_open_card.json",
+    "cards_index_path": "tests/fixtures/cards_index.fixture.json",
+    "cards_path": "tests/fixtures/cards.fixture.json",
+    "env": "prod"
+  }
+
+- Behavior:
+  - Load JSON files from provided paths
+  - Infer engine_affordances if not provided: { frame.engine_id: { "open_card": True } }
+  - Call engine.process_turn(...)
+  - Return JSON response:
+    { "trace": <list-of-events> }
+
+- Error handling:
+  - Return { "error": "..."} with 400/500 and helpful message
+
+B) GET /api/cards?path=<cards_path>
+- Return cards JSON object from that path
+- (This allows UI to show card title/body for card_id.)
+
+Security note:
+- This is local dev only. Accept only relative paths under repo root.
+- Reject paths containing '..' or absolute paths.
+
+CLI:
+- python scripts/ui_server.py --port 8765
+- Print a console message: "Open http://localhost:8765"
+
+--------------------------------
+FRONTEND: ui/index.html
+--------------------------------
+
+Layout: simple two-column shell
+
+Left column:
+- Header: "MandarinOS UI Shell"
+- Controls:
+  - Dropdown to pick frame:
+    - tests/fixtures/frame_open_card.json
+    - tests/fixtures/frame_no_card.json
+  - Button: "Run Turn"
+- Trace viewer:
+  - Pretty JSON display of events
+
+Right column (Card Panel):
+- Hidden by default
+- When trace contains an OPEN_CARD event with payload.card_id:
+  - Show panel with:
+    - Card ID
+    - Card title
+    - Card body
+- If no OPEN_CARD in trace:
+  - Hide panel or show "No card opened"
+
+--------------------------------
+FRONTEND: ui/app.js
+--------------------------------
+
+Behavior:
+1) On page load:
+   - Set default frame to frame_open_card.json
+2) On "Run Turn":
+   - POST /api/run_turn with:
+     - frame_path from dropdown
+     - cards_index_path default tests/fixtures/cards_index.fixture.json
+     - cards_path default tests/fixtures/cards.fixture.json
+     - env "prod"
+   - Render returned trace JSON in the Trace viewer
+3) Card Panel logic:
+   - Find the first event with type == "OPEN_CARD"
+   - Read payload.card_id
+   - Fetch cards JSON via GET /api/cards?path=...
+   - Lookup cards[card_id] and show title/body
+   - If missing, show a clear error message in the panel
+
+Keep JS dependency-free.
+
+--------------------------------
+STYLING: ui/styles.css
+--------------------------------
+
+- Use simple CSS grid/flex
+- Clear separation: left trace area / right card panel
+- Make trace area scrollable
+- Make card panel scrollable
+
+--------------------------------
+VERIFICATION
+--------------------------------
+
+Manual check:
+1) Start server:
+   python scripts/ui_server.py --port 8765
+2) Open browser:
+   http://localhost:8765
+3) Choose frame_open_card.json -> Run Turn
+   Expect:
+   - Trace shows TURN_START, OPEN_CARD, TURN_END
+   - Card panel shows card_greeting_001 title/body from cards.fixture.json
+4) Choose frame_no_card.json -> Run Turn
+   Expect:
+   - Trace shows TURN_START, TURN_END (or OPEN_CARD absent)
+   - Card panel hidden or shows "No card opened"
+
+Do not change tests; just ensure they still pass.
+
+--------------------------------
+COMMIT MESSAGE
+--------------------------------
+UI: add minimal trace viewer + card panel shell
+
+--------------------------------
+STOP CONDITION
+--------------------------------
+Once the UI shell works for both frames:
+- Stop.
+- Next phase will be CARD_SHOWN/CARD_DISMISSED instrumentation when UI interaction exists.

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Replay Test — Card Panel</title>
+    <style>
+      body { font-family: system-ui, Arial; padding: 16px; }
+      .ok { color: green }
+      .fail { color: red }
+    </style>
+  </head>
+  <body>
+    <h1>Replay Test — Card Panel</h1>
+    <div id="results"></div>
+
+    <script type="module">
+      import { initialState, applyAction } from './cardPanel.js';
+      import cards from '../tests/fixtures/cards_two.fixture.json' assert { type: 'json' };
+
+      const resultsEl = document.getElementById('results');
+      function report(name, ok, info) {
+        const div = document.createElement('div');
+        div.className = ok ? 'ok' : 'fail';
+        div.textContent = (ok ? 'PASS: ' : 'FAIL: ') + name + (info ? ' — ' + info : '');
+        resultsEl.appendChild(div);
+        return ok;
+      }
+
+      // Test 1: valid OPEN_CARD sets isOpen true and activeCardId set
+      let state = initialState();
+      state = applyAction(state, { type: 'OPEN_CARD', payload: { card_id: 'card_hello' } }, cards);
+      report('Valid OPEN_CARD opens and sets activeCardId', state.isOpen === true && state.activeCardId === 'card_hello');
+
+      // Test 2: close then OPEN_CARD reopens and updates activeCardId
+      state = applyAction(state, { type: 'CLOSE_PANEL' }, cards);
+      const closedOk = state.isOpen === false;
+      report('CLOSE_PANEL closes panel', closedOk);
+      state = applyAction(state, { type: 'OPEN_CARD', payload: { card_id: 'card_other' } }, cards);
+      report('Re-open with different card updates activeCardId', state.isOpen === true && state.activeCardId === 'card_other');
+
+      // Test 3: invalid OPEN_CARD sets error.kind = CARD_NOT_FOUND
+      state = applyAction(initialState(), { type: 'OPEN_CARD', payload: { card_id: 'missing_card' } }, cards);
+      report('Invalid OPEN_CARD sets error.kind = CARD_NOT_FOUND', state.error && state.error.kind === 'CARD_NOT_FOUND');
+
+      // Summary
+      const passed = resultsEl.querySelectorAll('.ok').length;
+      const total = resultsEl.children.length;
+      const sum = document.createElement('h3');
+      sum.textContent = `Summary: ${passed}/${total} tests passed`;
+      resultsEl.appendChild(sum);
+    </script>
+  </body>
+</html>

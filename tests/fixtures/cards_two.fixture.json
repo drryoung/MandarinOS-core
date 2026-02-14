@@ -1,0 +1,14 @@
+{
+  "card_hello": {
+    "id": "card_hello",
+    "title": "Hello",
+    "content": "你好",
+    "levels": [0]
+  },
+  "card_other": {
+    "id": "card_other",
+    "title": "Other",
+    "content": "其他",
+    "levels": [1]
+  }
+}

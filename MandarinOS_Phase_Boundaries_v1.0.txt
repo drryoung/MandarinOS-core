@@ -1,0 +1,141 @@
+MandarinOS — Phase Boundaries & Locked Subsystems
+(Reusable Guardrail Document v1.0)
+
+Purpose
+-------
+This document defines what may and may not be designed, modified, or re-interpreted within each development phase of MandarinOS.
+
+Its goal is to prevent duplication, conceptual drift, and category erosion by clearly separating:
+- locked system law
+- subsystem ownership
+- phase-specific scope
+
+This document is binding for all future phase planning.
+
+--------------------------------------------------
+
+1. System Law (Always Locked)
+
+1.1 Design Constitution
+- MandarinOS is a Conversational Acquisition Engine
+- Learning occurs through live interaction, not lessons
+- No quiz logic, grading, or learning-management metaphors
+- No teacher voice or pedagogical meta-commentary
+- Audio-first orientation
+- Conversation primacy over content primacy
+
+Rule:
+New features are evaluated against the Constitution; the Constitution is never reinterpreted to fit features.
+
+--------------------------------------------------
+
+1.2 Hint Cascade Directive
+- H0–H3 semantic ladder (Nudge → Narrow → Structure → Model)
+- Hints must be actionable via measurable state deltas
+- Text-only hints are invalid
+- No single “correct answer”
+- Monotonic forward progress
+- Harness-enforced validators are authoritative
+
+Rule:
+Hint semantics define “way forward now”. UI affordances may not replace or bypass the hint ladder.
+
+--------------------------------------------------
+
+1.3 SRS Engine (Locked Subsystem)
+- Purpose: silent spaced repetition derived from conversation
+- Input: trace / reducer events only
+- Output: future conversational resurfacing
+- No user-managed queues, saving, or study modes
+- Not a UI concern
+
+Rule:
+SRS is a downstream consumer. UI phases must not introduce learning-management features that duplicate or compete with it.
+
+--------------------------------------------------
+
+1.4 Trace + Reducer Model
+- Trace-driven, reducer-driven state changes
+- Race-safe event handling
+- Deterministic replay
+- Schema stability is prioritised over elegance
+
+Rule:
+Phases may add trace events, but not refactor schemas or control flow without explicit reopening.
+
+--------------------------------------------------
+
+2. Phase Ownership Model
+
+Each phase has one primary responsibility and must not absorb responsibilities owned by other phases or subsystems.
+
+Phase 1:
+- Owns: Core engine + diagnostics
+- Must NOT own: UI pedagogy
+
+Phase 2 (A–C):
+- Owns: Runtime card mechanics
+- Must NOT own: Learning semantics
+
+Phase 3:
+- Owns: Conversation fidelity & hint embodiment
+- Must NOT own: Learning management
+
+Phase 4+:
+- Owns: Adaptive sequencing & refinement
+- Must NOT own: Redefining system law
+
+--------------------------------------------------
+
+3. Phase 3 — Explicit Scope (Reference)
+
+Phase 3 Owns:
+- Conversation fidelity
+  - Audio-first rendering (cards, modeled options)
+  - Speakable outputs
+- Hint ladder embodiment
+  - H0–H3 effects clearly reflected in UI state
+  - No dead states
+- Instrumentation completeness
+  - Trace events sufficient for downstream consumers (e.g. SRS)
+
+Phase 3 Does NOT Own:
+- Saving / bookmarking / review queues
+- Curriculum structure
+- Study modes
+- Repetition scheduling
+- Progress dashboards
+
+Rule:
+If a feature implies “learn this later”, it is out of Phase 3 scope.
+
+--------------------------------------------------
+
+4. Interaction Rule (Critical)
+
+When evaluating any new feature proposal:
+1) Does this preserve live conversational ontology?
+2) Does this duplicate the responsibility of a locked subsystem?
+
+If conflict exists:
+- The feature is rejected
+- The locked subsystem is not reinterpreted to accommodate it
+
+--------------------------------------------------
+
+5. Reopening Protocol (Hard Gate)
+
+A locked item may only be reconsidered if explicitly reopened with:
+- a stated reason
+- defined scope of reconsideration
+- downstream impact assessment
+
+Absent this, all locked items are treated as black boxes.
+
+--------------------------------------------------
+
+6. Enforcement Principle
+
+Phase discipline is more important than feature completeness.
+
+MandarinOS protects category integrity by doing less per phase, not more.
