@@ -1,4 +1,5 @@
 import { initialState as _initialState, reduce } from "./state/cardPanelState.js";
+import { ttsSpeak } from "./ttsSpeak.js";
 
 const frameSelect = document.getElementById("frameSelect");
 const runBtn = document.getElementById("runBtn");
@@ -18,6 +19,12 @@ let currentPlay = null; // { utterance_id, start, timeoutId, duration_ms }
 function dispatch(action) {
   state = reduce(state, action);
   render();
+}
+
+function appendTrace(event) {
+  uiTrace.push(event);
+  // If you already have a dedicated trace renderer, call it here.
+  // Otherwise render() + any existing trace rendering will handle it.
 }
 
 function render() {
@@ -54,6 +61,7 @@ function emitUITrace(ev) {
   renderTrace();
   // also feed into reducer pipeline
   dispatch({ type: "TRACE_EVENT_RECEIVED", payload: { traceEvent: ev } });
+
 }
 
 async function resolveCard(cardId, cards_path) {
@@ -120,81 +128,6 @@ async function runTurn() {
 cardPanel.addEventListener("click", (e) => {
   if (e.target === cardPanel) dispatch({ type: "CARD_PANEL_CLOSED" });
 });
-// Play button handler: simulate audio playback and emit AUDIO_PLAYED traces
-if (playBtn) {
-  playBtn.addEventListener("click", (e) => {
-  e.stopPropagation();
-    // compute utterance id and text
-    const baseId = (state.activeCard && (state.activeCard.utterance_id || state.activeCard.id)) || state.activeCardId;
-const utterance_id = baseId ? `card:${baseId}` : "card:unknown";
-    const text = (state.activeCard && (state.activeCard.content || state.activeCard.title)) || "";
-    console.log("PLAY clicked. text length =", text.length);
-console.log("PLAY text preview =", text.slice(0, 80));
-console.log("voices =", window.speechSynthesis ? window.speechSynthesis.getVoices().length : "no speechSynthesis");
-  // Minimal TTS (no helpers)
-try {
-  if (!("speechSynthesis" in window) || !text) return;
-
-  const synth = window.speechSynthesis;
-
-  const speak = () => {
-    const voices = synth.getVoices();
-    console.log("VOICE LIST:", voices.map(v => ({ name: v.name, lang: v.lang })));
-
-    synth.cancel();
-
-  const u = new SpeechSynthesisUtterance(text);
- 
-// prefer Chinese voice if available
-const zh = voices.find(v => (v.lang || "").toLowerCase().startsWith("zh"));
-if (zh) {
-  u.voice = zh;
-  u.lang = zh.lang;
-} else {
-  // fallback: English voice so it always speaks
-  const en = voices.find(v => (v.lang || "").toLowerCase().startsWith("en"));
-  if (en) {
-    u.voice = en;
-    u.lang = en.lang;
-  }
-}
-
-       synth.speak(u);
-  };
-
-  // If voices are not loaded yet, wait once
-  if (synth.getVoices().length === 0) {
-    synth.onvoiceschanged = () => {
-      synth.onvoiceschanged = null; // run once
-      speak();
-    };
-  } else {
-    speak();
-  }
-} catch (err) {
-  console.error("TTS error:", err);
-}
-    const duration_ms = Math.max(200, Math.round(text.length * 40));
-
-    // if something is currently playing, cancel and emit incomplete event
-    if (currentPlay) {
-      const now = Date.now();
-      const elapsed = now - currentPlay.start;
-      clearTimeout(currentPlay.timeoutId);
-      emitUITrace({ type: "AUDIO_PLAYED", payload: { utterance_id: currentPlay.utterance_id, duration_ms: elapsed, completed: false } });
-      currentPlay = null;
-    }
-
-    // emit start event (completed: false) and schedule completion
-    emitUITrace({ type: "AUDIO_PLAYED", payload: { utterance_id, duration_ms, completed: false } });
-    const timeoutId = setTimeout(() => {
-      emitUITrace({ type: "AUDIO_PLAYED", payload: { utterance_id, duration_ms, completed: true } });
-      currentPlay = null;
-    }, duration_ms);
-
-    currentPlay = { utterance_id, start: Date.now(), timeoutId, duration_ms };
-  });
-}
 
 // defaults
 window.addEventListener("load", () => {
@@ -203,4 +136,43 @@ window.addEventListener("load", () => {
 });
 
 runBtn.addEventListener("click", runTurn);
+if (playBtn) {
+  playBtn.addEventListener("click", () => {
+    if (!state.isOpen) return;
+
+    const text =
+      (state.activeCard && (state.activeCard.content || state.activeCard.title)) ||
+      "";
+
+    if (!text) return;
+
+    const utterance_id = `card:${state.activeCardId || "unknown"}:panel`;
+
+    // Trace: intent
+    dispatch({
+      type: "TRACE_EVENT_RECEIVED",
+      event: {
+        type: "AUDIO_PLAY_REQUESTED",
+        ts: Date.now(),
+        utterance_id,
+        source: "card_panel",
+        card_id: state.activeCardId || null,
+        text,
+      },
+    });
+
+    // Speak (side-effect)
+    ttsSpeak({
+      text,
+      lang: "zh-CN",
+      utterance_id,
+      onEvent: (evt) => {
+        dispatch({
+          type: "TRACE_EVENT_RECEIVED",
+          event: evt.utterance_id ? evt : { ...evt, utterance_id },
+        });
+      },
+    });
+  });
+}
 
