@@ -149,28 +149,25 @@ if (playBtn) {
     const utterance_id = `card:${state.activeCardId || "unknown"}:panel`;
 
     // Trace: intent
-    dispatch({
-      type: "TRACE_EVENT_RECEIVED",
-      event: {
-        type: "AUDIO_PLAY_REQUESTED",
-        ts: Date.now(),
-        utterance_id,
-        source: "card_panel",
-        card_id: state.activeCardId || null,
-        text,
-      },
-    });
+   emitUITrace({
+  type: "AUDIO_PLAY_REQUESTED",
+  timestamp: new Date().toISOString(),
+  payload: {
+    utterance_id,
+    source: "card_panel",
+    card_id: state.activeCardId || null,
+    text,
+  },
+});
+
 
     // Speak (side-effect)
     ttsSpeak({
       text,
       lang: "zh-CN",
       utterance_id,
-      onEvent: (evt) => {
-        dispatch({
-          type: "TRACE_EVENT_RECEIVED",
-          event: evt.utterance_id ? evt : { ...evt, utterance_id },
-        });
+     onEvent: (traceEntry) => {
+        emitUITrace(traceEntry);
       },
     });
   });
