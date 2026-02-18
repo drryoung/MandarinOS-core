@@ -5,10 +5,11 @@ import sys
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
-
+from datetime import datetime, timezone
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 UI_DIR = REPO_ROOT / "ui"
+FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 
 
 def safe_load_json(rel_path: str):
@@ -46,6 +47,18 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(b"index.html not found")
                 return
             self._set_text(200, "text/html; charset=utf-8")
+            self.wfile.write(f.read_bytes())
+            return
+        
+        # fixtures files (tests/fixtures) served under /fixtures/
+        if path.startswith("/fixtures/"):
+            rel = path[len("/fixtures/"):]  # e.g. "frame_open_card.json"
+            f = FIXTURES_DIR / rel
+            if not f.exists() or not f.is_file():
+                self._set_text(404)
+                self.wfile.write(b"not found")
+                return
+            self._set_text(200, "application/json; charset=utf-8")
             self.wfile.write(f.read_bytes())
             return
 
@@ -134,6 +147,16 @@ class Handler(BaseHTTPRequestHandler):
                 emitted.append(ev)
 
             engine.process_turn("ui_sim_turn", frame, eng_aff, cards_index, cards, emitter, env=env)
+                        # UI sim injection: modeled options (fixture-driven)
+            ui_sim = frame.get("ui_sim") if isinstance(frame, dict) else None
+            opts = ui_sim.get("options_available") if isinstance(ui_sim, dict) else None
+            if isinstance(opts, dict):
+                emitted.append({
+                    "type": "OPTIONS_AVAILABLE",
+                    "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    "payload": opts
+                })
+
         except Exception as e:
             self._set_json(500)
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))

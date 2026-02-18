@@ -1,0 +1,19 @@
+{
+  "engine_id": "identity",
+  "frame_id": "identity.greeting",
+  "readiness_label": "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE",
+  "option_tokens": ["你好"],
+  "affordances": { "open_card": true },
+  "ui_sim": {
+    "options_available": {
+      "source": "speech_engine",
+      "card_id": "card_hello",
+      "section_title": "Modeled options",
+      "options": [
+        { "id": "opt_1", "text": "你好！", "pinyin": "nǐ hǎo" },
+        { "id": "opt_2", "text": "你好，很高兴认识你。", "pinyin": "nǐ hǎo, hěn gāoxìng rènshi nǐ" },
+        { "id": "opt_3", "text": "你好，你今天怎么样？", "pinyin": "nǐ hǎo, nǐ jīntiān zěnmeyàng" }
+      ]
+    }
+  }
+}

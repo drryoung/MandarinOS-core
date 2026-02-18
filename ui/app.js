@@ -11,20 +11,95 @@ const cardTitle = document.getElementById("cardTitle");
 const cardBody = document.getElementById("cardBody");
 const cardError = document.getElementById("cardError");
 const playBtn = document.getElementById("playBtn");
+const cardCloseBtn = document.getElementById("cardCloseBtn");
 
 let state = Object.assign({}, _initialState);
 let uiTrace = [];
 let currentPlay = null; // { utterance_id, start, timeoutId, duration_ms }
 
+
 function dispatch(action) {
   state = reduce(state, action);
   render();
+}
+if (cardCloseBtn) {
+  cardCloseBtn.addEventListener("click", () => {
+    dispatch({ type: "CARD_PANEL_CLOSED" });
+  });
 }
 
 function appendTrace(event) {
   uiTrace.push(event);
   // If you already have a dedicated trace renderer, call it here.
   // Otherwise render() + any existing trace rendering will handle it.
+}
+function clearEl(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function makeDiv(className, text) {
+  const d = document.createElement("div");
+  if (className) d.className = className;
+  if (text !== undefined) d.textContent = text;
+  return d;
+}
+function renderModeledOptions(containerEl, panelOptions, state) {
+  if (!panelOptions || !Array.isArray(panelOptions.options) || panelOptions.options.length === 0) return;
+
+  const h3 = document.createElement("h3");
+  h3.textContent = panelOptions.section_title || "Modeled options";
+  containerEl.appendChild(h3);
+
+  const list = makeDiv("option-list");
+  panelOptions.options.forEach((opt, idx) => {
+    const row = makeDiv("option-row");
+
+    const textWrap = makeDiv("option-text");
+    textWrap.appendChild(makeDiv("", opt.text || ""));
+
+    if (opt.pinyin) {
+      textWrap.appendChild(makeDiv("option-pinyin", opt.pinyin));
+    }
+
+    const btn = document.createElement("button");
+    btn.className = "option-play";
+    btn.textContent = "🔊";
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!state.isOpen) return;
+
+      const optionId = opt.id || String(idx);
+      const cardId = state.activeCardId || panelOptions.card_id || "card";
+      const utterance_id = `card:${cardId}:opt:${optionId}`;
+      const text = opt.text || "";
+
+      emitUITrace({
+        type: "AUDIO_PLAY_REQUESTED",
+        timestamp: new Date().toISOString(),
+        payload: {
+          utterance_id,
+          source: "card_panel_option",
+          card_id: cardId,
+          option_id: optionId,
+          text,
+        },
+      });
+
+      ttsSpeak({
+        text,
+        lang: "zh-CN",
+        utterance_id,
+        onEvent: (traceEntry) => emitUITrace(traceEntry),
+      });
+    });
+
+    row.appendChild(textWrap);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+
+  containerEl.appendChild(list);
 }
 
 function render() {
@@ -35,7 +110,12 @@ function render() {
     cardError.textContent = state.error ? (state.error.message || state.error.kind || "Error") : "";
     cardIdEl.textContent = state.activeCardId || "";
     cardTitle.textContent = (state.activeCard && state.activeCard.title) || "";
-    cardBody.textContent = (state.activeCard && state.activeCard.content) || "";
+const mainText = (state.activeCard && state.activeCard.content) || "";
+clearEl(cardBody);
+cardBody.appendChild(makeDiv("card-main", mainText));
+renderModeledOptions(cardBody, state.panelOptions, state);
+
+
     // play affordance visible for surface devices; enable when a card is active
     if (playBtn) {
       playBtn.style.display = "inline-block";
@@ -81,7 +161,15 @@ async function resolveCard(cardId, cards_path) {
 }
 
 async function runTurn() {
-  const frame_path = frameSelect.value;
+let frame_path = frameSelect.value;
+
+// Normalize frame_path → always disk path
+if (frame_path.startsWith("/fixtures/")) {
+  frame_path = "tests/fixtures/" + frame_path.replace("/fixtures/", "");
+} else if (!frame_path.startsWith("tests/fixtures/")) {
+  frame_path = "tests/fixtures/" + frame_path;
+}
+
   const payload = {
     frame_path,
     cards_index_path: "tests/fixtures/cards_index.fixture.json",
@@ -96,7 +184,7 @@ async function runTurn() {
       body: JSON.stringify(payload),
     });
     const data = await resp.json();
-    console.log("run_turn response:", data);
+   
     if (data.error) {
       traceEl.textContent = `Error: ${data.error}`;
       // close panel via reducer
@@ -105,14 +193,23 @@ async function runTurn() {
     }
 
     const trace = data.trace || [];
-    console.log("trace length:", trace.length, "first:", trace[0] && trace[0].type);
+    
+    
       uiTrace = uiTrace.concat(trace);
       renderTrace();
+      window.__uiTrace = uiTrace;
+window.__lastTrace = trace;
+
 
     // Dispatch trace events to reducer
     for (const ev of trace) {
-      dispatch({ type: "TRACE_EVENT_RECEIVED", payload: { traceEvent: ev } });
-    }
+  if (ev.type === "OPTIONS_AVAILABLE") {
+
+  }
+  dispatch({ type: "TRACE_EVENT_RECEIVED", payload: { traceEvent: ev } });
+}
+render();
+
 
     // If reducer opened a card and it needs resolution, resolve it
     if (state.isOpen && state.activeCardId && !state.activeCard) {
@@ -131,7 +228,7 @@ cardPanel.addEventListener("click", (e) => {
 
 // defaults
 window.addEventListener("load", () => {
-  frameSelect.value = "tests/fixtures/frame_open_card.json";
+  frameSelect.value = "tests/fixtures/frame_open_card_with_options.json";
   render();
 });
 

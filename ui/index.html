@@ -18,6 +18,10 @@
             <select id="frameSelect">
               <option value="tests/fixtures/frame_open_card.json">frame_open_card.json</option>
               <option value="tests/fixtures/frame_no_card.json">frame_no_card.json</option>
+              <option value="tests/fixtures/frame_open_card_with_options.json">
+  frame_open_card_with_options.json
+</option>
+
             </select>
             <button id="runBtn">Run Turn</button>
           </div>
@@ -30,6 +34,7 @@
           <div id="cardPanel" class="card hidden">
             <div id="cardError" class="error"></div>
             <button id="playBtn" class="play">Play</button>
+            <button id="cardCloseBtn" type="button">✕</button>
             <div id="cardId"></div>
             <h3 id="cardTitle"></h3>
             <div id="cardBody"></div>
