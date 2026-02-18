@@ -161,65 +161,48 @@ async function resolveCard(cardId, cards_path) {
 }
 
 async function runTurn() {
-let frame_path = frameSelect.value;
-
-// Normalize frame_path → always disk path
-if (frame_path.startsWith("/fixtures/")) {
-  frame_path = "tests/fixtures/" + frame_path.replace("/fixtures/", "");
-} else if (!frame_path.startsWith("tests/fixtures/")) {
-  frame_path = "tests/fixtures/" + frame_path;
-}
-
   const payload = {
-    frame_path,
-    cards_index_path: "tests/fixtures/cards_index.fixture.json",
-    cards_path: "tests/fixtures/cards.fixture.json",
+    frame_path: frameSelect.value,
     env: "prod",
+    turn_uid: "ui_" + Date.now()
   };
 
+  let res;
   try {
-    const resp = await fetch("/api/run_turn", {
+    res = await fetch("/api/run_turn", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const data = await resp.json();
-   
-    if (data.error) {
-      traceEl.textContent = `Error: ${data.error}`;
-      // close panel via reducer
-      dispatch({ type: "CARD_PANEL_CLOSED" });
-      return;
-    }
-
-    const trace = data.trace || [];
-    
-    
-      uiTrace = uiTrace.concat(trace);
-      renderTrace();
-      window.__uiTrace = uiTrace;
-window.__lastTrace = trace;
-
-
-    // Dispatch trace events to reducer
-    for (const ev of trace) {
-  if (ev.type === "OPTIONS_AVAILABLE") {
-
-  }
-  dispatch({ type: "TRACE_EVENT_RECEIVED", payload: { traceEvent: ev } });
-}
-render();
-
-
-    // If reducer opened a card and it needs resolution, resolve it
-    if (state.isOpen && state.activeCardId && !state.activeCard) {
-      await resolveCard(state.activeCardId, payload.cards_path);
-    }
   } catch (e) {
-    traceEl.textContent = `Exception: ${e}`;
-    dispatch({ type: "CARD_PANEL_CLOSED" });
+    emitUITrace({
+      type: "UI_ERROR",
+      timestamp: new Date().toISOString(),
+      payload: { message: String(e) }
+    });
+    return;
+  }
+
+  if (!res.ok) {
+    const txt = await res.text();
+    emitUITrace({
+      type: "UI_ERROR",
+      timestamp: new Date().toISOString(),
+      payload: { status: res.status, body: txt }
+    });
+    return;
+  }
+
+  const data = await res.json();
+  const trace = data.trace || [];
+  for (const ev of trace) emitUITrace(ev);
+
+  // Important: resolve the opened card so the panel Play button has content
+  if (state.isOpen && state.activeCardId && !state.activeCard) {
+    await resolveCard(state.activeCardId, "tests/fixtures/cards.fixture.json");
   }
 }
+
 
 // allow clicking the card panel to close it
 cardPanel.addEventListener("click", (e) => {

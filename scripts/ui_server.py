@@ -112,19 +112,24 @@ class Handler(BaseHTTPRequestHandler):
         cards_path = data.get("cards_path", "tests/fixtures/cards.fixture.json")
         env = data.get("env", "prod")
 
+        engine_id = data.get("engine_id")
+        frame_id = data.get("frame_id")
+
+        if not frame_path and not (engine_id and frame_id):
+            self._set_json(400)
+            self.wfile.write(json.dumps({"error": "Provide either frame_path OR (engine_id + frame_id)"}).encode("utf-8"))
+            return
+
+        # Load frame (Step 5 safety: use frame_path until we wire engine_id/frame_id lookup)
         if not frame_path:
             self._set_json(400)
-            self.wfile.write(json.dumps({"error": "frame_path required"}).encode("utf-8"))
+            self.wfile.write(json.dumps({"error": "engine_id/frame_id lookup not wired yet. Please provide frame_path for now."}).encode("utf-8"))
             return
 
         try:
             frame = safe_load_json(frame_path)
             cards_index = safe_load_json(cards_index_path)
             cards = safe_load_json(cards_path)
-        except FileNotFoundError as e:
-            self._set_json(400)
-            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
-            return
         except Exception as e:
             self._set_json(400)
             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
@@ -133,12 +138,11 @@ class Handler(BaseHTTPRequestHandler):
         # infer engine_affordances
         eng_aff = data.get("engine_affordances")
         if eng_aff is None:
-            eid = frame.get("engine_id")
+            eid = frame.get("engine_id") if isinstance(frame, dict) else None
             eng_aff = {eid: {"open_card": True}} if eid else {}
 
         # call engine.process_turn
         try:
-            # import here
             from runtime import engine
 
             emitted = []
@@ -146,8 +150,10 @@ class Handler(BaseHTTPRequestHandler):
             def emitter(ev):
                 emitted.append(ev)
 
-            engine.process_turn("ui_sim_turn", frame, eng_aff, cards_index, cards, emitter, env=env)
-                        # UI sim injection: modeled options (fixture-driven)
+            turn_uid = data.get("turn_uid", "ui_sim_turn")
+            engine.process_turn(turn_uid, frame, eng_aff, cards_index, cards, emitter, env=env)
+
+            # UI sim injection: modeled options (fixture-driven)
             ui_sim = frame.get("ui_sim") if isinstance(frame, dict) else None
             opts = ui_sim.get("options_available") if isinstance(ui_sim, dict) else None
             if isinstance(opts, dict):
@@ -164,6 +170,7 @@ class Handler(BaseHTTPRequestHandler):
 
         self._set_json(200)
         self.wfile.write(json.dumps({"trace": emitted}, ensure_ascii=False).encode("utf-8"))
+        return
 
 
 def run(port: int):
