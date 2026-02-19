@@ -27,7 +27,10 @@ def resolve_card_for_frame(frame: Dict[str, Any], engine_affordances: Dict[str, 
         return None
 
     readiness = frame.get("readiness_label")
-    if readiness != "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE":
+
+    # Phase 5: pack frames don't have readiness_label yet.
+    # In dev/test, allow missing readiness_label to pass so we can test real packs end-to-end.
+    if readiness is not None and readiness != "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE":
         return None
 
     # affordances: frame overrides engine
@@ -41,26 +44,47 @@ def resolve_card_for_frame(frame: Dict[str, Any], engine_affordances: Dict[str, 
     if isinstance(fr_aff, dict):
         afford.update(fr_aff)
 
-    if not afford.get("open_card"):
+    # Phase 5: if no affordances exist, allow opening a card
+    if "open_card" in afford and not afford.get("open_card"):
         return None
 
     # attempt resolution via option_tokens and frame id
     tokens = frame.get("option_tokens") or []
+    by_word_id = cards_index.get("by_word_id") if isinstance(cards_index, dict) else {}
+    
     # try tokens first
     for t in tokens:
-        if not isinstance(t, str):
-            continue
-        if t in cards_index:
-            return cards_index[t]
+        if isinstance(t, str) and t in by_word_id:
+            return by_word_id[t]
 
     # fallback: try frame_id
     fid = frame.get("frame_id")
-    if fid and fid in cards_index:
-        return cards_index[fid]
+    if fid and fid in by_word_id:
+        return by_word_id[fid]
+
+    # Phase 5 fallback: resolve by frame text (hanzi) using cards_index.by_hanzi
+    text = frame.get("text")
+    by_hanzi = cards_index.get("by_hanzi") if isinstance(cards_index, dict) else None
+
+    if isinstance(text, str) and isinstance(by_hanzi, dict):
+        # 1) Exact match (rare, but keep it)
+        hits = by_hanzi.get(text)
+        if isinstance(hits, list) and len(hits) > 0:
+            return hits[0]
+
+        # 2) Sentence match: if any known word appears inside the sentence, use it
+        # Try longer words first so "哥哥" beats "哥" etc.
+        for hanzi_word in sorted(by_hanzi.keys(), key=len, reverse=True):
+            if hanzi_word and hanzi_word in text:
+                hits2 = by_hanzi.get(hanzi_word)
+                if isinstance(hits2, list) and len(hits2) > 0:
+                    return hits2[0]
 
     # nothing found
     if env != "prod":
-        raise OpenCardResolutionError(f"No card mapping found for frame {fid} (tokens={tokens})")
+        raise OpenCardResolutionError(
+            f"No card mapping found for frame {fid} (tokens={tokens}) text={frame.get('text')}"
+        )
     return None
 
 

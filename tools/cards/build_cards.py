@@ -289,6 +289,18 @@ def build_index(cards: List[Dict[str, Any]]) -> Dict[str, Any]:
             by_hanzi.setdefault(hanzi, []).append(cid)
     return {"by_word_id": by_word_id, "by_hanzi": by_hanzi}
 
+def build_cards_by_id(cards: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Retrieval index for OPEN_CARD.
+    Maps card_id -> full card object.
+    """
+    by_id: Dict[str, Any] = {}
+    for c in cards:
+        cid = c.get("card_id")
+        if not cid:
+            continue
+        by_id[cid] = c
+    return by_id
 
 def main(argv: Optional[List[str]] = None):
     ap = argparse.ArgumentParser()
@@ -346,10 +358,13 @@ def main(argv: Optional[List[str]] = None):
 
     cards_path = out_dir / "cards.json"
     cards_index_path = out_dir / "cards_index.json"
+    cards_by_id_path = out_dir / "cards_by_id.json"
     cards_path.write_text(json.dumps(cards_obj, indent=2, ensure_ascii=False), encoding="utf-8")
 
     index = build_index(cards)
     cards_index_path.write_text(json.dumps(index, indent=2, ensure_ascii=False), encoding="utf-8")
+    cards_by_id = build_cards_by_id(cards)
+    cards_by_id_path.write_text(json.dumps(cards_by_id, indent=2, ensure_ascii=False), encoding="utf-8")
 
     summary = {
         "total_cards": len(cards),

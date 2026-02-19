@@ -86,6 +86,19 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(f.read_bytes())
             return
 
+        # Serve frame packs from repo root (Phase 5)
+        if path in ("/p1_frames.json", "/p2_frames.json"):
+            repo_root = Path(__file__).resolve().parents[1]
+            f = repo_root / path.lstrip("/")
+            if not f.exists() or not f.is_file():
+                self._set_text(404)
+                self.wfile.write(b"not found")
+                return
+            self._set_text(200, "application/json; charset=utf-8")
+            self.wfile.write(f.read_bytes())
+            return
+
+
         # static files
         if path.startswith("/") and not path.startswith("/api/"):
             rel = path.lstrip("/")

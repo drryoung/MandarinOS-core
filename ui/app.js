@@ -160,24 +160,86 @@ async function resolveCard(cardId, cards_path) {
   }
 }
 
+async function loadPackFramesIntoDropdown() {
+  emitUITrace({ type: "UI_INFO", timestamp: new Date().toISOString(), payload: { message: "loadPackFramesIntoDropdown start" } });
+
+  try {
+    const packs = ["p1_frames.json", "p2_frames.json"];
+    const items = [];
+
+    for (const pack of packs) {
+      const resp = await fetch(`/${pack}`);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const frames = Array.isArray(data.frames) ? data.frames : [];
+
+      for (const f of frames) {
+        if (!f) continue;
+        const eid = f.engine;
+        const fid = f.id;
+        if (typeof eid === "string" && eid && typeof fid === "string" && fid) {
+          items.push({ engine_id: eid, frame_id: fid });
+        }
+      }
+    }
+
+    // If nothing loaded, do nothing (keep existing fixture dropdown)
+    if (items.length === 0) {
+      emitUITrace({ type: "UI_ERROR", timestamp: new Date().toISOString(), payload: { message: "Pack frames loaded, but 0 usable (missing engine_id/frame_id?)" } });
+      return;
+    }
+
+    items.sort((a, b) => (a.engine_id + "::" + a.frame_id).localeCompare(b.engine_id + "::" + b.frame_id));
+
+    frameSelect.innerHTML = "";
+    for (const it of items) {
+      const opt = document.createElement("option");
+      opt.value = it.frame_id;
+      opt.textContent = `${it.engine_id} :: ${it.frame_id}`;
+      opt.dataset.engineId = it.engine_id;
+      frameSelect.appendChild(opt);
+    }
+    frameSelect.selectedIndex = 0;
+  } catch (e) {
+    // If anything goes wrong, keep existing fixture dropdown and keep UI running.
+    emitUITrace({
+      type: "UI_ERROR",
+      timestamp: new Date().toISOString(),
+      payload: { message: "loadPackFramesIntoDropdown failed (kept fixtures)", error: String(e) }
+    });
+  }
+}
+
+
+
 async function runTurn() {
   const selected = frameSelect.value;
   const payload = {
-    env: "prod",
+    env: "dev",
     turn_uid: "ui_" + Date.now()
   };
 
   // If the dropdown value looks like a JSON file path, use fixture mode (frame_path)
   if (selected && selected.endsWith(".json")) {
     payload.frame_path = selected;
+
   } else {
-    // Otherwise treat it as a frame_id like "identity.greeting"
-    const engineId = String(selected).split(".")[0];
+    // Pack frame: option text is "engine :: id", option value is the id
+    const selectedOption = frameSelect.options[frameSelect.selectedIndex];
+    const engineId = selectedOption && selectedOption.dataset ? selectedOption.dataset.engineId : null;
+
+    if (!engineId) {
+      emitUITrace({
+        type: "UI_ERROR",
+        timestamp: new Date().toISOString(),
+        payload: { message: "Missing engine id for selected pack frame" }
+      });
+      return;
+    }
+
     payload.engine_id = engineId;
     payload.frame_id = selected;
   }
-
-
 
   let res;
   try {
@@ -226,8 +288,8 @@ cardPanel.addEventListener("click", (e) => {
 });
 
 // defaults
-window.addEventListener("load", () => {
-  frameSelect.value = "tests/fixtures/frame_open_card_with_options.json";
+window.addEventListener("load", async () => {
+  await loadPackFramesIntoDropdown();
   render();
 });
 

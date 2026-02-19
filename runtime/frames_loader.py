@@ -21,7 +21,9 @@ def _index_frames_from_pack(data: Any) -> Dict[Tuple[str, str], Dict[str, Any]]:
     Supports either:
       - {"frames":[{...}, ...]}
       - a list: [{...}, ...]
-    Each frame must include engine_id and frame_id.
+    Pack frames use:
+      engine  -> engine_id
+      id      -> frame_id
     """
     frames = None
     if isinstance(data, dict) and isinstance(data.get("frames"), list):
@@ -35,10 +37,19 @@ def _index_frames_from_pack(data: Any) -> Dict[Tuple[str, str], Dict[str, Any]]:
     for f in frames:
         if not isinstance(f, dict):
             continue
-        eid = f.get("engine_id")
-        fid = f.get("frame_id")
+
+        # Pack format fields
+        eid = f.get("engine")
+        fid = f.get("id")
+
         if isinstance(eid, str) and isinstance(fid, str) and eid and fid:
-            out[(eid, fid)] = f
+            # Create a copy and normalize field names for runtime
+            frame_copy = dict(f)
+            frame_copy["engine_id"] = eid
+            frame_copy["frame_id"] = fid
+
+            out[(eid, fid)] = frame_copy
+
     return out
 
 
