@@ -6,11 +6,35 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from datetime import datetime, timezone
+from runtime.frames_loader import load_frame_from_packs
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 UI_DIR = REPO_ROOT / "ui"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 
+def load_cards_by_id(repo_root: Path) -> dict:
+    """
+    Preferred: tools/cards/out/cards_by_id.json (card_id -> full card object)
+    Fallback: tools/cards/out/cards.json (build dict)
+    """
+    by_id_path = repo_root / "tools" / "cards" / "out" / "cards_by_id.json"
+    if by_id_path.exists():
+        return json.loads(by_id_path.read_text(encoding="utf-8"))
+
+    cards_path = repo_root / "tools" / "cards" / "out" / "cards.json"
+    if not cards_path.exists():
+        return {}
+
+    data = json.loads(cards_path.read_text(encoding="utf-8"))
+    cards = data.get("cards") if isinstance(data, dict) else data
+    if not isinstance(cards, list):
+        return {}
+
+    out = {}
+    for c in cards:
+        if isinstance(c, dict) and c.get("card_id"):
+            out[c["card_id"]] = c
+    return out
 
 def safe_load_json(rel_path: str):
     p = Path(rel_path)
@@ -77,7 +101,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/cards":
             qs = parse_qs(parsed.query)
-            p = qs.get("path", ["tests/fixtures/cards.fixture.json"])[0]
+            p = qs.get("path", ["tools/cards/out/cards_by_id.json"])[0]
             try:
                 cards = safe_load_json(p)
             except Exception as e:
@@ -108,8 +132,14 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         frame_path = data.get("frame_path")
-        cards_index_path = data.get("cards_index_path", "tests/fixtures/cards_index.fixture.json")
-        cards_path = data.get("cards_path", "tests/fixtures/cards.fixture.json")
+        # Choose defaults based on whether we are using a fixture frame
+        if frame_path and str(frame_path).startswith("tests/fixtures/"):
+            cards_index_path = data.get("cards_index_path", "tests/fixtures/cards_index.fixture.json")
+            cards_path = data.get("cards_path", "tests/fixtures/cards.fixture.json")
+        else:
+            cards_index_path = data.get("cards_index_path", "tools/cards/out/cards_index.json")
+            cards_path = data.get("cards_path", "tools/cards/out/cards_by_id.json")
+
         env = data.get("env", "prod")
 
         engine_id = data.get("engine_id")
@@ -120,14 +150,24 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Provide either frame_path OR (engine_id + frame_id)"}).encode("utf-8"))
             return
 
-        # Load frame (Step 5 safety: use frame_path until we wire engine_id/frame_id lookup)
-        if not frame_path:
-            self._set_json(400)
-            self.wfile.write(json.dumps({"error": "engine_id/frame_id lookup not wired yet. Please provide frame_path for now."}).encode("utf-8"))
-            return
+
+        # Load frame:
+        # - preferred: engine_id + frame_id (Phase 5)
+        # - fallback: frame_path (dev/debug)
 
         try:
-            frame = safe_load_json(frame_path)
+            if frame_path:
+                frame = safe_load_json(frame_path)
+            else:
+                frame = load_frame_from_packs(engine_id, frame_id)
+        except Exception as e:
+            self._set_json(400)
+            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+
+
+        # Load cards only (NOT frame again)
+        try:
             cards_index = safe_load_json(cards_index_path)
             cards = safe_load_json(cards_path)
         except Exception as e:

@@ -161,11 +161,23 @@ async function resolveCard(cardId, cards_path) {
 }
 
 async function runTurn() {
+  const selected = frameSelect.value;
   const payload = {
-    frame_path: frameSelect.value,
     env: "prod",
     turn_uid: "ui_" + Date.now()
   };
+
+  // If the dropdown value looks like a JSON file path, use fixture mode (frame_path)
+  if (selected && selected.endsWith(".json")) {
+    payload.frame_path = selected;
+  } else {
+    // Otherwise treat it as a frame_id like "identity.greeting"
+    const engineId = String(selected).split(".")[0];
+    payload.engine_id = engineId;
+    payload.frame_id = selected;
+  }
+
+
 
   let res;
   try {
@@ -199,7 +211,11 @@ async function runTurn() {
 
   // Important: resolve the opened card so the panel Play button has content
   if (state.isOpen && state.activeCardId && !state.activeCard) {
-    await resolveCard(state.activeCardId, "tests/fixtures/cards.fixture.json");
+    const usingFixtureFrame = String(frameSelect.value || "").includes("tests/fixtures/");
+    const cardsPath = usingFixtureFrame
+      ? "tests/fixtures/cards.fixture.json"
+      : "tools/cards/out/cards_by_id.json";
+    await resolveCard(state.activeCardId, cardsPath);
   }
 }
 
