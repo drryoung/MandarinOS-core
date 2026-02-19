@@ -16,13 +16,19 @@
           <div class="controls">
             <label for="frameSelect">Frame:</label>
             <select id="frameSelect">
-              <option value="tests/fixtures/frame_open_card.json">frame_open_card.json</option>
-              <option value="tests/fixtures/frame_no_card.json">frame_no_card.json</option>
-              <option value="tests/fixtures/frame_open_card_with_options.json">
-  frame_open_card_with_options.json
-</option>
+              <option value="identity|frame.greeting.hello" selected>
+                identity — frame.greeting.hello
+              </option>
 
+              <option value="identity|frame.greeting.hello_reply">
+                identity — frame.greeting.hello_reply
+              </option>
+
+              <option value="identity|f_ask_you_name">
+                identity — f_ask_you_name
+              </option>
             </select>
+
             <button id="runBtn">Run Turn</button>
           </div>
 

@@ -161,11 +161,23 @@ async function resolveCard(cardId, cards_path) {
 }
 
 async function runTurn() {
+  // Force a default selection if none is selected
+  if (frameSelect.selectedIndex === -1 && frameSelect.options.length > 0) {
+    frameSelect.selectedIndex = 0;
+  }
+
+  const selected = frameSelect.value; 
+  // expected format: "engine_id|frame_id"
+
+  const [engine_id, frame_id] = selected.split("|");
+
   const payload = {
-    frame_path: frameSelect.value,
+    engine_id,
+    frame_id,
     env: "prod",
     turn_uid: "ui_" + Date.now()
   };
+
 
   let res;
   try {

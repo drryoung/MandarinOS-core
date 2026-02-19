@@ -1,4 +1,10 @@
 {
   "你好": "card_hello",
-  "identity.greeting": "card_hello"
+  "identity.greeting": "card_hello",
+
+  "你叫什么名字": "card_name",
+  "identity.name": "card_name",
+
+  "frame.greeting.hello": "card_hello",
+  "f_ask_you_name": "card_name"
 }

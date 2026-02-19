@@ -4,5 +4,12 @@
     "title": "Hello",
     "content": "你好",
     "levels": [0]
+  },
+  "card_name": {
+    "id": "card_name",
+    "title": "Names",
+    "content": "When someone asks your name, you can answer with: 我叫… (wǒ jiào …).",
+    "levels": [0]
   }
 }
+
