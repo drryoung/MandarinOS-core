@@ -25,7 +25,7 @@ def resolve_repo_root() -> Path:
 def default_config(repo_root: Path) -> Dict[str, Any]:
     return {
         "words_files": ["p1_words.json", "p2_words.json"],
-        "links_file": "word_character_links.json",
+        "links_file": "tools/cards/out/word_character_links_auto_rich.json",
         "characters_file": "characters_1200.json",
         "output_dir": "tools/cards/out",
         "card_id_strategy": "word_id",
@@ -33,29 +33,66 @@ def default_config(repo_root: Path) -> Dict[str, Any]:
     }
 
 
-def build_char_index(chars_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    idx = {}
-    for c in chars_data.get("characters", []):
-        cid = c.get("id")
+def build_char_index(chars_data: Any) -> Dict[str, Dict[str, Any]]:
+    idx: Dict[str, Any] = {}
+
+    # Accept either:
+    # A) {"characters":[...], "components_index":[...]}
+    # B) [ {"id": "...", "hanzi": "..."}, ... ]
+    if isinstance(chars_data, dict):
+        chars_list = chars_data.get("characters", [])
+        components_list = chars_data.get("components_index", [])
+    elif isinstance(chars_data, list):
+        chars_list = chars_data
+        components_list = []
+    else:
+        chars_list = []
+        components_list = []
+
+    for c in chars_list:
+        if not isinstance(c, dict):
+            continue
+        cid = c.get("id") or c.get("character_id")
         if not cid:
             continue
         idx[cid] = c
-    # components index optional
-    comp_idx = {}
-    for comp in chars_data.get("components_index", []):
-        if comp.get("id"):
+
+    comp_idx: Dict[str, Any] = {}
+    for comp in components_list:
+        if isinstance(comp, dict) and comp.get("id"):
             comp_idx[comp["id"]] = comp
+
     return {"chars": idx, "components": comp_idx}
 
+def load_links(data: Any) -> Dict[str, Any]:
+    """
+    Accepts either:
+    A) {"links": [ { "word_id": "...", "characters": [...] }, ... ]}   (manual format)
+    B) { "w_xxx": { "characters": [...] }, ... }                      (auto-rich map format)
+    """
+    if not data:
+        return {}
 
-def load_links(links_data: Dict[str, Any]) -> Dict[str, Any]:
-    mapping = {}
-    for l in links_data.get("links", []):
-        wid = l.get("word_id")
-        if not wid:
-            continue
-        mapping[wid] = l
-    return mapping
+    # Format B: direct map keyed by word_id
+    if isinstance(data, dict) and "links" not in data:
+        # sanity: keep only entries that look like {"characters": [...]}
+        out = {}
+        for k, v in data.items():
+            if isinstance(k, str) and isinstance(v, dict) and "characters" in v:
+                out[k] = v
+        return out
+
+    # Format A: {"links": [...]}
+    if isinstance(data, dict) and isinstance(data.get("links"), list):
+        out = {}
+        for item in data["links"]:
+            if isinstance(item, dict):
+                wid = item.get("word_id")
+                if wid:
+                    out[wid] = item
+        return out
+
+    return {}
 
 
 def collect_words(repo_root: Path, cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -129,6 +166,7 @@ def build_card_for_word(word: Dict[str, Any], links_map: Dict[str, Any], char_in
         card["content"]["word_composition"] = composition
 
     # characters from links
+    
     link = links_map.get(word_id)
     chars_list = []
     cards_missing_links = False

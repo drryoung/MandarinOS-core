@@ -1,7 +1,7 @@
 {
   "words_files": ["p1_words.json", "p2_words.json"],
-  "links_file": "word_character_links.json",
-  "characters_file": "characters_1200.json",
+  "links_file": "tools/cards/out/word_character_links_auto_rich.json",
+  "characters_file": "tools/cards/out/characters_from_words.json",
   "output_dir": "tools/cards/out",
   "card_id_strategy": "word_id",
   "include_pack": true
