@@ -110,19 +110,74 @@ function render() {
     noCard.style.display = "none";
     cardError.textContent = state.error ? (state.error.message || state.error.kind || "Error") : "";
     cardIdEl.textContent = state.activeCardId || "";
-    cardTitle.textContent = (state.activeCard && state.activeCard.title) || "";
-const c = (state.activeCard && state.activeCard.content) || {};
-const head = (c.headword && c.headword.hanzi) ? c.headword.hanzi : "";
-const pinyin = (c.headword && c.headword.pinyin) ? c.headword.pinyin : "";
-const meaning = c.meaning || "";
+    const titleText = (state.activeCard && state.activeCard.title) || "";
+    cardTitle.textContent = titleText;
 
-const mainText = [head, pinyin, meaning].filter(Boolean).join("\n");
 
-clearEl(cardBody);
-cardBody.appendChild(makeDiv("card-main", mainText));
+    // Phase 6: Single source of truth for card content
+    const cardContent = (state.activeCard && state.activeCard.content) || {};
+    const headwordHanzi =
+      (cardContent.headword && cardContent.headword.hanzi)
+        ? cardContent.headword.hanzi
+        : "";
+    const pinyin =
+      (cardContent.headword && cardContent.headword.pinyin)
+        ? cardContent.headword.pinyin
+        : "";
+    const meaning = cardContent.meaning || "";
+
+    // Main display text
+    const mainText = [headwordHanzi, pinyin, meaning]
+      .filter(Boolean)
+      .join("\n");
+
+    // Render main text
+    clearEl(cardBody);
+
+    const mainDisplayDiv = document.createElement("div");
+    mainDisplayDiv.className = "card-main";
+
+    if (headwordHanzi) mainDisplayDiv.appendChild(makeDiv("card-main-hanzi", headwordHanzi));
+    if (pinyin) mainDisplayDiv.appendChild(makeDiv("card-main-pinyin", pinyin));
+    if (meaning) mainDisplayDiv.appendChild(makeDiv("card-main-meaning", meaning));
+
+cardBody.appendChild(mainDisplayDiv);
+
+
+    // Phase 6: Word-level play button
+    if (headwordHanzi) {
+      const wordPlay = document.createElement("button");
+      wordPlay.type = "button";
+      wordPlay.className = "word-play";
+      wordPlay.textContent = " 🔊 Play word";
+
+      wordPlay.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const cardId = state.activeCardId || "unknown_card";
+        const utterance_id = `card:${cardId}:word`;
+
+        emitUITrace({
+          type: "AUDIO_PLAY_REQUESTED",
+          timestamp: new Date().toISOString(),
+          payload: { utterance_id, text: headwordHanzi, source: "card_headword" }
+        });
+
+        ttsSpeak({
+          text: headwordHanzi,
+          lang: "zh-CN",
+          utterance_id,
+          onEvent: (traceEntry) => emitUITrace(traceEntry),
+        });
+      });
+
+      cardTitle.appendChild(wordPlay);
+    }
+
+
 renderModeledOptions(cardBody, state.panelOptions, state);
 // --- Phase 6: render clickable characters from content.word_composition (if present)
 const compChars =
+
   state.activeCard &&
   state.activeCard.content &&
   state.activeCard.content.word_composition &&
@@ -133,6 +188,8 @@ const compChars =
 if (compChars && compChars.length) {
   const compWrap = makeDiv("card-composition", "");
   compWrap.appendChild(makeDiv("card-composition-title", "Characters"));
+  compWrap.appendChild(makeDiv("card-composition-hint", "Tap a character to hear it."));
+
 
   const row = document.createElement("div");
   row.className = "card-composition-row";
