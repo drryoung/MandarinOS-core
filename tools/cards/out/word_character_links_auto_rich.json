@@ -1,0 +1,1624 @@
+{
+  "w_ni": {
+    "characters": [
+      {
+        "character_id": "c_你",
+        "hanzi": "你",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_wo": {
+    "characters": [
+      {
+        "character_id": "c_我",
+        "hanzi": "我",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_ta": {
+    "characters": [
+      {
+        "character_id": "c_他",
+        "hanzi": "他",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_hao": {
+    "characters": [
+      {
+        "character_id": "c_好",
+        "hanzi": "好",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_nihao": {
+    "characters": [
+      {
+        "character_id": "c_你",
+        "hanzi": "你",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_好",
+        "hanzi": "好",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_xiexie": {
+    "characters": [
+      {
+        "character_id": "c_谢",
+        "hanzi": "谢",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_谢",
+        "hanzi": "谢",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_bukeqi": {
+    "characters": [
+      {
+        "character_id": "c_不",
+        "hanzi": "不",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_客",
+        "hanzi": "客",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_气",
+        "hanzi": "气",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_shi": {
+    "characters": [
+      {
+        "character_id": "c_是",
+        "hanzi": "是",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jiao": {
+    "characters": [
+      {
+        "character_id": "c_叫",
+        "hanzi": "叫",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_shenme": {
+    "characters": [
+      {
+        "character_id": "c_什",
+        "hanzi": "什",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_么",
+        "hanzi": "么",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_mingzi": {
+    "characters": [
+      {
+        "character_id": "c_名",
+        "hanzi": "名",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_字",
+        "hanzi": "字",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_ne": {
+    "characters": [
+      {
+        "character_id": "c_呢",
+        "hanzi": "呢",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_nali": {
+    "characters": [
+      {
+        "character_id": "c_哪",
+        "hanzi": "哪",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_里",
+        "hanzi": "里",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_ren": {
+    "characters": [
+      {
+        "character_id": "c_人",
+        "hanzi": "人",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_xianzai": {
+    "characters": [
+      {
+        "character_id": "c_现",
+        "hanzi": "现",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_在",
+        "hanzi": "在",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zhu": {
+    "characters": [
+      {
+        "character_id": "c_住",
+        "hanzi": "住",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zai": {
+    "characters": [
+      {
+        "character_id": "c_在",
+        "hanzi": "在",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_ma": {
+    "characters": [
+      {
+        "character_id": "c_吗",
+        "hanzi": "吗",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_you": {
+    "characters": [
+      {
+        "character_id": "c_又",
+        "hanzi": "又",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jiaren": {
+    "characters": [
+      {
+        "character_id": "c_家",
+        "hanzi": "家",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_人",
+        "hanzi": "人",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_xiongdi": {
+    "characters": [
+      {
+        "character_id": "c_兄",
+        "hanzi": "兄",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_弟",
+        "hanzi": "弟",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jiemei": {
+    "characters": [
+      {
+        "character_id": "c_姐",
+        "hanzi": "姐",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_妹",
+        "hanzi": "妹",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_gege": {
+    "characters": [
+      {
+        "character_id": "c_哥",
+        "hanzi": "哥",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_哥",
+        "hanzi": "哥",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_didi": {
+    "characters": [
+      {
+        "character_id": "c_弟",
+        "hanzi": "弟",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_弟",
+        "hanzi": "弟",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jiejie": {
+    "characters": [
+      {
+        "character_id": "c_姐",
+        "hanzi": "姐",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_姐",
+        "hanzi": "姐",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_meimei": {
+    "characters": [
+      {
+        "character_id": "c_妹",
+        "hanzi": "妹",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_妹",
+        "hanzi": "妹",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zuo": {
+    "characters": [
+      {
+        "character_id": "c_做",
+        "hanzi": "做",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_gongzuo": {
+    "characters": [
+      {
+        "character_id": "c_工",
+        "hanzi": "工",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_作",
+        "hanzi": "作",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_woshi": {
+    "characters": [
+      {
+        "character_id": "c_我",
+        "hanzi": "我",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_是",
+        "hanzi": "是",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_mang": {
+    "characters": [
+      {
+        "character_id": "c_忙",
+        "hanzi": "忙",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_xihuan": {
+    "characters": [
+      {
+        "character_id": "c_喜",
+        "hanzi": "喜",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_欢",
+        "hanzi": "欢",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_aihao": {
+    "characters": [
+      {
+        "character_id": "c_爱",
+        "hanzi": "爱",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_好",
+        "hanzi": "好",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_quguo": {
+    "characters": [
+      {
+        "character_id": "c_去",
+        "hanzi": "去",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_过",
+        "hanzi": "过",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_haowan": {
+    "characters": [
+      {
+        "character_id": "c_好",
+        "hanzi": "好",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_玩",
+        "hanzi": "玩",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_beijing": {
+    "characters": [
+      {
+        "character_id": "c_北",
+        "hanzi": "北",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_京",
+        "hanzi": "京",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_shanghai": {
+    "characters": [
+      {
+        "character_id": "c_上",
+        "hanzi": "上",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_海",
+        "hanzi": "海",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zhongguo": {
+    "characters": [
+      {
+        "character_id": "c_中",
+        "hanzi": "中",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_国",
+        "hanzi": "国",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_xinxilan": {
+    "characters": [
+      {
+        "character_id": "c_新",
+        "hanzi": "新",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_西",
+        "hanzi": "西",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_兰",
+        "hanzi": "兰",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_de": {
+    "characters": [
+      {
+        "character_id": "c_的",
+        "hanzi": "的",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_he": {
+    "characters": [
+      {
+        "character_id": "c_和",
+        "hanzi": "和",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_bu": {
+    "characters": [
+      {
+        "character_id": "c_不",
+        "hanzi": "不",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_mei": {
+    "characters": [
+      {
+        "character_id": "c_没",
+        "hanzi": "没",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zuijin": {
+    "characters": [
+      {
+        "character_id": "c_最",
+        "hanzi": "最",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_近",
+        "hanzi": "近",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_juede": {
+    "characters": [
+      {
+        "character_id": "c_觉",
+        "hanzi": "觉",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_得",
+        "hanzi": "得",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zenmeyang": {
+    "characters": [
+      {
+        "character_id": "c_怎",
+        "hanzi": "怎",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_么",
+        "hanzi": "么",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_样",
+        "hanzi": "样",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_weishenme": {
+    "characters": [
+      {
+        "character_id": "c_为",
+        "hanzi": "为",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_什",
+        "hanzi": "什",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_么",
+        "hanzi": "么",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_yinwei": {
+    "characters": [
+      {
+        "character_id": "c_因",
+        "hanzi": "因",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_为",
+        "hanzi": "为",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_suoyi": {
+    "characters": [
+      {
+        "character_id": "c_所",
+        "hanzi": "所",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_以",
+        "hanzi": "以",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jihua": {
+    "characters": [
+      {
+        "character_id": "c_计",
+        "hanzi": "计",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_划",
+        "hanzi": "划",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_dasuan": {
+    "characters": [
+      {
+        "character_id": "c_打",
+        "hanzi": "打",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_算",
+        "hanzi": "算",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_shenmeshihou": {
+    "characters": [
+      {
+        "character_id": "c_什",
+        "hanzi": "什",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_么",
+        "hanzi": "么",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_时",
+        "hanzi": "时",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_候",
+        "hanzi": "候",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_yiqi": {
+    "characters": [
+      {
+        "character_id": "c_一",
+        "hanzi": "一",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_起",
+        "hanzi": "起",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jianmian": {
+    "characters": [
+      {
+        "character_id": "c_见",
+        "hanzi": "见",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_面",
+        "hanzi": "面",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_na": {
+    "characters": [
+      {
+        "character_id": "c_那",
+        "hanzi": "那",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jian": {
+    "characters": [
+      {
+        "character_id": "c_见",
+        "hanzi": "见",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_ting": {
+    "characters": [
+      {
+        "character_id": "c_挺",
+        "hanzi": "挺",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_bucuode": {
+    "characters": [
+      {
+        "character_id": "c_不",
+        "hanzi": "不",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_错",
+        "hanzi": "错",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_meitian": {
+    "characters": [
+      {
+        "character_id": "c_每",
+        "hanzi": "每",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_天",
+        "hanzi": "天",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jidian": {
+    "characters": [
+      {
+        "character_id": "c_几",
+        "hanzi": "几",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_点",
+        "hanzi": "点",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_xiaban": {
+    "characters": [
+      {
+        "character_id": "c_下",
+        "hanzi": "下",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_班",
+        "hanzi": "班",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_yiban": {
+    "characters": [
+      {
+        "character_id": "c_一",
+        "hanzi": "一",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_般",
+        "hanzi": "般",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_anpai": {
+    "characters": [
+      {
+        "character_id": "c_安",
+        "hanzi": "安",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_排",
+        "hanzi": "排",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_yitiande": {
+    "characters": [
+      {
+        "character_id": "c_一",
+        "hanzi": "一",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_天",
+        "hanzi": "天",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_yudao": {
+    "characters": [
+      {
+        "character_id": "c_遇",
+        "hanzi": "遇",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_到",
+        "hanzi": "到",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_wenti": {
+    "characters": [
+      {
+        "character_id": "c_问",
+        "hanzi": "问",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_题",
+        "hanzi": "题",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_hui": {
+    "characters": [
+      {
+        "character_id": "c_会",
+        "hanzi": "会",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zenme": {
+    "characters": [
+      {
+        "character_id": "c_怎",
+        "hanzi": "怎",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_么",
+        "hanzi": "么",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jiejue": {
+    "characters": [
+      {
+        "character_id": "c_解",
+        "hanzi": "解",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_决",
+        "hanzi": "决",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_shenghuo": {
+    "characters": [
+      {
+        "character_id": "c_生",
+        "hanzi": "生",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_活",
+        "hanzi": "活",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zhuzai": {
+    "characters": [
+      {
+        "character_id": "c_住",
+        "hanzi": "住",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_在",
+        "hanzi": "在",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_fangbian": {
+    "characters": [
+      {
+        "character_id": "c_方",
+        "hanzi": "方",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_便",
+        "hanzi": "便",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_haochi": {
+    "characters": [
+      {
+        "character_id": "c_好",
+        "hanzi": "好",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_吃",
+        "hanzi": "吃",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_gen": {
+    "characters": [
+      {
+        "character_id": "c_跟",
+        "hanzi": "跟",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zhuyiqi": {
+    "characters": [
+      {
+        "character_id": "c_住",
+        "hanzi": "住",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_在",
+        "hanzi": "在",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_一",
+        "hanzi": "一",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_起",
+        "hanzi": "起",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_duojiu": {
+    "characters": [
+      {
+        "character_id": "c_多",
+        "hanzi": "多",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_久",
+        "hanzi": "久",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_yici": {
+    "characters": [
+      {
+        "character_id": "c_一",
+        "hanzi": "一",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_次",
+        "hanzi": "次",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_guanxi": {
+    "characters": [
+      {
+        "character_id": "c_关",
+        "hanzi": "关",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_系",
+        "hanzi": "系",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_henhao": {
+    "characters": [
+      {
+        "character_id": "c_很",
+        "hanzi": "很",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_好",
+        "hanzi": "好",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_pingshi": {
+    "characters": [
+      {
+        "character_id": "c_平",
+        "hanzi": "平",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_时",
+        "hanzi": "时",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_kaiShi": {
+    "characters": [
+      {
+        "character_id": "c_开",
+        "hanzi": "开",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_始",
+        "hanzi": "始",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_nanbunan": {
+    "characters": [
+      {
+        "character_id": "c_难",
+        "hanzi": "难",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_不",
+        "hanzi": "不",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_难",
+        "hanzi": "难",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_chengjiu": {
+    "characters": [
+      {
+        "character_id": "c_成",
+        "hanzi": "成",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_就",
+        "hanzi": "就",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zuida": {
+    "characters": [
+      {
+        "character_id": "c_最",
+        "hanzi": "最",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_大",
+        "hanzi": "大",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_naxie": {
+    "characters": [
+      {
+        "character_id": "c_哪",
+        "hanzi": "哪",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_些",
+        "hanzi": "些",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_guojia": {
+    "characters": [
+      {
+        "character_id": "c_国",
+        "hanzi": "国",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_家",
+        "hanzi": "家",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zui": {
+    "characters": [
+      {
+        "character_id": "c_最",
+        "hanzi": "最",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_nanwange": {
+    "characters": [
+      {
+        "character_id": "c_难",
+        "hanzi": "难",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_忘",
+        "hanzi": "忘",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zuotian": {
+    "characters": [
+      {
+        "character_id": "c_昨",
+        "hanzi": "昨",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_天",
+        "hanzi": "天",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_houlai": {
+    "characters": [
+      {
+        "character_id": "c_后",
+        "hanzi": "后",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_来",
+        "hanzi": "来",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jintian": {
+    "characters": [
+      {
+        "character_id": "c_今",
+        "hanzi": "今",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_天",
+        "hanzi": "天",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_mingtian": {
+    "characters": [
+      {
+        "character_id": "c_明",
+        "hanzi": "明",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_天",
+        "hanzi": "天",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zhoumò": {
+    "characters": [
+      {
+        "character_id": "c_周",
+        "hanzi": "周",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_末",
+        "hanzi": "末",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_denghuier": {
+    "characters": [
+      {
+        "character_id": "c_等",
+        "hanzi": "等",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_会",
+        "hanzi": "会",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_儿",
+        "hanzi": "儿",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_wanshang": {
+    "characters": [
+      {
+        "character_id": "c_晚",
+        "hanzi": "晚",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_上",
+        "hanzi": "上",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_youdian": {
+    "characters": [
+      {
+        "character_id": "c_有",
+        "hanzi": "有",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_点",
+        "hanzi": "点",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_wode": {
+    "characters": [
+      {
+        "character_id": "c_我",
+        "hanzi": "我",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_的",
+        "hanzi": "的",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_yiyisi": {
+    "characters": [
+      {
+        "character_id": "c_有",
+        "hanzi": "有",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_意",
+        "hanzi": "意",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_思",
+        "hanzi": "思",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_dajia": {
+    "characters": [
+      {
+        "character_id": "c_大",
+        "hanzi": "大",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_家",
+        "hanzi": "家",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zenmejiao": {
+    "characters": [
+      {
+        "character_id": "c_怎",
+        "hanzi": "怎",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_么",
+        "hanzi": "么",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_叫",
+        "hanzi": "叫",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_yiyi": {
+    "characters": [
+      {
+        "character_id": "c_意",
+        "hanzi": "意",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_义",
+        "hanzi": "义",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_nide": {
+    "characters": [
+      {
+        "character_id": "c_你",
+        "hanzi": "你",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_的",
+        "hanzi": "的",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_zhege": {
+    "characters": [
+      {
+        "character_id": "c_这",
+        "hanzi": "这",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_个",
+        "hanzi": "个",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_jiu": {
+    "characters": [
+      {
+        "character_id": "c_就",
+        "hanzi": "就",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_bijiao": {
+    "characters": [
+      {
+        "character_id": "c_比",
+        "hanzi": "比",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_较",
+        "hanzi": "较",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_qu": {
+    "characters": [
+      {
+        "character_id": "c_去",
+        "hanzi": "去",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_difang": {
+    "characters": [
+      {
+        "character_id": "c_地",
+        "hanzi": "地",
+        "role": null,
+        "strength": null
+      },
+      {
+        "character_id": "c_方",
+        "hanzi": "方",
+        "role": null,
+        "strength": null
+      }
+    ]
+  },
+  "w_le": {
+    "characters": [
+      {
+        "character_id": "c_了",
+        "hanzi": "了",
+        "role": null,
+        "strength": null
+      }
+    ]
+  }
+}
