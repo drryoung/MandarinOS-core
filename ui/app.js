@@ -102,6 +102,7 @@ function renderModeledOptions(containerEl, panelOptions, state) {
   containerEl.appendChild(list);
 }
 
+
 function render() {
   // trace is rendered separately by runTurn; card panel driven by reducer state
   if (state.isOpen) {
@@ -110,10 +111,66 @@ function render() {
     cardError.textContent = state.error ? (state.error.message || state.error.kind || "Error") : "";
     cardIdEl.textContent = state.activeCardId || "";
     cardTitle.textContent = (state.activeCard && state.activeCard.title) || "";
-const mainText = (state.activeCard && state.activeCard.content) || "";
+const c = (state.activeCard && state.activeCard.content) || {};
+const head = (c.headword && c.headword.hanzi) ? c.headword.hanzi : "";
+const pinyin = (c.headword && c.headword.pinyin) ? c.headword.pinyin : "";
+const meaning = c.meaning || "";
+
+const mainText = [head, pinyin, meaning].filter(Boolean).join("\n");
+
 clearEl(cardBody);
 cardBody.appendChild(makeDiv("card-main", mainText));
 renderModeledOptions(cardBody, state.panelOptions, state);
+// --- Phase 6: render clickable characters from content.word_composition (if present)
+const compChars =
+  state.activeCard &&
+  state.activeCard.content &&
+  state.activeCard.content.word_composition &&
+  Array.isArray(state.activeCard.content.word_composition.characters)
+    ? state.activeCard.content.word_composition.characters
+    : null;
+
+if (compChars && compChars.length) {
+  const compWrap = makeDiv("card-composition", "");
+  compWrap.appendChild(makeDiv("card-composition-title", "Characters"));
+
+  const row = document.createElement("div");
+  row.className = "card-composition-row";
+
+  compChars.forEach((c, idx) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "char-chip";
+    btn.textContent = c.char || c.hanzi || "";
+    btn.disabled = !btn.textContent;
+
+    btn.addEventListener("click", async () => {
+      const ch = btn.textContent;
+      const cardId = state.activeCardId || "unknown_card";
+      const utteranceId = `card:${cardId}:char:${idx}`;
+
+      emitUITrace({
+        type: "AUDIO_PLAY_REQUESTED",
+        timestamp: new Date().toISOString(),
+        payload: { utterance_id: utteranceId, text: ch, source: "card_composition_char" }
+      });
+
+      ttsSpeak({
+        text: ch,
+        lang: "zh-CN",
+        utterance_id: utteranceId,
+        onEvent: (traceEntry) => emitUITrace(traceEntry),
+      });
+    });
+
+    row.appendChild(btn);
+  });
+
+  compWrap.appendChild(row);
+  cardBody.appendChild(compWrap);
+}
+// --- end composition rendering
+
 
 
     // play affordance visible for surface devices; enable when a card is active

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generated_at": "2026-02-22T04:06:48.724164Z",
+  "generated_at": "2026-02-22T04:25:25.512357Z",
   "cards": [
     {
       "card_id": "w_ni",
@@ -25,7 +25,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "你",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -82,7 +98,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "我",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -139,7 +171,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "他",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -196,7 +244,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "好",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -264,7 +328,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "你",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "好",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -332,7 +423,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "谢",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "谢",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -411,7 +529,45 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "不",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "客",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "气",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -468,7 +624,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "是",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -525,7 +697,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "叫",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -593,7 +781,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "什",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "么",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -661,7 +876,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "名",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "字",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -718,7 +960,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "呢",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -786,7 +1044,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "哪",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "里",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -843,7 +1128,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "人",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -911,7 +1212,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "现",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "在",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -968,7 +1296,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "住",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1025,7 +1369,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "在",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1082,7 +1442,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "吗",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1139,7 +1515,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "又",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1207,7 +1599,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "家",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "人",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1275,7 +1694,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "兄",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "弟",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1343,7 +1789,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "姐",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "妹",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1411,7 +1884,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "哥",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "哥",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1479,7 +1979,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "弟",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "弟",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1547,7 +2074,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "姐",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "姐",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1615,7 +2169,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "妹",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "妹",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1672,7 +2253,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "做",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1740,7 +2337,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "工",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "作",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1808,7 +2432,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "我",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "是",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1865,7 +2516,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "忙",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -1933,7 +2600,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "喜",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "欢",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2001,7 +2695,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "爱",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "好",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2069,7 +2790,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "去",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "过",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2137,7 +2885,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "好",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "玩",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2205,7 +2980,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "北",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "京",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2273,7 +3075,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "上",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "海",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2341,7 +3170,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "中",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "国",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2420,7 +3276,45 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "新",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "西",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "兰",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2477,7 +3371,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "的",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2534,7 +3444,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "和",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2591,7 +3517,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "不",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2648,7 +3590,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "没",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2716,7 +3674,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "最",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "近",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2784,7 +3769,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "觉",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "得",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2863,7 +3875,45 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "怎",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "么",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "样",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -2942,7 +3992,45 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "为",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "什",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "么",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3010,7 +4098,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "因",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "为",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3078,7 +4193,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "所",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "以",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3146,7 +4288,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "计",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "划",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3214,7 +4383,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "打",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "算",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3282,7 +4478,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "什",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "么",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3372,7 +4595,56 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "什",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "么",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "时",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "候",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3440,7 +4712,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "一",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "起",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3508,7 +4807,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "见",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "面",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3565,7 +4891,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "那",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3622,7 +4964,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "见",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3679,7 +5037,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "挺",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3747,7 +5121,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "不",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "错",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3815,7 +5216,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "喜",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "欢",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3883,7 +5311,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "每",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "天",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -3951,7 +5406,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "几",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "点",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4019,7 +5501,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "下",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "班",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4087,7 +5596,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "一",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "般",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4155,7 +5691,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "安",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "排",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4223,7 +5786,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "一",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "天",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4291,7 +5881,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "遇",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "到",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4359,7 +5976,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "问",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "题",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4416,7 +6060,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "会",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4484,7 +6144,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "怎",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "么",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4552,7 +6239,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "解",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "决",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4620,7 +6334,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "生",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "活",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4688,7 +6429,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "住",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "在",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4756,7 +6524,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "方",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "便",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4824,7 +6619,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "好",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "吃",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4881,7 +6703,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "跟",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -4949,7 +6787,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "家",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "人",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5039,7 +6904,56 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "住",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "在",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "一",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "起",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5107,7 +7021,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "多",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "久",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5175,7 +7116,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "一",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "次",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5243,7 +7211,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "关",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "系",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5311,7 +7306,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "很",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "好",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5379,7 +7401,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "平",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "时",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5447,7 +7496,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "开",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "始",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5526,7 +7602,45 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "难",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "不",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "难",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5594,7 +7708,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "成",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "就",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5662,7 +7803,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "最",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "大",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5730,7 +7898,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "去",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "过",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5798,7 +7993,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "哪",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "些",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5866,7 +8088,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "国",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "家",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5923,7 +8172,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "最",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -5991,7 +8256,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "难",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "忘",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6059,7 +8351,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "昨",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "天",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6127,7 +8446,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "后",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "来",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6184,7 +8530,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "又",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6252,7 +8614,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "今",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "天",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6320,7 +8709,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "明",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "天",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6388,7 +8804,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "周",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "末",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6467,7 +8910,45 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "等",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "会",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "儿",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6535,7 +9016,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "晚",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "上",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6603,7 +9111,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "工",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "作",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6671,7 +9206,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "有",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "点",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6728,7 +9290,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "忙",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6796,7 +9374,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "我",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "的",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6864,7 +9469,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "名",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "字",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -6943,7 +9575,45 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "有",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "意",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "思",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7011,7 +9681,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "大",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "家",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7090,7 +9787,45 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "怎",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "么",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "叫",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7158,7 +9893,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "意",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "义",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7226,7 +9988,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "你",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "的",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7294,7 +10083,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "这",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "个",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7351,7 +10167,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "就",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7419,7 +10251,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "比",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "较",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7476,7 +10335,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "去",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7544,7 +10419,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "地",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "方",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7612,7 +10514,34 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "好",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "玩",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7669,7 +10598,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "吗",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7726,7 +10671,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "的",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,
@@ -7783,7 +10744,23 @@
               "stroke_order_hint_available": false
             }
           }
-        ]
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "了",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
       },
       "state": {
         "reveal_level": 0,

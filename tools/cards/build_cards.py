@@ -160,10 +160,11 @@ def build_card_for_word(word: Dict[str, Any], links_map: Dict[str, Any], char_in
 
     card["content"]["meaning"] = meaning
 
-    # composition if present
+    # composition (manual only; auto added later after characters are built)
     composition = word.get("composition") or word.get("word_composition")
     if composition:
         card["content"]["word_composition"] = composition
+
 
     # characters from links
     
@@ -246,6 +247,14 @@ def build_card_for_word(word: Dict[str, Any], links_map: Dict[str, Any], char_in
 
     if chars_list:
         card["content"]["characters"] = chars_list
+
+    # AUTO composition if not manually provided in the word file
+    if "word_composition" not in card["content"]:
+        card["content"]["word_composition"] = {
+            "type": "auto",
+            "characters": chars_list
+        }
+
 
     # trace refs
     trace_mode_available = any(
