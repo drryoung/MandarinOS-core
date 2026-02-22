@@ -187,10 +187,7 @@ const compChars =
 
 if (compChars && compChars.length) {
   const compWrap = makeDiv("card-composition", "");
-    const hint = document.createElement("div");
-    hint.className = "card-composition-hint";
-    hint.innerHTML = "<em>Tap a character to hear it.</em>";
-    compWrap.appendChild(hint);
+  
 
 
 
@@ -227,6 +224,12 @@ if (compChars && compChars.length) {
   });
 
   compWrap.appendChild(row);
+
+  const hint = document.createElement("div");
+  hint.className = "card-composition-hint";
+  hint.innerHTML = "<em>Tap a character to hear it.</em>";
+  compWrap.appendChild(hint);
+
   cardBody.appendChild(compWrap);
 }
 // --- end composition rendering
