@@ -187,8 +187,11 @@ const compChars =
 
 if (compChars && compChars.length) {
   const compWrap = makeDiv("card-composition", "");
-  compWrap.appendChild(makeDiv("card-composition-title", "Characters"));
-  compWrap.appendChild(makeDiv("card-composition-hint", "Tap a character to hear it."));
+    const hint = document.createElement("div");
+    hint.className = "card-composition-hint";
+    hint.innerHTML = "<em>Tap a character to hear it.</em>";
+    compWrap.appendChild(hint);
+
 
 
   const row = document.createElement("div");
