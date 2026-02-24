@@ -40,3 +40,25 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
   opacity: 0.85;
   margin-top: 6px;
 }
+
+/* Phase 6 — Character Chips */
+
+.char-chip {
+  font-size: 20px;
+  padding: 6px 10px;
+  margin: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: rgba(255,255,255,0.85);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.char-chip:hover {
+  background: rgba(0,0,0,0.04);
+  transform: translateY(-1px);
+}
+
+.card-composition-row {
+  margin-top: 6px;
+}

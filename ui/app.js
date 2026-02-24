@@ -4,6 +4,7 @@ import { ttsSpeak } from "./ttsSpeak.js";
 const frameSelect = document.getElementById("frameSelect");
 const runBtn = document.getElementById("runBtn");
 const traceEl = document.getElementById("trace");
+const dataBuildInfoEl = document.getElementById("dataBuildInfo");
 const cardPanel = document.getElementById("cardPanel");
 const noCard = document.getElementById("noCard");
 const cardIdEl = document.getElementById("cardId");
@@ -253,8 +254,50 @@ if (compChars && compChars.length) {
 }
 
 function renderTrace() {
-  traceEl.textContent = JSON.stringify(uiTrace, null, 2);
+  if (!traceEl) {
+    console.warn("traceEl not found in DOM");
+    return;
+  }
+
+  // Presentation-only: show latest line + cap rendered events to avoid UI slowdown
+  const MAX_RENDER_EVENTS = 200;
+
+  const last = Array.isArray(uiTrace) && uiTrace.length ? uiTrace[uiTrace.length - 1] : null;
+  const t = last && typeof last === "object" ? (last.type || "(no type)") : "(none)";
+  const ts = last && typeof last === "object" ? (last.timestamp || "") : "";
+  const header = ts ? `Latest: ${t} @ ${ts}\n` : `Latest: ${t}\n`;
+
+  const total = Array.isArray(uiTrace) ? uiTrace.length : 0;
+  const start = Math.max(0, total - MAX_RENDER_EVENTS);
+  const slice = Array.isArray(uiTrace) ? uiTrace.slice(start) : [];
+
+  // Presentation-only: hide noisy TTS interruptions (still exist in uiTrace; just not shown)
+  const filtered = slice.filter((ev) => {
+    if (!ev || typeof ev !== "object") return true;
+    if (ev.type !== "AUDIO_ERROR") return true;
+    const err = ev.payload && ev.payload.error;
+    return err !== "interrupted";
+  });
+
+  const hiddenCount = slice.length - filtered.length;
+
+  const noteBase =
+    total > MAX_RENDER_EVENTS
+      ? `Showing last ${MAX_RENDER_EVENTS} of ${total} events (render-capped)\n`
+      : `Showing ${total} events\n`;
+
+  const noteHidden = hiddenCount
+    ? `Hidden: ${hiddenCount} AUDIO_ERROR interrupted (trace-noise filter)\n\n`
+    : `\n`;
+
+  try {
+    traceEl.textContent = header + noteBase + noteHidden + JSON.stringify(filtered, null, 2);
+  } catch (err) {
+    console.error("Trace render failed:", err);
+    traceEl.textContent = "[Trace render error — see console]";
+  }
 }
+
 
 function emitUITrace(ev) {
   uiTrace.push(ev);
@@ -407,22 +450,58 @@ cardPanel.addEventListener("click", (e) => {
   if (e.target === cardPanel) dispatch({ type: "CARD_PANEL_CLOSED" });
 });
 
+// UI-only: human-readable label for which data build is currently in use
+const UI_DATA_BUILD_LABEL = "p1/p2 enriched (schema-preserving) + characters_1200 (v3 content) + runtime_indexes_v1";
+
+
 // defaults
 window.addEventListener("load", async () => {
   await loadPackFramesIntoDropdown();
+  if (dataBuildInfoEl) dataBuildInfoEl.textContent = `Data: ${UI_DATA_BUILD_LABEL}`;
   render();
 });
 
 runBtn.addEventListener("click", runTurn);
 if (playBtn) {
   playBtn.addEventListener("click", () => {
-    if (!state.isOpen) return;
+        // Panel Play: derive speakable text from DOM (presentation truth), not reducer state
+    const hanziEl = document.querySelector("#cardBody .card-main-hanzi");
+    const titleEl = document.getElementById("cardTitle");
+    const bodyEl = document.getElementById("cardBody");
 
-    const text =
-      (state.activeCard && (state.activeCard.content || state.activeCard.title)) ||
-      "";
+    let text = "";
+    if (hanziEl && hanziEl.textContent && hanziEl.textContent.trim()) {
+      text = hanziEl.textContent.trim();
+    } else if (titleEl && titleEl.textContent && titleEl.textContent.trim()) {
+      text = titleEl.textContent.trim();
+    } else if (bodyEl && bodyEl.textContent && bodyEl.textContent.trim()) {
+      text = bodyEl.textContent.trim();
+    }
+
+    if (!text) {
+      emitUITrace({
+        type: "AUDIO_ERROR",
+        timestamp: new Date().toISOString(),
+        payload: { utterance_id: "card:unknown:panel", error: "No speakable text found in Card Panel DOM" },
+      });
+      return;
+    }
+
+  //  if (!state || !state.activeCard) return;
+
+        if (state.activeCard) {
+      const hw = state.activeCard.headword && state.activeCard.headword.hanzi;
+      if (typeof hw === "string" && hw.trim()) {
+        text = hw.trim();
+      } else if (typeof state.activeCard.content === "string" && state.activeCard.content.trim()) {
+        text = state.activeCard.content.trim();
+      } else if (typeof state.activeCard.title === "string" && state.activeCard.title.trim()) {
+        text = state.activeCard.title.trim();
+      }
+    }
 
     if (!text) return;
+
 
     const utterance_id = `card:${state.activeCardId || "unknown"}:panel`;
 
@@ -448,6 +527,34 @@ if (playBtn) {
         emitUITrace(traceEntry);
       },
     });
+  });
+}
+
+// UI-only: make card ID clickable to copy
+if (cardIdEl) {
+  cardIdEl.style.cursor = "pointer";
+
+  cardIdEl.addEventListener("click", async () => {
+    const text = cardIdEl.textContent;
+    if (!text) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+
+      // Show a temporary indicator without overwriting the ID text
+      const original = cardIdEl.textContent;
+      cardIdEl.textContent = `${original} (copied)`;
+      setTimeout(() => {
+        // Remove only the indicator
+        if (cardIdEl.textContent === `${original} (copied)`) {
+          cardIdEl.textContent = original;
+        }
+      }, 1000);
+
+
+    } catch (err) {
+      console.warn("Clipboard copy failed:", err);
+    }
   });
 }
 
