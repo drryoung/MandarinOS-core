@@ -13,6 +13,10 @@ def _resolve_repo_root() -> Path:
 
 
 def _load_json(path: Path) -> Any:
+    # Runtime integrity guardrail: never load archived/computed artifacts at execution time.
+    p = path.as_posix()
+    if "/runtime/out/" in p or p.endswith("/runtime_indexes_computed_v1.json"):
+        raise RuntimeError(f"Refusing to load runtime/out artifact at runtime: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
 
 

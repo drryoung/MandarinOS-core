@@ -16,4 +16,4 @@ class RegistryConfig:
     fixture_cards_index: str = "cards_index.json"
 
     # If True, do NOT fall back to fixture files
-    strict_runtime: bool = False
+    strict_runtime: bool = True

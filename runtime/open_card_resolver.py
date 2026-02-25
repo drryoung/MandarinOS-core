@@ -1,18 +1,16 @@
-import json
+
 from datetime import datetime
 from typing import Any, Dict, Optional
-
+from runtime.registry_config import RegistryConfig
 
 class OpenCardResolutionError(Exception):
     pass
 
 
-def load_json(path: str) -> Any:
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
 
 
-def resolve_card_for_frame(frame: Dict[str, Any], engine_affordances: Dict[str, Any], cards_index: Dict[str, str], cards: Dict[str, Any], env: str = "dev") -> Optional[str]:
+
+def resolve_card_for_frame(frame: Dict[str, Any], engine_affordances: Dict[str, Any], cards_index: Dict[str, Any], cards: Dict[str, Any], env: str = "dev") -> Optional[str]:
     """
     Resolve a card_id for the given frame using the provided cards_index map.
 
@@ -25,6 +23,41 @@ def resolve_card_for_frame(frame: Dict[str, Any], engine_affordances: Dict[str, 
     """
     if not frame:
         return None
+    
+    strict_runtime = RegistryConfig().strict_runtime
+
+    if strict_runtime:
+        if not isinstance(cards_index, dict):
+            raise OpenCardResolutionError("Strict runtime requires cards_index to be a dict")
+
+        if "by_word_id" not in cards_index:
+            raise OpenCardResolutionError(
+                "Strict runtime requires cards_index['by_word_id']"
+            )
+        if strict_runtime and not cards_index.get("by_word_id"):
+            raise OpenCardResolutionError(
+                "Strict runtime: cards_index['by_word_id'] is empty"
+            )
+        if not isinstance(cards, dict):
+            raise OpenCardResolutionError(
+                "Strict runtime requires cards to be a dict"
+            )
+
+        if not cards:
+            raise OpenCardResolutionError(
+                "Strict runtime: cards dict is empty"
+            )
+        
+    def _return_if_card_exists(card_id: Optional[str]) -> Optional[str]:
+        if not card_id:
+            return None
+        if strict_runtime and card_id not in (cards or {}):
+            raise OpenCardResolutionError(
+                f"Strict runtime: resolved card_id missing from cards: {card_id}"
+            )
+        return card_id
+
+
 
     readiness = frame.get("readiness_label")
 
@@ -55,30 +88,33 @@ def resolve_card_for_frame(frame: Dict[str, Any], engine_affordances: Dict[str, 
     # try tokens first
     for t in tokens:
         if isinstance(t, str) and t in by_word_id:
-            return by_word_id[t]
+            return _return_if_card_exists(by_word_id[t])
 
     # fallback: try frame_id
     fid = frame.get("frame_id")
     if fid and fid in by_word_id:
-        return by_word_id[fid]
+        return _return_if_card_exists(by_word_id[fid])
 
     # Phase 5 fallback: resolve by frame text (hanzi) using cards_index.by_hanzi
-    text = frame.get("text")
-    by_hanzi = cards_index.get("by_hanzi") if isinstance(cards_index, dict) else None
+    # STRICT RUNTIME: forbid this fallback because it can hide index/data integrity issues.
+    
+    if not strict_runtime:
+        text = frame.get("text")
+        by_hanzi = cards_index.get("by_hanzi") if isinstance(cards_index, dict) else None
 
-    if isinstance(text, str) and isinstance(by_hanzi, dict):
-        # 1) Exact match (rare, but keep it)
-        hits = by_hanzi.get(text)
-        if isinstance(hits, list) and len(hits) > 0:
-            return hits[0]
+        if isinstance(text, str) and isinstance(by_hanzi, dict):
+            # 1) Exact match (rare, but keep it)
+            hits = by_hanzi.get(text)
+            if isinstance(hits, list) and len(hits) > 0:
+                return hits[0]
 
-        # 2) Sentence match: if any known word appears inside the sentence, use it
-        # Try longer words first so "哥哥" beats "哥" etc.
-        for hanzi_word in sorted(by_hanzi.keys(), key=len, reverse=True):
-            if hanzi_word and hanzi_word in text:
-                hits2 = by_hanzi.get(hanzi_word)
-                if isinstance(hits2, list) and len(hits2) > 0:
-                    return hits2[0]
+            # 2) Sentence match: if any known word appears inside the sentence, use it
+            # Try longer words first so "哥哥" beats "哥" etc.
+            for hanzi_word in sorted(by_hanzi.keys(), key=len, reverse=True):
+                if hanzi_word and hanzi_word in text:
+                    hits2 = by_hanzi.get(hanzi_word)
+                    if isinstance(hits2, list) and len(hits2) > 0:
+                        return hits2[0]
 
     # nothing found
     if env != "prod":
