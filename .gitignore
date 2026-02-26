@@ -6,3 +6,9 @@ __pycache__/
 # Local patches/backups
 *.patch
 
+# Local scratch / artifacts (not source)
+scratch/
+
+# Python noise
+__pycache__/
+*.pyc
