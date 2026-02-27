@@ -1,4 +1,6 @@
 {
-  "你好": "card_hello",
-  "identity.greeting": "card_hello"
+  "by_word_id": {
+    "你好": "card_hello",
+    "identity.greeting": "card_hello"
+  }
 }
