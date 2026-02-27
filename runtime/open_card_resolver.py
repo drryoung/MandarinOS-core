@@ -1,5 +1,5 @@
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, Optional
 from runtime.registry_config import RegistryConfig
 
@@ -127,7 +127,7 @@ def resolve_card_for_frame(frame: Dict[str, Any], engine_affordances: Dict[str, 
 def build_open_card_event(engine_id: str, frame_id: str, card_id: str, reason: Optional[str] = None) -> Dict[str, Any]:
     return {
         "type": "OPEN_CARD",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now().isoformat(),
         "payload": {
             "engine_id": engine_id,
             "frame_id": frame_id,

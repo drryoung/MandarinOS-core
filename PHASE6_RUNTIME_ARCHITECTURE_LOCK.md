@@ -113,4 +113,23 @@ Engine is deterministic given injected inputs.
 
 ---
 
+## Pytest Note (Windows / Python 3.14)
+
+On some Windows environments with Python 3.14, pytest may crash with:
+
+ValueError: I/O operation on closed file
+
+This is a known capture-layer issue in pytest.
+
+Workaround:
+
+    python -m pytest -q -s
+
+or
+
+    python -m pytest -q --capture=no
+
+This does not indicate a runtime integrity problem.
+
+
 END OF LOCK FILE
