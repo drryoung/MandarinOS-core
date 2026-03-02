@@ -1,0 +1,96 @@
+MANDARINOS — ARCHITECT + COPILOT HANDOFF DIRECTIVE (Notebook)
+
+Project: MandarinOS ChatGPT Branch Name (Chat-only):
+phase7_clickable_tokens Status: Phase 6 runtime is FROZEN (no runtime
+code changes). User note: I am NOT a programmer. Use plain English.
+Avoid jargon. Give small steps only.
+
+PRIMARY OBJECTIVE (current task) Phase 7.3 — Clickable words inside
+sentence display. When a frame sentence is displayed, each word in that
+sentence must be clickable. Clicking a word must open its existing word
+card (current open-card behavior). Do NOT modify runtime scheduling or
+SM-2 or progression.
+
+HARD CONSTRAINTS (non-negotiable) 1) NO runtime changes: - Do not edit
+any code under /runtime (runtime logic is frozen/deterministic). - Do
+not change scheduling, SM-2, selection, or any “next item” logic. 2)
+Builder + UI only. 3) No silent coercion: - No auto-dedupe, no guessing
+missing fields, no fallback that changes meaning. - If data is missing,
+fail loud (clear error) or show explicit “missing mapping” message in UI
+(dev-mode acceptable). 4) Deterministic builds: - Same inputs must
+produce the same outputs. 5) No fixture fallbacks. No hidden
+compatibility hacks.
+
+AUTHORITATIVE DOCUMENTS (read & follow; priority order) 1)
+PHASE6_FREEZE.md 2) PHASE6_RUNTIME_ARCHITECTURE_LOCK.md 3) MandarinOS AI
+Interaction Protocol v1.0 4) mandarinos_design_constitution.txt (If
+conflict: higher item wins. Do not “improve” locked docs without
+explicit instruction.)
+
+KNOWN CURRENT STATE (facts) - UI server anchor:
+http://localhost:8765/ui/index.html - Frames (P1/P2) now have explicit
+option_tokens (word ids like w_*), but may not yet cover every word in
+every sentence. - Builder outputs: -
+runtime/out_phase7/cards.runtime.json -
+runtime/out_phase7/cards_index.runtime.json - Runtime is frozen and
+deterministic. - No fixture fallbacks. - No silent coercion.
+
+PHASE 7.3 REQUIRED DELIVERABLES (minimum) A) One new derived artifact
+produced by the builder (UI consumption only): - Name:
+runtime/out_phase7/frame_render_tokens.runtime.json - Purpose: map
+frame_id -> ordered display pieces to render the sentence as clickable
+tokens. - Output tokens must distinguish: - clickable word token: {
+“t”:“word”, “id”:“w_…”, “s”:“” } - literal token: { “t”:“lit”, “s”:“”
+} - IMPORTANT: Current builder validation only accepts w_* in
+frame.option_tokens. Therefore punctuation must NOT be added to
+option_tokens. Punctuation/literals should be derived from frame.text in
+a deterministic way when generating render tokens.
+
+B)  Minimal UI change:
+    -   Load frame_render_tokens.runtime.json at UI startup (same
+        pattern as other runtime JSON loads).
+    -   When displaying a frame sentence:
+        -   If render tokens exist for the frame: render as spans:
+            -   word spans clickable -> open word card using existing
+                behavior (no new runtime API)
+            -   literal spans non-clickable
+        -   If render tokens missing: show plain text OR a clear dev
+            warning (no guessing).
+    -   Clicking a word MUST open its word card (existing open-card
+        behavior).
+    -   No scheduling changes.
+
+IMPLEMENTATION RULES (how ChatGPT should work with me) - Do not ask me
+to “figure out variable names” or “search around” without giving me
+exact copy/paste commands. - Give instructions as 1–2–3 steps, each step
+small. - Always say exactly which file to open and exactly what to
+replace/paste. - If you need code context, ask me to paste a specific
+small chunk (e.g., “paste lines around the place that loads
+frames/words”).
+
+COPILOT WORKFLOW (recommended division of labor) - ChatGPT = senior
+architect + reviewer: - defines spec, boundaries, acceptance checks -
+reviews diffs and prevents scope creep - GitHub Copilot (Claude Sonnet)
+= implementer: - searches repo for correct variables/paths - makes
+mechanical edits in builder + UI - runs build/test commands and reports
+results
+
+STOP CONDITIONS (very important) - If unsure about a field name or file
+location: - SEARCH the repo (Copilot or ripgrep) and cite the exact
+line. - Do NOT invent names or “assume”. - After implementing the
+minimal slice, STOP and present: 1) list of modified files 2) git diff
+(or summary + key hunks) 3) commands to run 4) what I should click in
+the UI to verify
+
+CURRENT KNOWN FILE POINTER - Builder script found via search:
+tools/build_runtime_artifacts.py (contains RUNTIME_OUT_DIR =
+repo_root/runtime/out_phase7)
+
+DEFINITION OF DONE (Phase 7.3) - For at least one MVP frame sentence: -
+sentence displays as separate clickable word tokens (not just one big
+text block) - clicking a word opens the correct word card - punctuation
+displays correctly - no runtime file/code changes - builder output
+includes frame_render_tokens.runtime.json - behavior remains
+deterministic and with no silent coercion
+
+END OF DIRECTIVE
