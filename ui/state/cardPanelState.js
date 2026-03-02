@@ -15,6 +15,20 @@ export function reduce(state, action) {
   if (!action || !action.type) return s;
 
   switch (action.type) {
+
+    case "OPEN_CARD": {
+      const cardId = action.payload && action.payload.card_id;
+      s.history = s.activeCardId
+        ? (Array.isArray(s.history) ? s.history.concat([s.activeCardId]) : [s.activeCardId])
+        : (Array.isArray(s.history) ? s.history : []);
+      s.isOpen = true;
+      s.activeCardId = cardId || null;
+      s.activeCard = null;
+      s.error = null;
+      s.panelOptions = null;
+      return s;
+    }
+
     case "TRACE_EVENT_RECEIVED": {
       const te = action.payload && action.payload.traceEvent;
 

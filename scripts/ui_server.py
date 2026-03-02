@@ -2,268 +2,159 @@
 import argparse
 import json
 import sys
-from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
-from datetime import datetime, timezone
-from runtime.frames_loader import load_frame_from_packs
+from urllib.parse import urlparse, parse_qs
+import mimetypes
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-UI_DIR = REPO_ROOT / "ui"
-FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
+REPO_ROOT   = Path(__file__).resolve().parents[1]
+UI_DIR      = REPO_ROOT / "ui"
 RUNTIME_DIR = REPO_ROOT / "runtime"
 
 print("[ui_server] REPO_ROOT =", REPO_ROOT)
+print("[ui_server] UI_DIR    =", UI_DIR)
 print("[ui_server] RUNTIME_DIR =", RUNTIME_DIR)
-print("[ui_server] RUNTIME_DIR exists =", RUNTIME_DIR.exists())
 
-def load_cards_by_id(repo_root: Path) -> dict:
-    """
-    Preferred: tools/cards/out/cards_by_id.json (card_id -> full card object)
-    Fallback: tools/cards/out/cards.json (build dict)
-    """
-    by_id_path = repo_root / "tools" / "cards" / "out" / "cards_by_id.json"
-    if by_id_path.exists():
-        return json.loads(by_id_path.read_text(encoding="utf-8"))
+# ── Load runtime indexes at startup ──────────────────────────────────────────
+_frt_path = RUNTIME_DIR / "out_phase7" / "frame_render_tokens.runtime.json"
+_ci_path  = RUNTIME_DIR / "out_phase7" / "cards_index.runtime.json"
 
-    cards_path = repo_root / "tools" / "cards" / "out" / "cards.json"
-    if not cards_path.exists():
-        return {}
+_frame_tokens = {}
+_cards_by_word_id = {}
 
-    data = json.loads(cards_path.read_text(encoding="utf-8"))
-    cards = data.get("cards") if isinstance(data, dict) else data
-    if not isinstance(cards, list):
-        return {}
+if _frt_path.is_file():
+    _frame_tokens = json.loads(_frt_path.read_text(encoding="utf-8")).get("frames", {})
+    print(f"[ui_server] frame_render_tokens loaded ({len(_frame_tokens)} frames)")
+else:
+    print(f"[ui_server] WARNING: frame_render_tokens not found at {_frt_path}")
 
-    out = {}
-    for c in cards:
-        if isinstance(c, dict) and c.get("card_id"):
-            out[c["card_id"]] = c
-    return out
-
-def safe_load_json(rel_path: str):
-    p = Path(rel_path)
-    if p.is_absolute():
-        raise ValueError("Absolute paths are not allowed")
-    if ".." in p.parts:
-        raise ValueError("Parent directory traversal not allowed")
-    full = (REPO_ROOT / p).resolve()
-    if not str(full).startswith(str(REPO_ROOT)):
-        raise ValueError("Path must be inside repo root")
-    if not full.exists():
-        raise FileNotFoundError(str(full))
-    return json.loads(full.read_text(encoding="utf-8"))
+if _ci_path.is_file():
+    _cards_by_word_id = json.loads(_ci_path.read_text(encoding="utf-8")).get("by_word_id", {})
+    print(f"[ui_server] cards_index loaded ({len(_cards_by_word_id)} entries)")
+else:
+    print(f"[ui_server] WARNING: cards_index not found at {_ci_path}")
 
 
+def _stub_card_id(frame_id: str):
+    """Return card_id for the first word token in the frame, or None."""
+    tokens = _frame_tokens.get(frame_id, [])
+    for tok in tokens:
+        if tok.get("t") == "word":
+            word_id = tok.get("id")
+            card_id = _cards_by_word_id.get(word_id)
+            print(f"[ui_server] _stub_card_id: frame={frame_id} word_id={word_id} card_id={card_id}")
+            return card_id
+    print(f"[ui_server] _stub_card_id: no word token found for frame={frame_id}")
+    return None
+
+
+# ── HTTP Handler ──────────────────────────────────────────────────────────────
 class Handler(BaseHTTPRequestHandler):
-    def _set_json(self, code=200):
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.end_headers()
-
-    def _set_text(self, code=200, content_type="text/html; charset=utf-8"):
-        self.send_response(code)
-        self.send_header("Content-Type", content_type)
-        self.end_headers()
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        path = parsed.path
-        print(f"[ui_server] GET {path!r}")   # ← ADD THIS LINE
+        path   = parsed.path
+        qs     = parse_qs(parsed.query)
 
-        if path == "/":
-            f = UI_DIR / "index.html"
-            if not f.exists():
-                self._set_text(404)
-                self.wfile.write(b"index.html not found")
-                return
-            self._set_text(200, "text/html; charset=utf-8")
-            self.wfile.write(f.read_bytes())
-            return
-
-        # Serve /runtime/* from <REPO_ROOT>/runtime/
-        if path.startswith("/runtime/"):
-            rel = path[len("/runtime/"):]
-            f = (RUNTIME_DIR / rel).resolve()
-            if not str(f).lower().startswith(str(RUNTIME_DIR.resolve()).lower()):
-                self._set_text(403)
-                self.wfile.write(b"forbidden")
-                return
-            if not f.exists() or not f.is_file():
-                self._set_text(404)
-                self.wfile.write(b"not found")
-                return
-            self._set_text(200, "application/json; charset=utf-8")
-            self.wfile.write(f.read_bytes())
-            return
-
-        # fixtures files (tests/fixtures) served under /fixtures/
-        if path.startswith("/fixtures/"):
-            rel = path[len("/fixtures/"):]  # e.g. "frame_open_card.json"
-            f = FIXTURES_DIR / rel
-            if not f.exists() or not f.is_file():
-                self._set_text(404)
-                self.wfile.write(b"not found")
-                return
-            self._set_text(200, "application/json; charset=utf-8")
-            self.wfile.write(f.read_bytes())
-            return
-
-        # Serve frame packs from repo root (Phase 5)
-        if path in ("/p1_frames.json", "/p2_frames.json"):
-            repo_root = Path(__file__).resolve().parents[1]
-            f = repo_root / path.lstrip("/")
-            if not f.exists() or not f.is_file():
-                self._set_text(404)
-                self.wfile.write(b"not found")
-                return
-            self._set_text(200, "application/json; charset=utf-8")
-            self.wfile.write(f.read_bytes())
-            return
-
-
-        # static files
-        if path.startswith("/") and not path.startswith("/api/"):
-            rel = path.lstrip("/")
-            f = UI_DIR / rel
-            if not f.exists() or not f.is_file():
-                self._set_text(404)
-                self.wfile.write(b"not found")
-                return
-            ctype = "text/javascript; charset=utf-8" if f.suffix == ".js" else "text/css; charset=utf-8" if f.suffix == ".css" else "text/plain; charset=utf-8"
-            self._set_text(200, ctype)
-            self.wfile.write(f.read_bytes())
-            return
-
+        # /api/cards?path=tools/cards/out/cards_by_id.json
         if path == "/api/cards":
-            qs = parse_qs(parsed.query)
-            p = qs.get("path", ["tools/cards/out/cards_by_id.json"])[0]
-            try:
-                cards = safe_load_json(p)
-            except Exception as e:
-                self._set_json(400)
-                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            rel = qs.get("path", [None])[0]
+            if not rel:
+                self._json_error(400, "missing path param")
                 return
-            self._set_json(200)
-            self.wfile.write(json.dumps(cards, ensure_ascii=False).encode("utf-8"))
+            self._serve_file(REPO_ROOT / rel, path)
             return
 
-        self._set_text(404)
-        self.wfile.write(b"not found")
+        if path.startswith("/runtime/"):
+            file_path = RUNTIME_DIR / path[len("/runtime/"):]
+        elif path.startswith("/ui/") or path in ("/ui", "/ui/index.html"):
+            rel = path[len("/ui/"):] if path.startswith("/ui/") else "index.html"
+            file_path = UI_DIR / rel
+        elif path.endswith(".json") and "/" not in path.lstrip("/"):
+            file_path = REPO_ROOT / path.lstrip("/")
+        elif path == "/":
+            self.send_response(302)
+            self.send_header("Location", "/ui/index.html")
+            self.end_headers()
+            return
+        else:
+            file_path = UI_DIR / path.lstrip("/")
+
+        self._serve_file(file_path, path)
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        if parsed.path != "/api/run_turn":
-            self._set_json(404)
-            self.wfile.write(json.dumps({"error": "not found"}).encode("utf-8"))
+        path   = parsed.path
+
+        if path == "/api/run_turn":
+            length = int(self.headers.get("Content-Length", 0))
+            body   = self.rfile.read(length)
+            try:
+                payload = json.loads(body)
+            except Exception as e:
+                print(f"[ui_server] bad request body: {e}")
+                payload = {}
+
+            print(f"[ui_server] /api/run_turn: {payload}")
+
+            frame_id  = payload.get("frame_id", "unknown")
+            engine_id = payload.get("engine_id", "unknown")
+            card_id   = _stub_card_id(frame_id)
+
+            response = {
+                "turn_uid":            payload.get("turn_uid", ""),
+                "engine_id":           engine_id,
+                "frame_id":            frame_id,
+                "result":              "ok",
+                "options":             [],
+                "gold_option_present": False,
+                "option_count":        0,
+                "card_id":             card_id,
+                "system_note":         "stub — engine not yet wired"
+            }
+
+            data = json.dumps(response, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
             return
 
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length) if length else b""
-        try:
-            data = json.loads(body.decode("utf-8") or "{}")
-        except Exception as e:
-            self._set_json(400)
-            self.wfile.write(json.dumps({"error": f"invalid json body: {e}"}).encode("utf-8"))
-            return
+        self.send_response(404)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(f"404 Not Found: {path}".encode())
 
-        frame_path = data.get("frame_path")
-        # Choose defaults based on whether we are using a fixture frame
-        if frame_path and str(frame_path).startswith("tests/fixtures/"):
-            cards_index_path = data.get("cards_index_path", "tests/fixtures/cards_index.fixture.json")
-            cards_path = data.get("cards_path", "tests/fixtures/cards.fixture.json")
+    def _serve_file(self, file_path: Path, original_path: str):
+        if file_path.is_file():
+            mime, _ = mimetypes.guess_type(str(file_path))
+            mime = mime or "application/octet-stream"
+            data = file_path.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", mime)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
         else:
-            cards_index_path = data.get("cards_index_path", "tools/cards/out/cards_index.json")
-            cards_path = data.get("cards_path", "tools/cards/out/cards_by_id.json")
+            self.send_response(404)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(f"404 Not Found: {original_path}\nResolved: {file_path}".encode())
 
-        env = data.get("env", "prod")
+    def _json_error(self, code: int, msg: str):
+        data = json.dumps({"error": msg}).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
-        engine_id = data.get("engine_id")
-        frame_id = data.get("frame_id")
-
-        if not frame_path and not (engine_id and frame_id):
-            self._set_json(400)
-            self.wfile.write(json.dumps({"error": "Provide either frame_path OR (engine_id + frame_id)"}).encode("utf-8"))
-            return
-
-
-        # Load frame:
-        # - preferred: engine_id + frame_id (Phase 5)
-        # - fallback: frame_path (dev/debug)
-
-        try:
-            if frame_path:
-                frame = safe_load_json(frame_path)
-            else:
-                frame = load_frame_from_packs(engine_id, frame_id)
-        except Exception as e:
-            self._set_json(400)
-            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
-            return
-
-
-        # Load cards only (NOT frame again)
-        try:
-            cards_index = safe_load_json(cards_index_path)
-            cards = safe_load_json(cards_path)
-        except Exception as e:
-            self._set_json(400)
-            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
-            return
-
-        # infer engine_affordances
-        eng_aff = data.get("engine_affordances")
-        if eng_aff is None:
-            eid = frame.get("engine_id") if isinstance(frame, dict) else None
-            eng_aff = {eid: {"open_card": True}} if eid else {}
-
-        # call engine.process_turn
-        try:
-            from runtime import engine
-
-            emitted = []
-
-            def emitter(ev):
-                emitted.append(ev)
-
-            turn_uid = data.get("turn_uid", "ui_sim_turn")
-            engine.process_turn(turn_uid, frame, eng_aff, cards_index, cards, emitter, env=env)
-
-            # UI sim injection: modeled options (fixture-driven)
-            ui_sim = frame.get("ui_sim") if isinstance(frame, dict) else None
-            opts = ui_sim.get("options_available") if isinstance(ui_sim, dict) else None
-            if isinstance(opts, dict):
-                emitted.append({
-                    "type": "OPTIONS_AVAILABLE",
-                    "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                    "payload": opts
-                })
-
-        except Exception as e:
-            self._set_json(500)
-            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
-            return
-
-        self._set_json(200)
-        self.wfile.write(json.dumps({"trace": emitted}, ensure_ascii=False).encode("utf-8"))
-        return
-
-
-def run(port: int):
-    server = ThreadingHTTPServer(("", port), Handler)
-    print(f"Open http://localhost:{port}")
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        server.shutdown()
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8765)
-    args = parser.parse_args()
-    run(args.port)
+    def log_message(self, format, *args):
+        print(f"[ui_server] {self.address_string()} - {format % args}")
 
 
 if __name__ == "__main__":
-    main()
+    port = 8765
+    print(f"[ui_server] Listening on http://localhost:{port}")
+    HTTPServer(("", port), Handler).serve_forever()

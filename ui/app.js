@@ -476,17 +476,19 @@ async function loadPackFramesIntoDropdown() {
 
 async function runTurn() {
   const selected = frameSelect.value;
+  const selectedOption = frameSelect.options[frameSelect.selectedIndex];
+  const engineId = selectedOption?.dataset?.engineId || null;
+
   const payload = {
     env: "dev",
-    turn_uid: "ui_" + Date.now()
+    turn_uid: "ui_" + Date.now(),
+    frame_id: selected,
+    engine_id: engineId
   };
 
   if (selected && selected.endsWith(".json")) {
     payload.frame_path = selected;
   } else {
-    const selectedOption = frameSelect.options[frameSelect.selectedIndex];
-    const engineId = selectedOption && selectedOption.dataset ? selectedOption.dataset.engineId : null;
-
     if (!engineId) {
       emitUITrace({
         type: "UI_ERROR",
@@ -495,9 +497,6 @@ async function runTurn() {
       });
       return;
     }
-
-    payload.engine_id = engineId;
-    payload.frame_id = selected;
   }
 
   let res;
@@ -526,18 +525,61 @@ async function runTurn() {
     return;
   }
 
-  const data = await res.json();
-  const trace = data.trace || [];
-  for (const ev of trace) emitUITrace(ev);
-
-  // Phase 7.3: render the frame sentence after each turn
-  const frameId = payload.frame_id || null;
-  const fallbackText = (data.frame && data.frame.text) || "";
-  if (frameId) {
-    renderFrameSentence({ id: frameId, text: fallbackText });
+  // Phase 7.3: parse response and open card if card_id returned
+  let data = {};
+  try {
+    data = await res.json();
+  } catch (e) {
+    console.warn("[app] runTurn: failed to parse response JSON", e);
   }
 
-  // Important: resolve the opened card so the panel Play button has content
+  // Emit TURN_START
+  emitUITrace({
+    type: "TURN_START",
+    timestamp: null,
+    payload: { turn_uid: payload.turn_uid, engine_id: engineId, frame_id: selected }
+  });
+
+  // Render frame sentence
+  const frameId = data.frame_id || selected;
+  const fallbackText = data.prompt_text || data.frame_text || "";
+  renderFrameSentence({ id: frameId, text: fallbackText });
+
+  // If server returned a card_id, open the card panel
+  if (data.card_id) {
+    dispatch({ type: "OPEN_CARD", payload: { card_id: data.card_id } });
+    const usingFixtureFrame = String(frameSelect.value || "").includes("tests/fixtures/");
+    const cardsPath = usingFixtureFrame
+      ? "tests/fixtures/cards.fixture.json"
+      : "tools/cards/out/cards_by_id.json";
+    await resolveCard(data.card_id, cardsPath);
+  }
+
+  // Tripwire 3.1: turn option invariant (section 3.1 of copilot-instructions.md)
+  if (data.option_count === 0 || data.gold_option_present === false) {
+    emitUITrace({
+      type: "turn_option_invariant_failed",
+      timestamp: new Date().toISOString(),
+      payload: {
+        turn_uid: payload.turn_uid,
+        frame_id: frameId,
+        engine_id: engineId,
+        option_count: data.option_count ?? 0,
+        gold_present: data.gold_option_present ?? false,
+        failure_reason: data.option_count === 0 ? "no_options" : "gold_missing"
+      }
+    });
+    console.warn("[app] turn_option_invariant_failed — stub engine returned no options");
+  }
+
+  // Emit TURN_END
+  emitUITrace({
+    type: "TURN_END",
+    timestamp: null,
+    payload: { turn_uid: payload.turn_uid, result: data.card_id ? "OPEN_CARD_FIRED" : "NO_CARD" }
+  });
+
+  // Legacy: resolve card if already open but card content missing
   if (state.isOpen && state.activeCardId && !state.activeCard) {
     const usingFixtureFrame = String(frameSelect.value || "").includes("tests/fixtures/");
     const cardsPath = usingFixtureFrame
