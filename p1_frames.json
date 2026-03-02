@@ -13,7 +13,9 @@
       "difficulty": 1,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_nihao"]
+      "option_tokens": [
+        "w_nihao"
+      ]
     },
     {
       "id": "frame.greeting.hello_reply",
@@ -24,7 +26,9 @@
       "difficulty": 1,
       "slots": [],
       "speaker": "user",
-      "option_tokens": ["w_nihao"]
+      "option_tokens": [
+        "w_nihao"
+      ]
     },
     {
       "id": "f_ask_you_name",
@@ -34,7 +38,9 @@
       "difficulty": 1,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_jiao"]
+      "option_tokens": [
+        "w_jiao"
+      ]
     },
     {
       "id": "frame.identity.name",
@@ -50,7 +56,9 @@
         }
       ],
       "speaker": "user",
-      "option_tokens": ["w_jiao"]
+      "option_tokens": [
+        "w_jiao"
+      ]
     },
     {
       "id": "f_you_ne",
@@ -60,7 +68,9 @@
       "difficulty": 1,
       "slots": [],
       "speaker": "user",
-      "option_tokens": ["w_ne"]
+      "option_tokens": [
+        "w_ne"
+      ]
     },
     {
       "id": "f_partner_name",
@@ -70,7 +80,9 @@
       "difficulty": 1,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_jiao"]
+      "option_tokens": [
+        "w_jiao"
+      ]
     },
     {
       "id": "f_thanks",
@@ -80,7 +92,9 @@
       "difficulty": 1,
       "slots": [],
       "speaker": "user",
-      "option_tokens": ["w_xiexie"]
+      "option_tokens": [
+        "w_xiexie"
+      ]
     },
     {
       "id": "f_no_problem",
@@ -90,7 +104,9 @@
       "difficulty": 1,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_bukeqi"]
+      "option_tokens": [
+        "w_bukeqi"
+      ]
     },
     {
       "id": "f_from_where",
@@ -100,7 +116,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_nali"]
+      "option_tokens": [
+        "w_nali"
+      ]
     },
     {
       "id": "frame.identity.nationality",
@@ -115,7 +133,10 @@
           "source": "fillers.nationalities"
         }
       ],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": [
+        "w_wo"
+      ]
     },
     {
       "id": "frame.location.live_question",
@@ -126,7 +147,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_zhu"]
+      "option_tokens": [
+        "w_zhu"
+      ]
     },
     {
       "id": "frame.location.live",
@@ -141,7 +164,10 @@
           "source": "fillers.cities"
         }
       ],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": [
+        "w_zhu"
+      ]
     },
     {
       "id": "f_have_family",
@@ -151,7 +177,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_jiaren"]
+      "option_tokens": [
+        "w_jiaren"
+      ]
     },
     {
       "id": "f_yes_have_family",
@@ -161,7 +189,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "user",
-      "option_tokens": ["w_jiaren"]
+      "option_tokens": [
+        "w_jiaren"
+      ]
     },
     {
       "id": "f_have_siblings",
@@ -170,7 +200,10 @@
       "engine": "family",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": [
+        "w_you"
+      ]
     },
     {
       "id": "f_have_brother",
@@ -180,7 +213,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "user",
-      "option_tokens": ["w_gege"]
+      "option_tokens": [
+        "w_gege"
+      ]
     },
     {
       "id": "f_have_sister",
@@ -190,7 +225,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "user",
-      "option_tokens": ["w_jiejie"]
+      "option_tokens": [
+        "w_jiejie"
+      ]
     },
     {
       "id": "f_what_work",
@@ -199,7 +236,10 @@
       "engine": "work",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": [
+        "w_gongzuo"
+      ]
     },
     {
       "id": "f_i_am_job",
@@ -213,7 +253,10 @@
           "source": "fillers.jobs"
         }
       ],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": [
+        "w_wo"
+      ]
     },
     {
       "id": "f_like_work",
@@ -222,7 +265,10 @@
       "engine": "work",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": [
+        "w_xihuan"
+      ]
     },
     {
       "id": "frame.opinion.like",
@@ -233,7 +279,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "user",
-      "option_tokens": ["w_xihuan"]
+      "option_tokens": [
+        "w_xihuan"
+      ]
     },
     {
       "id": "f_what_hobby",
@@ -242,7 +290,10 @@
       "engine": "hobby",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": [
+        "w_aihao"
+      ]
     },
     {
       "id": "f_i_like_hobby",
@@ -256,7 +307,10 @@
           "source": "fillers.hobbies"
         }
       ],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": [
+        "w_xihuan"
+      ]
     },
     {
       "id": "f_weekend_do",
@@ -266,7 +320,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_shenme"]
+      "option_tokens": [
+        "w_shenme"
+      ]
     },
     {
       "id": "f_weekend_rest",
@@ -276,7 +332,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "user",
-      "option_tokens": ["w_wo"]
+      "option_tokens": [
+        "w_wo"
+      ]
     },
     {
       "id": "f_travel_where",
@@ -285,7 +343,10 @@
       "engine": "travel",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": [
+        "w_quguo"
+      ]
     },
     {
       "id": "f_been_to_place",
@@ -299,7 +360,10 @@
           "source": "fillers.travel_places"
         }
       ],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": [
+        "w_quguo"
+      ]
     },
     {
       "id": "f_want_go_where",
@@ -309,7 +373,9 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_nali"]
+      "option_tokens": [
+        "w_nali"
+      ]
     },
     {
       "id": "f_want_go_place",
@@ -323,7 +389,10 @@
           "source": "fillers.travel_places"
         }
       ],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": [
+        "w_quguo"
+      ]
     }
   ]
 }
