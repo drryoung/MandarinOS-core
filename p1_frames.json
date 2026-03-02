@@ -79,7 +79,8 @@
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": ["w_xiexie"]
     },
     {
       "id": "f_no_problem",
