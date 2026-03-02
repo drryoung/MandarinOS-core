@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>MandarinOS UI Shell</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="data:,">
   </head>
   <body>
     <div class="container">
@@ -26,6 +27,10 @@
             <button id="runBtn">Run Turn</button>
           </div>
 
+          <!-- Phase 7.3: frame sentence rendering -->
+          <h2>Frame Sentence</h2>
+          <div id="frameSentence" class="frame-sentence"></div>
+
           <h2>Trace</h2>
           <pre id="trace" class="trace">(no trace)</pre>
         </section>
@@ -44,6 +49,30 @@
         </aside>
       </main>
     </div>
+    <style>
+      section.left {
+        overflow: visible;
+      }
+      .frame-sentence {
+        font-size: 1.2rem;
+        line-height: 2;
+        min-height: 2.5rem;
+        height: auto;
+        overflow: visible;
+        white-space: normal;
+        margin-bottom: 0.5rem;
+      }
+      .frame-lit-token {
+        color: #111;
+        display: inline;
+      }
+      .frame-word-token {
+        color: #1a56db;
+        text-decoration: underline;
+        cursor: pointer;
+        display: inline;
+      }
+    </style>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

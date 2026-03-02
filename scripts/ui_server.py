@@ -11,6 +11,11 @@ from runtime.frames_loader import load_frame_from_packs
 REPO_ROOT = Path(__file__).resolve().parents[1]
 UI_DIR = REPO_ROOT / "ui"
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
+RUNTIME_DIR = REPO_ROOT / "runtime"
+
+print("[ui_server] REPO_ROOT =", REPO_ROOT)
+print("[ui_server] RUNTIME_DIR =", RUNTIME_DIR)
+print("[ui_server] RUNTIME_DIR exists =", RUNTIME_DIR.exists())
 
 def load_cards_by_id(repo_root: Path) -> dict:
     """
@@ -64,6 +69,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
+        print(f"[ui_server] GET {path!r}")   # ← ADD THIS LINE
+
         if path == "/":
             f = UI_DIR / "index.html"
             if not f.exists():
@@ -73,7 +80,23 @@ class Handler(BaseHTTPRequestHandler):
             self._set_text(200, "text/html; charset=utf-8")
             self.wfile.write(f.read_bytes())
             return
-        
+
+        # Serve /runtime/* from <REPO_ROOT>/runtime/
+        if path.startswith("/runtime/"):
+            rel = path[len("/runtime/"):]
+            f = (RUNTIME_DIR / rel).resolve()
+            if not str(f).lower().startswith(str(RUNTIME_DIR.resolve()).lower()):
+                self._set_text(403)
+                self.wfile.write(b"forbidden")
+                return
+            if not f.exists() or not f.is_file():
+                self._set_text(404)
+                self.wfile.write(b"not found")
+                return
+            self._set_text(200, "application/json; charset=utf-8")
+            self.wfile.write(f.read_bytes())
+            return
+
         # fixtures files (tests/fixtures) served under /fixtures/
         if path.startswith("/fixtures/"):
             rel = path[len("/fixtures/"):]  # e.g. "frame_open_card.json"

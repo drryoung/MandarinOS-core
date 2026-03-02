@@ -676,6 +676,22 @@
         "grammar"
       ],
       "frequency_band": "very_high"
+    },
+    {
+      "id": "w_xiang",
+      "hanzi": "想",
+      "pinyin": "xiǎng",
+      "gloss_en": "want to / would like to",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "modal"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_want_go_place"
+      ]
     }
   ]
 }

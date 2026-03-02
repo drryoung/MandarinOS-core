@@ -18,6 +18,105 @@ let state = Object.assign({}, _initialState);
 let uiTrace = [];
 let currentPlay = null; // { utterance_id, start, timeoutId, duration_ms }
 
+// ── Phase 7.3: Frame Render Tokens ──────────────────────────────────────────
+
+/** @type {{ schema_version: string, frames: Record<string, Array<{t:string,id?:string,s:string}>> } | null} */
+let frameRenderTokens = null;
+
+/** @type {{ by_word_id: Record<string, string> } | null} */
+let cardsIndex = null;
+
+async function loadFrameRenderTokens() {
+  try {
+    const resp = await fetch("/runtime/out_phase7/frame_render_tokens.runtime.json");
+    if (!resp.ok) {
+      console.warn(`[app] frame_render_tokens not available (HTTP ${resp.status}); sentence rendering degraded.`);
+      return;
+    }
+    frameRenderTokens = await resp.json();
+    console.info(`[app] frame_render_tokens loaded (${Object.keys(frameRenderTokens.frames || {}).length} frame(s))`);
+  } catch (e) {
+    console.warn("[app] frame_render_tokens load failed:", e);
+  }
+}
+
+async function loadCardsIndex() {
+  try {
+    const resp = await fetch("/runtime/out_phase7/cards_index.runtime.json");
+    if (!resp.ok) {
+      console.warn(`[app] cards_index not available (HTTP ${resp.status})`);
+      return;
+    }
+    cardsIndex = await resp.json();
+    console.info(`[app] cards_index loaded`);
+  } catch (e) {
+    console.warn("[app] cards_index load failed:", e);
+  }
+}
+
+/**
+ * Render the frame sentence into #frameSentence using builder-produced tokens.
+ * Falls back to frame.text if tokens are unavailable for this frame.
+ * @param {{ id: string, text: string }} frame
+ */
+function renderFrameSentence(frame) {
+  const el = document.getElementById("frameSentence");
+  if (!el) return;
+
+  while (el.firstChild) el.removeChild(el.firstChild);
+
+  const tokens =
+    frameRenderTokens &&
+    frameRenderTokens.frames &&
+    frame &&
+    frame.id &&
+    frameRenderTokens.frames[frame.id];
+
+  if (!tokens) {
+    // Fallback: plain text, no guessing
+    el.textContent = (frame && frame.text) || "";
+    return;
+  }
+
+  tokens.forEach((tok) => {
+    const span = document.createElement("span");
+    span.textContent = tok.s;
+
+    if (tok.t === "word") {
+      span.className = "frame-word-token";
+      span.style.cursor = "pointer";
+      span.title = tok.id;
+      span.addEventListener("click", () => {
+        const cardId =
+          cardsIndex &&
+          cardsIndex.by_word_id &&
+          cardsIndex.by_word_id[tok.id];
+        if (!cardId) {
+          console.warn(`[app] renderFrameSentence: no card_id for word_id '${tok.id}' in cards_index`);
+          return;
+        }
+        emitUITrace({
+          type: "OPEN_CARD",
+          timestamp: new Date().toISOString(),
+          payload: {
+            engine_id: frameSelect.options[frameSelect.selectedIndex]?.dataset?.engineId || null,
+            frame_id: frame.id,
+            card_id: cardId,
+            reason: "card_available"
+          }
+        });
+        dispatch({ type: "OPEN_CARD", payload: { card_id: cardId } });
+        resolveCard(cardId, "tools/cards/out/cards_by_id.json");
+      });
+    } else {
+      span.className = "frame-lit-token";
+    }
+
+    el.appendChild(span);
+  });
+}
+
+// ── end Phase 7.3 ────────────────────────────────────────────────────────────
 
 function dispatch(action) {
   state = reduce(state, action);
@@ -382,12 +481,9 @@ async function runTurn() {
     turn_uid: "ui_" + Date.now()
   };
 
-  // If the dropdown value looks like a JSON file path, use fixture mode (frame_path)
   if (selected && selected.endsWith(".json")) {
     payload.frame_path = selected;
-
   } else {
-    // Pack frame: option text is "engine :: id", option value is the id
     const selectedOption = frameSelect.options[frameSelect.selectedIndex];
     const engineId = selectedOption && selectedOption.dataset ? selectedOption.dataset.engineId : null;
 
@@ -434,6 +530,13 @@ async function runTurn() {
   const trace = data.trace || [];
   for (const ev of trace) emitUITrace(ev);
 
+  // Phase 7.3: render the frame sentence after each turn
+  const frameId = payload.frame_id || null;
+  const fallbackText = (data.frame && data.frame.text) || "";
+  if (frameId) {
+    renderFrameSentence({ id: frameId, text: fallbackText });
+  }
+
   // Important: resolve the opened card so the panel Play button has content
   if (state.isOpen && state.activeCardId && !state.activeCard) {
     const usingFixtureFrame = String(frameSelect.value || "").includes("tests/fixtures/");
@@ -456,7 +559,12 @@ const UI_DATA_BUILD_LABEL = "p1/p2 enriched (schema-preserving) + characters_120
 
 // defaults
 window.addEventListener("load", async () => {
-  await loadPackFramesIntoDropdown();
+  // Phase 7.3: load render tokens and cards index in parallel with existing loads
+  await Promise.all([
+    loadPackFramesIntoDropdown(),
+    loadFrameRenderTokens(),
+    loadCardsIndex(),
+  ]);
   if (dataBuildInfoEl) dataBuildInfoEl.textContent = `Data: ${UI_DATA_BUILD_LABEL}`;
   render();
 });

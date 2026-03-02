@@ -1493,23 +1493,23 @@
     "card_id": "w_you",
     "content": {
       "headword": {
-        "hanzi": "又",
-        "pinyin": "yòu",
+        "hanzi": "有",
+        "pinyin": "yǒu",
         "audio": {
           "tts": true
         }
       },
-      "meaning": "again",
+      "meaning": "to have",
       "characters": [
         {
-          "char": "又",
-          "role": null,
+          "char": "有",
+          "pinyin": "yǒu",
+          "meaning": "to have",
+          "role": "root",
           "strength": null,
-          "pinyin": null,
-          "meaning": null,
           "handwriting_support": {
-            "supports_drawing_input": false,
-            "stroke_order_hint_available": false
+            "stroke_order_hint_available": false,
+            "supports_drawing_input": false
           }
         }
       ],
@@ -1517,18 +1517,19 @@
         "type": "auto",
         "characters": [
           {
-            "char": "又",
-            "role": null,
+            "char": "有",
+            "pinyin": "yǒu",
+            "meaning": "to have",
+            "role": "root",
             "strength": null,
-            "pinyin": null,
-            "meaning": null,
             "handwriting_support": {
-              "supports_drawing_input": false,
-              "stroke_order_hint_available": false
+              "stroke_order_hint_available": false,
+              "supports_drawing_input": false
             }
           }
         ]
-      }
+      },
+      "gloss_en": "to have"
     },
     "state": {
       "reveal_level": 0,
@@ -9833,5 +9834,49 @@
         }
       }
     ]
+  },
+  "w_xiang": {
+    "card_id": "w_xiang",
+    "content": {
+      "headword": {
+        "hanzi": "想",
+        "pinyin": "xiǎng",
+        "audio": {
+          "tts": true
+        }
+      },
+      "gloss_en": "want to / would like to",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "modal"
+      ],
+      "examples": [
+        {
+          "hanzi": "我想去{PLACE}。",
+          "pinyin": "wǒ xiǎng qù {PLACE}.",
+          "gloss_en": "I want to go to {PLACE}."
+        }
+      ]
+    }
+  },
+  "w_you2": {
+    "card_id": "w_you2",
+    "content": {
+      "headword": {
+        "hanzi": "又",
+        "pinyin": "yòu",
+        "audio": {
+          "tts": true
+        }
+      },
+      "gloss_en": "again / also",
+      "pos": [
+        "adv"
+      ],
+      "tags": [],
+      "examples": []
+    }
   }
 }
