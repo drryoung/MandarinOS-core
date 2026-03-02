@@ -9,6 +9,80 @@ from typing import Any, Dict
 
 REPO_ROOT = Path(__file__).resolve().parents[1]  # tools/.. -> repo root
 
+# -------------------------
+# Phase 7.2: Explicit tokens
+# -------------------------
+
+import re
+
+_WID_RE = re.compile(r"^w_[A-Za-z0-9_]+$")
+
+# Start small: require explicit tokens ONLY for the MVP frame(s) you want to make work.
+# Add more frame_ids later in tiny batches.
+REQUIRE_EXPLICIT_OPTION_TOKENS_FOR_FRAMES = {
+    "frame.greeting.hello",
+}
+def _validate_option_tokens(frame_id: str, option_tokens, known_word_ids: set[str]) -> list[str]:
+    """
+    Fail-fast validation for frame.option_tokens.
+
+    Rules:
+      - must be a non-empty list of strings
+      - each token must look like w_*
+      - each token must exist in known_word_ids
+      - duplicates are NOT allowed (no silent coercion)
+    """
+    if option_tokens is None:
+        raise ValueError(f"[BUILD] frame {frame_id}: option_tokens is None (missing).")
+
+    if not isinstance(option_tokens, list):
+        raise TypeError(f"[BUILD] frame {frame_id}: option_tokens must be a list, got {type(option_tokens).__name__}.")
+
+    if len(option_tokens) == 0:
+        raise ValueError(f"[BUILD] frame {frame_id}: option_tokens must be non-empty.")
+
+    seen = set()
+    out: list[str] = []
+    for tok in option_tokens:
+        if not isinstance(tok, str):
+            raise TypeError(f"[BUILD] frame {frame_id}: option_tokens entries must be strings, got {type(tok).__name__}.")
+        if not _WID_RE.match(tok):
+            raise ValueError(f"[BUILD] frame {frame_id}: invalid token '{tok}' (expected word_id like 'w_*').")
+        if tok not in known_word_ids:
+            raise ValueError(f"[BUILD] frame {frame_id}: unknown word_id token '{tok}' (not found in lexicon).")
+        if tok in seen:
+            raise ValueError(f"[BUILD] frame {frame_id}: duplicate token '{tok}' (no silent dedupe).")
+        seen.add(tok)
+        out.append(tok)
+
+    return out
+
+def _resolve_frame_option_word_ids(frame: dict, known_word_ids: set[str]) -> list[str] | None:
+    """
+    Returns explicit word_ids if frame has option_tokens, else None.
+    """
+    frame_id = frame.get("id")
+    if not frame_id:
+        raise ValueError("[BUILD] frame missing required 'id' field.")
+
+    if "option_tokens" not in frame:
+        return None
+
+    return _validate_option_tokens(frame_id, frame.get("option_tokens"), known_word_ids)
+
+def _enforce_required_explicit_tokens(frame: dict) -> None:
+    """
+    If a frame_id is in the required set, option_tokens must exist and be non-empty (validated elsewhere).
+    """
+    frame_id = frame.get("id")
+    if not frame_id:
+        raise ValueError("[BUILD] frame missing required 'id' field.")
+
+    if frame_id in REQUIRE_EXPLICIT_OPTION_TOKENS_FOR_FRAMES and "option_tokens" not in frame:
+        raise ValueError(
+            f"[BUILD] frame {frame_id}: option_tokens REQUIRED for this frame (migration gate)."
+        )
+
 # Inputs (current canonical source you just inspected)
 CARDS_BY_ID_IN = REPO_ROOT / "tools" / "cards" / "out" / "cards_by_id.json"
 P1_FRAMES_IN = REPO_ROOT / "p1_frames.json"
@@ -107,16 +181,36 @@ def _extract_frames(pack_obj: Any) -> list[dict]:
 
 def _build_frame_to_word_map(frames: list[dict], word_hanzi_map: dict[str, str]) -> dict[str, str]:
     """
-    Build mapping: frame_id -> word_id by matching known word hanzi inside frame text.
-    Deterministic rule: longest hanzi wins; tie-break by smallest word_id.
+    Build mapping: frame_id -> word_id.
+
+    Phase 7.2 rule:
+      - If frame has "option_tokens", use it (validated, fail-fast).
+        Deterministic pick: first token in the list.
+      - Otherwise, fallback to heuristic: match known word hanzi inside frame text.
+        Deterministic rule: longest hanzi wins; tie-break by smallest word_id.
     """
+    # Known valid word_ids (w_*) come from the word lexicons.
+    known_word_ids = set(word_hanzi_map.keys())
+
+    # Precompute heuristic candidates once (deterministic ordering).
     candidates = sorted(word_hanzi_map.items(), key=lambda kv: (-len(kv[1]), kv[0]))
 
     out: dict[str, str] = {}
     for fr in frames:
         fid = fr.get("id")
+        if not isinstance(fid, str) or not fid:
+            continue
+
+        # ---- Explicit path (preferred) ----
+        if "option_tokens" in fr:
+            tokens = _validate_option_tokens(fid, fr.get("option_tokens"), known_word_ids)
+            # Deterministic choice: first token wins (author decides ordering).
+            out[fid] = tokens[0]
+            continue
+
+        # ---- Heuristic fallback (legacy) ----
         text = fr.get("text")
-        if not (isinstance(fid, str) and isinstance(text, str) and text):
+        if not (isinstance(text, str) and text):
             continue
 
         hits = []
