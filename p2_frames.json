@@ -15,6 +15,9 @@
           "name": "REASON_POS",
           "source": "fillers.reasons_positive"
         }
+      ],
+      "option_tokens": [
+        "w_yiyisi"
       ]
     },
     {
@@ -23,7 +26,10 @@
       "pinyin": "dàjiā yībān zěnme jiào nǐ?",
       "engine": "identity",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_zenmejiao"
+      ]
     },
     {
       "id": "p2_id_3",
@@ -36,6 +42,9 @@
           "name": "STYLE",
           "source": "fillers.reasons_positive"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -44,7 +53,10 @@
       "pinyin": "nǐ juéde nǐ de míngzi zěnmeyàng?",
       "engine": "identity",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_zenmeyang"
+      ]
     },
     {
       "id": "p2_id_5",
@@ -52,7 +64,10 @@
       "pinyin": "zhège míngzi duì nǐ yǒu shénme yìyì?",
       "engine": "identity",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_pl_1",
@@ -65,6 +80,9 @@
           "name": "CITY",
           "source": "fillers.cities"
         }
+      ],
+      "option_tokens": [
+        "w_zenmeyang"
       ]
     },
     {
@@ -78,6 +96,9 @@
           "name": "CITY",
           "source": "fillers.cities"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -91,6 +112,9 @@
           "name": "PLACE",
           "source": "fillers.places_to_go"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -104,6 +128,9 @@
           "name": "CITY",
           "source": "fillers.cities"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -121,6 +148,9 @@
           "name": "REASON_POS",
           "source": "fillers.reasons_positive"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -129,7 +159,10 @@
       "pinyin": "nǐ gēn jiārén zhù zài yīqǐ ma?",
       "engine": "family",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_zhuyiqi"
+      ]
     },
     {
       "id": "p2_fa_2",
@@ -137,7 +170,10 @@
       "pinyin": "nǐ duōjiǔ jiàn yīcì jiārén?",
       "engine": "family",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_fa_3",
@@ -150,6 +186,9 @@
           "name": "FAMILY_ROLE",
           "source": "fillers.family_roles"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -163,6 +202,9 @@
           "name": "FAMILY_ROLE",
           "source": "fillers.family_roles"
         }
+      ],
+      "option_tokens": [
+        "w_zuijin"
       ]
     },
     {
@@ -171,7 +213,10 @@
       "pinyin": "zhōumò yībān gēn jiārén yīqǐ zuò shénme?",
       "engine": "family",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_wk_1",
@@ -179,7 +224,10 @@
       "pinyin": "nǐ měitiān jǐ diǎn xiàbān?",
       "engine": "work",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_wk_2",
@@ -187,7 +235,10 @@
       "pinyin": "nǐ zuìjìn gōngzuò máng bù máng?",
       "engine": "work",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_wk_3",
@@ -200,6 +251,9 @@
           "name": "REASON_NEG",
           "source": "fillers.reasons_negative"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -208,7 +262,10 @@
       "pinyin": "nǐ yībān zěnme ānpái yītiān de gōngzuò?",
       "engine": "work",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_wk_5",
@@ -216,7 +273,10 @@
       "pinyin": "yùdào wèntí nǐ huì zěnme jiějué?",
       "engine": "work",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_hb_1",
@@ -229,6 +289,9 @@
           "name": "HOBBY",
           "source": "fillers.hobbies"
         }
+      ],
+      "option_tokens": [
+        "w_shenmeshihou"
       ]
     },
     {
@@ -242,6 +305,9 @@
           "name": "HOBBY",
           "source": "fillers.hobbies"
         }
+      ],
+      "option_tokens": [
+        "w_weishenme"
       ]
     },
     {
@@ -259,6 +325,9 @@
           "name": "REASON_POS",
           "source": "fillers.reasons_positive"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -272,6 +341,9 @@
           "name": "HOBBY",
           "source": "fillers.hobbies"
         }
+      ],
+      "option_tokens": [
+        "w_nanbunan"
       ]
     },
     {
@@ -280,7 +352,10 @@
       "pinyin": "nǐ zuìdà de chéngjiù shì shénme?",
       "engine": "hobby",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_tr_1",
@@ -288,7 +363,10 @@
       "pinyin": "nǐ qùguo nǎxiē guójiā?",
       "engine": "travel",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_tr_2",
@@ -296,7 +374,10 @@
       "pinyin": "nǐ zuì xǐhuan nǎlǐ?",
       "engine": "travel",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_xihuan"
+      ]
     },
     {
       "id": "p2_tr_3",
@@ -304,7 +385,10 @@
       "pinyin": "nàge dìfang yǒu shénme hǎowán de?",
       "engine": "travel",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_tr_4",
@@ -312,7 +396,10 @@
       "pinyin": "nǐ juéde nà cì lǚxíng zěnmeyàng?",
       "engine": "travel",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_zenmeyang"
+      ]
     },
     {
       "id": "p2_tr_5",
@@ -325,6 +412,9 @@
           "name": "PLACE",
           "source": "fillers.places_to_go"
         }
+      ],
+      "option_tokens": [
+        "w_nanwange"
       ]
     },
     {
@@ -338,6 +428,9 @@
           "name": "TIME",
           "source": "fillers.times"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -351,6 +444,9 @@
           "name": "ACTION",
           "source": "fillers.actions"
         }
+      ],
+      "option_tokens": [
+        "w_dasuan"
       ]
     },
     {
@@ -359,7 +455,10 @@
       "pinyin": "wǒmen shénme shíhou jiànmiàn?",
       "engine": "life",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_shenmeshihou"
+      ]
     },
     {
       "id": "p2_pln_4",
@@ -372,6 +471,9 @@
           "name": "PLACE",
           "source": "fillers.places_to_go"
         }
+      ],
+      "option_tokens": [
+        "w_yiqi"
       ]
     },
     {
@@ -385,6 +487,9 @@
           "name": "TIME",
           "source": "fillers.times"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -393,7 +498,10 @@
       "pinyin": "nǐ juéde zhège zěnmeyàng?",
       "engine": "life",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_zenmeyang"
+      ]
     },
     {
       "id": "p2_op_3",
@@ -401,7 +509,10 @@
       "pinyin": "wǒ juéde tǐng búcuò de.",
       "engine": "life",
       "difficulty": 3,
-      "slots": []
+      "slots": [],
+      "option_tokens": [
+        "w_juede"
+      ]
     },
     {
       "id": "p2_op_4",
@@ -414,6 +525,9 @@
           "name": "REASON_POS",
           "source": "fillers.reasons_positive"
         }
+      ],
+      "option_tokens": [
+        "w_juede"
       ]
     },
     {
@@ -427,6 +541,9 @@
           "name": "ACTION",
           "source": "fillers.actions"
         }
+      ],
+      "option_tokens": [
+        "w_zuotian"
       ]
     },
     {
@@ -440,6 +557,9 @@
           "name": "PLACE",
           "source": "fillers.places_to_go"
         }
+      ],
+      "option_tokens": [
+        "w_houlai"
       ]
     }
   ]
