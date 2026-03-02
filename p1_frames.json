@@ -150,7 +150,8 @@
       "engine": "family",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": ["w_jiaren"]
     },
     {
       "id": "f_yes_have_family",
@@ -159,7 +160,8 @@
       "engine": "family",
       "difficulty": 2,
       "slots": [],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": ["w_jiaren"]
     },
     {
       "id": "f_have_siblings",
@@ -187,7 +189,8 @@
       "engine": "family",
       "difficulty": 2,
       "slots": [],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": ["w_jiejie"]
     },
     {
       "id": "f_what_work",
@@ -229,7 +232,8 @@
       "engine": "work",
       "difficulty": 2,
       "slots": [],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": ["w_xihuan"]
     },
     {
       "id": "f_what_hobby",
@@ -261,7 +265,8 @@
       "engine": "hobby",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": ["w_shenme"]
     },
     {
       "id": "f_weekend_rest",
@@ -270,7 +275,8 @@
       "engine": "hobby",
       "difficulty": 2,
       "slots": [],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": ["w_wo"]
     },
     {
       "id": "f_travel_where",
@@ -302,7 +308,8 @@
       "engine": "travel",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": ["w_nali"]
     },
     {
       "id": "f_want_go_place",
