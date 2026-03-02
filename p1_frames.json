@@ -12,7 +12,8 @@
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": ["w_nihao"]
     },
     {
       "id": "frame.greeting.hello_reply",
@@ -22,7 +23,8 @@
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": ["w_nihao"]
     },
     {
       "id": "f_ask_you_name",
@@ -31,7 +33,8 @@
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": ["w_jiao"]
     },
     {
       "id": "frame.identity.name",
@@ -46,7 +49,8 @@
           "source": "fillers.names"
         }
       ],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": ["w_jiao"]
     },
     {
       "id": "f_you_ne",
@@ -55,7 +59,8 @@
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": ["w_ne"]
     },
     {
       "id": "f_partner_name",
@@ -64,7 +69,8 @@
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": ["w_jiao"]
     },
     {
       "id": "f_thanks",
@@ -82,7 +88,8 @@
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": ["w_bukeqi"]
     },
     {
       "id": "f_from_where",
@@ -167,7 +174,8 @@
       "engine": "family",
       "difficulty": 2,
       "slots": [],
-      "speaker": "user"
+      "speaker": "user",
+      "option_tokens": ["w_gege"]
     },
     {
       "id": "f_have_sister",

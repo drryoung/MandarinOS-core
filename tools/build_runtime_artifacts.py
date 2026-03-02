@@ -1,0 +1,238 @@
+# tools/build_runtime_artifacts.py
+from __future__ import annotations
+
+import json
+import hashlib
+from pathlib import Path
+from typing import Any, Dict
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]  # tools/.. -> repo root
+
+# Inputs (current canonical source you just inspected)
+CARDS_BY_ID_IN = REPO_ROOT / "tools" / "cards" / "out" / "cards_by_id.json"
+P1_FRAMES_IN = REPO_ROOT / "p1_frames.json"
+P2_FRAMES_IN = REPO_ROOT / "p2_frames.json"
+P1_WORDS_IN = REPO_ROOT / "p1_words.json"
+P2_WORDS_IN = REPO_ROOT / "p2_words.json"
+
+# Outputs (choose a stable location; keep outside runtime code)
+RUNTIME_OUT_DIR = REPO_ROOT / "runtime" / "out_phase7"
+CARDS_OUT = RUNTIME_OUT_DIR / "cards.runtime.json"
+CARDS_INDEX_OUT = RUNTIME_OUT_DIR / "cards_index.runtime.json"
+MANIFEST_OUT = RUNTIME_OUT_DIR / "build_manifest.json"
+
+
+def _sha256_bytes(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
+
+
+def _read_json(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _write_json_deterministic(path: Path, obj: Any) -> bytes:
+    """
+    Deterministic JSON writer:
+    - sort_keys=True ensures stable key ordering
+    - ensure_ascii=False preserves hanzi
+    - newline at end for stable file hashing across tools
+    Returns the exact bytes written (for hashing).
+    """
+    s = json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2)
+    b = (s + "\n").encode("utf-8")
+    path.write_bytes(b)
+    return b
+
+
+def _fail(msg: str) -> None:
+    raise SystemExit(f"[build_runtime_artifacts] ERROR: {msg}")
+
+def _load_word_hanzi_map(words_path: Path) -> dict[str, str]:
+    """
+    Load word_id -> hanzi from p1_words.json / p2_words.json.
+    Expected structure: {"words": [ { "word_id": "...", "hanzi": "..." }, ... ]}
+    """
+    if not words_path.exists():
+        return {}
+
+    data = _read_json(words_path)
+    if not isinstance(data, dict):
+        _fail(f"{words_path} must be a JSON object (dict)")
+
+    words = data.get("words")
+    if not isinstance(words, list):
+        _fail(f"{words_path} must contain a top-level 'words' list")
+
+    out: dict[str, str] = {}
+    for w in words:
+        if not isinstance(w, dict):
+            continue
+        wid = w.get("word_id") or w.get("id")
+        hz = w.get("hanzi")
+        if isinstance(wid, str) and wid.startswith("w_") and isinstance(hz, str) and hz:
+            out[wid] = hz
+    return out
+
+def _extract_frames(pack_obj: Any) -> list[dict]:
+    """
+    p1_frames.json / p2_frames.json appear to be a JSON object containing a list of frame dicts.
+    Frames use key 'id' (not 'frame_id') and include 'text'.
+    This extractor is deliberately simple and fail-fast if structure is unexpected.
+    """
+    if isinstance(pack_obj, list):
+        frames = pack_obj
+    elif isinstance(pack_obj, dict):
+        # common patterns; try a few explicit keys
+        for k in ("frames", "items", "data"):
+            v = pack_obj.get(k)
+            if isinstance(v, list):
+                frames = v
+                break
+        else:
+            # fallback: if dict contains many dict-like entries, we won't guess
+            frames = None
+    else:
+        frames = None
+
+    if not isinstance(frames, list):
+        _fail("Frame pack structure unexpected (expected a list or dict containing a list).")
+
+    out = []
+    for x in frames:
+        if isinstance(x, dict) and isinstance(x.get("id"), str):
+            out.append(x)
+    return out
+
+def _build_frame_to_word_map(frames: list[dict], word_hanzi_map: dict[str, str]) -> dict[str, str]:
+    """
+    Build mapping: frame_id -> word_id by matching known word hanzi inside frame text.
+    Deterministic rule: longest hanzi wins; tie-break by smallest word_id.
+    """
+    candidates = sorted(word_hanzi_map.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+
+    out: dict[str, str] = {}
+    for fr in frames:
+        fid = fr.get("id")
+        text = fr.get("text")
+        if not (isinstance(fid, str) and isinstance(text, str) and text):
+            continue
+
+        hits = []
+        for wid, hz in candidates:
+            if hz in text:
+                hits.append((wid, hz))
+
+        if not hits:
+            continue
+
+        best_len = max(len(hz) for _, hz in hits)
+        best = sorted([wid for wid, hz in hits if len(hz) == best_len])[0]
+        out[fid] = best
+
+    return out
+
+def main() -> None:
+    if not CARDS_BY_ID_IN.exists():
+        _fail(f"Missing input file: {CARDS_BY_ID_IN}")
+
+    data = _read_json(CARDS_BY_ID_IN)
+
+    # Accept either:
+    #  - a dict of cards directly
+    #  - or {"cards": {...}}
+    if isinstance(data, dict) and "cards" in data and isinstance(data["cards"], dict):
+        cards: Dict[str, Any] = data["cards"]
+    elif isinstance(data, dict):
+        cards = data
+    else:
+        _fail("cards_by_id.json must be a JSON object (dict)")
+
+    if not isinstance(cards, dict):
+        _fail("cards must be a dict")
+    if not cards:
+        _fail("cards dict is empty")
+
+    # Enforce the Phase 7 assumption explicitly:
+    # word cards are keyed by word_id (w_*)
+    # If you later add non-word cards, you can relax this rule with an explicit scheme.
+    bad_keys = [k for k in cards.keys() if not isinstance(k, str) or not k.startswith("w_")]
+    if bad_keys:
+        # Fail-fast: we don't want silent mixing of id schemes.
+        _fail(
+            f"cards contains non word-id keys (expected all keys start with 'w_'). "
+            f"Example bad keys: {bad_keys[:10]}"
+        )
+
+    # Identity mapping: word_id -> card_id (same string)
+    by_word_id = {wid: wid for wid in sorted(cards.keys())}
+
+    # Optional: extend mapping so resolver fallback by frame_id can open a word card.
+        # Load word_id -> hanzi from the word lexicons (cards don't contain hanzi fields)
+    word_hanzi_map = {}
+    word_hanzi_map.update(_load_word_hanzi_map(P1_WORDS_IN))
+    word_hanzi_map.update(_load_word_hanzi_map(P2_WORDS_IN))
+
+    extra_frame_maps = {}
+
+    for frames_path in (P1_FRAMES_IN, P2_FRAMES_IN):
+        if frames_path.exists():
+            pack = _read_json(frames_path)
+            frames = _extract_frames(pack)
+            frame_map = _build_frame_to_word_map(frames, word_hanzi_map)
+            extra_frame_maps.update(frame_map)
+
+    # Add frame_id -> word_id mappings (card_id == word_id)
+    # This helps when frames have no option_tokens and resolver falls back to frame_id.
+    for fid, wid in sorted(extra_frame_maps.items()):
+        by_word_id[fid] = wid
+        
+    print(f"[build_runtime_artifacts] frame_id mappings added: {len(extra_frame_maps)}")
+
+    if not by_word_id:
+        _fail("by_word_id is empty (unexpected: cards was non-empty)")
+
+    # Referential integrity: every mapped card_id must exist in cards
+    missing = [cid for cid in by_word_id.values() if cid not in cards]
+    if missing:
+        _fail(f"cards_index refers to missing card_ids. Example missing: {missing[:10]}")
+
+    cards_index = {"by_word_id": by_word_id}
+
+    # Ensure output dir exists
+    RUNTIME_OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Write outputs deterministically
+    cards_bytes = _write_json_deterministic(CARDS_OUT, cards)
+    index_bytes = _write_json_deterministic(CARDS_INDEX_OUT, cards_index)
+
+    # Manifest (not used by runtime; safe to include timestamp-ish info if desired,
+    # but we keep it deterministic too by hashing inputs/outputs only.)
+    in_bytes = CARDS_BY_ID_IN.read_bytes()
+    manifest = {
+        "builder": "tools/build_runtime_artifacts.py",
+        "inputs": {
+            "cards_by_id_path": str(CARDS_BY_ID_IN.relative_to(REPO_ROOT)),
+            "cards_by_id_sha256": _sha256_bytes(in_bytes),
+            "card_count": len(cards),
+        },
+        "outputs": {
+            "cards_runtime_path": str(CARDS_OUT.relative_to(REPO_ROOT)),
+            "cards_runtime_sha256": _sha256_bytes(cards_bytes),
+            "cards_index_runtime_path": str(CARDS_INDEX_OUT.relative_to(REPO_ROOT)),
+            "cards_index_runtime_sha256": _sha256_bytes(index_bytes),
+            "by_word_id_count": len(by_word_id),
+        },
+    }
+    _write_json_deterministic(MANIFEST_OUT, manifest)
+
+    print("[build_runtime_artifacts] OK")
+    print(f"  cards:      {CARDS_OUT}")
+    print(f"  cards_index:{CARDS_INDEX_OUT}")
+    print(f"  manifest:   {MANIFEST_OUT}")
+    print(f"  card_count: {len(cards)}")
+
+
+if __name__ == "__main__":
+    main()
