@@ -22,8 +22,9 @@ _WID_RE = re.compile(r"^w_[A-Za-z0-9_]+$")
 REQUIRE_EXPLICIT_OPTION_TOKENS_FOR_FRAMES = {
     "frame.greeting.hello",
     "f_thanks",
+    "f_from_where",
+    "frame.location.live_question",
 }
-
 def _validate_option_tokens(frame_id: str, option_tokens, known_word_ids: set[str]) -> list[str]:
     """
     Fail-fast validation for frame.option_tokens.

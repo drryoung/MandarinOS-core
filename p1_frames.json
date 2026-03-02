@@ -99,7 +99,8 @@
       "engine": "place",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": ["w_nali"]
     },
     {
       "id": "frame.identity.nationality",
@@ -124,7 +125,8 @@
       "engine": "place",
       "difficulty": 2,
       "slots": [],
-      "speaker": "partner"
+      "speaker": "partner",
+      "option_tokens": ["w_zhu"]
     },
     {
       "id": "frame.location.live",
