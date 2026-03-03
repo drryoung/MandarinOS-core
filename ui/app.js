@@ -80,7 +80,7 @@ function renderFrameSentence(frame) {
 
   tokens.forEach((tok) => {
     const span = document.createElement("span");
-    span.textContent = tok.s;
+    span.textContent = tok.text;
 
     if (tok.t === "word") {
       span.className = "frame-word-token";
@@ -93,7 +93,6 @@ function renderFrameSentence(frame) {
           cardsIndex.by_word_id[tok.id];
         if (!cardId) {
           console.warn(`[app] renderFrameSentence: no card_id for word_id '${tok.id}' in cards_index`);
-          return;
         }
         emitUITrace({
           type: "OPEN_CARD",
@@ -474,6 +473,55 @@ async function loadPackFramesIntoDropdown() {
 
 
 
+// ── Phase 7.4: render response options ───────────────────────────────────────
+function renderOptions(options, frameId) {
+  let container = document.getElementById("optionsContainer");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "optionsContainer";
+    container.className = "options-container";
+    const sentenceEl = document.getElementById("frameSentence");
+    if (sentenceEl && sentenceEl.parentNode) {
+      sentenceEl.parentNode.insertBefore(container, sentenceEl.nextSibling);
+    } else {
+      document.body.appendChild(container);
+    }
+  }
+  while (container.firstChild) container.removeChild(container.firstChild);
+  if (!options || options.length === 0) { container.style.display = "none"; return; }
+  container.style.display = "flex";
+  options.forEach((opt, idx) => {
+    const btn = document.createElement("button");
+    btn.className = "option-btn";
+    if (opt.is_gold) btn.setAttribute("data-gold", "true");
+    if (opt.is_slot) btn.setAttribute("data-slot", "true");
+    btn.setAttribute("data-card-id", opt.card_id || "");
+    if (opt.kind === "FRAME_WITH_SLOTS") {
+      (opt.hanzi || "").split(/(\{[A-Z_]+\})/).forEach(part => {
+        const m = part.match(/^\{([A-Z_]+)\}$/);
+        if (m) { const s = document.createElement("span"); s.className = "option-slot-placeholder"; s.textContent = m[1]; btn.appendChild(s); }
+        else if (part) btn.appendChild(document.createTextNode(part));
+      });
+    } else {
+      const h = document.createElement("span"); h.className = "option-hanzi"; h.textContent = opt.hanzi || "";
+      const p = document.createElement("span"); p.className = "option-pinyin"; p.textContent = opt.pinyin || "";
+      const m = document.createElement("span"); m.className = "option-meaning"; m.textContent = opt.meaning || "";
+      btn.appendChild(h); btn.appendChild(p); btn.appendChild(m);
+    }
+    btn.addEventListener("click", () => {
+      emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
+        payload: { frame_id: frameId, card_id: opt.card_id, is_gold: opt.is_gold, is_slot: opt.is_slot, option_idx: idx } });
+      if (opt.card_id && opt.kind !== "FRAME_WITH_SLOTS") {
+        dispatch({ type: "OPEN_CARD", payload: { card_id: opt.card_id } });
+        resolveCard(opt.card_id, "/api/cards?path=tools/cards/out/cards_by_id.json");
+      }
+      container.querySelectorAll(".option-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+    });
+    container.appendChild(btn);
+  });
+}
+// ── end Phase 7.4 ────────────────────────────────────────────────────────────
 async function runTurn() {
   const selected = frameSelect.value;
   const selectedOption = frameSelect.options[frameSelect.selectedIndex];
@@ -544,6 +592,7 @@ async function runTurn() {
   const frameId = data.frame_id || selected;
   const fallbackText = data.prompt_text || data.frame_text || "";
   renderFrameSentence({ id: frameId, text: fallbackText });
+  renderOptions(data.options || [], frameId);   // Phase 7.4
 
   // If server returned a card_id, open the card panel
   if (data.card_id) {
@@ -707,4 +756,6 @@ if (cardIdEl) {
     }
   });
 }
+
+
 

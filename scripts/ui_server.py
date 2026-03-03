@@ -18,9 +18,12 @@ print("[ui_server] RUNTIME_DIR =", RUNTIME_DIR)
 # ── Load runtime indexes at startup ──────────────────────────────────────────
 _frt_path = RUNTIME_DIR / "out_phase7" / "frame_render_tokens.runtime.json"
 _ci_path  = RUNTIME_DIR / "out_phase7" / "cards_index.runtime.json"
+_fo_path  = RUNTIME_DIR / "out_phase7" / "frame_options.runtime.json"
 
-_frame_tokens = {}
+_frame_tokens  = {}
 _cards_by_word_id = {}
+_frame_options = {}
+_frames_by_id  = {}
 
 if _frt_path.is_file():
     _frame_tokens = json.loads(_frt_path.read_text(encoding="utf-8")).get("frames", {})
@@ -33,6 +36,21 @@ if _ci_path.is_file():
     print(f"[ui_server] cards_index loaded ({len(_cards_by_word_id)} entries)")
 else:
     print(f"[ui_server] WARNING: cards_index not found at {_ci_path}")
+
+if _fo_path.is_file():
+    _frame_options = json.loads(_fo_path.read_text(encoding="utf-8")).get("frames", {})
+    print(f"[ui_server] frame_options loaded ({len(_frame_options)} frames)")
+else:
+    print(f"[ui_server] WARNING: frame_options not found at {_fo_path}")
+
+# Load frames for frame_text lookup
+for _fname in ["p1_frames.json", "p2_frames.json"]:
+    _fp = REPO_ROOT / _fname
+    if _fp.is_file():
+        _fdata = json.loads(_fp.read_text(encoding="utf-8"))
+        for _fr in _fdata.get("frames", []):
+            _frames_by_id[_fr["id"]] = _fr
+print(f"[ui_server] frames_by_id loaded ({len(_frames_by_id)} frames)")
 
 
 def _stub_card_id(frame_id: str):
@@ -56,7 +74,6 @@ class Handler(BaseHTTPRequestHandler):
         path   = parsed.path
         qs     = parse_qs(parsed.query)
 
-        # /api/cards?path=tools/cards/out/cards_by_id.json
         if path == "/api/cards":
             rel = qs.get("path", [None])[0]
             if not rel:
@@ -99,18 +116,22 @@ class Handler(BaseHTTPRequestHandler):
 
             frame_id  = payload.get("frame_id", "unknown")
             engine_id = payload.get("engine_id", "unknown")
+            options   = _frame_options.get(frame_id, [])
             card_id   = _stub_card_id(frame_id)
+            gold      = next((o for o in options if o.get("is_gold")), None)
+            frame_rec = _frames_by_id.get(frame_id, {})
 
             response = {
                 "turn_uid":            payload.get("turn_uid", ""),
                 "engine_id":           engine_id,
                 "frame_id":            frame_id,
+                "frame_text":          frame_rec.get("text", ""),
                 "result":              "ok",
-                "options":             [],
-                "gold_option_present": False,
-                "option_count":        0,
-                "card_id":             card_id,
-                "system_note":         "stub — engine not yet wired"
+                "options":             options,
+                "option_count":        len(options),
+                "gold_option_present": gold is not None,
+                "card_id":             gold["card_id"] if gold else card_id,
+                "system_note":         "phase7.4 static options"
             }
 
             data = json.dumps(response, ensure_ascii=False).encode("utf-8")
