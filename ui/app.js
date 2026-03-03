@@ -474,6 +474,35 @@ async function loadPackFramesIntoDropdown() {
 
 
 // ── Phase 7.4: render response options ───────────────────────────────────────
+// ── §3.4 SystemFaultLog — idempotent session-level fault accumulator ─────────
+const SystemFaultLog = {
+  _faults: [],
+  _keys:   new Set(),
+  record(fault) {
+    const key = [fault.fault_type, fault.turn_uid||"", fault.frame_id||"", fault.failure_reason||"", fault.input_mode||""].join("|");
+    if (this._keys.has(key)) return;
+    this._keys.add(key);
+    this._faults.push(fault);
+    console.warn("[app][fault]", fault.fault_type, fault.failure_reason, fault);
+  },
+  all()   { return [...this._faults]; },
+  any()   { return this._faults.length > 0; },
+  reset() { this._faults = []; this._keys = new Set(); }
+};
+
+// ── §3.4 buildDiagnosticCompleted ────────────────────────────────────────────
+function buildDiagnosticCompleted(sessionMeta) {
+  const faults     = SystemFaultLog.all();
+  const confidence = faults.length > 0 ? "low" : "medium";
+  return {
+    type:          "diagnostic_completed",
+    timestamp:     new Date().toISOString(),
+    confidence,
+    system_faults: faults,
+    ...(sessionMeta || {})
+  };
+}
+
 // ── §5 validateOption — Phase 7.5 ────────────────────────────────────────────
 const ALLOWED_OPTION_KINDS = new Set(["WORD", "FRAME_WITH_SLOTS", "FILLER", "FREE_TEXT"]);
 
@@ -810,8 +839,6 @@ if (cardIdEl) {
     }
   });
 }
-
-
-
-
-
+// ── Phase 7.6 — expose to window for console access + external callers ────────
+window.SystemFaultLog          = SystemFaultLog;
+window.buildDiagnosticCompleted = buildDiagnosticCompleted;
