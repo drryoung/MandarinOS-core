@@ -154,30 +154,48 @@ def check_frame_slot_invariant(all_frames: list, built_options: dict) -> list:
 
 
 def build_frame_render_tokens(all_frames: list, cards: dict) -> dict:
-    """Build per-frame token lists for sentence rendering (Phase 7.3)."""
+    """Build per-frame token lists for sentence rendering.
+
+    Patch A: lit tokens carry id=null; word tokens carry the correct word_id.
+    Patch B: gold is NOT encoded here — gold lives only in frame_options.runtime.json.
+    Tokenisation is about reading & lookup, not answer selection.
+    """
+    hanzi_to_word_id = {}
+    for word_id, card in cards.items():
+        hanzi = card.get("content", {}).get("headword", {}).get("hanzi", "")
+        if hanzi:
+            hanzi_to_word_id[hanzi] = word_id
+
+    sorted_hanzi = sorted(hanzi_to_word_id.keys(), key=len, reverse=True)
+
     result = {}
     for f in all_frames:
         frame_id = f["id"]
         text     = f.get("text", "")
-        option_tokens = f.get("option_tokens") or []
-        gold_token    = option_tokens[0] if option_tokens else None
-
-        tokens = []
-        # Split text into characters, mark gold hanzi as word token
-        gold_card  = cards.get(gold_token, {}) if gold_token else {}
-        gold_hanzi = (gold_card.get("content", {}).get("headword", {}).get("hanzi")
-                      if gold_card else None)
+        tokens   = []
 
         i = 0
         while i < len(text):
-            ch = text[i]
-            if gold_hanzi and text[i:i+len(gold_hanzi)] == gold_hanzi:
-                tokens.append({"t": "word", "id": gold_token, "text": gold_hanzi})
-                i += len(gold_hanzi)
-            else:
-                tokens.append({"t": "lit", "id": gold_token or "", "text": ch})
+            matched = False
+            for hanzi in sorted_hanzi:
+                if text[i:i+len(hanzi)] == hanzi:
+                    tokens.append({"t": "word", "id": hanzi_to_word_id[hanzi], "text": hanzi})
+                    i += len(hanzi)
+                    matched = True
+                    break
+            if not matched:
+                tokens.append({"t": "lit", "id": None, "text": text[i]})
                 i += 1
+
+        word_count = sum(1 for t in tokens if t["t"] == "word")
+        lit_with_id = [t for t in tokens if t["t"] == "lit" and t["id"] is not None]
+        if word_count == 0 and text and not f.get("slots"):
+            print(f"[build][sanity] WARNING: no word tokens in frame {frame_id!r} — text={text!r}")
+        if lit_with_id:
+            print(f"[build][sanity] ERROR: lit tokens with id in frame {frame_id!r}: {lit_with_id}")
+
         result[frame_id] = tokens
+
     return result
 
 
@@ -265,6 +283,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
