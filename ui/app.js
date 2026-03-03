@@ -474,7 +474,61 @@ async function loadPackFramesIntoDropdown() {
 
 
 // ── Phase 7.4: render response options ───────────────────────────────────────
+// ── §5 validateOption — Phase 7.5 ────────────────────────────────────────────
+const ALLOWED_OPTION_KINDS = new Set(["WORD", "FRAME_WITH_SLOTS", "FILLER", "FREE_TEXT"]);
+
+function validateOption(option, targetItem) {
+  if (!option || typeof option !== "object")
+    return { valid: false, failure_reason: "malformed_option" };
+  if (!option.card_id || typeof option.card_id !== "string" || option.card_id.trim() === "")
+    return { valid: false, failure_reason: "malformed_option" };
+  if (!option.hanzi || typeof option.hanzi !== "string" || option.hanzi.trim() === "")
+    return { valid: false, failure_reason: "unrenderable_option" };
+  if (!option.kind || !ALLOWED_OPTION_KINDS.has(option.kind))
+    return { valid: false, failure_reason: "malformed_option" };
+  if (targetItem && targetItem.is_slot && option.kind !== "FRAME_WITH_SLOTS")
+    return { valid: false, failure_reason: "slot_option_missing" };
+  return { valid: true, failure_reason: null };
+}
+
+function validateOptionsArray(options, frameId, targetItem) {
+  const failures = [];
+  if (!Array.isArray(options) || options.length < 3)
+    failures.push({ failure_reason: "insufficient_options", option_count: (options||[]).length });
+  const goldOptions = (options || []).filter(o => o.is_gold);
+  if (goldOptions.length === 0)
+    failures.push({ failure_reason: "no_gold" });
+  else if (goldOptions.length > 1)
+    failures.push({ failure_reason: "multiple_gold", gold_count: goldOptions.length });
+  (options || []).forEach((opt, idx) => {
+    const r = validateOption(opt, targetItem);
+    if (!r.valid) failures.push({ failure_reason: r.failure_reason, option_index: idx, card_id: opt.card_id });
+  });
+  if (targetItem && targetItem.is_slot) {
+    if (!(options || []).some(o => o.kind === "FRAME_WITH_SLOTS"))
+      failures.push({ failure_reason: "slot_option_missing" });
+  }
+  if (failures.length > 0) {
+    emitUITrace({
+      type:         "turn_option_invariant_failed",
+      timestamp:    new Date().toISOString(),
+      frame_id:     frameId,
+      option_count: (options || []).length,
+      gold_present: goldOptions.length > 0,
+      failures
+    });
+    console.warn("[app] §3.1 turn_option_invariant_failed", failures);
+  }
+  return { ok: failures.length === 0, failures };
+}
 function renderOptions(options, frameId) {
+  // §3.1 + §5 — validate before render
+  const targetItem = options && options.find(o => o.is_gold) || null;
+  const validation = validateOptionsArray(options, frameId, targetItem);
+  if (!validation.ok) {
+    console.warn("[app] renderOptions blocked — option validation failed", validation.failures);
+    // Still render — failures are logged/traced, do not silently drop options
+  }
   let container = document.getElementById("optionsContainer");
   if (!container) {
     container = document.createElement("div");
@@ -756,6 +810,8 @@ if (cardIdEl) {
     }
   });
 }
+
+
 
 
 

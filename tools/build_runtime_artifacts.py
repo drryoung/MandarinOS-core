@@ -199,12 +199,20 @@ def build_frame_render_tokens(all_frames: list, cards: dict) -> dict:
     return result
 
 
-def build_cards_index(all_frames: list) -> dict:
-    """Map word_id -> card_id for every option token across all frames."""
+def build_cards_index(all_frames: list, render_tokens: dict) -> dict:
+    """Map word_id -> card_id for every word token across all rendered frames.
+    Indexes option_tokens AND all word tokens from render_tokens (e.g. w_ma, w_ni).
+    """
     by_word_id = {}
+    # Index option_tokens
     for f in all_frames:
         for word_id in (f.get("option_tokens") or []):
-            by_word_id[word_id] = word_id  # word_id IS card_id in this schema
+            by_word_id[word_id] = word_id
+    # Index all word tokens from render output
+    for frame_id, tokens in render_tokens.items():
+        for tok in tokens:
+            if tok.get("t") == "word" and tok.get("id"):
+                by_word_id[tok["id"]] = tok["id"]
     return {"by_word_id": by_word_id}
 def main():
     print(f"[build] Phase 7.4 runtime artifact builder — {datetime.now(timezone.utc).isoformat().replace('+00:00','Z')}")
@@ -266,7 +274,7 @@ def main():
     print(f"[build] frame_render_tokens written: {len(render_tokens)} frames -> {tokens_path}")
 
     # ── 5. Build and write cards_index ────────────────────────────────────────
-    cards_index = build_cards_index(all_frames)
+    cards_index = build_cards_index(all_frames, render_tokens)
     index_path  = RUNTIME_OUT / "cards_index.runtime.json"
     index_path.write_text(
         json.dumps({
@@ -283,6 +291,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
