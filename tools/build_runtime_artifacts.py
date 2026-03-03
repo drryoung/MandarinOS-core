@@ -116,7 +116,10 @@ def build_frame_options(all_frames: list, cards: dict) -> dict:
         combined = non_gold_items + gold_items
         random.shuffle(combined)
 
-        frame_options[frame_id] = combined
+        frame_options[frame_id] = {
+            "options":          combined,
+            "hint_affordance":  { "visible": True }   # §2.4 — always visible in tap mode
+        }
 
         # Invariant check
         gold_count = sum(1 for o in combined if o["is_gold"])
@@ -138,7 +141,8 @@ def check_frame_slot_invariant(all_frames: list, built_options: dict) -> list:
         if not f.get("slots"):
             continue
         frame_id = f["id"]
-        options  = built_options.get(frame_id, [])
+        frame_data = built_options.get(frame_id, {})
+        options    = frame_data.get("options", []) if isinstance(frame_data, dict) else frame_data
         has_slot_option = any(o.get("kind") == FRAME_WITH_SLOTS_TOKEN for o in options)
         if not has_slot_option:
             violations.append({

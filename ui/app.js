@@ -39,6 +39,58 @@ async function loadFrameRenderTokens() {
     console.warn("[app] frame_render_tokens load failed:", e);
   }
 }
+// ── §2.4 frame_options loader ─────────────────────────────────────────────────
+let frameOptionsRuntime = {};
+async function loadFrameOptions() {
+  try {
+    const resp = await fetch("/runtime/out_phase7/frame_options.runtime.json");
+    if (!resp.ok) { console.warn(`[app] frame_options not available (HTTP ${resp.status})`); return; }
+    frameOptionsRuntime = await resp.json();
+    window._frameOptionsRuntime = frameOptionsRuntime;
+    console.info(`[app] frame_options loaded (${Object.keys(frameOptionsRuntime.frames || {}).length} frame(s))`);
+  } catch (e) {
+    console.warn("[app] frame_options load failed:", e);
+  }
+}
+
+// ── §2.4 + §3.3 Hint cascade — Phase 7.6 ────────────────────────────────────
+let hint_cascade_state = { level: 0, turn_uid: null };
+
+function renderHintAffordance(hintAffordance, turnUid, inputMode) {
+  const hintBtn     = document.getElementById("hintBtn");
+  const hintPinyin  = document.getElementById("hintPinyin");
+  const hintMeaning = document.getElementById("hintMeaning");
+
+  if (inputMode === "tap" && hintAffordance?.visible && !hintBtn) {
+    const ts = new Date().toISOString();
+    SystemFaultLog.record({ fault_type: "hint_affordance_invariant_failed",
+      turn_uid: turnUid, frame_id: null, failure_reason: "hint_button_missing",
+      input_mode: inputMode, timestamp: ts, detail: {} });
+    return;
+  }
+  if (!hintBtn) return;
+
+  const visible = inputMode === "tap" && hintAffordance?.visible === true;
+  hintBtn.style.display = visible ? "inline-block" : "none";
+
+  if (!visible) {
+    if (hintPinyin)  hintPinyin.style.display  = "none";
+    if (hintMeaning) hintMeaning.style.display = "none";
+    return;
+  }
+
+  // Reset on new turn, preserve on mode toggle within same turn
+  if (hint_cascade_state.turn_uid !== turnUid) {
+    hint_cascade_state = { level: 0, turn_uid: turnUid };
+  }
+
+  const level = hint_cascade_state.level;
+  if (hintPinyin)  hintPinyin.style.display  = level >= 1 ? "block" : "none";
+  if (hintMeaning) hintMeaning.style.display = level >= 2 ? "block" : "none";
+
+  const labels = ["Hint →", "Meaning →", "Hide hints →"];
+  hintBtn.textContent = labels[level] ?? "Hint →";
+}
 
 async function loadCardsIndex() {
   try {
@@ -675,7 +727,34 @@ async function runTurn() {
   const frameId = data.frame_id || selected;
   const fallbackText = data.prompt_text || data.frame_text || "";
   renderFrameSentence({ id: frameId, text: fallbackText });
-  renderOptions(data.options || [], frameId);   // Phase 7.4
+  // Phase 7.6 — source options + hint affordance from pre-loaded runtime artifact
+  const _frameData     = window._frameOptionsRuntime?.frames?.[frameId] || {};
+  const tapOptions     = _frameData.options || data.options || [];
+  const hintAffordance = _frameData.hint_affordance || { visible: false };
+  const turnUid        = frameId;
+  
+  // Populate hint rows from gold option
+  const goldOption    = tapOptions.find(o => o.is_gold);
+  const hintPinyinEl  = document.getElementById("hintPinyin");
+  const hintMeaningEl = document.getElementById("hintMeaning");
+  if (hintPinyinEl)  hintPinyinEl.textContent  = goldOption?.pinyin  || "";
+  if (hintMeaningEl) hintMeaningEl.textContent = goldOption?.meaning || goldOption?.gloss_en || "";
+  
+  renderOptions(tapOptions, frameId);
+  renderHintAffordance(hintAffordance, turnUid, "tap");
+  
+  // Wire hint button click (idempotent — replace node to clear old listeners)
+  const _hintBtn = document.getElementById("hintBtn");
+  if (_hintBtn) {
+    const _newBtn = _hintBtn.cloneNode(true);
+    _hintBtn.parentNode.replaceChild(_newBtn, _hintBtn);
+    _newBtn.addEventListener("click", () => {
+      hint_cascade_state.level = (hint_cascade_state.level + 1) % 3;
+      renderHintAffordance(hintAffordance, turnUid, "tap");
+      emitUITrace({ type: "HINT_ADVANCED", timestamp: new Date().toISOString(),
+        payload: { frame_id: frameId, level: hint_cascade_state.level, turn_uid: turnUid } });
+    });
+  }
 
   // If server returned a card_id, open the card panel
   if (data.card_id) {
@@ -738,6 +817,7 @@ window.addEventListener("load", async () => {
     loadPackFramesIntoDropdown(),
     loadFrameRenderTokens(),
     loadCardsIndex(),
+    loadFrameOptions(),
   ]);
   if (dataBuildInfoEl) dataBuildInfoEl.textContent = `Data: ${UI_DATA_BUILD_LABEL}`;
   render();
@@ -842,3 +922,5 @@ if (cardIdEl) {
 // ── Phase 7.6 — expose to window for console access + external callers ────────
 window.SystemFaultLog          = SystemFaultLog;
 window.buildDiagnosticCompleted = buildDiagnosticCompleted;
+window.hint_cascade_state   = hint_cascade_state;
+window.renderHintAffordance = renderHintAffordance;
