@@ -131,34 +131,75 @@ def build_frame_options(all_frames: list, cards: dict) -> dict:
     return frame_options, violations
 
 
-def check_frame_slot_invariant(all_frames: list) -> list:
+def check_frame_slot_invariant(all_frames: list, built_options: dict) -> list:
+    """§3.2 — verify every slotted frame has a FRAME_WITH_SLOTS option in built output."""
     violations = []
     for f in all_frames:
-        slots = f.get("slots")
-        if not slots:
+        if not f.get("slots"):
             continue
-        option_tokens = f.get("option_tokens") or []
-        has_slot_token = any(t == FRAME_WITH_SLOTS_TOKEN for t in option_tokens)
-        if not has_slot_token:
+        frame_id = f["id"]
+        options  = built_options.get(frame_id, [])
+        has_slot_option = any(o.get("kind") == FRAME_WITH_SLOTS_TOKEN for o in options)
+        if not has_slot_option:
             violations.append({
-                "frame_id":       f["id"],
-                "frame_text":     f.get("text", ""),
-                "slots":          slots,
-                "option_tokens":  option_tokens,
-                "failure_reason": "no_FRAME_WITH_SLOTS_option_token"
+                "frame_id":        frame_id,
+                "frame_text":      f.get("text", ""),
+                "slots":           f.get("slots", []),
+                "option_tokens":   f.get("option_tokens") or [],
+                "options_snapshot": options,
+                "failure_reason":  "no_FRAME_WITH_SLOTS_option_in_built_output"
             })
     return violations
 
 
+
+def build_frame_render_tokens(all_frames: list, cards: dict) -> dict:
+    """Build per-frame token lists for sentence rendering (Phase 7.3)."""
+    result = {}
+    for f in all_frames:
+        frame_id = f["id"]
+        text     = f.get("text", "")
+        option_tokens = f.get("option_tokens") or []
+        gold_token    = option_tokens[0] if option_tokens else None
+
+        tokens = []
+        # Split text into characters, mark gold hanzi as word token
+        gold_card  = cards.get(gold_token, {}) if gold_token else {}
+        gold_hanzi = (gold_card.get("content", {}).get("headword", {}).get("hanzi")
+                      if gold_card else None)
+
+        i = 0
+        while i < len(text):
+            ch = text[i]
+            if gold_hanzi and text[i:i+len(gold_hanzi)] == gold_hanzi:
+                tokens.append({"t": "word", "id": gold_token, "text": gold_hanzi})
+                i += len(gold_hanzi)
+            else:
+                tokens.append({"t": "lit", "id": gold_token or "", "text": ch})
+                i += 1
+        result[frame_id] = tokens
+    return result
+
+
+def build_cards_index(all_frames: list) -> dict:
+    """Map word_id -> card_id for every option token across all frames."""
+    by_word_id = {}
+    for f in all_frames:
+        for word_id in (f.get("option_tokens") or []):
+            by_word_id[word_id] = word_id  # word_id IS card_id in this schema
+    return {"by_word_id": by_word_id}
 def main():
-    print(f"[build] Phase 7.4 runtime artifact builder — {datetime.now(timezone.utc).isoformat().replace("+00:00","Z")}")
+    print(f"[build] Phase 7.4 runtime artifact builder — {datetime.now(timezone.utc).isoformat().replace('+00:00','Z')}")
     RUNTIME_OUT.mkdir(parents=True, exist_ok=True)
 
     all_frames = load_all_frames()
     cards      = load_cards()
 
-    # ── 1. Frame-slot invariant check (builder-side, fail loud) ───────────────
-    slot_violations = check_frame_slot_invariant(all_frames)
+    # ── 1. Build frame options (must come first) ──────────────────────────────
+    frame_options, option_violations = build_frame_options(all_frames, cards)
+
+    # ── 2. Frame-slot invariant check §3.2 (uses built options) ──────────────
+    slot_violations = check_frame_slot_invariant(all_frames, frame_options)
     slot_viol_path  = RUNTIME_OUT / "slot_invariant_violations.runtime.json"
     slot_viol_path.write_text(
         json.dumps({
@@ -169,20 +210,17 @@ def main():
         }, ensure_ascii=False, indent=2),
         encoding="utf-8"
     )
-
     if slot_violations:
         print(f"\n[build] INVARIANT VIOLATION — frame_slot_invariant_failed")
         print(f"[build] {len(slot_violations)} slotted frame(s) missing FRAME_WITH_SLOTS token:")
         for v in slot_violations:
-            print(f"  {v['frame_id']}: {v['option_tokens']} — {v['failure_reason']}")
+            print(f"  {v['frame_id']}: {v.get('option_tokens',[])} — {v['failure_reason']}")
         print(f"[build] violations written to {slot_viol_path}")
         print(f"[build] NOTE: builder continues in Phase 7.4 — FRAME_WITH_SLOTS is synthetic")
     else:
         print(f"[build] frame-slot invariant OK")
 
-    # ── 2. Build frame options ────────────────────────────────────────────────
-    frame_options, option_violations = build_frame_options(all_frames, cards)
-
+    # ── 3. Write frame_options ────────────────────────────────────────────────
     options_path = RUNTIME_OUT / "frame_options.runtime.json"
     options_path.write_text(
         json.dumps({
@@ -193,102 +231,46 @@ def main():
         }, ensure_ascii=False, indent=2),
         encoding="utf-8"
     )
-    print(f"[build] frame_options written: {len(frame_options)} frames → {options_path}")
+    print(f"[build] frame_options written: {len(frame_options)} frames -> {options_path}")
 
-    # ── 3. Frame render tokens (existing) ─────────────────────────────────────
-    frt = build_frame_render_tokens(all_frames, cards)
-    frt_path = RUNTIME_OUT / "frame_render_tokens.runtime.json"
-    frt_path.write_text(
-        json.dumps(frt, ensure_ascii=False, indent=2),
+    # ── 4. Build and write frame_render_tokens ────────────────────────────────
+    render_tokens = build_frame_render_tokens(all_frames, cards)
+    tokens_path   = RUNTIME_OUT / "frame_render_tokens.runtime.json"
+    tokens_path.write_text(
+        json.dumps({
+            "schema":       "frame_render_tokens_v1",
+            "generated_at": _now_iso(),
+            "frame_count":  len(render_tokens),
+            "frames":       render_tokens
+        }, ensure_ascii=False, indent=2),
         encoding="utf-8"
     )
-    print(f"[build] frame_render_tokens written: {len(frt['frames'])} frames → {frt_path}")
+    print(f"[build] frame_render_tokens written: {len(render_tokens)} frames -> {tokens_path}")
 
-    # ── 4. Cards index (existing) ─────────────────────────────────────────────
-    ci = build_cards_index(all_frames)
-    ci_path = RUNTIME_OUT / "cards_index.runtime.json"
-    ci_path.write_text(
-        json.dumps(ci, ensure_ascii=False, indent=2),
+    # ── 5. Build and write cards_index ────────────────────────────────────────
+    cards_index = build_cards_index(all_frames)
+    index_path  = RUNTIME_OUT / "cards_index.runtime.json"
+    index_path.write_text(
+        json.dumps({
+            "schema":       "cards_index_v1",
+            "generated_at": _now_iso(),
+            "entry_count":  len(cards_index["by_word_id"]),
+            "by_word_id":   cards_index["by_word_id"]
+        }, ensure_ascii=False, indent=2),
         encoding="utf-8"
     )
-    print(f"[build] cards_index written → {ci_path}")
-
-    if option_violations:
-        print(f"\n[build] WARNING: {len(option_violations)} frame(s) have option invariant issues:")
-        for v in option_violations:
-            print(f"  {v['frame_id']}: count={v['option_count']} gold={v['gold_present']}")
+    print(f"[build] cards_index written -> {index_path}")
 
     print(f"\n[build] Phase 7.4 build complete.")
 
-
-def build_frame_render_tokens(all_frames, cards):
-    """Phase 7.3 — mark the character matching the gold card hanzi as word token."""
-    import re
-    frames_out = {}
-
-    for f in all_frames:
-        frame_id      = f["id"]
-        text          = f.get("text", "")
-        option_tokens = f.get("option_tokens") or []
-        gold_token    = option_tokens[0] if option_tokens else None
-        slots         = f.get("slots") or []
-
-        # Find the gold card's hanzi so we can mark the right character
-        gold_hanzi = None
-        if gold_token and gold_token in cards:
-            gold_hanzi = (
-                cards[gold_token]
-                .get("content", {})
-                .get("headword", {})
-                .get("hanzi", "")
-            )
-
-        final_tokens = []
-        word_assigned = False
-        parts = re.split(r'(\{[A-Z_]+\})', text)
-
-        for part in parts:
-            m = re.match(r'\{([A-Z_]+)\}', part)
-            if m:
-                final_tokens.append({"t": "slot", "id": m.group(1), "text": part})
-            else:
-                for ch in part:
-                    if not ch.strip():
-                        final_tokens.append({"t": "lit", "id": None, "text": ch})
-                        continue
-
-                    # Mark as word token if this char matches gold hanzi
-                    # and we haven't assigned a word token yet
-                    is_gold_char = (
-                        gold_hanzi
-                        and not word_assigned
-                        and ch in gold_hanzi
-                    )
-
-                    if is_gold_char:
-                        final_tokens.append({"t": "word", "id": gold_token, "text": ch})
-                        word_assigned = True
-                    else:
-                        final_tokens.append({"t": "lit", "id": None, "text": ch})
-
-        frames_out[frame_id] = final_tokens
-        if not word_assigned and gold_token:
-            print(f"[build] WARNING: no word token assigned for frame {frame_id} (gold={gold_token}, hanzi={gold_hanzi!r})")
-
-    return {"schema": "frame_render_tokens_v1", "frames": frames_out}
-
-
-def build_cards_index(all_frames):
-    """Map word_id -> card_id for every option token across all frames."""
-    by_word_id = {}
-    for f in all_frames:
-        for word_id in (f.get("option_tokens") or []):
-            by_word_id[word_id] = word_id
-    return {"by_word_id": by_word_id}
-
-
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
 
 
 
