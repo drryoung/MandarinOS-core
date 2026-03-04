@@ -17,11 +17,7 @@
           <div class="controls">
             <label for="frameSelect">Frame:</label>
             <select id="frameSelect">
-              <option value="tests/fixtures/frame_open_card.json">frame_open_card.json</option>
-              <option value="tests/fixtures/frame_no_card.json">frame_no_card.json</option>
-              <option value="tests/fixtures/frame_open_card_with_options.json">
-  frame_open_card_with_options.json
-</option>
+              <!-- frames populated dynamically by loadPackFramesIntoDropdown -->
 
             </select>
             <button id="runBtn">Run Turn</button>
@@ -33,6 +29,7 @@
 
           <div id="hintPinyin"  class="hint-row hint-pinyin"  style="display:none;"></div>
           <div id="hintMeaning" class="hint-row hint-meaning"  style="display:none;"></div>
+    <div id="hintEtymology" class="hint-row hint-etymology" style="display:none;"></div>
           <button id="hintBtn"  class="hint-btn"               style="display:none;">Hint →</button>
 
           <h2>Trace</h2>
@@ -80,3 +77,7 @@
     <script type="module" src="/app.js"></script>
   </body>
 </html>
+
+
+
+

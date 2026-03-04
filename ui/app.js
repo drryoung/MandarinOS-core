@@ -18,7 +18,7 @@ let state = Object.assign({}, _initialState);
 let uiTrace = [];
 let currentPlay = null; // { utterance_id, start, timeoutId, duration_ms }
 
-// ── Phase 7.3: Frame Render Tokens ──────────────────────────────────────────
+// ── Phase 6: Frame Render Tokens ──────────────────────────────────────────
 
 /** @type {{ schema_version: string, frames: Record<string, Array<{t:string,id?:string,s:string}>> } | null} */
 let frameRenderTokens = null;
@@ -34,6 +34,7 @@ async function loadFrameRenderTokens() {
       return;
     }
     frameRenderTokens = await resp.json();
+    window._frameRenderTokens = frameRenderTokens;
     console.info(`[app] frame_render_tokens loaded (${Object.keys(frameRenderTokens.frames || {}).length} frame(s))`);
   } catch (e) {
     console.warn("[app] frame_render_tokens load failed:", e);
@@ -53,44 +54,91 @@ async function loadFrameOptions() {
   }
 }
 
-// ── §2.4 + §3.3 Hint cascade — Phase 7.6 ────────────────────────────────────
+// ── §2.4 word_etymology loader — Phase 6 ───────────────────────────────────
+let wordEtymologyIndex = {};
+async function loadWordEtymology() {
+  try {
+    const resp = await fetch("/runtime/out_phase7/word_etymology.runtime.json");
+    if (!resp.ok) { console.warn(`[app] word_etymology not available (HTTP ${resp.status})`); return; }
+    const data = await resp.json();
+    wordEtymologyIndex = data.words || {};
+    // Build hanzi → word_id reverse index
+    Object.entries(wordEtymologyIndex).forEach(([wid, entry]) => {
+      if (entry.hanzi) _hanziToWordId[entry.hanzi.trim()] = wid;
+    });
+    window._wordEtymologyIndex = wordEtymologyIndex;
+    window._hanziToWordId = _hanziToWordId;
+    console.info(`[app] word_etymology loaded (${Object.keys(wordEtymologyIndex).length} words)`);
+  } catch (e) {
+    console.warn("[app] word_etymology load failed:", e);
+  }
+}
+
+// ── §2.4 + §3.3 Hint cascade — Phase 6 ────────────────────────────────────
 let hint_cascade_state = { level: 0, turn_uid: null };
+let lastClickedWordId = null;
+window.lastClickedWordId = null;
+let _hanziToWordId = {};  // Phase 6 — reverse lookup hanzi → word_id
 
 function renderHintAffordance(hintAffordance, turnUid, inputMode) {
   const hintBtn     = document.getElementById("hintBtn");
   const hintPinyin  = document.getElementById("hintPinyin");
   const hintMeaning = document.getElementById("hintMeaning");
+  const hintEtymEl  = document.getElementById("hintEtymology");
 
-  if (inputMode === "tap" && hintAffordance?.visible && !hintBtn) {
-    const ts = new Date().toISOString();
-    SystemFaultLog.record({ fault_type: "hint_affordance_invariant_failed",
-      turn_uid: turnUid, frame_id: null, failure_reason: "hint_button_missing",
-      input_mode: inputMode, timestamp: ts, detail: {} });
-    return;
+  // Show or hide hint button
+  if (hintBtn) {
+    hintBtn.style.display = hintAffordance?.visible ? "block" : "none";
   }
-  if (!hintBtn) return;
+  if (!hintAffordance?.visible) return;
 
-  const visible = inputMode === "tap" && hintAffordance?.visible === true;
-  hintBtn.style.display = visible ? "inline-block" : "none";
-
-  if (!visible) {
-    if (hintPinyin)  hintPinyin.style.display  = "none";
-    if (hintMeaning) hintMeaning.style.display = "none";
-    return;
-  }
-
-  // Reset on new turn, preserve on mode toggle within same turn
+  // Reset on new turn
   if (hint_cascade_state.turn_uid !== turnUid) {
     hint_cascade_state = { level: 0, turn_uid: turnUid };
   }
 
   const level = hint_cascade_state.level;
-  if (hintPinyin)  hintPinyin.style.display  = level >= 1 ? "block" : "none";
-  if (hintMeaning) hintMeaning.style.display = level >= 2 ? "block" : "none";
 
-  const labels = ["Hint →", "Meaning →", "Hide hints →"];
-  hintBtn.textContent = labels[level] ?? "Hint →";
+  // Use clicked word if set, else fall back to gold word
+  const goldWordId   = window._tapOptions?.find(o => o.is_gold)?.card_id;
+  const activeWordId = window.lastClickedWordId || goldWordId;
+
+  // Get card data — use resolved card content if available (same source as card panel)
+  const resolvedContent = window._resolvedCard?.content;
+  const cardData = (window._resolvedCardId === activeWordId && resolvedContent)
+    ? { pinyin: resolvedContent.headword?.pinyin || "", meaning: resolvedContent.meaning || "" }
+    : window.cardsIndex?.by_word_id?.[activeWordId];
+
+  // Level 1: pinyin
+  if (hintPinyin) {
+    if (level >= 1 && cardData?.pinyin) {
+      hintPinyin.textContent = cardData.pinyin;
+      hintPinyin.style.display = "block";
+    } else {
+      hintPinyin.style.display = "none";
+    }
+  }
+
+  // Level 2: meaning
+  if (hintMeaning) {
+    if (level >= 2 && cardData?.meaning) {
+      hintMeaning.textContent = cardData.meaning;
+      hintMeaning.style.display = "block";
+    } else {
+      hintMeaning.style.display = "none";
+    }
+  }
+
+  // Level 3: etymology
+  if (hintEtymEl) {
+    hintEtymEl.style.display = level >= 3 ? "block" : "none";
+    if (level >= 3) renderEtymologyForWord(activeWordId);
+  }
+
+  const labels = ["Hint \u2192", "Meaning \u2192", "Etymology \u2192", "Hide hints \u2192"];
+  if (hintBtn) hintBtn.textContent = labels[level] ?? "Hint \u2192";
 }
+// ── end Phase 6 ────────────────────────────────────────────────────────────
 
 async function loadCardsIndex() {
   try {
@@ -100,6 +148,8 @@ async function loadCardsIndex() {
       return;
     }
     cardsIndex = await resp.json();
+    window.cardsIndex = cardsIndex;
+    window.cardsIndex = cardsIndex; // <-- ADD THIS LINE
     console.info(`[app] cards_index loaded`);
   } catch (e) {
     console.warn("[app] cards_index load failed:", e);
@@ -139,6 +189,8 @@ function renderFrameSentence(frame) {
       span.style.cursor = "pointer";
       span.title = tok.id;
       span.addEventListener("click", () => {
+        lastClickedWordId = tok.id;
+        window.lastClickedWordId = lastClickedWordId;
         const cardId =
           cardsIndex &&
           cardsIndex.by_word_id &&
@@ -167,7 +219,38 @@ function renderFrameSentence(frame) {
   });
 }
 
-// ── end Phase 7.3 ────────────────────────────────────────────────────────────
+
+// ── §2.4 Level 3 hint — etymology renderer — Phase 6 ───────────────────────
+function renderEtymologyForWord(wordId) {
+  const el = document.getElementById("hintEtymology");
+  if (!el) return;
+
+  // If wordId is missing or not present in the etymology index, show fallback
+  if (!wordId || !wordEtymologyIndex[wordId]) {
+    el.innerHTML = "<span class='etym-fallback'>No etymology available yet</span>";
+    return;
+  }
+
+  const entry = wordEtymologyIndex[wordId];
+  if (!entry.characters || entry.characters.length === 0) {
+    el.innerHTML = "<span class='etym-fallback'>No etymology available yet</span>";
+    return;
+  }
+
+  const parts = entry.characters.map(ch => {
+    let html = `<div class="etym-char"><span class="etym-hanzi">${ch.char}</span>`;
+    if (ch.radical)                 html += `<span class="etym-radical">Radical: ${ch.radical}</span>`;
+    if (ch.decomposition)           html += `<span class="etym-decomp">Parts: ${ch.decomposition}</span>`;
+    if (ch.etymology?.origin_note)  html += `<span class="etym-origin">${ch.etymology.origin_note}</span>`;
+    if (ch.mnemonic?.story)         html += `<span class="etym-mnemonic">${ch.mnemonic.story}</span>`;
+    if (ch.mnemonic?.disclaimer)    html += `<span class="etym-disclaimer">${ch.mnemonic.disclaimer}</span>`;
+    html += `</div>`;
+    return html;
+  }).join("");
+
+  el.innerHTML = `<div class="etym-word">${parts}</div>`;
+}
+// ── end Phase 6 ────────────────────────────────────────────────────────────
 
 function dispatch(action) {
   state = reduce(state, action);
@@ -464,6 +547,8 @@ async function resolveCard(cardId, cards_path) {
     const cards = await cardsResp.json();
     const card = cards && cards[cardId] ? cards[cardId] : null;
     if (card) {
+      window._resolvedCard = card;
+      window._resolvedCardId = cardId;
       dispatch({ type: "CARD_RESOLVED", payload: { cardId, card, error: null } });
     } else {
       dispatch({ type: "CARD_RESOLVED", payload: { cardId, card: null, error: { kind: "CARD_NOT_FOUND", message: "Card not found", cardId } } });
@@ -520,12 +605,14 @@ async function loadPackFramesIntoDropdown() {
       timestamp: new Date().toISOString(),
       payload: { message: "loadPackFramesIntoDropdown failed (kept fixtures)", error: String(e) }
     });
+    console.error("[app] loadPackFramesIntoDropdown error:", e);
+    return;
   }
 }
 
 
 
-// ── Phase 7.4: render response options ───────────────────────────────────────
+// ── Phase 6: render response options ───────────────────────────────────────
 // ── §3.4 SystemFaultLog — idempotent session-level fault accumulator ─────────
 const SystemFaultLog = {
   _faults: [],
@@ -555,7 +642,7 @@ function buildDiagnosticCompleted(sessionMeta) {
   };
 }
 
-// ── §5 validateOption — Phase 7.5 ────────────────────────────────────────────
+// ── §5 validateOption — Phase 6 ────────────────────────────────────────────
 const ALLOWED_OPTION_KINDS = new Set(["WORD", "FRAME_WITH_SLOTS", "FILLER", "FREE_TEXT"]);
 
 function validateOption(option, targetItem) {
@@ -656,7 +743,7 @@ function renderOptions(options, frameId) {
     container.appendChild(btn);
   });
 }
-// ── end Phase 7.4 ────────────────────────────────────────────────────────────
+// ── end Phase 6 ────────────────────────────────────────────────────────────
 async function runTurn() {
   const selected = frameSelect.value;
   const selectedOption = frameSelect.options[frameSelect.selectedIndex];
@@ -708,7 +795,7 @@ async function runTurn() {
     return;
   }
 
-  // Phase 7.3: parse response and open card if card_id returned
+  // Phase 6: parse response and open card if card_id returned
   let data = {};
   try {
     data = await res.json();
@@ -727,7 +814,7 @@ async function runTurn() {
   const frameId = data.frame_id || selected;
   const fallbackText = data.prompt_text || data.frame_text || "";
   renderFrameSentence({ id: frameId, text: fallbackText });
-  // Phase 7.6 — source options + hint affordance from pre-loaded runtime artifact
+  // Phase 6 — source options + hint affordance from pre-loaded runtime artifact
   const _frameData     = window._frameOptionsRuntime?.frames?.[frameId] || {};
   const tapOptions     = _frameData.options || data.options || [];
   const hintAffordance = _frameData.hint_affordance || { visible: false };
@@ -740,6 +827,7 @@ async function runTurn() {
   if (hintPinyinEl)  hintPinyinEl.textContent  = goldOption?.pinyin  || "";
   if (hintMeaningEl) hintMeaningEl.textContent = goldOption?.meaning || goldOption?.gloss_en || "";
   
+  window._tapOptions = tapOptions;
   renderOptions(tapOptions, frameId);
   renderHintAffordance(hintAffordance, turnUid, "tap");
   
@@ -749,7 +837,7 @@ async function runTurn() {
     const _newBtn = _hintBtn.cloneNode(true);
     _hintBtn.parentNode.replaceChild(_newBtn, _hintBtn);
     _newBtn.addEventListener("click", () => {
-      hint_cascade_state.level = (hint_cascade_state.level + 1) % 3;
+      hint_cascade_state.level = (hint_cascade_state.level + 1) % 4;
       renderHintAffordance(hintAffordance, turnUid, "tap");
       emitUITrace({ type: "HINT_ADVANCED", timestamp: new Date().toISOString(),
         payload: { frame_id: frameId, level: hint_cascade_state.level, turn_uid: turnUid } });
@@ -812,12 +900,13 @@ const UI_DATA_BUILD_LABEL = "p1/p2 enriched (schema-preserving) + characters_120
 
 // defaults
 window.addEventListener("load", async () => {
-  // Phase 7.3: load render tokens and cards index in parallel with existing loads
+  // Phase 6: load render tokens and cards index in parallel with existing loads
   await Promise.all([
     loadPackFramesIntoDropdown(),
     loadFrameRenderTokens(),
     loadCardsIndex(),
     loadFrameOptions(),
+    loadWordEtymology(),
   ]);
   if (dataBuildInfoEl) dataBuildInfoEl.textContent = `Data: ${UI_DATA_BUILD_LABEL}`;
   render();
@@ -919,8 +1008,26 @@ if (cardIdEl) {
     }
   });
 }
-// ── Phase 7.6 — expose to window for console access + external callers ────────
+// ── Phase 6 — expose to window for console access + external callers ────────
 window.SystemFaultLog          = SystemFaultLog;
 window.buildDiagnosticCompleted = buildDiagnosticCompleted;
 window.hint_cascade_state   = hint_cascade_state;
 window.renderHintAffordance = renderHintAffordance;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
