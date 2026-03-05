@@ -3,8 +3,12 @@ from __future__ import annotations
 
 import json
 import random
+import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+from builders.build_frame_tokens_runtime import write_frame_tokens
 
 def _now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -14,6 +18,7 @@ REPO_ROOT    = Path(__file__).resolve().parents[1]
 RUNTIME_OUT  = REPO_ROOT / "runtime" / "out_phase7"
 CARDS_PATH   = REPO_ROOT / "tools" / "cards" / "out" / "cards_by_id.json"
 FRAME_WITH_SLOTS_TOKEN = "FRAME_WITH_SLOTS"
+BUILDER_VERSION = "7.7.0"
 
 random.seed(42)  # deterministic distractor selection
 
@@ -218,8 +223,79 @@ def build_cards_index(all_frames: list, render_tokens: dict) -> dict:
             if tok.get("t") == "word" and tok.get("id"):
                 by_word_id[tok["id"]] = tok["id"]
     return {"by_word_id": by_word_id}
+
+
+def build_word_etymology(cards: dict, char_links: list, char_by_id: dict) -> tuple[dict, dict]:
+    """
+    Phase 7.7 — build word_etymology.runtime.json keyed by word_id.
+    Option C: silently skip character_ids missing from characters_1200.json.
+    Missing etymology/mnemonic fields → omit key entirely.
+    Returns (result, build_report).
+    """
+    result       = {}
+    missing_cids = {}  # word_id -> [character_id, ...]
+
+    for link in char_links:
+        word_id   = link["word_id"]
+        chars_out = []
+
+        for c in link.get("characters", []):
+            cid   = c["character_id"]
+            entry = char_by_id.get(cid)
+            if entry is None:
+                # Option C — skip silently, record for build report only
+                missing_cids.setdefault(word_id, []).append(cid)
+                continue
+
+            char_record = {
+                "char":         entry["hanzi"],
+                "character_id": cid,
+            }
+
+            decomp = entry.get("decomposition", "")
+            if decomp:
+                char_record["decomposition"] = decomp
+
+            radical = entry.get("primary_radical", "")
+            if radical:
+                char_record["radical"] = radical
+
+            etym = entry.get("etymology", "")
+            if etym and isinstance(etym, dict) and any(v for v in etym.values()):
+                char_record["etymology"] = etym
+
+            mnem = entry.get("mnemonic", "")
+            if mnem and isinstance(mnem, dict) and any(v for v in mnem.values()):
+                char_record["mnemonic"] = mnem
+
+            chars_out.append(char_record)
+
+        # Always include word_id even if zero valid characters after filtering
+        result[word_id] = {
+            "hanzi":      link.get("word_hanzi", "").strip(),
+            "characters": chars_out
+        }
+
+    build_report = {
+        "missing_character_id_count": sum(len(v) for v in missing_cids.values()),
+        "affected_word_ids":          list(missing_cids.keys()),
+        "missing_by_word":            missing_cids
+    }
+    return result, build_report
+
+
 def main():
-    print(f"[build] Phase 7.4 runtime artifact builder — {datetime.now(timezone.utc).isoformat().replace('+00:00','Z')}")
+    import subprocess
+    git_commit = "unknown"
+    try:
+        git_commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=REPO_ROOT, stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        pass
+
+    print(f"[build] Phase 7.7 runtime artifact builder v{BUILDER_VERSION} — {_now_iso()} — commit {git_commit}")
     RUNTIME_OUT.mkdir(parents=True, exist_ok=True)
 
     all_frames = load_all_frames()
@@ -277,6 +353,16 @@ def main():
     )
     print(f"[build] frame_render_tokens written: {len(render_tokens)} frames -> {tokens_path}")
 
+    # ── 4b. Phase 7.3 — Build frame_tokens (canonical) + frame_render_tokens (compat alias) ──
+    _words_paths  = [REPO_ROOT / "p1_words.json", REPO_ROOT / "p2_words.json"]
+    _frames_paths = [REPO_ROOT / "p1_frames.json", REPO_ROOT / "p2_frames.json"]
+    _ft_serialised, _ft_unknown, _ft_frame_count = write_frame_tokens(
+        frames_paths=_frames_paths,
+        words_paths=_words_paths,
+        out_dir=RUNTIME_OUT,
+    )
+    _ft_sha = hashlib.sha256(_ft_serialised.encode("utf-8")).hexdigest()
+
     # ── 5. Build and write cards_index ────────────────────────────────────────
     cards_index = build_cards_index(all_frames, render_tokens)
     index_path  = RUNTIME_OUT / "cards_index.runtime.json"
@@ -291,7 +377,69 @@ def main():
     )
     print(f"[build] cards_index written -> {index_path}")
 
-    print(f"\n[build] Phase 7.4 build complete.")
+    # ── 6. Load etymology source data ─────────────────────────────────────────
+    char_links_path = REPO_ROOT / "word_character_links.json"
+    chars_path      = REPO_ROOT / "characters_1200.json"
+
+    if not char_links_path.is_file():
+        print(f"[build] WARNING: word_character_links.json not found — skipping etymology build")
+    elif not chars_path.is_file():
+        print(f"[build] WARNING: characters_1200.json not found — skipping etymology build")
+    else:
+        char_links_data = json.loads(char_links_path.read_text(encoding="utf-8"))
+        chars_data      = json.loads(chars_path.read_text(encoding="utf-8"))
+        char_by_id      = { c["id"]: c for c in chars_data.get("characters", []) }
+        char_links      = char_links_data.get("links", [])
+
+        print(f"[build] etymology source: {len(char_links)} word links, {len(char_by_id)} characters")
+
+        # ── 7. Build and write word_etymology ─────────────────────────────────
+        word_etymology, build_report = build_word_etymology(cards, char_links, char_by_id)
+
+        missing_count = build_report["missing_character_id_count"]
+        if missing_count:
+            print(f"[build] Missing character_ids filtered (Option C): {missing_count}")
+            print(f"[build] Affected word_ids: {build_report['affected_word_ids']}")
+        else:
+            print(f"[build] etymology: all character_ids resolved OK")
+
+        etym_path = RUNTIME_OUT / "word_etymology.runtime.json"
+        etym_path.write_text(
+            json.dumps({
+                "schema":        "word_etymology_v1",
+                "build_version": BUILDER_VERSION,
+                "build_date":    _now_iso(),
+                "git_commit":    git_commit,
+                "word_count":    len(word_etymology),
+                "build_report":  build_report,
+                "words":         word_etymology
+            }, ensure_ascii=False, indent=2),
+            encoding="utf-8"
+        )
+        print(f"[build] word_etymology written: {len(word_etymology)} words -> {etym_path}")
+
+    print(f"\n[build] Phase 7.7 build complete. v{BUILDER_VERSION} commit={git_commit}")
+
+    # ── Manifest update ───────────────────────────────────────────────────────
+    manifest_path = RUNTIME_OUT / "build_manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    else:
+        manifest = {"builder": str(Path(__file__).name), "inputs": {}, "outputs": {}}
+
+    manifest["outputs"]["frame_tokens_runtime_path"]         = str(RUNTIME_OUT / "frame_tokens.runtime.json")
+    manifest["outputs"]["frame_tokens_runtime_sha256"]       = _ft_sha
+    manifest["outputs"]["frame_tokens_runtime_count"]        = _ft_frame_count
+    manifest["outputs"]["frame_render_tokens_runtime_path"]  = str(RUNTIME_OUT / "frame_render_tokens.runtime.json")
+    manifest["outputs"]["frame_render_tokens_runtime_sha256"] = _ft_sha
+    manifest["outputs"]["frame_render_tokens_runtime_count"] = _ft_frame_count
+
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8"
+    )
+    print(f"[build] manifest updated -> {manifest_path}")
+
 
 if __name__ == "__main__":
     main()
