@@ -6,7 +6,7 @@ This kit enables full-app repositories to **instrument trace capture, validate c
 
 The integration kit provides:
 
-1. **JSON Schemas** (`schemas/`): Canonical trace format
+1. **JSON Schemas:** **`../schemas/`** (repo root) — canonical trace format
 2. **Example Traces** (`examples/`): Reference implementations of all 6 required scenarios
 3. **TypeScript Capture Patterns** (`ts_exporter_snippets/`): Framework-agnostic pseudocode for trace export
 4. **Validation Scripts** (`../scripts/`): Local validation (bash/PowerShell) + Python conformance runner
@@ -178,7 +178,7 @@ If validation fails, check the error code in the output:
 
 | Code | Meaning | Fix |
 |------|---------|-----|
-| `TRACE_SCHEMA_INVALID` | Trace JSON does not match TurnStateTrace.schema.json | Validate JSON structure against schemas/ |
+| `TRACE_SCHEMA_INVALID` | Trace JSON does not match TurnStateTrace.schema.json | Validate JSON structure against `../schemas/` (repo root) |
 | `TURN_OPTION_INVARIANT_FAILED` | >= 3 options or gold missing on tap turn | Add more options or ensure gold is present |
 | `DEAD_STATE_NO_FORWARD_PATH` | Turn has no viable exit (no options, no hints, no slots) | Add options, hints, or slot selectors |
 | `TOGGLE_AFFORDANCE_DROP` | TAP↔TYPE toggle lost an affordance | Re-capture; preserve affordances across toggles |
@@ -304,7 +304,7 @@ Once traces are exported and validated:
 ## Support
 
 - **Questions about scenarios?** See [SCENARIOS_REQUIRED_v1.md](./SCENARIOS_REQUIRED_v1.md)
-- **Questions about trace format?** See [TurnStateTrace.schema.json](./schemas/TurnStateTrace.schema.json)
+- **Questions about trace format?** See [TurnStateTrace.schema.json](../schemas/TurnStateTrace.schema.json) (repo root)
 - **Questions about validation?** See [run_trace_conformance.py](../conformance/run_trace_conformance.py)
 - **Questions about capture?** See [trace_exporter.ts](./ts_exporter_snippets/trace_exporter.ts)
 
@@ -316,15 +316,7 @@ Once traces are exported and validated:
 integration_kit/
 ├── README.md (this file)
 ├── schemas/
-│   ├── TurnStateTrace.schema.json
-│   ├── TraceStep.schema.json
-│   ├── Event.schema.json
-│   ├── TurnState.schema.json
-│   ├── Option.schema.json
-│   ├── Hint.schema.json
-│   ├── Effects.schema.json
-│   ├── Token.schema.json
-│   └── TurnResponse.schema.json
+│   └── README.md          → points to ../schemas/ (canonical schemas at repo root)
 ├── examples/
 │   ├── example_trace_minimal.json
 │   ├── example_trace_toggle.json

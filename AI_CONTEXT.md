@@ -1,0 +1,262 @@
+# AI_CONTEXT.md — MandarinOS Repo Map (Authoritative)
+
+This file is the *fast orientation map* for any AI assistant (Cursor, ChatGPT) working on MandarinOS.
+If you are an AI tool: **read this file first** before proposing or writing code.
+
+---
+
+## AI roles (how tools are used)
+
+- **ChatGPT:** Strategist and testing. Use for high-level strategy, acceptance criteria, test scenarios, and review. Does not implement code.
+- **Cursor (Claude):** Senior architect and programmer. Use for architecture decisions and all implementation. When acting as **programmer**, Cursor must make **small, step-by-step changes only**—one concern at a time, no large refactors—to avoid drift from the Design Constitution. The constitution is non-negotiable; when in doubt, make the smallest safe change and stop for review.
+- **Protocol reminder:** One feature per step; architect (plan) before programmer (code); stop for user and ChatGPT review after each step.
+
+GitHub Copilot is no longer used in this workflow.
+---
+See docs/project/MANDARINOS_PROJECT_PLAN_v1.md for the current development roadmap.
+See docs/design/MANDARINOS_ARCHITECTURE_MAP.png for system architecture.
+---
+AI governance rules are defined in:
+docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md
+---
+Cursor must read docs/design/CURSOR_STARTUP_PROTOCOL.md before performing any analysis or code changes.
+---
+## 0) Project goal (what MandarinOS is designed to do)
+
+MandarinOS is a **conversation-first Mandarin learning system** designed to build **usable spoken competence**.
+
+The core interaction loop is:
+
+1) **Show and speak a frame sentence**
+   - The system displays a sentence pattern (“frame”).
+   - Audio playback allows the learner to hear natural pronunciation.
+
+2) **Let the user respond**
+   - The user may respond by:
+     - speaking the response, and/or
+     - selecting a response option from the UI.
+   - In structured exercises, several response options may be presented (including one gold answer).
+
+3) **Provide progressive hints when needed**
+   - A hint system provides multiple levels of help.
+   - Hints should move from light guidance toward clearer assistance without immediately revealing the answer.
+
+4) **Allow exploration of words and characters**
+   - Users can click words within a sentence to open the **Card Panel**.
+   - The card panel may include:
+     - hanzi
+     - pinyin
+     - meaning
+     - pronunciation playback
+     - character structure / etymology (future feature).
+
+5) **Record learning signals through trace events**
+   - All important user actions generate trace events.
+   - These events allow the system to:
+     - diagnose learner ability
+     - evaluate UX quality
+     - support future adaptive learning.
+
+The system prioritizes **spoken usability and comprehension**, not passive vocabulary memorization.
+
+---
+
+## 1) Non-negotiable rules (architecture guardrails)
+
+### 1.1 Do NOT manually edit generated artifacts
+Generated JSON and runtime artifacts must only be produced by builders/tools.
+If coverage or data is missing, fix the *source inputs* or *builders*, not the outputs.
+
+Examples of generated/runtime artifacts (do not hand-edit):
+- cards_by_id.json (runtime cards)
+- runtime index files
+- frame_tokens.runtime.json (tokenized frame text)
+- any `*.runtime.json` or `tools/.../out/...` outputs
+
+### 1.2 Always consult (architecture authority)
+Before making architectural or behavioral changes, always consult these documents:
+
+- **MandarinOS Design Constitution:** `docs/design/mandarinos_design_constitution.txt`
+- **MandarinOS AI Interaction Protocol** (if present)
+- **Trace contract:** `docs/design/TRACE_CONTRACT_v1.md`
+- **Phase architecture lock:** `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md`
+- Other phase docs: `docs/phases/` (freezes, checklists, rollback)
+
+These documents define the **authoritative system architecture**.
+If proposed changes conflict with these documents, the documents take precedence unless the user explicitly approves a revision.
+
+### 1.3 Minimal change policy (Cursor as programmer: strict)
+When implementing code, apply the **smallest possible change** that satisfies the task:
+
+- **One concern at a time** — do not bundle refactors, renames, and feature work in one edit.
+- **One file (or a very small set) per step** — prefer one file at a time; if multiple files are required, make the change in the fewest files and smallest edits possible.
+- **No large refactors** unless the user explicitly requests them — avoid "cleaning up" or "improving" structure while implementing a feature.
+- **Preserve existing behavior** unless the task explicitly changes behavior.
+- **Stop after each step** — present what changed, run tests, and allow review before proceeding. This keeps the codebase aligned with the Design Constitution and prevents drift.
+
+---
+
+## 2) The “source of truth” data model (important)
+
+### 2.1 Lexicons (human-curated / canonical inputs)
+These contain the *real linguistic content* (words, frames, etc).
+
+Key facts:
+- `p1_words.json` / `p2_words.json` have top-level key: `words` (a list)
+- each word uses key `id` (not `word_id`) and includes `hanzi`
+- `p1_frames.json` / `p2_frames.json` have top-level key: `frames` (a list)
+- each frame uses key `id` (not `frame_id`) and includes `text`
+
+### 2.2 Runtime cards are NOT the lexicon
+Runtime cards (e.g., in `cards_by_id.json`) are for UI display and actions.
+Important: card objects contain fields like:
+- `actions`, `card_id`, `content`, `state`
+
+They do **not** reliably contain hanzi.
+If you need hanzi for a word, read it from the lexicons.
+
+### 2.3 Runtime indexes link everything
+A runtime index typically maps:
+- word_id → card_id
+- frame_id → card_id
+
+so the UI can open the correct card panel for a clicked word or selected frame.
+
+Important known mapping:
+- runtime `cards_index.by_word_id` maps both **word_id and frame_id** to **card_id**.
+
+---
+
+## 3) Critical runtime contract: OPEN_CARD payload
+
+The OPEN_CARD payload structure includes:
+- `engine_id`
+- `frame_id`
+- `card_id`
+- `reason`
+
+Any implementation must preserve this payload shape.
+
+---
+
+## 4) Derived artifact: tokenized frame text
+
+There is a canonical derived artifact that tokenizes each frame’s text to support word-level rendering:
+
+- `frame_tokens.runtime.json` (canonical)
+- `frame_render_tokens.runtime.json` (compat alias; byte-identical)
+
+This supports future UI where individual tokens are clickable (word → card panel).
+
+---
+
+## 5) Where things live (repo map)
+
+> File names may evolve; this is the *conceptual map*.
+> Always search the repo if unsure, but keep the rules above.
+
+### 5.0 Conversation architecture (design specs)
+
+All conversation-design decisions (engines, sentence selector, memory, capability map, steering, ladders, persona network) live under **`docs/specs/`**. The single entry point is:
+
+- **`docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md`** — Lists every conversation-related spec: 7 engines (Identity, Place, Food, Family, Study/Work, Travel, Interests), Next Question Selector, memory model, capability map, steering engine, ladders, support packs, persona network. Use it when implementing or reviewing conversation logic so no iPhone/ChatGPT design work is missed.
+
+### 5.1 Runtime (server-side)
+Likely areas:
+- `runtime/` — runtime resolver logic, open-card resolver, etc.
+- `api/` or similar — endpoints such as `/api/run_turn`
+
+### 5.2 UI (client-side)
+Likely areas:
+- `ui/` — `index.html`, `styles.css`, `app.js` (or similar)
+
+UI responsibilities:
+- render frame text
+- speak frame text (audio playback)
+- accept spoken input and/or option selection (where implemented)
+- show hint affordances
+- open/close card panel
+- emit trace events
+
+### 5.3 Builders / Tools (generate runtime artifacts)
+Likely areas:
+- `tools/` — builder scripts that generate runtime JSON artifacts
+Examples include tokenization builder(s) producing `frame_tokens.runtime.json`.
+
+---
+
+## 6) How to run the local UI server (canonical command)
+
+From repo root, start the server with:
+
+    python -m scripts.ui_server
+
+Stop it with Ctrl+C.
+
+Open UI at:
+
+    http://localhost:8765/ui/index.html
+
+(If the port differs, trust what the server prints, but 8765 is the canonical expectation.)
+
+---
+
+## 7) Testing expectations
+
+We prefer deterministic build outputs:
+- same inputs → identical artifacts
+- golden tests verify runtime JSON content
+
+If tests exist for a builder:
+- update the builder AND update/extend the tests accordingly
+- do not “fix” tests by weakening assertions unless explicitly instructed
+
+---
+
+## 8) Common failure modes (avoid these)
+
+1) Assuming runtime cards contain hanzi/pinyin (often false)
+2) Editing generated JSON by hand (breaks determinism)
+3) Breaking trace event shapes or names
+4) Refactoring UI rendering in a way that removes required affordances (hint button, option buttons, word click)
+5) Creating “helpful” new fields in payloads without updating the contract docs
+
+---
+
+## 9) If you are asked to implement a feature (Cursor as programmer)
+
+Use this sequence—and keep each implementation step **small**:
+
+1) Identify the contract constraints (trace + payload shapes) and the Design Constitution rules that apply.
+2) Identify the source-of-truth data (lexicons vs runtime artifacts).
+3) Identify the builder that must change (if any).
+4) **Implement one small, reviewable change** — do not bundle multiple concerns (e.g. "add feature X and refactor Y"). If the task is large, break it into steps and implement one step at a time.
+5) Run tests.
+6) Summarize changes + files touched + why it is safe and consistent with the constitution.
+
+If a change would conflict with the Design Constitution or phase locks, do not implement it; report the conflict and ask for direction.
+
+---
+
+## 10) Glossary (short)
+
+- Frame: a target sentence pattern the user learns to produce/respond to
+- Word: lexicon entry with hanzi/pinyin/meaning metadata
+- Card: UI panel content for a word/frame (display + actions)
+- Runtime artifact: generated JSON used by UI/runtime
+- Builder: script that generates runtime artifacts deterministically
+- Trace: structured events emitted by UI/runtime for debugging and learning analytics
+
+---
+
+## 11) “Read-first” files for any AI assistant
+
+If present, read these before making architectural suggestions:
+- `docs/design/mandarinos_design_constitution.txt` (Design Constitution)
+- MandarinOS AI Interaction Protocol (if present)
+- `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md`
+- `docs/design/TRACE_CONTRACT_v1.md` (trace contract)
+- Other phase docs: `docs/phases/`
+- Build directives under `integration_kit/` (if relevant to the task)
+
+END.

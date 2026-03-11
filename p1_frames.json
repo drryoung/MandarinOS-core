@@ -9,6 +9,7 @@
       "id_legacy": "f_name_1",
       "text": "你好！",
       "pinyin": "nǐ hǎo!",
+      "text_en": "Hello!",
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
@@ -22,25 +23,29 @@
       "id_legacy": "f_name_1_reply",
       "text": "你好！",
       "pinyin": "nǐ hǎo!",
+      "text_en": "Hello!",
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
       "speaker": "user",
       "option_tokens": [
         "w_nihao"
-      ]
+      ],
+      "distractor_tokens": ["w_xiexie", "w_bukeqi"]
     },
     {
       "id": "f_ask_you_name",
       "text": "你叫什么名字？",
       "pinyin": "nǐ jiào shénme míngzi?",
+      "text_en": "What's your name?",
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
       "speaker": "partner",
       "option_tokens": [
         "w_jiao"
-      ]
+      ],
+      "distractor_tokens": ["w_shenme", "w_mingzi"]
     },
     {
       "id": "frame.identity.name",
@@ -58,12 +63,14 @@
       "speaker": "user",
       "option_tokens": [
         "w_jiao"
-      ]
+      ],
+      "text_en": "My name is [NAME]."
     },
     {
       "id": "f_you_ne",
       "text": "你呢？",
       "pinyin": "nǐ ne?",
+      "text_en": "And you?",
       "engine": "identity",
       "difficulty": 1,
       "slots": [],
@@ -82,7 +89,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_jiao"
-      ]
+      ],
+      "text_en": "My name is Li Ming."
     },
     {
       "id": "f_thanks",
@@ -94,7 +102,9 @@
       "speaker": "user",
       "option_tokens": [
         "w_xiexie"
-      ]
+      ],
+      "distractor_tokens": ["w_nihao", "w_bukeqi"],
+      "text_en": "Thanks!"
     },
     {
       "id": "f_no_problem",
@@ -106,7 +116,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_bukeqi"
-      ]
+      ],
+      "text_en": "you're welcome"
     },
     {
       "id": "f_from_where",
@@ -116,9 +127,11 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
+      "distractor_tokens": ["w_beijing", "w_shanghai"],
       "option_tokens": [
         "w_nali"
-      ]
+      ],
+      "text_en": "Where are you from?"
     },
     {
       "id": "frame.identity.nationality",
@@ -136,7 +149,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_wo"
-      ]
+      ],
+      "text_en": "I'm [NATIONALITY]."
     },
     {
       "id": "frame.location.live_question",
@@ -149,7 +163,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_zhu"
-      ]
+      ],
+      "text_en": "Where do you live now?"
     },
     {
       "id": "frame.location.live",
@@ -167,7 +182,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_zhu"
-      ]
+      ],
+      "text_en": "I live in [CITY] now."
     },
     {
       "id": "f_have_family",
@@ -179,7 +195,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_jiaren"
-      ]
+      ],
+      "text_en": "Do you have family?"
     },
     {
       "id": "f_yes_have_family",
@@ -191,7 +208,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_jiaren"
-      ]
+      ],
+      "text_en": "Yes, I have family."
     },
     {
       "id": "f_have_siblings",
@@ -203,12 +221,14 @@
       "speaker": "partner",
       "option_tokens": [
         "w_you"
-      ]
+      ],
+      "text_en": "Do you have any siblings?"
     },
     {
       "id": "f_have_brother",
       "text": "我有哥哥。",
       "pinyin": "wǒ yǒu gēge.",
+      "text_en": "I have an older brother.",
       "engine": "family",
       "difficulty": 2,
       "slots": [],
@@ -227,7 +247,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_jiejie"
-      ]
+      ],
+      "text_en": "I have an older sister."
     },
     {
       "id": "f_what_work",
@@ -239,7 +260,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_gongzuo"
-      ]
+      ],
+      "text_en": "What do you do for work?"
     },
     {
       "id": "f_i_am_job",
@@ -256,7 +278,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_wo"
-      ]
+      ],
+      "text_en": "I'm a [JOB]."
     },
     {
       "id": "f_like_work",
@@ -268,7 +291,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_xihuan"
-      ]
+      ],
+      "text_en": "Do you like your job?"
     },
     {
       "id": "frame.opinion.like",
@@ -281,7 +305,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_xihuan"
-      ]
+      ],
+      "text_en": "Yes, I like it a lot."
     },
     {
       "id": "f_what_hobby",
@@ -293,7 +318,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_aihao"
-      ]
+      ],
+      "text_en": "you to have what hobby"
     },
     {
       "id": "f_i_like_hobby",
@@ -310,7 +336,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_xihuan"
-      ]
+      ],
+      "text_en": "I like [HOBBY]."
     },
     {
       "id": "f_weekend_do",
@@ -322,7 +349,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_shenme"
-      ]
+      ],
+      "text_en": "What do you do on weekends?"
     },
     {
       "id": "f_weekend_rest",
@@ -334,7 +362,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_wo"
-      ]
+      ],
+      "text_en": "I rest on weekends."
     },
     {
       "id": "f_travel_where",
@@ -346,7 +375,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_quguo"
-      ]
+      ],
+      "text_en": "Where have you been?"
     },
     {
       "id": "f_been_to_place",
@@ -363,7 +393,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_quguo"
-      ]
+      ],
+      "text_en": "I've been to [PLACE]."
     },
     {
       "id": "f_want_go_where",
@@ -375,7 +406,8 @@
       "speaker": "partner",
       "option_tokens": [
         "w_nali"
-      ]
+      ],
+      "text_en": "Where do you want to go?"
     },
     {
       "id": "f_want_go_place",
@@ -392,7 +424,8 @@
       "speaker": "user",
       "option_tokens": [
         "w_xiang"
-      ]
+      ],
+      "text_en": "I want to go to [PLACE]."
     }
   ]
 }

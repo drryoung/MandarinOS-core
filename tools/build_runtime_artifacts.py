@@ -88,13 +88,16 @@ def build_frame_options(all_frames: list, cards: dict) -> dict:
             }
             options.append(slot_option)
 
-            # Add 2 distractors from non-slotted cards
+            # Add 2 distractors: use frame distractor_tokens if present, else random
+            explicit = [c for c in (f.get("distractor_tokens") or []) if c in cards and c != gold_token][:2]
             distractor_pool = [
                 cid for cid in all_card_ids
-                if cid != gold_token
+                if cid != gold_token and cid not in explicit
             ]
             random.shuffle(distractor_pool)
-            for cid in distractor_pool[:2]:
+            for cid in explicit:
+                options.append(card_to_option(cid, cards[cid], is_gold=False, is_slot=False))
+            for cid in distractor_pool[: 2 - len(explicit)]:
                 options.append(card_to_option(cid, cards[cid], is_gold=False, is_slot=False))
 
         else:
@@ -105,13 +108,16 @@ def build_frame_options(all_frames: list, cards: dict) -> dict:
             else:
                 print(f"[build] WARNING: gold token {gold_token!r} not in cards for frame {frame_id}")
 
-            # 2 distractors — exclude gold
+            # 2 distractors: use frame distractor_tokens if present, else random
+            explicit = [c for c in (f.get("distractor_tokens") or []) if c in cards and c != gold_token][:2]
             distractor_pool = [
                 cid for cid in all_card_ids
-                if cid != gold_token
+                if cid != gold_token and cid not in explicit
             ]
             random.shuffle(distractor_pool)
-            for cid in distractor_pool[:2]:
+            for cid in explicit:
+                options.append(card_to_option(cid, cards[cid], is_gold=False))
+            for cid in distractor_pool[: 2 - len(explicit)]:
                 options.append(card_to_option(cid, cards[cid], is_gold=False))
 
         # Shuffle so gold is not always first

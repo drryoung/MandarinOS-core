@@ -1,0 +1,116 @@
+
+MandarinOS – Senior Architect Update
+Phase: Conversation Architecture Revision
+Date: 2026-03-05
+
+Context
+-------
+The project is temporarily shifting focus from UI implementation to conversation architecture refinement.
+
+The goal is to improve the depth and natural flow of conversations before continuing UI work that depends on those structures.
+
+Recent analysis showed that many engines currently support only 3–5 conversational turns, which is insufficient for meaningful SRS-guided practice. The design target is 8–12 natural turns per topic.
+
+To achieve this, the architect is designing Conversation Ladders for each engine.
+
+Conversation Ladder Model
+-------------------------
+Each engine will be restructured conceptually as:
+
+1. Opener
+2. Core questions
+3. Treasure questions (depth multipliers)
+4. Oxygen loops (short reusable follow-ups)
+5. Bridge questions (topic transitions)
+
+Typical structure:
+
+- 1 opener
+- 2 core questions
+- 2–3 treasure questions
+- 6–8 loop questions
+- 2 bridges
+
+This architecture allows conversations to continue naturally without requiring large vocabulary expansion.
+
+Example (Identity engine concept):
+
+你叫什么名字？
+你的名字是什么意思？
+谁给你取的名字？
+为什么？
+大家一般怎么叫你？
+
+Role of SRS
+-----------
+SRS remains responsible for prioritizing vocabulary and frame selection, not for determining conversation structure.
+
+Architecture model:
+
+conversation engine
+→ candidate frames
+→ SRS weighting
+→ chosen frame
+→ UI presentation
+
+The UI does not determine conversation flow.
+
+Current Action
+--------------
+The architect is manually refining a Conversation Ladder specification document containing:
+
+- current frames
+- proposed treasure questions
+- universal loop questions
+- bridge questions
+
+This document will become the human-curated conversation design specification.
+
+Copilot Implementation Status
+-----------------------------
+Copilot may continue working on UI infrastructure but should pause assumptions about final conversation flow.
+
+Safe areas to continue:
+
+- clickable token rendering
+- card panel
+- hint cascade
+- audio playback
+- speech recognition handling
+- option rendering
+
+Areas to treat as provisional:
+
+- conversation progression logic
+- follow-up question scheduling
+- engine switching logic
+- response option selection
+
+Anticipated Changes
+-------------------
+Once the ladder document is finalized, future phases may introduce:
+
+• additional loop frames in engines
+• treasure question frames
+• bridge frames between engines
+• possible frame metadata tags (treasure / loop / bridge)
+
+These changes should not require rewriting runtime infrastructure but may expand frame sets.
+
+Guidance for Copilot
+--------------------
+1. Avoid hard-coding conversation length assumptions.
+2. Keep UI logic flexible regarding number of turns.
+3. Treat conversation sequencing as provisional.
+4. Continue improving UI components that are independent of conversation logic.
+
+Next Phase (after ladder refinement)
+------------------------------------
+When conversation ladders are finalized:
+
+1. convert ladder specification into frame definitions
+2. extend engine frame sets
+3. allow SRS to weight candidate frames
+4. finalize UI flow behaviour
+
+End of briefing.

@@ -18,10 +18,19 @@ let state = Object.assign({}, _initialState);
 let uiTrace = [];
 let currentPlay = null; // { utterance_id, start, timeoutId, duration_ms }
 
+// Phase 7 completion: transcript array for "You said" + Phase 8 Conversation Loop UI reuse.
+// Each entry: { role: 'user'|'partner', text: string }. Append on option select; Phase 8 will render full transcript.
+let conversationTranscript = [];
+// Card panel: which cards have etymology expanded (click "Show etymology" to reveal). Enables future brush/radical clicks.
+let _cardEtymologyExpanded = new Set();
+
 // ── Phase 6: Frame Render Tokens ──────────────────────────────────────────
 
 /** @type {{ schema_version: string, frames: Record<string, Array<{t:string,id?:string,s:string}>> } | null} */
 let frameRenderTokens = null;
+
+// Phase 7.4: canonical frame_tokens (byte-identical to frame_render_tokens; preferred)
+let frameTokens = null;
 
 /** @type {{ by_word_id: Record<string, string> } | null} */
 let cardsIndex = null;
@@ -40,7 +49,114 @@ async function loadFrameRenderTokens() {
     console.warn("[app] frame_render_tokens load failed:", e);
   }
 }
+
+// Phase 7.4: load canonical frame_tokens; fallback to frameRenderTokens
+async function loadFrameTokens() {
+  try {
+    const resp = await fetch("/runtime/out_phase7/frame_tokens.runtime.json");
+    if (!resp.ok) {
+      console.warn(`[app] frame_tokens not available (HTTP ${resp.status}); falling back to frame_render_tokens.`);
+      frameTokens = frameRenderTokens;
+      return;
+    }
+    const data = await resp.json();
+    // New schema: frames is array of {frame_id, text, tokens:[]}
+    // Convert to dict keyed by frame_id for O(1) lookup
+    if (Array.isArray(data.frames)) {
+      frameTokens = { frames: {} };
+      for (const f of data.frames) {
+        frameTokens.frames[f.frame_id] = f.tokens;
+      }
+    } else {
+      frameTokens = data;
+    }
+    window._frameTokens = frameTokens;
+    console.info(`[app] frame_tokens loaded (${Object.keys(frameTokens.frames || {}).length} frame(s))`);
+  } catch (e) {
+    console.warn("[app] frame_tokens load failed:", e);
+    frameTokens = frameRenderTokens;
+  }
+}
+
 // ── §2.4 frame_options loader ─────────────────────────────────────────────────
+
+// ── Phase 7.4: ui_mode state (READ / RESPOND; REPAIR removed as redundant with Hint) ─
+let _uiMode = "READ";
+
+function setUiMode(mode) {
+  const effective = (mode === "RESPOND") ? "RESPOND" : "READ";
+  _uiMode = effective;
+  const main = document.querySelector("main");
+  if (main) {
+    main.classList.remove("ui-mode-read", "ui-mode-respond");
+    main.classList.add(`ui-mode-${effective.toLowerCase()}`);
+  }
+  // Mic / Speak: always visible — full "Speak your answer" in READ, small mic in RESPOND (try again)
+  const tryBtn = document.getElementById("tryRespondingBtn");
+  if (tryBtn) {
+    if (effective === "RESPOND") {
+      tryBtn.classList.add("mic-only");
+      tryBtn.textContent = "\uD83C\uDFA4";
+      tryBtn.title = "Speak again";
+    } else {
+      tryBtn.classList.remove("mic-only");
+      tryBtn.textContent = "Speak your answer";
+      tryBtn.title = "Speak your answer";
+    }
+  }
+}
+
+// ── Phase 7.4: Micro-gloss singleton ────────────────────────────────────────
+let _microGlossActiveTokenEl = null;
+
+function _closeMicroGloss() {
+  const mg = document.getElementById("microGloss");
+  if (mg) mg.style.display = "none";
+  const openBtn = document.getElementById("microGlossOpenCard");
+  if (openBtn) openBtn.style.display = "";
+  _microGlossActiveTokenEl = null;
+}
+
+function _openMicroGloss(tokenEl, wordId, surfaceText) {
+  const mg          = document.getElementById("microGloss");
+  const headwordEl  = document.getElementById("microGlossHeadword");
+  const bodyEl      = document.getElementById("microGlossBody");
+  const openCardBtn = document.getElementById("microGlossOpenCard");
+  if (!mg || !headwordEl || !bodyEl || !openCardBtn) return;
+  headwordEl.textContent = surfaceText;
+  const rc = window._resolvedCard;
+  if (rc && rc.card_id && cardsIndex?.by_word_id?.[wordId] === rc.card_id) {
+    const pinyin  = rc.content?.headword?.pinyin || "";
+    const meaning = rc.content?.meaning || "";
+    bodyEl.textContent = [pinyin, meaning].filter(Boolean).join(" — ");
+  } else {
+    bodyEl.textContent = "";
+  }
+  const sentEl   = document.getElementById("frameSentence");
+  const rect     = tokenEl.getBoundingClientRect();
+  const sentRect = sentEl ? sentEl.getBoundingClientRect() : { left: 0, top: 0 };
+  mg.style.position = "absolute";
+  mg.style.left     = `${rect.left - sentRect.left}px`;
+  mg.style.top      = `${rect.bottom - sentRect.top + 4}px`;
+  mg.style.display  = "";
+  openCardBtn.onclick = () => { _closeMicroGloss(); _openCardForWordId(wordId); };
+  _microGlossActiveTokenEl = tokenEl;
+}
+
+async function _openCardForWordId(wordId) {
+  if (!wordId) return;
+  const cardId = cardsIndex?.by_word_id?.[wordId];
+  if (!cardId) { console.warn(`[app] _openCardForWordId: no card_id for word_id "${wordId}"`); return; }
+  const frameId  = document.getElementById("frameSelect")?.value || null;
+  const sel      = document.getElementById("frameSelect");
+  const engineId = sel?.options[sel?.selectedIndex]?.dataset?.engineId || null;
+  emitUITrace({ type: "OPEN_CARD", timestamp: new Date().toISOString(),
+    payload: { engine_id: engineId, frame_id: frameId, card_id: cardId, reason: "token_click" } });
+  dispatch({ type: "OPEN_CARD", payload: { card_id: cardId } });
+  await resolveCard(cardId, "tools/cards/out/cards_by_id.json");
+  // NOTE: does NOT advance turn, reset hints, or change ui_mode
+}
+
 let frameOptionsRuntime = {};
 async function loadFrameOptions() {
   try {
@@ -80,65 +196,265 @@ let lastClickedWordId = null;
 window.lastClickedWordId = null;
 let _hanziToWordId = {};  // Phase 6 — reverse lookup hanzi → word_id
 
-function renderHintAffordance(hintAffordance, turnUid, inputMode) {
+/** Word-level hint content: resolved card > index object > option from _tapOptions or by __opt_ index (runtime index is word_id→string). */
+function getWordHintData(wordId) {
+  if (typeof wordId === "string" && wordId.startsWith("__opt_")) {
+    const idx = parseInt(wordId.slice(6), 10);
+    const opt = Array.isArray(window._tapOptions) && Number.isInteger(idx) ? window._tapOptions[idx] : null;
+    return opt ? { pinyin: opt.pinyin || "", meaning: opt.meaning || "" } : { pinyin: "", meaning: "" };
+  }
+  const resolvedContent = window._resolvedCard?.content;
+  if (window._resolvedCardId === wordId && resolvedContent)
+    return { pinyin: resolvedContent.headword?.pinyin || "", meaning: resolvedContent.meaning || "" };
+  const fromIndex = window.cardsIndex?.by_word_id?.[wordId];
+  if (fromIndex && typeof fromIndex === "object" && (fromIndex.pinyin != null || fromIndex.meaning != null))
+    return { pinyin: fromIndex.pinyin || "", meaning: fromIndex.meaning || "" };
+  const opt = window._tapOptions?.find(o => o.card_id === wordId);
+  return opt ? { pinyin: opt.pinyin || "", meaning: opt.meaning || "" } : { pinyin: "", meaning: "" };
+}
+
+/** Whether a hint level has content (shared by getNextHintLevel and renderHintAffordance). */
+function hintLevelHasContent(lvl, sentenceMode, sentenceHint, activeWordId) {
+  if (lvl === 0) return false; // skip 0 so we don't land on "nothing" after Hide
+  if (lvl === 3) return true;  // hide is valid stop
+  if (sentenceMode) {
+    if (lvl === 1) return !!(sentenceHint.pinyin && String(sentenceHint.pinyin).trim());
+    if (lvl === 2) return !!(sentenceHint.text_en && String(sentenceHint.text_en).trim());
+    if (lvl === 3) return !!(sentenceHint.etymology && String(sentenceHint.etymology).trim());
+    return true;
+  }
+  const goldWordId = window._tapOptions?.find(o => o.is_gold)?.card_id;
+  const wordId = activeWordId || goldWordId;
+  const cardData = getWordHintData(wordId);
+  if (lvl === 1) return !!(cardData.pinyin && String(cardData.pinyin).trim());
+  if (lvl === 2) return !!(cardData.meaning && String(cardData.meaning).trim());
+  if (lvl === 3) {
+    const entry = wordEtymologyIndex[wordId];
+    return !!(entry?.characters && entry.characters.length > 0);
+  }
+  return true;
+}
+
+/** Advance to next hint level that has content, so empty levels auto-rotate. */
+function getNextHintLevel(currentLevel) {
+  const sentenceHint = window._sentenceHint || { pinyin: "", text_en: "" };
+  const activeWordId = window.lastClickedWordId || null;
+  const sentenceMode = !activeWordId;
+  const levelHasContent = (lvl) => hintLevelHasContent(lvl, sentenceMode, sentenceHint, activeWordId);
+  let next = (currentLevel + 1) % 4;
+  for (let i = 0; i < 4; i++) {
+    if (levelHasContent(next)) return next;
+    next = (next + 1) % 4;
+  }
+  return next;
+}
+
+/** Normalize level to first that has content (or 0); so we never sit on an empty level. */
+function normalizeHintLevel(level, sentenceMode, sentenceHint, activeWordId) {
+  const levelHasContent = (lvl) => hintLevelHasContent(lvl, sentenceMode, sentenceHint, activeWordId);
+  if (levelHasContent(level)) return level;
+  if (level === 0) return 0;
+  for (let i = 0; i < 4; i++) {
+    const next = (level + i) % 4;
+    if (next === 0) return 0;
+    if (levelHasContent(next)) return next;
+  }
+  return 0;
+}
+
+/** Single place for Hint/? button label: only show next-step label when that step has data. */
+function getHintButtonLabel(level, levelHasContent) {
+  if (level === 0) return levelHasContent(1) ? "Hint \u2192" : "";
+  if (level === 1) return levelHasContent(2) ? "Meaning \u2192" : "Hide hints \u2192";
+  if (level === 2) return levelHasContent(3) ? "Etymology \u2192" : "Hide hints \u2192";
+  return "Hide hints \u2192";
+}
+
+/**
+ * @param {object} hintAffordance
+ * @param {string} turnUid
+ * @param {string} inputMode
+ * @param {HTMLElement|null} [optionPanelEl] When provided, hints are rendered inside this panel (for option ? click).
+ */
+function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl) {
   const hintBtn     = document.getElementById("hintBtn");
   const hintPinyin  = document.getElementById("hintPinyin");
   const hintMeaning = document.getElementById("hintMeaning");
   const hintEtymEl  = document.getElementById("hintEtymology");
 
-  // Show or hide hint button
-  if (hintBtn) {
-    hintBtn.style.display = hintAffordance?.visible ? "block" : "none";
+  if (!hintAffordance?.visible) {
+    if (hintBtn) hintBtn.style.display = "none";
+    return;
   }
-  if (!hintAffordance?.visible) return;
 
-  // Reset on new turn
+  const activeWordId = window.lastClickedWordId || null;
+  const isOptionContext = (optionPanelEl && optionPanelEl.matches?.(".option-panel")) || (activeWordId && String(activeWordId).startsWith("__opt_"));
+  const optionIndex = isOptionContext ? (optionPanelEl?.getAttribute?.("data-option-index") != null ? parseInt(optionPanelEl.getAttribute("data-option-index"), 10) : parseInt(String(activeWordId || "").slice(6), 10)) : -1;
+
+  // Option ? clicked: render hints ONLY inside that response panel; never show in active conversation area
+  if (isOptionContext && (optionPanelEl || optionIndex >= 0)) {
+    if (hintPinyin) { hintPinyin.textContent = ""; hintPinyin.style.display = "none"; }
+    if (hintMeaning) { hintMeaning.textContent = ""; hintMeaning.style.display = "none"; }
+    if (hintEtymEl) { hintEtymEl.innerHTML = ""; hintEtymEl.style.display = "none"; }
+    if (hint_cascade_state.turn_uid !== turnUid) {
+      hint_cascade_state = { level: 0, turn_uid: turnUid };
+    }
+    let level = normalizeHintLevel(hint_cascade_state.level, false, window._sentenceHint || {}, activeWordId);
+    hint_cascade_state.level = level;
+    const sentenceHint = window._sentenceHint || { pinyin: "", text_en: "" };
+    const levelHasContent = (lvl) => hintLevelHasContent(lvl, false, sentenceHint, activeWordId);
+    const cardData = getWordHintData(activeWordId);
+    const container = document.getElementById("optionsContainer");
+    container?.querySelectorAll(".option-hint-block").forEach((blk) => {
+      blk.style.display = "none";
+      const py = blk.querySelector(".option-hint-pinyin");
+      const me = blk.querySelector(".option-hint-meaning");
+      const et = blk.querySelector(".option-hint-etymology");
+      if (py) { py.textContent = ""; py.style.display = "none"; }
+      if (me) { me.textContent = ""; me.style.display = "none"; }
+      if (et) { et.innerHTML = ""; et.style.display = "none"; }
+    });
+    const optionPanel = optionPanelEl || container?.querySelector(`.option-panel[data-option-index="${optionIndex}"]`);
+    const optionHintBlock = optionPanel?.querySelector(".option-hint-block");
+    if (optionHintBlock) {
+      const optHintPinyin = optionHintBlock.querySelector(".option-hint-pinyin");
+      const optHintMeaning = optionHintBlock.querySelector(".option-hint-meaning");
+      const optHintEtymology = optionHintBlock.querySelector(".option-hint-etymology");
+      if (level >= 1 && cardData?.pinyin) {
+        if (optHintPinyin) { optHintPinyin.textContent = cardData.pinyin; optHintPinyin.style.display = "block"; }
+      } else if (optHintPinyin) optHintPinyin.style.display = "none";
+      if (level >= 2 && cardData?.meaning) {
+        if (optHintMeaning) { optHintMeaning.textContent = cardData.meaning; optHintMeaning.style.display = "block"; }
+      } else if (optHintMeaning) optHintMeaning.style.display = "none";
+      const wordIdForEtymology = (window._tapOptions && window._tapOptions[optionIndex]) ? window._tapOptions[optionIndex].card_id : null;
+      if (level >= 3 && levelHasContent(3) && wordIdForEtymology) {
+        if (optHintEtymology) {
+          optHintEtymology.style.display = "block";
+          const html = buildEtymologyHTML(wordIdForEtymology);
+          optHintEtymology.innerHTML = html || "";
+        }
+      } else if (optHintEtymology) optHintEtymology.style.display = "none";
+      const hasContent = level >= 1 && (levelHasContent(1) || levelHasContent(2) || levelHasContent(3));
+      optionHintBlock.style.setProperty("display", hasContent ? "block" : "none");
+      optionHintBlock.setAttribute("aria-hidden", hasContent ? "false" : "true");
+    }
+    if (hintBtn) {
+      const hasAny = levelHasContent(1) || levelHasContent(2) || levelHasContent(3);
+      hintBtn.style.display = hasAny ? "block" : "none";
+      hintBtn.textContent = getHintButtonLabel(level, levelHasContent);
+    }
+    return;
+  }
+
   if (hint_cascade_state.turn_uid !== turnUid) {
     hint_cascade_state = { level: 0, turn_uid: turnUid };
   }
 
-  const level = hint_cascade_state.level;
+  const sentenceHint = window._sentenceHint || { pinyin: "", text_en: "" };
+  const sentenceMode = !activeWordId;
 
-  // Use clicked word if set, else fall back to gold word
-  const goldWordId   = window._tapOptions?.find(o => o.is_gold)?.card_id;
-  const activeWordId = window.lastClickedWordId || goldWordId;
+  let level = normalizeHintLevel(hint_cascade_state.level, sentenceMode, sentenceHint, activeWordId);
+  hint_cascade_state.level = level;
 
-  // Get card data — use resolved card content if available (same source as card panel)
-  const resolvedContent = window._resolvedCard?.content;
-  const cardData = (window._resolvedCardId === activeWordId && resolvedContent)
-    ? { pinyin: resolvedContent.headword?.pinyin || "", meaning: resolvedContent.meaning || "" }
-    : window.cardsIndex?.by_word_id?.[activeWordId];
+  const levelHasContent = (lvl) => hintLevelHasContent(lvl, sentenceMode, sentenceHint, activeWordId);
 
-  // Level 1: pinyin
-  if (hintPinyin) {
-    if (level >= 1 && cardData?.pinyin) {
-      hintPinyin.textContent = cardData.pinyin;
-      hintPinyin.style.display = "block";
-    } else {
-      hintPinyin.style.display = "none";
+  if (sentenceMode) {
+    if (hintPinyin) {
+      if (level >= 1 && sentenceHint.pinyin) {
+        hintPinyin.textContent = sentenceHint.pinyin;
+        hintPinyin.style.display = "block";
+      } else {
+        hintPinyin.style.display = "none";
+      }
+    }
+    if (hintMeaning) {
+      if (level >= 2 && sentenceHint.text_en) {
+        hintMeaning.textContent = sentenceHint.text_en;
+        hintMeaning.style.display = "block";
+      } else {
+        hintMeaning.style.display = "none";
+      }
+    }
+    if (hintEtymEl) {
+      if (level >= 3 && sentenceHint.etymology) {
+        hintEtymEl.innerHTML = sentenceHint.etymology;
+        hintEtymEl.style.display = "block";
+      } else {
+        hintEtymEl.style.display = "none";
+      }
+    }
+    if (hintBtn) {
+      const hasAny = levelHasContent(1) || levelHasContent(2) || levelHasContent(3);
+      hintBtn.style.display = hasAny ? "block" : "none";
+      hintBtn.textContent = getHintButtonLabel(level, levelHasContent);
+    }
+  } else {
+    // Word in active sentence: use global hint rows; clear option hint blocks
+    const goldWordId = window._tapOptions?.find(o => o.is_gold)?.card_id;
+    const wordId = activeWordId || goldWordId;
+    const cardData = getWordHintData(wordId);
+    const container = document.getElementById("optionsContainer");
+    container?.querySelectorAll(".option-hint-block").forEach((blk) => {
+      blk.style.display = "none";
+      blk.querySelectorAll(".option-hint-pinyin, .option-hint-meaning, .option-hint-etymology").forEach((el) => {
+        el.textContent = ""; if (el.classList.contains("option-hint-etymology")) el.innerHTML = ""; el.style.display = "none";
+      });
+    });
+    if (hintPinyin) {
+      if (level >= 1 && cardData?.pinyin) {
+        hintPinyin.textContent = cardData.pinyin;
+        hintPinyin.style.display = "block";
+      } else {
+        hintPinyin.style.display = "none";
+      }
+    }
+    if (hintMeaning) {
+      if (level >= 2 && cardData?.meaning) {
+        hintMeaning.textContent = cardData.meaning;
+        hintMeaning.style.display = "block";
+      } else {
+        hintMeaning.style.display = "none";
+      }
+    }
+    if (hintEtymEl) {
+      if (level >= 3 && levelHasContent(3)) {
+        hintEtymEl.style.display = "block";
+        renderEtymologyForWord(wordId);
+      } else {
+        hintEtymEl.style.display = "none";
+      }
+    }
+    if (hintBtn) {
+      const hasAny = levelHasContent(1) || levelHasContent(2) || levelHasContent(3);
+      hintBtn.style.display = hasAny ? "block" : "none";
+      hintBtn.textContent = getHintButtonLabel(level, levelHasContent);
     }
   }
-
-  // Level 2: meaning
-  if (hintMeaning) {
-    if (level >= 2 && cardData?.meaning) {
-      hintMeaning.textContent = cardData.meaning;
-      hintMeaning.style.display = "block";
-    } else {
-      hintMeaning.style.display = "none";
-    }
-  }
-
-  // Level 3: etymology
-  if (hintEtymEl) {
-    hintEtymEl.style.display = level >= 3 ? "block" : "none";
-    if (level >= 3) renderEtymologyForWord(activeWordId);
-  }
-
-  const labels = ["Hint \u2192", "Meaning \u2192", "Etymology \u2192", "Hide hints \u2192"];
-  if (hintBtn) hintBtn.textContent = labels[level] ?? "Hint \u2192";
 }
 // ── end Phase 6 ────────────────────────────────────────────────────────────
+
+// ── Phase 8: Conversation transcript panel (UI only; uses conversationTranscript) ──
+function renderTranscript() {
+  const container = document.getElementById("transcriptContent");
+  if (!container) return;
+  container.innerHTML = "";
+  (conversationTranscript || []).forEach((entry) => {
+    const line = document.createElement("div");
+    line.className = "transcript-line " + (entry.role === "partner" ? "partner" : "user");
+    const marker = document.createElement("span");
+    marker.className = "turn-marker";
+    marker.textContent = entry.role === "partner" ? "Partner:" : "You:";
+    line.appendChild(marker);
+    const text = entry.text || "";
+    const contentSpan = document.createElement("span");
+    contentSpan.className = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text) ? "transcript-text transcript-zh" : "transcript-text transcript-en";
+    contentSpan.textContent = " " + text;
+    line.appendChild(contentSpan);
+    container.appendChild(line);
+  });
+  const panel = document.getElementById("transcriptPanel");
+  if (panel) panel.scrollTop = panel.scrollHeight;
+}
 
 async function loadCardsIndex() {
   try {
@@ -156,9 +472,210 @@ async function loadCardsIndex() {
   }
 }
 
+// ── Recovery vocabulary (emergency phrases); used by speak-first recovery flow ─
+/** @type {{ phrases: Array<{id:string,hanzi:string,pinyin:string,text_en:string,use?:string}>, default_for_not_understood?: string } | null} */
+let recoveryPhrasesRuntime = null;
+async function loadRecoveryPhrases() {
+  try {
+    const resp = await fetch("/runtime/out_phase7/recovery_phrases.runtime.json");
+    if (!resp.ok) {
+      console.warn(`[app] recovery_phrases not available (HTTP ${resp.status}); using fallback.`);
+      return;
+    }
+    recoveryPhrasesRuntime = await resp.json();
+    window._recoveryPhrases = recoveryPhrasesRuntime;
+    const n = (recoveryPhrasesRuntime.phrases || []).length;
+    console.info(`[app] recovery_phrases loaded (${n} phrase(s))`);
+  } catch (e) {
+    console.warn("[app] recovery_phrases load failed:", e);
+  }
+}
+
+/** Returns the phrase to show when user was not understood. Pass avoidPhraseId to get a different phrase next time. */
+function getRecoveryPhraseForNotUnderstood(avoidPhraseId = null) {
+  const data = recoveryPhrasesRuntime || window._recoveryPhrases;
+  if (!data || !Array.isArray(data.phrases) || data.phrases.length === 0) {
+    return { id: "fallback", hanzi: "什么？再说一次。", pinyin: "Shénme? Zài shuō yí cì.", text_en: "What? Say it again.", etymology: "" };
+  }
+  const notUnderstood = (data.phrases || []).filter((p) => p.use === "not_understood");
+  const pool = notUnderstood.length ? notUnderstood : data.phrases;
+  if (avoidPhraseId && pool.length > 1) {
+    const i = pool.findIndex((p) => p.id === avoidPhraseId);
+    const nextIdx = i >= 0 ? (i + 1) % pool.length : 0;
+    const chosen = pool[nextIdx];
+    return { id: chosen.id, hanzi: chosen.hanzi, pinyin: chosen.pinyin || "", text_en: chosen.text_en || "", etymology: chosen.etymology || "" };
+  }
+  const defaultId = data.default_for_not_understood;
+  const found = defaultId ? pool.find((p) => p.id === defaultId) : null;
+  const chosen = found || pool[0] || data.phrases[0];
+  return { id: chosen.id, hanzi: chosen.hanzi, pinyin: chosen.pinyin || "", text_en: chosen.text_en || "", etymology: chosen.etymology || "" };
+}
+
+/** Normalize for match: trim, collapse spaces, remove common punctuation. */
+function normalizeForMatch(s) {
+  if (typeof s !== "string") return "";
+  return s.trim().replace(/\s+/g, "").replace(/[。？！，、；：""''\s]/g, "");
+}
+
 /**
- * Render the frame sentence into #frameSentence using builder-produced tokens.
- * Falls back to frame.text if tokens are unavailable for this frame.
+ * Match recognized transcript to an option (by hanzi or pinyin). Returns the option or null.
+ * Phase 9: The speech engine records Chinese accurately; recovery is often triggered when the
+ * answer was reasonable because this matching is strict/simple. Phase 9 should improve
+ * "understood" vs "not understood" decision logic (e.g. fuzzy match, confidence, or engine).
+ */
+function matchTranscriptToOption(transcript, options) {
+  if (!transcript || !Array.isArray(options) || options.length === 0) return null;
+  const n = normalizeForMatch(transcript);
+  if (!n) return null;
+  for (const opt of options) {
+    const hanzi = (opt.hanzi || "").trim();
+    if (!hanzi) continue;
+    const optNorm = normalizeForMatch(hanzi);
+    if (optNorm && (n === optNorm || n.includes(optNorm) || optNorm.includes(n))) return opt;
+    const pinyin = (opt.pinyin || "").trim();
+    if (pinyin) {
+      const pyNorm = normalizeForMatch(pinyin);
+      if (pyNorm && (n === pyNorm || n.includes(pyNorm) || pyNorm.includes(n))) return opt;
+    }
+  }
+  return null;
+}
+
+/**
+ * Listen for speech (zh-CN) and try to match to current options. Resolves with { transcript, matchedOption }.
+ * Uses Web Speech API; if unavailable or error, resolves with transcript "" and matchedOption null.
+ */
+function listenForResponse(options, timeoutMs) {
+  return new Promise((resolve) => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      emitUITrace({ type: "SPEECH_NOT_AVAILABLE", timestamp: new Date().toISOString(), payload: { message: "SpeechRecognition not supported" } });
+      resolve({ transcript: "", matchedOption: null });
+      return;
+    }
+    const rec = new SpeechRecognition();
+    rec.continuous = false;
+    rec.lang = "zh-CN";
+    rec.interimResults = true;
+    let finalTranscript = "";
+    let resolved = false;
+    function done(transcript, matchedOption) {
+      if (resolved) return;
+      resolved = true;
+      try { rec.abort(); } catch (_) {}
+      clearTimeout(tid);
+      resolve({ transcript: transcript || finalTranscript || "", matchedOption: matchedOption ?? null });
+    }
+    const tid = setTimeout(() => {
+      const matched = matchTranscriptToOption(finalTranscript, options || []);
+      done(finalTranscript, matched);
+    }, timeoutMs);
+    rec.onresult = (e) => {
+      const last = e.results[e.results.length - 1];
+      const item = last.isFinal ? last[0] : (last.length ? last[0] : null);
+      if (item) {
+        const t = (item.transcript || "").trim();
+        if (last.isFinal) {
+          finalTranscript = t;
+          const matched = matchTranscriptToOption(t, options || []);
+          done(t, matched);
+        } else {
+          finalTranscript = t;
+        }
+      }
+    };
+    rec.onend = () => {
+      if (resolved) return;
+      const matched = matchTranscriptToOption(finalTranscript, options || []);
+      done(finalTranscript, matched);
+    };
+    rec.onerror = (e) => {
+      if (e.error === "no-speech" && finalTranscript) {
+        const matched = matchTranscriptToOption(finalTranscript, options || []);
+        done(finalTranscript, matched);
+      } else {
+        done(finalTranscript || "", null);
+      }
+    };
+    try {
+      rec.start();
+      emitUITrace({ type: "SPEECH_LISTEN_START", timestamp: new Date().toISOString(), payload: { lang: "zh-CN" } });
+    } catch (err) {
+      done("", null);
+    }
+  });
+}
+
+// Segments for "你呢？" so each word opens the card panel when clicked (2nd+ turns)
+const ACTIVE_NE_SEGMENTS = [{ t: "你", word_id: "w_ni" }, { t: "呢", word_id: "w_ne" }, { t: "？" }];
+
+/**
+ * Set the active conversation area to show a partner statement (e.g. "你呢？" or recovery phrase).
+ * When turnUidForHint is provided, renders clickable tokens. Optional segments can supply word_id
+ * so clicking a word opens the card panel and shows pinyin/meaning/etymology for that word.
+ * @param {string} text - Fallback when segments not provided.
+ * @param {string} [turnUidForHint] - If set, tokens are clickable (hint and/or card).
+ * @param {Array<{t:string, word_id?:string}>} [segments] - Optional; if provided, each segment rendered; word_id opens card on click.
+ */
+function setActivePartnerStatement(text, turnUidForHint, segments) {
+  const el = document.getElementById("frameSentence");
+  if (!el) return;
+  while (el.firstChild) el.removeChild(el.firstChild);
+  _closeMicroGloss();
+  const str = text || "";
+  if (!str && (!segments || segments.length === 0)) return;
+  if (!turnUidForHint) {
+    el.textContent = str;
+    return;
+  }
+  const turnUid = turnUidForHint;
+  if (Array.isArray(segments) && segments.length > 0) {
+    for (const seg of segments) {
+      const span = document.createElement("span");
+      span.textContent = seg.t || "";
+      span.className = "tok tok-word";
+      span.dataset.kind = "word";
+      if (seg.word_id) span.dataset.wordId = seg.word_id;
+      span.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (seg.word_id) {
+          lastClickedWordId = seg.word_id;
+          window.lastClickedWordId = seg.word_id;
+          await _openCardForWordId(seg.word_id);
+        } else {
+          lastClickedWordId = null;
+          window.lastClickedWordId = null;
+        }
+        hint_cascade_state = { level: 1, turn_uid: turnUid };
+        renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
+      });
+      el.appendChild(span);
+    }
+  } else {
+    for (const char of str) {
+      const span = document.createElement("span");
+      span.textContent = char;
+      span.className = "tok tok-word";
+      span.dataset.kind = "word";
+      span.addEventListener("click", (e) => {
+        e.stopPropagation();
+        lastClickedWordId = null;
+        window.lastClickedWordId = null;
+        hint_cascade_state = { level: 1, turn_uid: turnUid };
+        renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
+      });
+      el.appendChild(span);
+    }
+  }
+  el.onclick = (e) => {
+    if (!e.target.classList.contains("tok")) _closeMicroGloss();
+  };
+}
+
+/**
+ * Render the frame sentence into #frameSentence using Phase 7.4 token schema.
+ * Falls back to frame_render_tokens, then plain text.
+ * Two-stage click: micro-gloss (stage 1) → card panel (stage 2).
  * @param {{ id: string, text: string }} frame
  */
 function renderFrameSentence(frame) {
@@ -166,77 +683,122 @@ function renderFrameSentence(frame) {
   if (!el) return;
 
   while (el.firstChild) el.removeChild(el.firstChild);
+  _closeMicroGloss();
 
-  const tokens =
-    frameRenderTokens &&
-    frameRenderTokens.frames &&
-    frame &&
-    frame.id &&
-    frameRenderTokens.frames[frame.id];
+  // Preferred: canonical frame_tokens (Phase 7.4 schema: {kind, t, word_id?, slot_name?})
+  // Fallback:  frame_render_tokens (Phase 6 schema: {t, id?, s})
+  const tokenSource = frameTokens || frameRenderTokens;
+  const rawTokens   = tokenSource?.frames?.[frame?.id];
 
-  if (!tokens) {
-    // Fallback: plain text, no guessing
+  if (!rawTokens || !Array.isArray(rawTokens)) {
     el.textContent = (frame && frame.text) || "";
     return;
   }
 
-  tokens.forEach((tok) => {
-    const span = document.createElement("span");
-    span.textContent = tok.text;
+  // Detect schema version: Phase 7.4 tokens have `kind`; Phase 6 tokens have `t` type field
+  const isNewSchema = rawTokens.length > 0 && ("kind" in rawTokens[0]);
 
-    if (tok.t === "word") {
-      span.className = "frame-word-token";
-      span.style.cursor = "pointer";
-      span.title = tok.id;
-      span.addEventListener("click", () => {
-        lastClickedWordId = tok.id;
-        window.lastClickedWordId = lastClickedWordId;
-        const cardId =
-          cardsIndex &&
-          cardsIndex.by_word_id &&
-          cardsIndex.by_word_id[tok.id];
-        if (!cardId) {
-          console.warn(`[app] renderFrameSentence: no card_id for word_id '${tok.id}' in cards_index`);
-        }
-        emitUITrace({
-          type: "OPEN_CARD",
-          timestamp: new Date().toISOString(),
-          payload: {
-            engine_id: frameSelect.options[frameSelect.selectedIndex]?.dataset?.engineId || null,
-            frame_id: frame.id,
-            card_id: cardId,
-            reason: "card_available"
-          }
+  rawTokens.forEach((tok) => {
+    const span = document.createElement("span");
+
+    if (isNewSchema) {
+      // ── Phase 7.4 schema ──
+      span.textContent          = tok.t;
+      span.dataset.kind         = tok.kind;
+      span.dataset.text         = tok.t;
+      if (frame?.id)    span.dataset.frameId  = frame.id;
+      if (tok.word_id)  span.dataset.wordId   = tok.word_id;
+      if (tok.slot_name) span.dataset.slotName = tok.slot_name;
+
+      if (tok.kind === "word" && tok.word_id) {
+        span.className = "tok tok-word";
+        span.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          lastClickedWordId        = tok.word_id;
+          window.lastClickedWordId = lastClickedWordId;
+          await _openCardForWordId(tok.word_id);
+          // Update hint area for this word (pinyin → meaning → etymology) so user can explore
+          const turnUid = window._currentTurnUid || frame?.id || "";
+          hint_cascade_state = { level: 1, turn_uid: turnUid };
+          renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
         });
-        dispatch({ type: "OPEN_CARD", payload: { card_id: cardId } });
-        resolveCard(cardId, "tools/cards/out/cards_by_id.json");
-      });
+      } else if (tok.kind === "word") {
+        // Unknown word — no word_id
+
+
+
+
+
+        // Unknown word — no word_id
+        span.className = "tok tok-word tok-word-unknown";
+        span.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const mg       = document.getElementById("microGloss");
+          const hwEl     = document.getElementById("microGlossHeadword");
+          const bodyEl   = document.getElementById("microGlossBody");
+          const openBtn  = document.getElementById("microGlossOpenCard");
+          if (!mg || !hwEl || !bodyEl || !openBtn) return;
+          hwEl.textContent    = tok.t;
+          bodyEl.textContent  = "Not in lexicon yet";
+          openBtn.style.display = "none";
+          const rect     = span.getBoundingClientRect();
+          const sentRect = el.getBoundingClientRect();
+          mg.style.left    = `${rect.left - sentRect.left}px`;
+          mg.style.top     = `${rect.bottom - sentRect.top + 4}px`;
+          mg.style.display = "";
+          _microGlossActiveTokenEl = span;
+        });
+      } else if (tok.kind === "slot") {
+        span.className = "tok tok-slot";
+      } else {
+        span.className = `tok tok-${tok.kind || "other"}`;
+      }
+
     } else {
-      span.className = "frame-lit-token";
+      // ── Phase 6 schema fallback (tok.t is kind, tok.s is surface) ──
+      span.textContent = tok.text ?? tok.s ?? tok.t ?? "";
+      if (tok.t === "word") {
+        span.className    = "frame-word-token";
+        span.style.cursor = "pointer";
+        span.title        = tok.id || "";
+        span.addEventListener("click", () => {
+          lastClickedWordId        = tok.id;
+          window.lastClickedWordId = lastClickedWordId;
+          const turnUid = window._currentTurnUid || frame?.id || "";
+          hint_cascade_state = { level: 1, turn_uid: turnUid };
+          renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
+          const cardId = cardsIndex?.by_word_id?.[tok.id];
+          if (!cardId) {
+            console.warn(`[app] renderFrameSentence: no card_id for word_id '${tok.id}'`);
+            return;
+          }
+          emitUITrace({
+            type: "OPEN_CARD", timestamp: new Date().toISOString(),
+            payload: { frame_id: frame?.id, card_id: cardId, reason: "card_available" }
+          });
+          dispatch({ type: "OPEN_CARD", payload: { card_id: cardId } });
+          resolveCard(cardId, "tools/cards/out/cards_by_id.json");
+        });
+      } else {
+        span.className = "frame-lit-token";
+      }
     }
 
     el.appendChild(span);
   });
+
+  // Close micro-gloss on click outside tokens (within sentence area)
+  el.onclick = (e) => {
+    if (!e.target.classList.contains("tok")) _closeMicroGloss();
+  };
 }
 
-
-// ── §2.4 Level 3 hint — etymology renderer — Phase 6 ───────────────────────
-function renderEtymologyForWord(wordId) {
-  const el = document.getElementById("hintEtymology");
-  if (!el) return;
-
-  // If wordId is missing or not present in the etymology index, show fallback
-  if (!wordId || !wordEtymologyIndex[wordId]) {
-    el.innerHTML = "<span class='etym-fallback'>No etymology available yet</span>";
-    return;
-  }
-
+// ── §2.4 Etymology (shared: hint + card panel) — Phase 6 ───────────────────
+/** Returns HTML string for word etymology, or null if none. Card_id equals word_id in our data. */
+function buildEtymologyHTML(wordId) {
+  if (!wordId || !wordEtymologyIndex[wordId]) return null;
   const entry = wordEtymologyIndex[wordId];
-  if (!entry.characters || entry.characters.length === 0) {
-    el.innerHTML = "<span class='etym-fallback'>No etymology available yet</span>";
-    return;
-  }
-
+  if (!entry.characters || entry.characters.length === 0) return null;
   const parts = entry.characters.map(ch => {
     let html = `<div class="etym-char"><span class="etym-hanzi">${ch.char}</span>`;
     if (ch.radical)                 html += `<span class="etym-radical">Radical: ${ch.radical}</span>`;
@@ -247,8 +809,14 @@ function renderEtymologyForWord(wordId) {
     html += `</div>`;
     return html;
   }).join("");
+  return `<div class="etym-word">${parts}</div>`;
+}
 
-  el.innerHTML = `<div class="etym-word">${parts}</div>`;
+function renderEtymologyForWord(wordId) {
+  const el = document.getElementById("hintEtymology");
+  if (!el) return;
+  const html = buildEtymologyHTML(wordId);
+  el.innerHTML = html || "<span class='etym-fallback'>No etymology available yet</span>";
 }
 // ── end Phase 6 ────────────────────────────────────────────────────────────
 
@@ -468,7 +1036,31 @@ if (compChars && compChars.length) {
 }
 // --- end composition rendering
 
-
+    // Etymology in card panel: "Show etymology" link, expands in place (room for future brush/radical clicks).
+    const etymHTML = buildEtymologyHTML(state.activeCardId);
+    if (etymHTML) {
+      const etymWrap = document.createElement("div");
+      etymWrap.className = "card-etymology";
+      const cardId = state.activeCardId;
+      const isExpanded = _cardEtymologyExpanded.has(cardId);
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "card-etymology-trigger";
+      trigger.textContent = isExpanded ? "Hide etymology" : "Show etymology";
+      trigger.addEventListener("click", () => {
+        if (_cardEtymologyExpanded.has(cardId)) _cardEtymologyExpanded.delete(cardId);
+        else _cardEtymologyExpanded.add(cardId);
+        render();
+      });
+      etymWrap.appendChild(trigger);
+      if (isExpanded) {
+        const etymInner = document.createElement("div");
+        etymInner.className = "card-etymology-content";
+        etymInner.innerHTML = etymHTML;
+        etymWrap.appendChild(etymInner);
+      }
+      cardBody.appendChild(etymWrap);
+    }
 
     // play affordance visible for surface devices; enable when a card is active
     if (playBtn) {
@@ -652,21 +1244,19 @@ function validateOption(option, targetItem) {
     return { valid: false, failure_reason: "malformed_option" };
   if (!option.hanzi || typeof option.hanzi !== "string" || option.hanzi.trim() === "")
     return { valid: false, failure_reason: "unrenderable_option" };
-  if (!option.kind || !ALLOWED_OPTION_KINDS.has(option.kind))
+  const kind = option.kind && String(option.kind).toUpperCase();
+  if (!kind || !ALLOWED_OPTION_KINDS.has(kind))
     return { valid: false, failure_reason: "malformed_option" };
-  if (targetItem && targetItem.is_slot && option.kind !== "FRAME_WITH_SLOTS")
-    return { valid: false, failure_reason: "slot_option_missing" };
+  // Do not fail WORD options when frame is slotted; only require at least one FRAME_WITH_SLOTS (checked in validateOptionsArray).
   return { valid: true, failure_reason: null };
 }
 
 function validateOptionsArray(options, frameId, targetItem) {
   const failures = [];
-  if (!Array.isArray(options) || options.length < 3)
+  if (!Array.isArray(options) || options.length < 1)
     failures.push({ failure_reason: "insufficient_options", option_count: (options||[]).length });
   const goldOptions = (options || []).filter(o => o.is_gold);
-  if (goldOptions.length === 0)
-    failures.push({ failure_reason: "no_gold" });
-  else if (goldOptions.length > 1)
+  if (goldOptions.length > 1)
     failures.push({ failure_reason: "multiple_gold", gold_count: goldOptions.length });
   (options || []).forEach((opt, idx) => {
     const r = validateOption(opt, targetItem);
@@ -690,57 +1280,142 @@ function validateOptionsArray(options, frameId, targetItem) {
   return { ok: failures.length === 0, failures };
 }
 function renderOptions(options, frameId) {
+  // Normalize kind so validation and ? button behave consistently (default WORD when missing)
+  options = (options || []).map(opt => ({
+    ...opt,
+    kind: (opt.kind && String(opt.kind).toUpperCase()) || "WORD",
+  }));
   // §3.1 + §5 — validate before render
   const targetItem = options && options.find(o => o.is_gold) || null;
   const validation = validateOptionsArray(options, frameId, targetItem);
   if (!validation.ok) {
-    console.warn("[app] renderOptions blocked — option validation failed", validation.failures);
-    // Still render — failures are logged/traced, do not silently drop options
+    console.warn("[app] renderOptions — option validation had issues (still rendering)", validation.failures);
   }
   let container = document.getElementById("optionsContainer");
   if (!container) {
     container = document.createElement("div");
     container.id = "optionsContainer";
-    container.className = "options-container";
-    const sentenceEl = document.getElementById("frameSentence");
-    if (sentenceEl && sentenceEl.parentNode) {
-      sentenceEl.parentNode.insertBefore(container, sentenceEl.nextSibling);
-    } else {
-      document.body.appendChild(container);
-    }
+    container.className = "options-container options-area";
+    const parent = document.getElementById("optionsContainerParent");
+    if (parent) parent.appendChild(container);
+    else document.body.appendChild(container);
   }
   while (container.firstChild) container.removeChild(container.firstChild);
   if (!options || options.length === 0) { container.style.display = "none"; return; }
   container.style.display = "flex";
   options.forEach((opt, idx) => {
+    // Each response is a panel: top row (Chinese + actions) + hint block underneath in the same panel
+    const panel = document.createElement("div");
+    panel.className = "option-panel";
+    panel.setAttribute("data-option-index", String(idx));
+    if (opt.is_gold) panel.setAttribute("data-gold", "true");
+    if (opt.is_slot) panel.setAttribute("data-slot", "true");
+    panel.setAttribute("data-card-id", opt.card_id || "");
+
     const btn = document.createElement("button");
     btn.className = "option-btn";
-    if (opt.is_gold) btn.setAttribute("data-gold", "true");
-    if (opt.is_slot) btn.setAttribute("data-slot", "true");
-    btn.setAttribute("data-card-id", opt.card_id || "");
+    btn.type = "button";
+    const optionContent = document.createElement("div");
+    optionContent.className = "option-content";
     if (opt.kind === "FRAME_WITH_SLOTS") {
       (opt.hanzi || "").split(/(\{[A-Z_]+\})/).forEach(part => {
         const m = part.match(/^\{([A-Z_]+)\}$/);
-        if (m) { const s = document.createElement("span"); s.className = "option-slot-placeholder"; s.textContent = m[1]; btn.appendChild(s); }
-        else if (part) btn.appendChild(document.createTextNode(part));
+        if (m) { const s = document.createElement("span"); s.className = "option-slot-placeholder"; s.textContent = m[1]; optionContent.appendChild(s); }
+        else if (part) optionContent.appendChild(document.createTextNode(part));
       });
     } else {
       const h = document.createElement("span"); h.className = "option-hanzi"; h.textContent = opt.hanzi || "";
-      const p = document.createElement("span"); p.className = "option-pinyin"; p.textContent = opt.pinyin || "";
-      const m = document.createElement("span"); m.className = "option-meaning"; m.textContent = opt.meaning || "";
-      btn.appendChild(h); btn.appendChild(p); btn.appendChild(m);
+      optionContent.appendChild(h);
     }
+    btn.appendChild(optionContent);
+    const optionActions = document.createElement("div");
+    optionActions.className = "option-actions";
+    const hanziText = (opt.hanzi || "").trim();
+    if (hanziText) {
+      const speakerBtn = document.createElement("button");
+      speakerBtn.type = "button";
+      speakerBtn.className = "option-speaker-btn";
+      speakerBtn.setAttribute("title", "Speak this option");
+      speakerBtn.setAttribute("aria-label", "Speak this option");
+      speakerBtn.textContent = "\uD83D\uDD0A";
+      speakerBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        ttsSpeak({ text: hanziText, lang: "zh-CN" });
+      });
+      optionActions.appendChild(speakerBtn);
+    }
+    const hasHintContent = (opt.pinyin && String(opt.pinyin).trim()) || (opt.meaning && String(opt.meaning).trim());
+    const hasHanzi = (opt.hanzi && String(opt.hanzi).trim());
+    const hintId = (opt.card_id && String(opt.card_id).trim()) || "__opt_" + idx;
+    if (opt.card_id || hasHintContent || hasHanzi) {
+      const hintBtn = document.createElement("button");
+      hintBtn.type = "button";
+      hintBtn.className = "option-hint-btn";
+      hintBtn.setAttribute("title", "Show pinyin, meaning, etymology for this option");
+      hintBtn.setAttribute("aria-label", "Hint for this option");
+      hintBtn.textContent = "?";
+      hintBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const panelEl = e.target.closest(".option-panel");
+        const turnUid = window._currentTurnUid || frameId;
+        const alreadyShowingThisOption = hint_cascade_state.turn_uid === turnUid && lastClickedWordId === hintId;
+        if (alreadyShowingThisOption) {
+          hint_cascade_state.level = getNextHintLevel(hint_cascade_state.level);
+        } else {
+          lastClickedWordId = hintId;
+          window.lastClickedWordId = hintId;
+          hint_cascade_state = { level: 1, turn_uid: turnUid };
+        }
+        const hintAffordance = { ...(window._currentHintAffordance || {}), visible: true };
+        renderHintAffordance(hintAffordance, turnUid, "tap", panelEl || undefined);
+      });
+      optionActions.appendChild(hintBtn);
+    }
+    if (optionActions.childNodes.length) btn.appendChild(optionActions);
+    panel.appendChild(btn);
+
+    const optionHintBlock = document.createElement("div");
+    optionHintBlock.className = "option-hint-block";
+    optionHintBlock.setAttribute("data-option-index", String(idx));
+    optionHintBlock.style.display = "none";
+    const optHintPinyin = document.createElement("div");
+    optHintPinyin.className = "option-hint-row option-hint-pinyin";
+    const optHintMeaning = document.createElement("div");
+    optHintMeaning.className = "option-hint-row option-hint-meaning";
+    const optHintEtymology = document.createElement("div");
+    optHintEtymology.className = "option-hint-row option-hint-etymology";
+    optionHintBlock.appendChild(optHintPinyin);
+    optionHintBlock.appendChild(optHintMeaning);
+    optionHintBlock.appendChild(optHintEtymology);
+    panel.appendChild(optionHintBlock);
+
     btn.addEventListener("click", () => {
       emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
         payload: { frame_id: frameId, card_id: opt.card_id, is_gold: opt.is_gold, is_slot: opt.is_slot, option_idx: idx } });
       if (opt.card_id && opt.kind !== "FRAME_WITH_SLOTS") {
         dispatch({ type: "OPEN_CARD", payload: { card_id: opt.card_id } });
-        resolveCard(opt.card_id, "/api/cards?path=tools/cards/out/cards_by_id.json");
+        resolveCard(opt.card_id, "tools/cards/out/cards_by_id.json");
       }
-      container.querySelectorAll(".option-btn").forEach(b => b.classList.remove("selected"));
-      btn.classList.add("selected");
+      container.querySelectorAll(".option-panel").forEach(p => p.classList.remove("selected"));
+      panel.classList.add("selected");
+      // Phase 7 completion: "You said" — show confirmation.
+      const userText = (opt.hanzi || "").trim();
+      // Phase 8: conversation record = only MandarinOS first comment + user response. Next MandarinOS line stays in active area.
+      const questionText = window._currentFrameText || "";
+      if (questionText) conversationTranscript.push({ role: "partner", text: questionText });
+      conversationTranscript.push({ role: "user", text: userText });
+      renderTranscript();
+      setActivePartnerStatement("你呢？", "active_ne", ACTIVE_NE_SEGMENTS);
+      ttsSpeak({ text: "你呢？", lang: "zh-CN" });
+      // Hints for the active conversation turn: 你呢？ (not the original question)
+      window._sentenceHint = { pinyin: "nǐ ne?", text_en: "And you?" };
+      lastClickedWordId = null;
+      window.lastClickedWordId = null;
+      hint_cascade_state = { level: 0, turn_uid: "active_ne" };
+      renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, "active_ne", "tap");
+      setUiMode("READ");
     });
-    container.appendChild(btn);
+    container.appendChild(panel);
   });
 }
 // ── end Phase 6 ────────────────────────────────────────────────────────────
@@ -814,33 +1489,44 @@ async function runTurn() {
   const frameId = data.frame_id || selected;
   const fallbackText = data.prompt_text || data.frame_text || "";
   renderFrameSentence({ id: frameId, text: fallbackText });
+  setUiMode("READ");
+  window._currentFrameText = (fallbackText && fallbackText.trim()) ? fallbackText.trim() : "";
+  // Auto-play active sentence (most people better at hearing than reading)
+  if (fallbackText && fallbackText.trim()) {
+    ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
+  }
   // Phase 6 — source options + hint affordance from pre-loaded runtime artifact
   const _frameData     = window._frameOptionsRuntime?.frames?.[frameId] || {};
   const tapOptions     = _frameData.options || data.options || [];
   const hintAffordance = _frameData.hint_affordance || { visible: false };
   const turnUid        = frameId;
-  
-  // Populate hint rows from gold option
-  const goldOption    = tapOptions.find(o => o.is_gold);
-  const hintPinyinEl  = document.getElementById("hintPinyin");
-  const hintMeaningEl = document.getElementById("hintMeaning");
-  if (hintPinyinEl)  hintPinyinEl.textContent  = goldOption?.pinyin  || "";
-  if (hintMeaningEl) hintMeaningEl.textContent = goldOption?.meaning || goldOption?.gloss_en || "";
-  
+
+  // Sentence-level hints (pinyin → English); used when no word is selected
+  window._sentenceHint = {
+    pinyin:  data.frame_pinyin  ?? "",
+    text_en: data.frame_text_en ?? ""
+  };
+  lastClickedWordId = null;
+  window.lastClickedWordId = null;
+
   window._tapOptions = tapOptions;
+  window._currentHintAffordance = hintAffordance;
+  window._currentTurnUid = turnUid;
   renderOptions(tapOptions, frameId);
   renderHintAffordance(hintAffordance, turnUid, "tap");
   
-  // Wire hint button click (idempotent — replace node to clear old listeners)
+  // Wire hint button click: use current turn so recovery (and 你呢？) hint isn't reset to frame
   const _hintBtn = document.getElementById("hintBtn");
   if (_hintBtn) {
     const _newBtn = _hintBtn.cloneNode(true);
     _hintBtn.parentNode.replaceChild(_newBtn, _hintBtn);
     _newBtn.addEventListener("click", () => {
-      hint_cascade_state.level = (hint_cascade_state.level + 1) % 4;
-      renderHintAffordance(hintAffordance, turnUid, "tap");
+      hint_cascade_state.level = getNextHintLevel(hint_cascade_state.level);
+      const currentTurnUid = hint_cascade_state.turn_uid || turnUid;
+      const currentAffordance = window._currentHintAffordance || hintAffordance;
+      renderHintAffordance(currentAffordance, currentTurnUid, "tap");
       emitUITrace({ type: "HINT_ADVANCED", timestamp: new Date().toISOString(),
-        payload: { frame_id: frameId, level: hint_cascade_state.level, turn_uid: turnUid } });
+        payload: { frame_id: frameId, level: hint_cascade_state.level, turn_uid: currentTurnUid } });
     });
   }
 
@@ -907,8 +1593,94 @@ window.addEventListener("load", async () => {
     loadCardsIndex(),
     loadFrameOptions(),
     loadWordEtymology(),
+    loadFrameTokens(),
+    loadRecoveryPhrases(),
   ]);
   if (dataBuildInfoEl) dataBuildInfoEl.textContent = `Data: ${UI_DATA_BUILD_LABEL}`;
+  // Phase 7.4: Speak-first — actually listen (Web Speech API), then either advance turn or show recovery
+  const LISTEN_BEFORE_RECOVERY_MS = 7000;
+  document.getElementById("showOptionsBtn")?.addEventListener("click", () => {
+    setUiMode("RESPOND");
+  });
+  document.getElementById("tryRespondingBtn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("tryRespondingBtn");
+    const options = window._tapOptions || [];
+    const questionText = (window._currentFrameText || "").trim();
+    const wasInReadMode = _uiMode === "READ";
+    if (btn) btn.textContent = "Listening…";
+    const { transcript, matchedOption } = await listenForResponse(options, LISTEN_BEFORE_RECOVERY_MS);
+    if (btn) {
+      if (_uiMode === "RESPOND") btn.textContent = "\uD83C\uDFA4";
+      else btn.textContent = "Speak your answer";
+    }
+    if (matchedOption) {
+      // Understood: update conversation and move to next turn (same as selecting that option)
+      emitUITrace({ type: "SPEECH_UNDERSTOOD", timestamp: new Date().toISOString(), payload: { transcript, matched_hanzi: matchedOption.hanzi } });
+      if (matchedOption.card_id && matchedOption.kind !== "FRAME_WITH_SLOTS") {
+        dispatch({ type: "OPEN_CARD", payload: { card_id: matchedOption.card_id } });
+        resolveCard(matchedOption.card_id, "tools/cards/out/cards_by_id.json");
+      }
+      const optionsContainer = document.getElementById("optionsContainer");
+      if (optionsContainer) {
+        optionsContainer.querySelectorAll(".option-panel").forEach((p) => p.classList.remove("selected"));
+        const toSelect = optionsContainer.querySelector(`.option-panel[data-card-id="${(matchedOption.card_id || "").replace(/"/g, "")}"]`);
+        if (toSelect) toSelect.classList.add("selected");
+      }
+      if (questionText) conversationTranscript.push({ role: "partner", text: questionText });
+      conversationTranscript.push({ role: "user", text: (matchedOption.hanzi || "").trim() });
+      renderTranscript();
+      setActivePartnerStatement("你呢？", "active_ne", ACTIVE_NE_SEGMENTS);
+      ttsSpeak({ text: "你呢？", lang: "zh-CN" });
+      window._sentenceHint = { pinyin: "nǐ ne?", text_en: "And you?" };
+      lastClickedWordId = null;
+      window.lastClickedWordId = null;
+      hint_cascade_state = { level: 0, turn_uid: "active_ne" };
+      renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, "active_ne", "tap");
+      setUiMode("READ");
+      return;
+    }
+    // Not understood: update conversation with what we heard and partner's recovery (Phase 9: improve decision so reasonable answers aren't treated as not understood)
+    emitUITrace({ type: "SPEECH_NOT_UNDERSTOOD", timestamp: new Date().toISOString(), payload: { transcript } });
+    if (wasInReadMode && questionText) conversationTranscript.push({ role: "partner", text: questionText });
+    conversationTranscript.push({ role: "user", text: (transcript && transcript.trim()) ? transcript.trim() : "[couldn't understand]" });
+    const lastRecoveryId = window._lastRecoveryPhraseId || null;
+    const phrase = getRecoveryPhraseForNotUnderstood(lastRecoveryId);
+    window._lastRecoveryPhraseId = phrase.id;
+    conversationTranscript.push({ role: "partner", text: phrase.hanzi });
+    renderTranscript();
+    setActivePartnerStatement(phrase.hanzi, "recovery");
+    ttsSpeak({ text: phrase.hanzi, lang: "zh-CN" });
+    window._sentenceHint = { pinyin: phrase.pinyin, text_en: phrase.text_en, etymology: phrase.etymology || "" };
+    lastClickedWordId = null;
+    window.lastClickedWordId = null;
+    hint_cascade_state = { level: 0, turn_uid: "recovery" };
+    renderHintAffordance({ visible: true }, "recovery", "tap");
+    setUiMode("RESPOND");
+  });
+  // Phase 7 completion: Play question (TTS for frame sentence)
+  document.getElementById('playQuestionBtn')?.addEventListener('click', () => {
+    const fs = document.getElementById('frameSentence');
+    const text = (fs && fs.textContent && fs.textContent.trim()) || "";
+    if (!text) return;
+    const utterance_id = "frame_question:" + (frameSelect?.value || "unknown");
+    emitUITrace({
+      type: "AUDIO_PLAY_REQUESTED",
+      timestamp: new Date().toISOString(),
+      payload: { utterance_id, text, source: "play_question" }
+    });
+    ttsSpeak({
+      text,
+      lang: "zh-CN",
+      utterance_id,
+      onEvent: (traceEntry) => emitUITrace(traceEntry),
+    });
+  });
+  // Close micro-gloss on click outside sentence area
+  document.addEventListener('click', (e) => {
+    const mg = document.getElementById('microGloss');
+    const fs = document.getElementById('frameSentence');
+    if (mg && fs && !fs.contains(e.target) && !mg.contains(e.target)) _closeMicroGloss();
+  });
   render();
 });
 

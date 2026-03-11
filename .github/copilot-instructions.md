@@ -1,9 +1,9 @@
-# MandarinOS — GitHub Copilot Operating Instructions (v1)
-_Last updated: 2026-01-25_
+# MandarinOS — Cursor (Implementation) Operating Instructions (v1)
+_Last updated: 2026-03-08_
 
-This file is intended to be used as **repository instructions** for GitHub Copilot and as a working contract for contributors.
+This file applies to **Cursor** when acting as programmer (implementation). GitHub Copilot is no longer used. For AI roles and step-by-step discipline, see **AI_CONTEXT.md** at repo root.
 
-If there is any conflict, follow .github/copilot-instructions.md first, then Design Constitution, then Developer Handoff. If still ambiguous, ask before coding.
+If there is any conflict, follow AI_CONTEXT.md first, then this file, then Design Constitution, then Developer Handoff. If still ambiguous, ask before coding. **Cursor as programmer: make small, step-by-step changes only; do not drift from the Design Constitution.**
 
 ## 1) Product intent (non-negotiable)
 MandarinOS is a **mobile-first (iPhone-first)** Mandarin speaking trainer focused on:
@@ -81,8 +81,8 @@ If any invariant failed during diagnostic:
 - downgrade `diagnostic_completed.confidence` to `"low"`
 - annotate `diagnostic_completed` with `system_faults: [ ... ]`
 
-## 4) Implementation expectations (Copilot guidance)
-When asked to implement fixes, Copilot should:
+## 4) Implementation expectations (Cursor as programmer)
+When asked to implement fixes, Cursor should:
 1) **Reproduce from logs first**: identify the exact turn indices where `option_count == 0`, `gold_option_present == false`, or hint affordance mismatch.
 2) **Patch the smallest surface area**: do not refactor architecture unless necessary.
 3) **Add tests before/with the patch**:
@@ -106,13 +106,13 @@ Define `validateOption(option, targetItem)` with these checks:
   - New/updated tests
   - A short “risk and rollback” note
 
-## 7) Where to put this file (recommended)
-Place this file at:
-- `.github/copilot-instructions.md`
+## 7) File location
+This file remains at `.github/copilot-instructions.md` (historical name); it now governs Cursor implementation behavior.
 
 ## 8) Authoritative references:
-- docs/mandarinos_design_constitution.txt (authoritative for UX rules)
-- docs/MandarinOS Developer Handoff.txt (authoritative for architecture + data pack rules)
+- `AI_CONTEXT.md` (repo root) — AI roles and step-by-step discipline
+- `docs/design/mandarinos_design_constitution.txt` (authoritative for UX rules)
+- `docs/design/MandarinOS Developer Handoff.txt` (authoritative for architecture + data pack rules)
 - `.github/pull_request_template.md` (include “tripwires added?” checkbox)
 - `docs/` for the larger design constitution / developer handoff (link from README)
 

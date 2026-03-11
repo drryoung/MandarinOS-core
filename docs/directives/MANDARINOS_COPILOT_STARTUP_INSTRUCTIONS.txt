@@ -1,0 +1,84 @@
+MANDARINOS — COPILOT STARTUP INSTRUCTIONS (When you begin work)
+
+*** DEPRECATED: GitHub Copilot is no longer used for this repo. ***
+For implementation guidance, use: AI_CONTEXT.md (repo root) and
+.github/copilot-instructions.md (Cursor operating instructions).
+ChatGPT = strategist + testing; Cursor = senior architect + programmer
+(small step-by-step changes only). This file is kept for reference only.
+
+--- Original content below ---
+
+You are GitHub Copilot working on the MandarinOS repo. Treat this as your “how to start” checklist.
+
+0) Read the directive FIRST
+- Open and read: MANDARINOS_ARCHITECT_COPILOT_HANDOFF_DIRECTIVE_PHASE7.txt
+- Do not start coding until you can restate the goal and constraints in 3–5 bullet points.
+
+1) Confirm scope / boundaries (non‑negotiable)
+- DO NOT modify any code under /runtime.
+- DO NOT change scheduling / SM‑2 / progression / “next item” logic.
+- Builder + UI only.
+- No guessing: if something is missing, fail loud (clear error) or show a clear dev warning in UI.
+- Deterministic output: same inputs -> same outputs.
+
+2) Confirm you are on the correct branch
+Run:
+  git status
+If you are not on the Phase 7 branch, create/switch:
+  git checkout -b phase7_clickable_tokens_ui
+
+3) Locate the two edit zones (only places you should change)
+- Builder: tools/build_runtime_artifacts.py
+- UI: files under ui/ (likely ui/app.js and ui/styles.css)
+
+4) Required deliverable A (builder output)
+Create a new file on build:
+  runtime/out_phase7/frame_render_tokens.runtime.json
+
+Schema:
+{
+  "schema_version": "1.0",
+  "name": "Frame Render Tokens (UI)",
+  "frames": {
+    "<frame_id>": [
+      {"t":"word","id":"w_...","s":"<hanzi>"},
+      {"t":"lit","s":"<literal substring>"}
+    ]
+  }
+}
+
+IMPORTANT:
+- frame.option_tokens contains ONLY w_* word IDs (punctuation must NOT be added to option_tokens).
+- Derive punctuation/literals from frame.text deterministically by aligning word surfaces into frame.text IN ORDER.
+- If alignment fails: raise a clear build error (no silent coercion).
+
+5) Required deliverable B (minimal UI change)
+- Load frame_render_tokens.runtime.json at UI startup (same pattern as other runtime JSON loads).
+- When displaying a frame sentence:
+  - If tokens exist: render spans in order
+    - t="word": clickable span -> open word card using existing behavior (cards_index.by_word_id)
+    - t="lit": plain text span
+  - If tokens missing: show plain text OR a clear dev warning (no guessing)
+- Clicking a word must open its existing word card. No scheduling changes.
+
+6) “No invention” rule (how to resolve uncertainty)
+If you don’t know a variable name / file path / JSON shape:
+- SEARCH the repo (ripgrep / VS Code search) and cite the exact line you found.
+- Do NOT invent or assume names.
+
+7) Stop conditions (what to report back after the minimal slice)
+After implementing the smallest working slice, STOP and provide:
+1) List of modified files
+2) git diff (or key hunks)
+3) Exact commands to run:
+   - builder command
+   - python -m scripts.ui_server
+   - open http://localhost:8765/ui/index.html
+4) Exactly what to click in the UI to verify
+
+Definition of done (Phase 7.3 minimal slice)
+- At least one MVP frame sentence is shown as separate clickable word tokens (not one big text block)
+- Clicking a word opens the correct word card
+- Punctuation displays correctly
+- New builder file frame_render_tokens.runtime.json exists
+- No runtime code changes

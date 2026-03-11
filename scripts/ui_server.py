@@ -26,7 +26,11 @@ _frame_options = {}
 _frames_by_id  = {}
 
 if _frt_path.is_file():
-    _frame_tokens = json.loads(_frt_path.read_text(encoding="utf-8")).get("frames", {})
+    _frt_raw = json.loads(_frt_path.read_text(encoding="utf-8")).get("frames", [])
+    if isinstance(_frt_raw, list):
+        _frame_tokens = { item["frame_id"]: item.get("tokens", []) for item in _frt_raw if isinstance(item, dict) and "frame_id" in item }
+    else:
+        _frame_tokens = _frt_raw if isinstance(_frt_raw, dict) else {}
     print(f"[ui_server] frame_render_tokens loaded ({len(_frame_tokens)} frames)")
 else:
     print(f"[ui_server] WARNING: frame_render_tokens not found at {_frt_path}")
@@ -43,13 +47,18 @@ if _fo_path.is_file():
 else:
     print(f"[ui_server] WARNING: frame_options not found at {_fo_path}")
 
-# Load frames for frame_text lookup
-for _fname in ["p1_frames.json", "p2_frames.json"]:
-    _fp = REPO_ROOT / _fname
-    if _fp.is_file():
-        _fdata = json.loads(_fp.read_text(encoding="utf-8"))
-        for _fr in _fdata.get("frames", []):
-            _frames_by_id[_fr["id"]] = _fr
+def _reload_frames_by_id():
+    """Load frames from p1/p2 JSON (so frame_text_en etc. are always up to date)."""
+    out = {}
+    for _fname in ["p1_frames.json", "p2_frames.json"]:
+        _fp = REPO_ROOT / _fname
+        if _fp.is_file():
+            _fdata = json.loads(_fp.read_text(encoding="utf-8"))
+            for _fr in _fdata.get("frames", []):
+                out[_fr["id"]] = _fr
+    return out
+
+_frames_by_id = _reload_frames_by_id()
 print(f"[ui_server] frames_by_id loaded ({len(_frames_by_id)} frames)")
 
 
@@ -57,8 +66,8 @@ def _stub_card_id(frame_id: str):
     """Return card_id for the first word token in the frame, or None."""
     tokens = _frame_tokens.get(frame_id, [])
     for tok in tokens:
-        if tok.get("t") == "word":
-            word_id = tok.get("id")
+        if tok.get("kind") == "word" or tok.get("t") == "word":
+            word_id = tok.get("word_id") or tok.get("id")
             card_id = _cards_by_word_id.get(word_id)
             print(f"[ui_server] _stub_card_id: frame={frame_id} word_id={word_id} card_id={card_id}")
             return card_id
@@ -114,9 +123,14 @@ class Handler(BaseHTTPRequestHandler):
 
             print(f"[ui_server] /api/run_turn: {payload}")
 
+            # Reload frames from disk so frame_text_en is always current (e.g. after populate_frame_text_en.py)
+            _frames_by_id.clear()
+            _frames_by_id.update(_reload_frames_by_id())
+
             frame_id  = payload.get("frame_id", "unknown")
             engine_id = payload.get("engine_id", "unknown")
-            options   = _frame_options.get(frame_id, [])
+            fo        = _frame_options.get(frame_id, {})
+            options   = fo.get("options", []) if isinstance(fo, dict) else []
             card_id   = _stub_card_id(frame_id)
             gold      = next((o for o in options if o.get("is_gold")), None)
             frame_rec = _frames_by_id.get(frame_id, {})
@@ -126,6 +140,8 @@ class Handler(BaseHTTPRequestHandler):
                 "engine_id":           engine_id,
                 "frame_id":            frame_id,
                 "frame_text":          frame_rec.get("text", ""),
+                "frame_pinyin":        frame_rec.get("pinyin", ""),
+                "frame_text_en":       frame_rec.get("text_en", ""),
                 "result":              "ok",
                 "options":             options,
                 "option_count":        len(options),

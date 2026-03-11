@@ -17,4 +17,13 @@ MandarinOS is conversation-first, frame-driven, and learner-centered.
 If proposed changes introduce vocabulary-first flows, teacher-style explanations,
 or schema refactors “for cleanliness”, stop and re-evaluate.
 
-See MandarinOS Design Constitution for non-negotiable principles.
+See `docs/design/mandarinos_design_constitution.txt` for non-negotiable principles.
+
+## Testing
+
+All test scripts live under `tests/`. **Run them from the repo root** so paths to content files (`p1_frames.json`, `srs_config.json`, etc.) resolve correctly.
+
+- **Python:** `pytest tests/` or `python -m pytest tests/`
+- **TypeScript:** from repo root, e.g. `npx ts-node tests/test_diagnostic_p1.ts` (or your usual TS test runner)
+
+Test and build outputs (e.g. `engine_test_results.txt`, `test_results.txt`) belong in `scratch/`; that directory is gitignored.
