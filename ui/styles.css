@@ -19,24 +19,19 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
 }
 
 .card-main-hanzi {
-  font-size: 34px;
+  font-size: 2rem;
   font-weight: 600;
-  font-family:
-    "KaiTi",
-    "Kaiti SC",
-    "STKaiti",
-    "Noto Serif SC",
-    serif;
+  font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .card-main-pinyin {
-  font-size: 16px;
+  font: 0.9rem Arial, Helvetica, sans-serif;
   opacity: 0.7;
   margin-top: 2px;
 }
 
 .card-main-meaning {
-  font-size: 15px;
+  font: 0.9rem Arial, Helvetica, sans-serif;
   opacity: 0.85;
   margin-top: 6px;
 }
@@ -63,39 +58,167 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
   margin-top: 6px;
 }
 
-/* ── Phase 7.4: response options ─────────────────────────────────────────── */
+/* Card panel etymology (when available): "Show etymology" expands in place */
+.card-etymology {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+.card-etymology-trigger {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a56db;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.card-etymology-trigger:hover {
+  color: #0d47a1;
+}
+.card-etymology-content {
+  margin-top: 10px;
+}
+.card-etymology-content .etym-word {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.card-etymology-content .etym-char {
+  font-size: 13px;
+  padding: 6px 8px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+.card-etymology-content .etym-hanzi {
+  font-weight: 600;
+  margin-right: 4px;
+  font-family: "Ma Shan Zheng", cursive;
+}
+.card-etymology-content .etym-radical,
+.card-etymology-content .etym-decomp,
+.card-etymology-content .etym-origin {
+  display: block;
+  font-size: 12px;
+  color: #555;
+  margin-top: 2px;
+}
+.card-etymology-content .etym-mnemonic {
+  display: block;
+  font-size: 12px;
+  color: #333;
+  margin-top: 4px;
+  font-style: italic;
+}
+.card-etymology-content .etym-disclaimer {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+/* ── Phase 7.4: response options (each option is a panel: Chinese row + hints below) ── */
 .options-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin: 16px 0;
   padding: 0 4px;
 }
 
+/* One panel per response: border/background so hints clearly sit under the Chinese in this panel */
+.option-panel {
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+  width: 100%;
+}
+.option-panel.selected { border-color: #2563eb; background: #eff6ff; }
+.option-panel[data-gold="true"] { border-left: 4px solid #f59e0b; }
+.option-panel[data-slot="true"] { background: #f0fdf4; border-color: #86efac; }
+
 .option-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+  min-height: 52px;
+}
+.option-btn:hover { background: rgba(0,0,0,0.03); }
+/* Hint block directly under the Chinese row, inside the same panel */
+.option-hint-block {
+  width: 100%;
+  margin: 0;
+  padding: 10px 16px 12px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+  display: none;
+}
+.option-hint-block .option-hint-row {
+  font: 0.9rem Arial, Helvetica, sans-serif;
+  margin-top: 4px;
+  color: #444;
+}
+.option-hint-block .option-hint-pinyin { color: #555; }
+.option-hint-block .option-hint-meaning { color: #333; }
+.option-hint-block .option-hint-etymology { font-size: 0.85rem; }
+.option-hint-block .etym-word { margin-top: 6px; }
+.option-hint-block .etym-char { margin-bottom: 6px; }
+.option-content {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  padding: 12px 16px;
-  border: 2px solid #ccc;
-  border-radius: 10px;
+}
+.option-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.option-speaker-btn,
+.option-hint-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #ccc;
+  border-radius: 50%;
   background: #fff;
   cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-  transition: border-color 0.15s, background 0.15s;
-  min-height: 56px;
-  width: 100%;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.option-speaker-btn:hover,
+.option-hint-btn:hover {
+  background: #e8f0fe;
+  border-color: #1a56db;
+}
+.option-hint-btn {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.95rem;
 }
 
-.option-btn:hover   { border-color: #888; background: #f5f5f5; }
-.option-btn.selected { border-color: #2563eb; background: #eff6ff; }
-.option-btn[data-gold="true"] { border-left: 4px solid #f59e0b; }
-.option-btn[data-slot="true"] { background: #f0fdf4; border-color: #86efac; }
-.option-hanzi   { font-size: 1.3rem; font-weight: 600; color: #111; }
-.option-pinyin  { font-size: 0.85rem; color: #555; }
-.option-meaning { font-size: 0.8rem; color: #888; }
+.option-hanzi   { font-size: 2rem; font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight: 600; color: #0d9488; }
+.option-pinyin  { font: 0.9rem Arial, Helvetica, sans-serif; color: #555; }
+.option-meaning { font: 0.9rem Arial, Helvetica, sans-serif; color: #888; }
 .option-slot-placeholder {
   display: inline-block;
   background: #dbeafe;

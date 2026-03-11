@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>MandarinOS UI Shell</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet" />
     <link rel="icon" href="data:,">
   </head>
   <body>
@@ -18,19 +21,41 @@
             <label for="frameSelect">Frame:</label>
             <select id="frameSelect">
               <!-- frames populated dynamically by loadPackFramesIntoDropdown -->
-
             </select>
             <button id="runBtn">Run Turn</button>
           </div>
 
-          <!-- Phase 7.3: frame sentence rendering -->
-          <h2>Frame Sentence</h2>
-          <div id="frameSentence" class="frame-sentence"></div>
+          <!-- Phase 8: Conversation = record of what was said; Active = last statement from MandarinOS -->
+          <h2>Conversation</h2>
+          <div class="conversation-panel">
+            <div id="transcriptPanel" class="transcript-panel" role="log" aria-label="Record of what was said">
+              <div class="transcript-panel-label">Record of what was said</div>
+              <div id="transcriptContent" class="transcript-content"></div>
+            </div>
+            <div class="current-turn">
+              <div class="current-turn-label">Active conversation — last statement from MandarinOS</div>
+              <div class="frame-sentence-row">
+                <div id="frameSentence" class="frame-sentence"></div>
+                <button id="playQuestionBtn" type="button" class="play-question-speaker" title="Speak the question" aria-label="Play question">🔊</button>
+              </div>
+              <div id="hintPinyin"  class="hint-row hint-pinyin"  style="display:none;"></div>
+              <div id="hintMeaning" class="hint-row hint-meaning"  style="display:none;"></div>
+              <div id="hintEtymology" class="hint-row hint-etymology" style="display:none;"></div>
+              <div id="actionLadder" class="action-ladder">
+                <button id="tryRespondingBtn" class="action-ladder-btn" title="Speak your answer">Speak your answer</button>
+                <button id="showOptionsBtn" class="action-ladder-btn action-ladder-help" title="Show response options (when stuck)">Show options</button>
+                <button id="hintBtn" class="action-ladder-btn hint-btn-inline" style="display:none;">Hint →</button>
+              </div>
+              <div id="optionsContainerParent"></div>
+            </div>
+          </div>
 
-          <div id="hintPinyin"  class="hint-row hint-pinyin"  style="display:none;"></div>
-          <div id="hintMeaning" class="hint-row hint-meaning"  style="display:none;"></div>
-    <div id="hintEtymology" class="hint-row hint-etymology" style="display:none;"></div>
-          <button id="hintBtn"  class="hint-btn"               style="display:none;">Hint →</button>
+          <!-- Phase 7.4: Micro-gloss popover (singleton, repositioned on each token click) -->
+          <div id="microGloss" class="microgloss" style="display:none;" role="tooltip">
+            <span id="microGlossHeadword" class="microgloss-headword"></span>
+            <span id="microGlossBody" class="microgloss-body"></span>
+            <button id="microGlossOpenCard" class="microgloss-open-card">Open card →</button>
+          </div>
 
           <h2>Trace</h2>
           <pre id="trace" class="trace">(no trace)</pre>
@@ -51,33 +76,123 @@
       </main>
     </div>
     <style>
-      section.left {
-        overflow: visible;
+      section.left { overflow: visible; }
+      .frame-sentence-row {
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        margin-bottom: 0.5rem; min-height: 2.5rem;
       }
+      .frame-sentence-row .frame-sentence { flex: 1 1 200px; min-width: 0; }
       .frame-sentence {
-        font-size: 1.2rem;
-        line-height: 2;
-        min-height: 2.5rem;
-        height: auto;
-        overflow: visible;
-        white-space: normal;
-        margin-bottom: 0.5rem;
+        font-size: 2rem; line-height: 2; min-height: 2.5rem;
+        height: auto; overflow: visible; white-space: normal;
+        position: relative; margin: 0;
+        font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
-      .frame-lit-token {
-        color: #111;
-        display: inline;
+      .play-question-speaker {
+        flex-shrink: 0; width: 44px; height: 44px; padding: 0;
+        border: 2px solid #1a56db; border-radius: 50%;
+        background: #fff; color: #1a56db; font-size: 1.25rem; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
       }
-      .frame-word-token {
-        color: #1a56db;
-        text-decoration: underline;
-        cursor: pointer;
-        display: inline;
+      .play-question-speaker:hover { background: #e8f0fe; }
+      .frame-lit-token { color: #111; display: inline; }
+      .frame-word-token { color: #1a56db; text-decoration: underline; cursor: pointer; display: inline; }
+
+      /* Phase 7.4: token spans */
+      .tok { display: inline; }
+      .tok-word { color: #1a56db; cursor: pointer; }
+      .tok-word:hover { text-decoration: underline; }
+      .tok-word-unknown { color: #888; cursor: pointer; }
+      .tok-slot { border-bottom: 1px dotted #888; color: #555; }
+      .tok-punct, .tok-space, .tok-other { color: #111; }
+
+      /* Phase 7.4: micro-gloss popover */
+      .microgloss {
+        position: absolute; z-index: 999; background: #fff;
+        border: 1px solid #ccc; border-radius: 6px; padding: 6px 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15); font: 0.9rem Arial, Helvetica, sans-serif;
+        min-width: 140px; max-width: 240px; pointer-events: auto;
       }
+      .microgloss-headword { font-weight: bold; display: block; margin-bottom: 2px; }
+      .microgloss-body { color: #444; font-size: 0.85rem; display: block; margin-bottom: 6px; }
+      .microgloss-open-card {
+        font-size: 0.82rem; color: #1a56db; background: none;
+        border: 1px solid #1a56db; border-radius: 4px; padding: 2px 8px; cursor: pointer;
+      }
+      .microgloss-open-card:hover { background: #e8f0fe; }
+
+      /* Phase 7.4: Action Ladder */
+      .action-ladder { margin: 12px 0 16px 0; display: flex; gap: 10px; flex-wrap: wrap; }
+      .action-ladder-btn {
+        font: 0.9rem Arial, Helvetica, sans-serif; padding: 8px 16px; border-radius: 8px;
+        border: 2px solid #1a56db; background: #fff; color: #1a56db; cursor: pointer;
+        font-weight: 500;
+      }
+      .action-ladder-btn:hover { background: #e8f0fe; }
+      .action-ladder-help { border-color: #e67e22; color: #e67e22; }
+      .action-ladder-help:hover { background: #fef3e2; }
+      .action-ladder-btn.mic-only {
+        padding: 6px 12px; font-size: 1.1rem; min-width: auto;
+      }
+      .ui-mode-read #showOptionsBtn { display: inline-flex; }
+      .ui-mode-respond #showOptionsBtn { display: none; }
+      .hint-btn-inline { margin: 0; }
+      .hint-row { margin-top: 6px; }
+      #optionsContainerParent { margin-top: 10px; }
+
+      /* Phase 7.4: ui_mode visual states */
+      .ui-mode-read    .options-area { opacity: 0.45; pointer-events: none; }
+      .ui-mode-respond .options-area { opacity: 1;    pointer-events: auto; }
+
+      /* Phase 8: Conversation — history (shaded) vs active (white, bordered focus) */
+      .conversation-panel {
+        border: none;
+        border-radius: 10px;
+        padding: 0;
+        margin: 12px 0;
+        background: transparent;
+      }
+      /* Conversation history: shaded so it doesn’t compete for attention */
+      .transcript-panel {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin: 0 0 12px 0;
+        max-height: 180px;
+        overflow-y: auto;
+        background: #e5e7eb;
+        color: #4b5563;
+      }
+      .transcript-content { line-height: 1.5; }
+      .transcript-line { margin-bottom: 6px; display: flex; align-items: baseline; flex-wrap: wrap; }
+      .transcript-line .turn-marker {
+        font: 0.9rem Arial, Helvetica, sans-serif; font-weight: 600;
+        min-width: 5.5em; flex-shrink: 0; margin-right: 6px;
+      }
+      .transcript-line.partner .turn-marker { color: #1e40af; }
+      .transcript-line.user .turn-marker { color: #0f766e; }
+      .transcript-line.partner .transcript-text { color: #1e40af; }
+      .transcript-line.user .transcript-text { color: #0d9488; }
+      .transcript-text.transcript-zh { font: 2rem "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .transcript-text.transcript-en { font: 0.9rem Arial, Helvetica, sans-serif; }
+      .transcript-panel-label {
+        font: 0.85rem Arial, Helvetica, sans-serif; color: #6b7280; margin-bottom: 6px;
+      }
+      /* Active conversation: white window with border to draw attention; buttons live here */
+      .current-turn {
+        margin-top: 0;
+        background: #fff;
+        border: 2px solid #1a56db;
+        border-radius: 10px;
+        padding: 14px 16px;
+        box-shadow: 0 2px 8px rgba(26, 86, 219, 0.12);
+      }
+      .current-turn-label {
+        font: 0.9rem Arial, Helvetica, sans-serif; font-weight: 600; color: #1a56db; letter-spacing: 0.02em;
+        margin-bottom: 8px;
+      }
+      .hint-row { font: 0.9rem Arial, Helvetica, sans-serif; }
     </style>
     <script type="module" src="/app.js"></script>
   </body>
 </html>
-
-
-
-
