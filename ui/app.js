@@ -3,6 +3,7 @@ import { ttsSpeak } from "./ttsSpeak.js";
 
 const frameSelect = document.getElementById("frameSelect");
 const runBtn = document.getElementById("runBtn");
+const nextBtn = document.getElementById("nextBtn");
 const traceEl = document.getElementById("trace");
 const dataBuildInfoEl = document.getElementById("dataBuildInfo");
 const cardPanel = document.getElementById("cardPanel");
@@ -21,6 +22,14 @@ let currentPlay = null; // { utterance_id, start, timeoutId, duration_ms }
 // Phase 7 completion: transcript array for "You said" + Phase 8 Conversation Loop UI reuse.
 // Each entry: { role: 'user'|'partner', text: string }. Append on option select; Phase 8 will render full transcript.
 let conversationTranscript = [];
+// Phase 9.1: minimal conversation state for selector-driven next question (session_id, current_engine, last_partner_frame_id, recent_frame_ids)
+if (typeof window._sessionId === "undefined") window._sessionId = "session_" + Date.now();
+if (typeof window._recentFrameIds === "undefined") window._recentFrameIds = [];
+// Phase 10: learner_id for memory persistence; last_answer (frame_id + selected_option_hanzi/submitted_text) sent with next_question when last_turn_was_answer
+if (typeof window._learnerId === "undefined") window._learnerId = "default_learner";
+if (typeof window._lastAnswer === "undefined") window._lastAnswer = null;
+// Phase 10 Step 6: persona_id for persona-consistent stubs (e.g. probe responses); default first persona
+if (typeof window._personaId === "undefined") window._personaId = "zhang_wei";
 // Card panel: which cards have etymology expanded (click "Show etymology" to reveal). Enables future brush/radical clicks.
 let _cardEtymologyExpanded = new Set();
 
@@ -296,14 +305,24 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
     if (hintPinyin) { hintPinyin.textContent = ""; hintPinyin.style.display = "none"; }
     if (hintMeaning) { hintMeaning.textContent = ""; hintMeaning.style.display = "none"; }
     if (hintEtymEl) { hintEtymEl.innerHTML = ""; hintEtymEl.style.display = "none"; }
+    const sentenceHint = window._sentenceHint || { pinyin: "", text_en: "" };
+    const optForHint = (window._tapOptions && optionIndex >= 0 && window._tapOptions[optionIndex]) ? window._tapOptions[optionIndex] : null;
+    const cardData = (optForHint && optForHint.kind === "RECOVERY")
+      ? { pinyin: optForHint.pinyin || "", meaning: optForHint.meaning || "" }
+      : getWordHintData(activeWordId);
+    const levelHasContent = (optForHint && optForHint.kind === "RECOVERY")
+      ? (lvl) => (lvl === 1 && !!(cardData?.pinyin && String(cardData.pinyin).trim())) || (lvl === 2 && !!(cardData?.meaning && String(cardData.meaning).trim()))
+      : (lvl) => hintLevelHasContent(lvl, false, sentenceHint, activeWordId);
     if (hint_cascade_state.turn_uid !== turnUid) {
       hint_cascade_state = { level: 0, turn_uid: turnUid };
     }
-    let level = normalizeHintLevel(hint_cascade_state.level, false, window._sentenceHint || {}, activeWordId);
+    let level = normalizeHintLevel(hint_cascade_state.level, false, sentenceHint, activeWordId);
+    // Recovery options: normalize uses word lookup and gets no content, so level stays 0; force level 1 when we have pinyin
+    if (optForHint?.kind === "RECOVERY" && level === 0 && (cardData?.pinyin || cardData?.meaning)) {
+      level = 1;
+      hint_cascade_state.level = 1;
+    }
     hint_cascade_state.level = level;
-    const sentenceHint = window._sentenceHint || { pinyin: "", text_en: "" };
-    const levelHasContent = (lvl) => hintLevelHasContent(lvl, false, sentenceHint, activeWordId);
-    const cardData = getWordHintData(activeWordId);
     const container = document.getElementById("optionsContainer");
     container?.querySelectorAll(".option-hint-block").forEach((blk) => {
       blk.style.display = "none";
@@ -443,7 +462,7 @@ function renderTranscript() {
     line.className = "transcript-line " + (entry.role === "partner" ? "partner" : "user");
     const marker = document.createElement("span");
     marker.className = "turn-marker";
-    marker.textContent = entry.role === "partner" ? "Partner:" : "You:";
+    marker.textContent = entry.role === "partner" ? "APP:" : "You:";
     line.appendChild(marker);
     const text = entry.text || "";
     const contentSpan = document.createElement("span");
@@ -491,24 +510,44 @@ async function loadRecoveryPhrases() {
   }
 }
 
-/** Returns the phrase to show when user was not understood. Pass avoidPhraseId to get a different phrase next time. */
+/**
+ * Rotation pool for "not understood": repeat/slower phrases so we don't always say "什么？".
+ * After 2+ consecutive not-understoods we return a next_turn phrase to move the conversation on.
+ */
+const NOT_UNDERSTOOD_ROTATION_ACTION = new Set(["repeat", "slower"]);
+const NOT_UNDERSTOOD_MOVE_ON_ACTION = "next_turn";
+const NOT_UNDERSTOOD_MOVE_ON_AFTER = 3;
+
+/** Returns the phrase to show when user was not understood. Rotates among repeat/slower; after a few times, moves on (next_turn). */
 function getRecoveryPhraseForNotUnderstood(avoidPhraseId = null) {
   const data = recoveryPhrasesRuntime || window._recoveryPhrases;
   if (!data || !Array.isArray(data.phrases) || data.phrases.length === 0) {
     return { id: "fallback", hanzi: "什么？再说一次。", pinyin: "Shénme? Zài shuō yí cì.", text_en: "What? Say it again.", etymology: "" };
   }
-  const notUnderstood = (data.phrases || []).filter((p) => p.use === "not_understood");
-  const pool = notUnderstood.length ? notUnderstood : data.phrases;
+  const consecutive = (window._consecutiveNotUnderstood || 0) + 1;
+  window._consecutiveNotUnderstood = consecutive;
+
+  if (consecutive >= NOT_UNDERSTOOD_MOVE_ON_AFTER) {
+    const moveOnPool = (data.phrases || []).filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION);
+    if (moveOnPool.length > 0) {
+      const chosen = moveOnPool[0];
+      return { id: chosen.id, hanzi: chosen.hanzi, pinyin: chosen.pinyin || "", text_en: chosen.text_en || "", etymology: chosen.etymology || "", recovery_action: NOT_UNDERSTOOD_MOVE_ON_ACTION };
+    }
+  }
+
+  const rotationPool = (data.phrases || []).filter((p) => NOT_UNDERSTOOD_ROTATION_ACTION.has(p.recovery_action || ""));
+  const pool = rotationPool.length > 0 ? rotationPool : data.phrases;
+  let chosen;
   if (avoidPhraseId && pool.length > 1) {
     const i = pool.findIndex((p) => p.id === avoidPhraseId);
     const nextIdx = i >= 0 ? (i + 1) % pool.length : 0;
-    const chosen = pool[nextIdx];
-    return { id: chosen.id, hanzi: chosen.hanzi, pinyin: chosen.pinyin || "", text_en: chosen.text_en || "", etymology: chosen.etymology || "" };
+    chosen = pool[nextIdx];
+  } else {
+    const defaultId = data.default_for_not_understood;
+    const found = defaultId ? pool.find((p) => p.id === defaultId) : null;
+    chosen = found || pool[0] || data.phrases[0];
   }
-  const defaultId = data.default_for_not_understood;
-  const found = defaultId ? pool.find((p) => p.id === defaultId) : null;
-  const chosen = found || pool[0] || data.phrases[0];
-  return { id: chosen.id, hanzi: chosen.hanzi, pinyin: chosen.pinyin || "", text_en: chosen.text_en || "", etymology: chosen.etymology || "" };
+  return { id: chosen.id, hanzi: chosen.hanzi, pinyin: chosen.pinyin || "", text_en: chosen.text_en || "", etymology: chosen.etymology || "", recovery_action: chosen.recovery_action || "repeat" };
 }
 
 /** Normalize for match: trim, collapse spaces, remove common punctuation. */
@@ -1235,18 +1274,30 @@ function buildDiagnosticCompleted(sessionMeta) {
 }
 
 // ── §5 validateOption — Phase 6 ────────────────────────────────────────────
-const ALLOWED_OPTION_KINDS = new Set(["WORD", "FRAME_WITH_SLOTS", "FILLER", "FREE_TEXT"]);
+const ALLOWED_OPTION_KINDS = new Set(["WORD", "FRAME_WITH_SLOTS", "FILLER", "FREE_TEXT", "RECOVERY", "RECOVERY_PANEL"]);
 
 function validateOption(option, targetItem) {
   if (!option || typeof option !== "object")
     return { valid: false, failure_reason: "malformed_option" };
+  const kind = option.kind && String(option.kind).toUpperCase();
+  if (kind === "RECOVERY") {
+    if (!option.hanzi || typeof option.hanzi !== "string" || option.hanzi.trim() === "")
+      return { valid: false, failure_reason: "unrenderable_option" };
+    return { valid: true, failure_reason: null };
+  }
+  if (kind === "RECOVERY_PANEL") {
+    if (!Array.isArray(option.recoveryPhrases) || option.recoveryPhrases.length === 0)
+      return { valid: false, failure_reason: "unrenderable_option" };
+    return { valid: true, failure_reason: null };
+  }
   if (!option.card_id || typeof option.card_id !== "string" || option.card_id.trim() === "")
     return { valid: false, failure_reason: "malformed_option" };
   if (!option.hanzi || typeof option.hanzi !== "string" || option.hanzi.trim() === "")
     return { valid: false, failure_reason: "unrenderable_option" };
-  const kind = option.kind && String(option.kind).toUpperCase();
-  if (!kind || !ALLOWED_OPTION_KINDS.has(kind))
+  const kindNorm = option.kind && String(option.kind).toUpperCase();
+  if (!kindNorm || !ALLOWED_OPTION_KINDS.has(kindNorm))
     return { valid: false, failure_reason: "malformed_option" };
+  // RECOVERY already validated above (hanzi only).
   // Do not fail WORD options when frame is slotted; only require at least one FRAME_WITH_SLOTS (checked in validateOptionsArray).
   return { valid: true, failure_reason: null };
 }
@@ -1255,6 +1306,7 @@ function validateOptionsArray(options, frameId, targetItem) {
   const failures = [];
   if (!Array.isArray(options) || options.length < 1)
     failures.push({ failure_reason: "insufficient_options", option_count: (options||[]).length });
+  // gold = one suggested response for this turn (conversation-sustaining); validation is not about "correct answer"
   const goldOptions = (options || []).filter(o => o.is_gold);
   if (goldOptions.length > 1)
     failures.push({ failure_reason: "multiple_gold", gold_count: goldOptions.length });
@@ -1279,12 +1331,57 @@ function validateOptionsArray(options, frameId, targetItem) {
   }
   return { ok: failures.length === 0, failures };
 }
+/** Recovery phrases in one scrollable panel (P1 first, then P2). */
+const RECOVERY_PHRASES_MAX = 12;
+
+/** Resolve recovery_action so we respond correctly to each phrase (not always "repeat"). */
+const RECOVERY_ACTION_NEXT_TURN_IDS = new Set([
+  "wo_bu_dong", "ting_bu_dong", "bu_haoyisi_mei_tingdong",
+  "women_liao_dian_jiandan_ba", "women_keyi_liao_bie_de_ma", "bu_zhidao",
+]);
+const RECOVERY_ACTION_SLOWER_IDS = new Set(["man_yi_dian", "ni_keyi_shuo_man_yidian_ma"]);
+
+function getRecoveryAction(phrase) {
+  if (phrase.recovery_action === "next_turn" || phrase.recovery_action === "slower" || phrase.recovery_action === "repeat")
+    return phrase.recovery_action;
+  const id = (phrase.id || "").trim();
+  if (RECOVERY_ACTION_NEXT_TURN_IDS.has(id)) return "next_turn";
+  if (RECOVERY_ACTION_SLOWER_IDS.has(id)) return "slower";
+  return "repeat";
+}
+
+function getRecoveryPanelOption() {
+  const data = recoveryPhrasesRuntime || window._recoveryPhrases;
+  if (!data || !Array.isArray(data.phrases) || data.phrases.length === 0) return null;
+  const p1 = data.phrases.filter((p) => (p.level || "").toUpperCase() === "P1");
+  const p2 = data.phrases.filter((p) => (p.level || "").toUpperCase() === "P2");
+  const pool = [...p1, ...p2].slice(0, RECOVERY_PHRASES_MAX);
+  if (pool.length === 0) return null;
+  return {
+    kind: "RECOVERY_PANEL",
+    card_id: "recovery:panel",
+    hanzi: "",
+    is_gold: false,
+    is_slot: false,
+    recoveryPhrases: pool.map((p) => ({
+      id: p.id,
+      hanzi: p.hanzi || "",
+      pinyin: p.pinyin || "",
+      meaning: p.text_en || "",
+      recovery_action: getRecoveryAction(p),
+    })),
+  };
+}
+
 function renderOptions(options, frameId) {
   // Normalize kind so validation and ? button behave consistently (default WORD when missing)
   options = (options || []).map(opt => ({
     ...opt,
     kind: (opt.kind && String(opt.kind).toUpperCase()) || "WORD",
   }));
+  // Phase 9.4: append one recovery panel (scrollable list of phrases)
+  const recoveryPanel = getRecoveryPanelOption();
+  if (recoveryPanel) options.push(recoveryPanel);
   // §3.1 + §5 — validate before render
   const targetItem = options && options.find(o => o.is_gold) || null;
   const validation = validateOptionsArray(options, frameId, targetItem);
@@ -1304,12 +1401,125 @@ function renderOptions(options, frameId) {
   if (!options || options.length === 0) { container.style.display = "none"; return; }
   container.style.display = "flex";
   options.forEach((opt, idx) => {
+    // Phase 9.4: one scrollable recovery panel instead of multiple panels
+    if (opt.kind === "RECOVERY_PANEL") {
+      const panel = document.createElement("div");
+      panel.className = "option-panel";
+      panel.setAttribute("data-option-index", String(idx));
+      panel.setAttribute("data-recovery", "true");
+      panel.setAttribute("data-card-id", opt.card_id || "");
+      const label = document.createElement("div");
+      label.className = "recovery-panel-label";
+      label.textContent = "Need help?";
+      panel.appendChild(label);
+      const listWrap = document.createElement("div");
+      listWrap.className = "recovery-phrases-list";
+      (opt.recoveryPhrases || []).forEach((phrase) => {
+        const row = document.createElement("div");
+        row.className = "recovery-phrase-row";
+        const textBtn = document.createElement("button");
+        textBtn.type = "button";
+        textBtn.className = "recovery-phrase-text";
+        textBtn.textContent = phrase.hanzi || "";
+        const tooltipParts = [];
+        if (phrase.pinyin) tooltipParts.push(phrase.pinyin);
+        if (phrase.meaning) tooltipParts.push(phrase.meaning);
+        textBtn.setAttribute("title", tooltipParts.join(" — ") || "");
+        textBtn.addEventListener("click", async () => {
+          emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
+            payload: { frame_id: frameId, card_id: "recovery:" + (phrase.id || ""), kind: "RECOVERY" } });
+          container.querySelectorAll(".option-panel").forEach((p) => p.classList.remove("selected"));
+          panel.classList.add("selected");
+          const userText = (phrase.hanzi || "").trim();
+          conversationTranscript.push({ role: "user", text: userText });
+          const action = getRecoveryAction(phrase);
+          const currentQuestion = (window._currentFrameText || "").trim();
+
+          if (action === "next_turn") {
+            renderTranscript();
+            // Speak recovery phrase then bridge to another topic (user indicated difficulty)
+            ttsSpeak({
+              text: userText,
+              lang: "zh-CN",
+              onEvent: (e) => {
+                if (e?.payload?.completed) runTurn(true, { prefer_bridge: true });
+              },
+            });
+            return;
+          }
+
+          let partnerLine;
+          let segments;
+          const rawTokens = (frameTokens || window._frameTokens)?.frames?.[frameId];
+          const hasNewSchema = rawTokens && rawTokens.length > 0 && "kind" in rawTokens[0];
+          if (action === "slower") {
+            partnerLine = currentQuestion ? "好的，慢一点：" + currentQuestion : "好的，慢一点。";
+            const prefix = currentQuestion ? "好的，慢一点：" : "好的，慢一点。";
+            segments = [{ t: prefix }];
+            if (hasNewSchema && rawTokens.length) {
+              segments = segments.concat(rawTokens.map((t) => ({ t: t.t, word_id: t.word_id || undefined })));
+            } else if (currentQuestion) {
+              segments = segments.concat(currentQuestion.split("").map((c) => ({ t: c })));
+            }
+          } else {
+            // repeat: just say the question again, no preamble
+            partnerLine = currentQuestion || "好。";
+            if (hasNewSchema && rawTokens.length) {
+              segments = rawTokens.map((t) => ({ t: t.t, word_id: t.word_id || undefined }));
+            } else {
+              segments = (currentQuestion || "").split("").map((c) => ({ t: c }));
+            }
+          }
+          conversationTranscript.push({ role: "partner", text: partnerLine });
+          renderTranscript();
+          setActivePartnerStatement(partnerLine, "recovery_repeat", segments);
+          // Speak user's phrase first, then partner response
+          ttsSpeak({
+            text: userText,
+            lang: "zh-CN",
+            onEvent: (e) => {
+              if (e?.payload?.completed) {
+                ttsSpeak({
+                  text: partnerLine,
+                  lang: "zh-CN",
+                  rate: action === "slower" ? 0.82 : undefined,
+                  queue: true,
+                });
+              }
+            },
+          });
+          lastClickedWordId = null;
+          window.lastClickedWordId = null;
+          hint_cascade_state = { level: 0, turn_uid: "recovery_repeat" };
+          renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, "recovery_repeat", "tap");
+          setUiMode("READ");
+        });
+        const speakerBtn = document.createElement("button");
+        speakerBtn.type = "button";
+        speakerBtn.className = "recovery-speaker-btn";
+        speakerBtn.setAttribute("title", "Speak this phrase");
+        speakerBtn.setAttribute("aria-label", "Speak this phrase");
+        speakerBtn.textContent = "\uD83D\uDD0A";
+        speakerBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          ttsSpeak({ text: phrase.hanzi || "", lang: "zh-CN" });
+        });
+        row.appendChild(textBtn);
+        row.appendChild(speakerBtn);
+        listWrap.appendChild(row);
+      });
+      panel.appendChild(listWrap);
+      container.appendChild(panel);
+      return;
+    }
+
     // Each response is a panel: top row (Chinese + actions) + hint block underneath in the same panel
     const panel = document.createElement("div");
     panel.className = "option-panel";
     panel.setAttribute("data-option-index", String(idx));
-    if (opt.is_gold) panel.setAttribute("data-gold", "true");
+    if (opt.is_gold) panel.setAttribute("data-gold", "true"); // internal/trace only; not "correct answer" (Design Constitution)
     if (opt.is_slot) panel.setAttribute("data-slot", "true");
+    if (opt.kind === "RECOVERY") panel.setAttribute("data-recovery", "true");
     panel.setAttribute("data-card-id", opt.card_id || "");
 
     const btn = document.createElement("button");
@@ -1344,7 +1554,7 @@ function renderOptions(options, frameId) {
       });
       optionActions.appendChild(speakerBtn);
     }
-    const hasHintContent = (opt.pinyin && String(opt.pinyin).trim()) || (opt.meaning && String(opt.meaning).trim());
+    const hasHintContent = (opt.pinyin && String(opt.pinyin).trim()) || (opt.meaning && String(opt.meaning).trim()) || opt.kind === "RECOVERY";
     const hasHanzi = (opt.hanzi && String(opt.hanzi).trim());
     const hintId = (opt.card_id && String(opt.card_id).trim()) || "__opt_" + idx;
     if (opt.card_id || hasHintContent || hasHanzi) {
@@ -1389,58 +1599,266 @@ function renderOptions(options, frameId) {
     optionHintBlock.appendChild(optHintEtymology);
     panel.appendChild(optionHintBlock);
 
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
-        payload: { frame_id: frameId, card_id: opt.card_id, is_gold: opt.is_gold, is_slot: opt.is_slot, option_idx: idx } });
+        payload: { frame_id: frameId, card_id: opt.card_id, is_gold: opt.is_gold, is_slot: opt.is_slot, option_idx: idx, kind: opt.kind } });
+      container.querySelectorAll(".option-panel").forEach(p => p.classList.remove("selected"));
+      panel.classList.add("selected");
+      const userText = (opt.hanzi || "").trim();
+      if (opt.kind !== "RECOVERY" && opt.kind !== "RECOVERY_PANEL") window._consecutiveNotUnderstood = 0;
+
+      if (opt.kind === "RECOVERY") {
+        const action = getRecoveryAction(opt);
+        const currentQuestion = (window._currentFrameText || "").trim();
+
+        if (action === "next_turn") {
+          conversationTranscript.push({ role: "user", text: userText });
+          renderTranscript();
+          ttsSpeak({
+            text: userText,
+            lang: "zh-CN",
+            onEvent: (e) => {
+              if (e?.payload?.completed) runTurn(true, { prefer_bridge: true });
+            },
+          });
+          return;
+        }
+
+        let partnerLine;
+        let segments;
+        const rawTokens = (frameTokens || window._frameTokens)?.frames?.[frameId];
+        const hasNewSchema = rawTokens && rawTokens.length > 0 && "kind" in rawTokens[0];
+        if (action === "slower") {
+          partnerLine = currentQuestion ? "好的，慢一点：" + currentQuestion : "好的，慢一点。";
+          const prefix = currentQuestion ? "好的，慢一点：" : "好的，慢一点。";
+          segments = [{ t: prefix }];
+          if (hasNewSchema && rawTokens.length) {
+            segments = segments.concat(rawTokens.map((t) => ({ t: t.t, word_id: t.word_id || undefined })));
+          } else if (currentQuestion) {
+            segments = segments.concat(currentQuestion.split("").map((c) => ({ t: c })));
+          }
+        } else {
+          partnerLine = currentQuestion || "好。";
+          if (hasNewSchema && rawTokens.length) {
+            segments = rawTokens.map((t) => ({ t: t.t, word_id: t.word_id || undefined }));
+          } else {
+            segments = (currentQuestion || "").split("").map((c) => ({ t: c }));
+          }
+        }
+        conversationTranscript.push({ role: "user", text: userText });
+        conversationTranscript.push({ role: "partner", text: partnerLine });
+        renderTranscript();
+        setActivePartnerStatement(partnerLine, "recovery_repeat", segments);
+        ttsSpeak({
+          text: userText,
+          lang: "zh-CN",
+          onEvent: (e) => {
+            if (e?.payload?.completed) {
+              ttsSpeak({
+                text: partnerLine,
+                lang: "zh-CN",
+                rate: action === "slower" ? 0.82 : undefined,
+                queue: true,
+              });
+            }
+          },
+        });
+        lastClickedWordId = null;
+        window.lastClickedWordId = null;
+        hint_cascade_state = { level: 0, turn_uid: "recovery_repeat" };
+        renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, "recovery_repeat", "tap");
+        setUiMode("READ");
+        return;
+      }
+
       if (opt.card_id && opt.kind !== "FRAME_WITH_SLOTS") {
         dispatch({ type: "OPEN_CARD", payload: { card_id: opt.card_id } });
         resolveCard(opt.card_id, "tools/cards/out/cards_by_id.json");
       }
-      container.querySelectorAll(".option-panel").forEach(p => p.classList.remove("selected"));
-      panel.classList.add("selected");
-      // Phase 7 completion: "You said" — show confirmation.
-      const userText = (opt.hanzi || "").trim();
-      // Phase 8: conversation record = only MandarinOS first comment + user response. Next MandarinOS line stays in active area.
-      const questionText = window._currentFrameText || "";
-      if (questionText) conversationTranscript.push({ role: "partner", text: questionText });
+      // Phase 8: append user answer, then advance to next turn so the server picks the next partner line
+      // (e.g. 很高兴认识你。 or 你的名字是什么意思？) instead of staying on hardcoded "你呢？"
+      // Phase 10: record last_answer for fact-capture (server stores by learner_id)
+      window._lastAnswer = { frame_id: frameId, selected_option_hanzi: userText, selected_option_meaning: opt.meaning || undefined };
       conversationTranscript.push({ role: "user", text: userText });
       renderTranscript();
-      setActivePartnerStatement("你呢？", "active_ne", ACTIVE_NE_SEGMENTS);
-      ttsSpeak({ text: "你呢？", lang: "zh-CN" });
-      // Hints for the active conversation turn: 你呢？ (not the original question)
-      window._sentenceHint = { pinyin: "nǐ ne?", text_en: "And you?" };
+      // Speak the user's response, then advance to next turn (server returns next partner line and we speak it)
+      ttsSpeak({
+        text: userText,
+        lang: "zh-CN",
+        onEvent: (e) => {
+          if (e?.payload?.completed) {
+            runTurn(true, { last_turn_was_answer: true });
+          }
+        },
+      });
       lastClickedWordId = null;
       window.lastClickedWordId = null;
-      hint_cascade_state = { level: 0, turn_uid: "active_ne" };
-      renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, "active_ne", "tap");
       setUiMode("READ");
     });
     container.appendChild(panel);
   });
 }
 // ── end Phase 6 ────────────────────────────────────────────────────────────
-async function runTurn() {
+
+/** Oxygen loop: "Ask back" row — show probe options (为什么？, 谁？, 哪里？, etc.) when server set probe_offer. */
+function renderProbeRow(probeOptions) {
+  let parent = document.getElementById("optionsContainerParent");
+  if (!parent) return;
+  let row = document.getElementById("probeRowContainer");
+  if (!row) {
+    row = document.createElement("div");
+    row.id = "probeRowContainer";
+    row.className = "probe-row-container";
+    parent.appendChild(row);
+  }
+  row.style.display = "block";
+  row.textContent = "";
+  const label = document.createElement("div");
+  label.className = "probe-row-label";
+  label.textContent = "你也可以问：";
+  row.appendChild(label);
+  const wrap = document.createElement("div");
+  wrap.className = "probe-row-buttons";
+  (probeOptions || []).forEach((probe) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "probe-btn";
+    btn.setAttribute("data-probe-id", probe.id || "");
+    btn.setAttribute("data-probe-hanzi", probe.hanzi || "");
+    btn.textContent = probe.hanzi || "";
+    btn.title = (probe.pinyin || "") + (probe.meaning ? " — " + probe.meaning : "");
+    btn.addEventListener("click", () => runProbeTurn(probe));
+    wrap.appendChild(btn);
+  });
+  row.appendChild(wrap);
+}
+
+function hideProbeRow() {
+  const row = document.getElementById("probeRowContainer");
+  if (row) row.style.display = "none";
+}
+
+/** Send probe as user message, show partner stub, then request next question. */
+async function runProbeTurn(probe) {
+  const hanzi = (probe.hanzi || "").trim();
+  if (!hanzi) return;
+  conversationTranscript.push({ role: "user", text: hanzi });
+  renderTranscript();
+  ttsSpeak({ text: hanzi, lang: "zh-CN" });
+
+  const currentEngine = window._currentEngineId ?? "identity";
+    const payload = {
+    env: "dev",
+    turn_uid: "ui_probe_" + Date.now(),
+    probe_id: probe.id || "",
+    probe_hanzi: hanzi,
+    conversation_state: {
+      session_id: window._sessionId,
+      current_engine: currentEngine,
+      last_partner_frame_id: window._lastPartnerFrameId ?? null,
+      recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : []
+    }
+  };
+  if (window._personaId) payload.persona_id = window._personaId;
+  let res;
+  try {
+    res = await fetch("/api/run_turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.warn("[app] runProbeTurn fetch failed", e);
+    return;
+  }
+  if (!res.ok) return;
+  let data = {};
+  try {
+    data = await res.json();
+  } catch (e) {
+    return;
+  }
+  const stub = (data.frame_text || "").trim();
+  if (stub) {
+    conversationTranscript.push({ role: "partner", text: stub });
+    renderTranscript();
+    ttsSpeak({
+      text: stub,
+      lang: "zh-CN",
+      onEvent: (e) => {
+        if (e?.payload?.completed) runTurn(true);
+      },
+    });
+  } else {
+    runTurn(true);
+  }
+  hideProbeRow();
+}
+
+/**
+ * Run a turn: either "Run Turn" (frame from dropdown) or "Next" (selector-driven next frame).
+ * @param {boolean} [isNext=false] When true, send next_question + conversation_state; server chooses frame.
+ * @param {{ prefer_bridge?: boolean, force_bridge?: boolean, last_turn_was_answer?: boolean }} [opts] When isNext: prefer_bridge tries bridge first (e.g. after interesting answer or recovery); force_bridge only bridge; last_turn_was_answer triggers probe_offer.
+ */
+async function runTurn(isNext = false, opts = {}) {
   const selected = frameSelect.value;
   const selectedOption = frameSelect.options[frameSelect.selectedIndex];
-  const engineId = selectedOption?.dataset?.engineId || null;
+  const engineIdFromDropdown = selectedOption?.dataset?.engineId || null;
 
-  const payload = {
-    env: "dev",
-    turn_uid: "ui_" + Date.now(),
-    frame_id: selected,
-    engine_id: engineId
-  };
-
-  if (selected && selected.endsWith(".json")) {
-    payload.frame_path = selected;
-  } else {
-    if (!engineId) {
+  let payload;
+  if (isNext) {
+    const firstOptionEngine = frameSelect.options[0]?.dataset?.engineId || null;
+    const currentEngine = window._currentEngineId ?? engineIdFromDropdown ?? firstOptionEngine ?? "identity";
+    const lastPartnerFrameId = window._lastPartnerFrameId ?? selected;
+    const conversation_state = {
+      session_id: window._sessionId,
+      current_engine: currentEngine,
+      last_partner_frame_id: lastPartnerFrameId,
+      recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : []
+    };
+    if (window._learnerId) conversation_state.learner_id = window._learnerId;
+    if (window._personaId) conversation_state.persona_id = window._personaId;
+    if (opts.prefer_bridge === true) conversation_state.prefer_bridge = true;
+    if (opts.force_bridge === true) conversation_state.force_bridge = true;
+    if (opts.last_turn_was_answer === true) {
+      conversation_state.last_turn_was_answer = true;
+      if (window._lastAnswer && window._lastAnswer.frame_id) {
+        conversation_state.last_answer = window._lastAnswer;
+        window._lastAnswer = null; // send once only
+      }
+    }
+    payload = {
+      env: "dev",
+      turn_uid: "ui_" + Date.now(),
+      next_question: true,
+      conversation_state
+    };
+    if (!currentEngine) {
       emitUITrace({
         type: "UI_ERROR",
         timestamp: new Date().toISOString(),
-        payload: { message: "Missing engine id for selected pack frame" }
+        payload: { message: "Next question requires current_engine (run a turn first or select a frame)" }
       });
       return;
+    }
+  } else {
+    payload = {
+      env: "dev",
+      turn_uid: "ui_" + Date.now(),
+      frame_id: selected,
+      engine_id: engineIdFromDropdown
+    };
+    if (selected && selected.endsWith(".json")) {
+      payload.frame_path = selected;
+    } else {
+      if (!engineIdFromDropdown) {
+        emitUITrace({
+          type: "UI_ERROR",
+          timestamp: new Date().toISOString(),
+          payload: { message: "Missing engine id for selected pack frame" }
+        });
+        return;
+      }
     }
   }
 
@@ -1478,26 +1896,53 @@ async function runTurn() {
     console.warn("[app] runTurn: failed to parse response JSON", e);
   }
 
+  const frameId = data.frame_id || selected;
+  const engineId = data.engine_id ?? (payload.engine_id || engineIdFromDropdown);
+
+  // Phase 9.1: update conversation state from response so Next has correct state
+  window._currentEngineId = engineId;
+  window._lastPartnerFrameId = frameId;
+  if (Array.isArray(window._recentFrameIds)) {
+    window._recentFrameIds.push(frameId);
+    if (window._recentFrameIds.length > 50) window._recentFrameIds = window._recentFrameIds.slice(-50);
+  } else {
+    window._recentFrameIds = [frameId];
+  }
+
   // Emit TURN_START
   emitUITrace({
     type: "TURN_START",
     timestamp: null,
-    payload: { turn_uid: payload.turn_uid, engine_id: engineId, frame_id: selected }
+    payload: { turn_uid: payload.turn_uid, engine_id: engineId, frame_id: frameId }
   });
 
+  // Sync dropdown to chosen frame when server chose it (e.g. Next)
+  if (payload.next_question && frameId) {
+    const opt = Array.from(frameSelect.options).find((o) => o.value === frameId);
+    if (opt) {
+      frameSelect.selectedIndex = Array.from(frameSelect.options).indexOf(opt);
+    }
+  }
+
   // Render frame sentence
-  const frameId = data.frame_id || selected;
   const fallbackText = data.prompt_text || data.frame_text || "";
   renderFrameSentence({ id: frameId, text: fallbackText });
   setUiMode("READ");
   window._currentFrameText = (fallbackText && fallbackText.trim()) ? fallbackText.trim() : "";
+  // Phase 8: append partner question to transcript when we show a new question
+  if (window._currentFrameText) {
+    conversationTranscript.push({ role: "partner", text: window._currentFrameText });
+    renderTranscript();
+  }
   // Auto-play active sentence (most people better at hearing than reading)
   if (fallbackText && fallbackText.trim()) {
     ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
   }
-  // Phase 6 — source options + hint affordance from pre-loaded runtime artifact
+  // Phase 6 — options: prefer server-sent options when server chose the frame (next_question) so options always match the displayed question after bridge
   const _frameData     = window._frameOptionsRuntime?.frames?.[frameId] || {};
-  const tapOptions     = _frameData.options || data.options || [];
+  const tapOptions     = (payload.next_question && Array.isArray(data.options) && data.options.length > 0)
+    ? data.options
+    : (_frameData.options || data.options || []);
   const hintAffordance = _frameData.hint_affordance || { visible: false };
   const turnUid        = frameId;
 
@@ -1513,6 +1958,27 @@ async function runTurn() {
   window._currentHintAffordance = hintAffordance;
   window._currentTurnUid = turnUid;
   renderOptions(tapOptions, frameId);
+  // Phase 10 Step 7: show remembered facts when server sends learner_memory (cross-session continuity)
+  const rememberedEl = document.getElementById("rememberedFacts");
+  if (rememberedEl && data.learner_memory && typeof data.learner_memory === "object") {
+    const m = data.learner_memory;
+    const parts = [m.learner_name, m.hometown, m.lives_in, m.job_or_study, m.family, m.favourite_food].filter(Boolean);
+    if (parts.length > 0) {
+      rememberedEl.textContent = "Remembered: " + parts.join(", ");
+      rememberedEl.style.display = "";
+    } else {
+      rememberedEl.style.display = "none";
+    }
+  } else if (rememberedEl) {
+    rememberedEl.style.display = "none";
+  }
+
+  // Oxygen loop: show "Ask back" probe options when user just gave an interesting answer
+  if (data.probe_offer === true && Array.isArray(data.probe_options) && data.probe_options.length > 0) {
+    renderProbeRow(data.probe_options);
+  } else {
+    hideProbeRow();
+  }
   renderHintAffordance(hintAffordance, turnUid, "tap");
   
   // Wire hint button click: use current turn so recovery (and 你呢？) hint isn't reset to frame
@@ -1604,16 +2070,26 @@ window.addEventListener("load", async () => {
   });
   document.getElementById("tryRespondingBtn")?.addEventListener("click", async () => {
     const btn = document.getElementById("tryRespondingBtn");
-    const options = window._tapOptions || [];
-    const questionText = (window._currentFrameText || "").trim();
+    const frameId = window._lastPartnerFrameId || null;
+    const optionsFromFrame = frameId && window._frameOptionsRuntime?.frames?.[frameId]?.options;
+    const options = (window._tapOptions && window._tapOptions.length > 0)
+      ? window._tapOptions
+      : (Array.isArray(optionsFromFrame) ? optionsFromFrame : []);
     const wasInReadMode = _uiMode === "READ";
     if (btn) btn.textContent = "Listening…";
+    if (options.length === 0) {
+      emitUITrace({ type: "SPEECH_LISTEN_OPTIONS", timestamp: new Date().toISOString(), payload: { frame_id: frameId, option_count: 0, warning: "No options to match against; use Run Turn first or check frame_options" } });
+    } else {
+      emitUITrace({ type: "SPEECH_LISTEN_OPTIONS", timestamp: new Date().toISOString(), payload: { frame_id: frameId, option_count: options.length } });
+    }
     const { transcript, matchedOption } = await listenForResponse(options, LISTEN_BEFORE_RECOVERY_MS);
+    emitUITrace({ type: "SPEECH_RESULT", timestamp: new Date().toISOString(), payload: { transcript: transcript || "", transcript_length: (transcript || "").length, matched: !!matchedOption } });
     if (btn) {
       if (_uiMode === "RESPOND") btn.textContent = "\uD83C\uDFA4";
       else btn.textContent = "Speak your answer";
     }
     if (matchedOption) {
+      window._consecutiveNotUnderstood = 0;
       // Understood: update conversation and move to next turn (same as selecting that option)
       emitUITrace({ type: "SPEECH_UNDERSTOOD", timestamp: new Date().toISOString(), payload: { transcript, matched_hanzi: matchedOption.hanzi } });
       if (matchedOption.card_id && matchedOption.kind !== "FRAME_WITH_SLOTS") {
@@ -1626,36 +2102,72 @@ window.addEventListener("load", async () => {
         const toSelect = optionsContainer.querySelector(`.option-panel[data-card-id="${(matchedOption.card_id || "").replace(/"/g, "")}"]`);
         if (toSelect) toSelect.classList.add("selected");
       }
-      if (questionText) conversationTranscript.push({ role: "partner", text: questionText });
       conversationTranscript.push({ role: "user", text: (matchedOption.hanzi || "").trim() });
       renderTranscript();
-      setActivePartnerStatement("你呢？", "active_ne", ACTIVE_NE_SEGMENTS);
-      ttsSpeak({ text: "你呢？", lang: "zh-CN" });
-      window._sentenceHint = { pinyin: "nǐ ne?", text_en: "And you?" };
+      const saidText = (matchedOption.hanzi || "").trim();
+      window._lastAnswer = { frame_id: frameId, selected_option_hanzi: saidText, selected_option_meaning: matchedOption.meaning || undefined };
+      ttsSpeak({
+        text: saidText,
+        lang: "zh-CN",
+        onEvent: (e) => {
+          if (e?.payload?.completed) runTurn(true, { last_turn_was_answer: true });
+        },
+      });
       lastClickedWordId = null;
       window.lastClickedWordId = null;
-      hint_cascade_state = { level: 0, turn_uid: "active_ne" };
-      renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, "active_ne", "tap");
+      setUiMode("READ");
+      return;
+    }
+    // No option match but user said something substantial — accept and advance to sustain conversation (no "correct answer" required)
+    const saidTrimmed = (transcript && typeof transcript === "string") ? transcript.trim() : "";
+    const substantialAnswer = saidTrimmed.length >= 2; // e.g. "意思是光明" or "快乐" — accept and move on
+    if (substantialAnswer) {
+      window._consecutiveNotUnderstood = 0;
+      emitUITrace({ type: "SPEECH_ACCEPTED_AS_ANSWER", timestamp: new Date().toISOString(), payload: { transcript: saidTrimmed, matched: false } });
+      conversationTranscript.push({ role: "user", text: saidTrimmed });
+      renderTranscript();
+      window._lastAnswer = { frame_id: frameId, submitted_text: saidTrimmed };
+      ttsSpeak({
+        text: saidTrimmed,
+        lang: "zh-CN",
+        onEvent: (e) => {
+          if (e?.payload?.completed) runTurn(true, { last_turn_was_answer: true });
+        },
+      });
+      lastClickedWordId = null;
+      window.lastClickedWordId = null;
       setUiMode("READ");
       return;
     }
     // Not understood: update conversation with what we heard and partner's recovery (Phase 9: improve decision so reasonable answers aren't treated as not understood)
     emitUITrace({ type: "SPEECH_NOT_UNDERSTOOD", timestamp: new Date().toISOString(), payload: { transcript } });
-    if (wasInReadMode && questionText) conversationTranscript.push({ role: "partner", text: questionText });
     conversationTranscript.push({ role: "user", text: (transcript && transcript.trim()) ? transcript.trim() : "[couldn't understand]" });
     const lastRecoveryId = window._lastRecoveryPhraseId || null;
     const phrase = getRecoveryPhraseForNotUnderstood(lastRecoveryId);
     window._lastRecoveryPhraseId = phrase.id;
     conversationTranscript.push({ role: "partner", text: phrase.hanzi });
     renderTranscript();
-    setActivePartnerStatement(phrase.hanzi, "recovery");
-    ttsSpeak({ text: phrase.hanzi, lang: "zh-CN" });
+    const recoverySegments = (phrase.hanzi || "").split("").map((c) => ({ t: c }));
+    setActivePartnerStatement(phrase.hanzi, "recovery", recoverySegments);
     window._sentenceHint = { pinyin: phrase.pinyin, text_en: phrase.text_en, etymology: phrase.etymology || "" };
     lastClickedWordId = null;
     window.lastClickedWordId = null;
     hint_cascade_state = { level: 0, turn_uid: "recovery" };
     renderHintAffordance({ visible: true }, "recovery", "tap");
-    setUiMode("RESPOND");
+    if (phrase.recovery_action === "next_turn") {
+      window._consecutiveNotUnderstood = 0;
+      setUiMode("READ");
+      ttsSpeak({
+        text: phrase.hanzi,
+        lang: "zh-CN",
+        onEvent: (e) => {
+          if (e?.payload?.completed) runTurn(true, { prefer_bridge: true });
+        },
+      });
+    } else {
+      ttsSpeak({ text: phrase.hanzi, lang: "zh-CN" });
+      setUiMode("RESPOND");
+    }
   });
   // Phase 7 completion: Play question (TTS for frame sentence)
   document.getElementById('playQuestionBtn')?.addEventListener('click', () => {
@@ -1684,7 +2196,10 @@ window.addEventListener("load", async () => {
   render();
 });
 
-runBtn.addEventListener("click", runTurn);
+runBtn.addEventListener("click", () => runTurn(false));
+if (nextBtn) nextBtn.addEventListener("click", () => runTurn(true));
+const changeTopicBtn = document.getElementById("changeTopicBtn");
+if (changeTopicBtn) changeTopicBtn.addEventListener("click", () => runTurn(true, { prefer_bridge: true }));
 if (playBtn) {
   playBtn.addEventListener("click", () => {
         // Panel Play: derive speakable text from DOM (presentation truth), not reducer state

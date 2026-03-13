@@ -21,6 +21,22 @@ docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md
 ---
 Cursor must read docs/design/CURSOR_STARTUP_PROTOCOL.md before performing any analysis or code changes.
 ---
+## Project Plan
+
+The authoritative development roadmap is:
+
+docs/project_plan/MandarinOS_project_plan_v2.md
+
+This supersedes:
+MandarinOS_project_plan_v1.md
+
+Key update:
+The roadmap now includes Phase 11 — Adaptive Conversation Intelligence,
+which implements capability tracking, energy model, repair logic,
+and adaptive selector behaviour.
+
+All development decisions must align with the v2 roadmap.
+---
 ## 0) Project goal (what MandarinOS is designed to do)
 
 MandarinOS is a **conversation-first Mandarin learning system** designed to build **usable spoken competence**.

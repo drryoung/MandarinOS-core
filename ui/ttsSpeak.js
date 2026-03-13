@@ -3,7 +3,16 @@
 // IMPORTANT: This is a side-effect module. Reducers must never call this.
 // Emits MandarinOS trace entries: { type, timestamp, payload }
 
-export function ttsSpeak({ text, lang = "zh-CN", onEvent, utterance_id }) {
+/**
+ * @param {object} opts
+ * @param {string} opts.text
+ * @param {string} [opts.lang]
+ * @param {number} [opts.rate]
+ * @param {boolean} [opts.queue] - If true, do not cancel current speech (for chaining).
+ * @param {function} [opts.onEvent]
+ * @param {string} [opts.utterance_id]
+ */
+export function ttsSpeak({ text, lang = "zh-CN", rate, queue, onEvent, utterance_id }) {
   const nowIso = () => new Date().toISOString();
 
   if (!text || typeof text !== "string") {
@@ -26,6 +35,9 @@ export function ttsSpeak({ text, lang = "zh-CN", onEvent, utterance_id }) {
 
   const u = new SpeechSynthesisUtterance(text);
   u.lang = lang;
+  if (typeof rate === "number" && rate > 0 && rate <= 2) {
+    u.rate = rate;
+  }
 
   let startMs = null;
 
@@ -55,9 +67,10 @@ export function ttsSpeak({ text, lang = "zh-CN", onEvent, utterance_id }) {
     });
   };
 
-  try {
-    window.speechSynthesis.cancel();
-  } catch (_) {}
-
+  if (!queue) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (_) {}
+  }
   window.speechSynthesis.speak(u);
 }

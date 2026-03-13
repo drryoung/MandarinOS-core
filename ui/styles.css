@@ -19,7 +19,7 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
 }
 
 .card-main-hanzi {
-  font-size: 2rem;
+  font-size: 1.45rem;
   font-weight: 600;
   font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -39,7 +39,7 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
 /* Phase 6 — Character Chips */
 
 .char-chip {
-  font-size: 20px;
+  font-size: 16px;
   padding: 6px 10px;
   margin: 4px;
   border-radius: 10px;
@@ -137,8 +137,75 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
   width: 100%;
 }
 .option-panel.selected { border-color: #2563eb; background: #eff6ff; }
-.option-panel[data-gold="true"] { border-left: 4px solid #f59e0b; }
+/* No visual "correct" cue: all options are suggested responses (Design Constitution: no correct answer). */
+/* .option-panel[data-gold="true"] — reserved for internal/trace only; do not style as "the right answer". */
 .option-panel[data-slot="true"] { background: #f0fdf4; border-color: #86efac; }
+/* Recovery phrases: distinct border so they read as "help" not answer options */
+.option-panel[data-recovery="true"] { border-color: #d97706; background: #fffbeb; }
+.option-panel[data-recovery="true"] .option-hanzi { color: #b45309; }
+.recovery-panel-label {
+  font: 0.9rem Arial, Helvetica, sans-serif;
+  font-weight: 600;
+  color: #b45309;
+  padding: 10px 16px 6px;
+}
+.recovery-phrases-list {
+  max-height: 140px;
+  overflow-y: auto;
+  padding: 6px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.recovery-phrase-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #b45309;
+  background: #fff;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 6px 10px;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+.recovery-phrase-row:hover {
+  background: #fef3c7;
+  border-color: #d97706;
+}
+.recovery-phrase-text {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+.recovery-speaker-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d97706;
+  border-radius: 50%;
+  background: #fff;
+  color: #b45309;
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.recovery-speaker-btn:hover {
+  background: #fef3c7;
+  border-color: #b45309;
+}
 
 .option-btn {
   display: flex;
@@ -216,7 +283,7 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
   font-size: 0.95rem;
 }
 
-.option-hanzi   { font-size: 2rem; font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight: 600; color: #0d9488; }
+.option-hanzi   { font-size: 1.45rem; font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight: 600; color: #0d9488; }
 .option-pinyin  { font: 0.9rem Arial, Helvetica, sans-serif; color: #555; }
 .option-meaning { font: 0.9rem Arial, Helvetica, sans-serif; color: #888; }
 .option-slot-placeholder {

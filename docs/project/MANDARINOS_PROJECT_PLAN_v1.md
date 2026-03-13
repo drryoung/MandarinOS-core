@@ -4,6 +4,10 @@ Purpose: Align ChatGPT (strategist), Cursor (architect/programmer), and
 the project owner (reviewer) around a clear development roadmap leading
 to personal testing and closed beta.
 
+**Current status (2026-03-12):** Phase 9 signed off by strategist (see
+`docs/phases/MandarinOS_Phase9_Signoff.md`). Project owner proceeding to
+**personal alpha testing** before Phase 10.
+
 ------------------------------------------------------------------------
 
 ## Phase Overview
@@ -53,7 +57,7 @@ Acceptance criteria: User experiences a clear multi‑turn interaction.
 
 ------------------------------------------------------------------------
 
-## Phase 9 --- Conversation Engine Activation
+## Phase 9 --- Conversation Engine Activation  ✅ Signed off 2026-03-12
 
 Goal: Activate the Next Question Selector v1.
 

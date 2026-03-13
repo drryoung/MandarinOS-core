@@ -17,10 +17,104 @@ def _now_iso():
 REPO_ROOT    = Path(__file__).resolve().parents[1]
 RUNTIME_OUT  = REPO_ROOT / "runtime" / "out_phase7"
 CARDS_PATH   = REPO_ROOT / "tools" / "cards" / "out" / "cards_by_id.json"
+CONTENT_RECOVERY = REPO_ROOT / "content" / "recovery_phrases.json"
+P1_FILLERS   = REPO_ROOT / "p1_fillers.json"
+P2_FILLERS   = REPO_ROOT / "p2_fillers.json"
 FRAME_WITH_SLOTS_TOKEN = "FRAME_WITH_SLOTS"
 BUILDER_VERSION = "7.7.0"
 
 random.seed(42)  # deterministic distractor selection
+
+# Question frames that get full-sentence options from their answer frame (template + fillers)
+QUESTION_FRAME_SENTENCE_OPTIONS = {
+    "f_ask_you_name": "frame.identity.name",                # 你叫什么名字？ → 我叫小明。 etc.
+    "f_ask_name_meaning": "frame.identity.name_meaning",     # 你的名字是什么意思？ → 我的名字意思是光明。 etc.
+    "f_from_where": "frame.identity.nationality",            # 你是哪里人？ → 我是中国人。 etc.
+    "frame.location.live_question": "frame.location.live",  # 你现在住哪里？ → 我现在住在北京。 etc.
+    "f_what_work": "f_i_am_job",                             # 你做什么工作？ → 我是老师。 etc.
+    "f_what_hobby": "f_i_like_hobby",                        # 你有什么爱好？ → 我喜欢看书。 etc.
+    "f_like_do_what": "f_i_like_hobby",                     # 你喜欢做什么？ → 我喜欢看书。 etc.
+    "f_weekend_do": "f_weekend_hobby",                       # 你周末做什么？ → 我周末看书。 etc.
+    "f_like_what": "f_i_like_cultural",                     # 你喜欢什么？ → 我喜欢书法。 etc. (cultural)
+    "f_collect_what": "f_i_collect",                         # 你收藏什么吗？ → 我收藏茶。 etc.
+    "f_travel_where": "f_been_to_place",                     # 你去过哪里？ → 我去过北京。 etc.
+    "f_want_go_where": "f_want_go_place",                    # 你想去哪里？ → 我想去上海。 etc.
+    "f_food_what_good": "f_food_there_is",                   # 那儿有什么好吃的？ → 有很多火锅。 etc.
+    "f_food_famous_dish": "f_food_famous_answer",            # 最有名的菜是什么？ → 最有名的是饺子。 etc.
+}
+
+
+def load_fillers() -> dict:
+    """Load filler lists from p1_fillers and p2_fillers. Returns fillers dict (e.g. fillers.nationalities -> list)."""
+    out = {}
+    for path in [P1_FILLERS, P2_FILLERS]:
+        if path.is_file():
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for key, vals in (data.get("fillers") or {}).items():
+                if isinstance(vals, list) and key not in out:
+                    out[key] = list(vals)
+                elif isinstance(vals, list) and key in out:
+                    out[key] = list(out[key]) + [v for v in vals if v not in out[key]]
+    return out
+
+
+def _sentence_options_for_question(question_frame_id: str, answer_frame: dict, fillers: dict) -> list:
+    """Build 3 full-sentence options from answer frame template + fillers. First is gold. Returns list of option dicts."""
+    template = (answer_frame.get("text") or "").strip()
+    slots = answer_frame.get("slots") or []
+    if not template or not slots:
+        return []
+    slot_name = slots[0].get("name") or ""
+    source = (slots[0].get("source") or "").strip()
+    if not slot_name or not source:
+        return []
+    if source.startswith("fillers."):
+        key = source.replace("fillers.", "").strip()
+        pool = fillers.get(key) if fillers else None
+    else:
+        pool = None
+    if not pool or not isinstance(pool, list):
+        return []
+    placeholders = ["{" + slot_name + "}"]
+    # Pick 3 fillers deterministically (same seed) so build is reproducible
+    indices = [0, 1, 2] if len(pool) >= 3 else list(range(len(pool)))
+    if len(pool) < 3:
+        indices = indices + [0] * (3 - len(indices))
+    chosen = [pool[i % len(pool)] for i in indices[:3]]
+    text_en = (answer_frame.get("text_en") or "").strip()
+    card_id = answer_frame.get("id") or question_frame_id
+    options = []
+    for i, filler in enumerate(chosen):
+        hanzi = template
+        for ph in placeholders:
+            hanzi = hanzi.replace(ph, filler)
+        options.append({
+            "card_id":  card_id,
+            "hanzi":    hanzi,
+            "pinyin":   "",
+            "meaning":  text_en,
+            "is_gold":  i == 0,  # One suggested response for this turn (conversation-sustaining); not "correct answer"
+            "is_slot":  False,
+            "kind":     "WORD",
+        })
+    return options
+
+
+def build_recovery_phrases_runtime() -> dict:
+    """Load content/recovery_phrases.json and return runtime shape. Fallback if file missing."""
+    if CONTENT_RECOVERY.is_file():
+        data = json.loads(CONTENT_RECOVERY.read_text(encoding="utf-8"))
+        phrases = data.get("phrases", [])
+        default_id = data.get("default_for_not_understood")
+        return {"phrases": phrases, "default_for_not_understood": default_id}
+    # Fallback so build never fails
+    return {
+        "phrases": [
+            {"id": "shenme", "hanzi": "什么？", "pinyin": "shénme", "text_en": "What?", "level": "P1", "use": "not_understood"},
+            {"id": "zai_shuo_yi_ci", "hanzi": "再说一次", "pinyin": "zài shuō yí cì", "text_en": "Say it again", "level": "P1"},
+        ],
+        "default_for_not_understood": "shenme",
+    }
 
 
 def load_all_frames() -> list:
@@ -59,10 +153,12 @@ def card_to_option(card_id: str, card: dict, is_gold: bool, is_slot: bool = Fals
     }
 
 
-def build_frame_options(all_frames: list, cards: dict) -> dict:
+def build_frame_options(all_frames: list, cards: dict, fillers: dict | None = None) -> tuple:
     all_card_ids = list(cards.keys())
     frame_options = {}
     violations = []
+    frames_by_id = {f["id"]: f for f in all_frames}
+    fillers = fillers or load_fillers()
 
     for f in all_frames:
         frame_id     = f["id"]
@@ -101,24 +197,30 @@ def build_frame_options(all_frames: list, cards: dict) -> dict:
                 options.append(card_to_option(cid, cards[cid], is_gold=False, is_slot=False))
 
         else:
-            # Non-slotted: gold = option_tokens[0]
-            gold_token = option_tokens[0] if option_tokens else None
-            if gold_token and gold_token in cards:
-                options.append(card_to_option(gold_token, cards[gold_token], is_gold=True))
-            else:
-                print(f"[build] WARNING: gold token {gold_token!r} not in cards for frame {frame_id}")
+            # Non-slotted: use sentence options for mapped question frames, else word-card options
+            answer_frame_id = QUESTION_FRAME_SENTENCE_OPTIONS.get(frame_id)
+            answer_frame = frames_by_id.get(answer_frame_id) if answer_frame_id else None
+            sentence_opts = _sentence_options_for_question(frame_id, answer_frame, fillers) if answer_frame else []
 
-            # 2 distractors: use frame distractor_tokens if present, else random
-            explicit = [c for c in (f.get("distractor_tokens") or []) if c in cards and c != gold_token][:2]
-            distractor_pool = [
-                cid for cid in all_card_ids
-                if cid != gold_token and cid not in explicit
-            ]
-            random.shuffle(distractor_pool)
-            for cid in explicit:
-                options.append(card_to_option(cid, cards[cid], is_gold=False))
-            for cid in distractor_pool[: 2 - len(explicit)]:
-                options.append(card_to_option(cid, cards[cid], is_gold=False))
+            if sentence_opts:
+                options = sentence_opts
+            else:
+                gold_token = option_tokens[0] if option_tokens else None
+                if gold_token and gold_token in cards:
+                    options.append(card_to_option(gold_token, cards[gold_token], is_gold=True))
+                else:
+                    print(f"[build] WARNING: gold token {gold_token!r} not in cards for frame {frame_id}")
+
+                explicit = [c for c in (f.get("distractor_tokens") or []) if c in cards and c != gold_token][:2]
+                distractor_pool = [
+                    cid for cid in all_card_ids
+                    if cid != gold_token and cid not in explicit
+                ]
+                random.shuffle(distractor_pool)
+                for cid in explicit:
+                    options.append(card_to_option(cid, cards[cid], is_gold=False))
+                for cid in distractor_pool[: 2 - len(explicit)]:
+                    options.append(card_to_option(cid, cards[cid], is_gold=False))
 
         # Shuffle so gold is not always first
         gold_items       = [o for o in options if o["is_gold"]]
@@ -382,6 +484,21 @@ def main():
         encoding="utf-8"
     )
     print(f"[build] cards_index written -> {index_path}")
+
+    # ── 5b. Build and write recovery_phrases (Phase 9.4) ───────────────────────
+    recovery_data = build_recovery_phrases_runtime()
+    recovery_path = RUNTIME_OUT / "recovery_phrases.runtime.json"
+    recovery_path.write_text(
+        json.dumps({
+            "schema":         "recovery_phrases_v1",
+            "generated_at":   _now_iso(),
+            "phrase_count":   len(recovery_data["phrases"]),
+            "phrases":        recovery_data["phrases"],
+            "default_for_not_understood": recovery_data.get("default_for_not_understood"),
+        }, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"[build] recovery_phrases written: {len(recovery_data['phrases'])} phrases -> {recovery_path}")
 
     # ── 6. Load etymology source data ─────────────────────────────────────────
     char_links_path = REPO_ROOT / "word_character_links.json"

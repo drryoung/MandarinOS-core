@@ -11,6 +11,9 @@ The system is built around:
 - A multi-layer hint system
 - Content packs defined entirely in JSON (portable and migratable
 
+Development roadmap:
+docs/project_plan/MandarinOS_project_plan_v2.md
+
 ## Guardrails (Read Before Making Changes)
 
 MandarinOS is conversation-first, frame-driven, and learner-centered.

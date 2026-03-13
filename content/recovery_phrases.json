@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0",
+  "source": "docs/specs/mandarinos_emergency_phrases_p1_p2_v2.md, MandarinOS_support_packs_v1.md",
+  "phrases": [
+    {
+      "id": "shenme",
+      "hanzi": "什么？",
+      "pinyin": "shénme",
+      "text_en": "What?",
+      "level": "P1",
+      "use": "not_understood",
+      "recovery_action": "repeat"
+    },
+    {
+      "id": "zai_shuo_yi_ci",
+      "hanzi": "再说一次",
+      "pinyin": "zài shuō yí cì",
+      "text_en": "Say it again",
+      "level": "P1",
+      "recovery_action": "repeat"
+    },
+    {
+      "id": "man_yi_dian",
+      "hanzi": "慢一点",
+      "pinyin": "màn yì diǎn",
+      "text_en": "Slower",
+      "level": "P1",
+      "recovery_action": "slower"
+    },
+    {
+      "id": "wo_bu_dong",
+      "hanzi": "我不懂",
+      "pinyin": "wǒ bù dǒng",
+      "text_en": "I don't understand",
+      "level": "P1",
+      "recovery_action": "next_turn"
+    },
+    {
+      "id": "shenme_yisi",
+      "hanzi": "什么意思？",
+      "pinyin": "shénme yìsi",
+      "text_en": "What does it mean?",
+      "level": "P1",
+      "recovery_action": "repeat"
+    },
+    {
+      "id": "deng_yi_xia",
+      "hanzi": "等一下",
+      "pinyin": "děng yí xià",
+      "text_en": "Wait a moment",
+      "level": "P1",
+      "recovery_action": "repeat"
+    },
+    {
+      "id": "wo_xiang_xiang",
+      "hanzi": "我想想",
+      "pinyin": "wǒ xiǎng xiǎng",
+      "text_en": "Let me think",
+      "level": "P1",
+      "recovery_action": "repeat"
+    },
+    {
+      "id": "bu_zhidao",
+      "hanzi": "不知道",
+      "pinyin": "bù zhī dào",
+      "text_en": "I don't know",
+      "level": "P1",
+      "recovery_action": "next_turn"
+    },
+    {
+      "id": "ting_bu_dong",
+      "hanzi": "听不懂",
+      "pinyin": "tīng bù dǒng",
+      "text_en": "I can't understand",
+      "level": "P1",
+      "use": "topic_reset",
+      "recovery_action": "next_turn"
+    },
+    {
+      "id": "bu_haoyisi_mei_tingdong",
+      "hanzi": "不好意思，我没听懂。",
+      "pinyin": "bù hǎo yìsi, wǒ méi tīng dǒng",
+      "text_en": "Sorry, I didn't understand.",
+      "level": "P2",
+      "recovery_action": "next_turn"
+    },
+    {
+      "id": "ni_keyi_zai_shuo_yici_ma",
+      "hanzi": "你可以再说一次吗？",
+      "pinyin": "nǐ kěyǐ zài shuō yí cì ma",
+      "text_en": "Can you say that again?",
+      "level": "P2",
+      "recovery_action": "repeat"
+    },
+    {
+      "id": "ni_keyi_shuo_man_yidian_ma",
+      "hanzi": "你可以说慢一点吗？",
+      "pinyin": "nǐ kěyǐ shuō màn yìdiǎn ma",
+      "text_en": "Can you speak more slowly?",
+      "level": "P2",
+      "recovery_action": "slower"
+    },
+    {
+      "id": "zhege_ci_shenme_yisi",
+      "hanzi": "这个词是什么意思？",
+      "pinyin": "zhège cí shì shénme yìsi",
+      "text_en": "What does this word mean?",
+      "level": "P2",
+      "recovery_action": "repeat"
+    },
+    {
+      "id": "rang_wo_xiang_yixiang",
+      "hanzi": "让我想一想。",
+      "pinyin": "ràng wǒ xiǎng yì xiǎng",
+      "text_en": "Let me think.",
+      "level": "P2",
+      "recovery_action": "repeat"
+    },
+    {
+      "id": "women_liao_dian_jiandan_ba",
+      "hanzi": "我们聊点简单的吧。",
+      "pinyin": "wǒmen liáo diǎn jiǎndān de ba",
+      "text_en": "Let's talk about something easier.",
+      "level": "P2",
+      "recovery_action": "next_turn"
+    },
+    {
+      "id": "women_keyi_liao_bie_de_ma",
+      "hanzi": "我们可以聊别的吗？",
+      "pinyin": "wǒmen kěyǐ liáo bié de ma",
+      "text_en": "Can we talk about something else?",
+      "level": "P2",
+      "recovery_action": "next_turn"
+    }
+  ],
+  "default_for_not_understood": "shenme"
+}

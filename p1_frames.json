@@ -120,6 +120,46 @@
       "text_en": "you're welcome"
     },
     {
+      "id": "f_nice_to_meet",
+      "text": "很高兴认识你。",
+      "pinyin": "hěn gāoxìng rènshi nǐ.",
+      "text_en": "Nice to meet you.",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_hao"],
+      "distractor_tokens": ["w_ni", "w_xiexie"]
+    },
+    {
+      "id": "f_ask_name_meaning",
+      "text": "你的名字是什么意思？",
+      "pinyin": "nǐ de míngzi shì shénme yìsi?",
+      "text_en": "What does your name mean?",
+      "engine": "identity",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_mingzi"],
+      "distractor_tokens": ["w_shenme", "w_jiao"]
+    },
+    {
+      "id": "frame.identity.name_meaning",
+      "text": "我的名字意思是{MEANING}。",
+      "pinyin": "wǒ de míngzi yìsi shì {MEANING}.",
+      "text_en": "My name means [MEANING].",
+      "engine": "identity",
+      "difficulty": 2,
+      "slots": [
+        {
+          "name": "MEANING",
+          "source": "fillers.name_meanings"
+        }
+      ],
+      "speaker": "user",
+      "option_tokens": ["w_mingzi"]
+    },
+    {
       "id": "f_from_where",
       "text": "你是哪里人？",
       "pinyin": "nǐ shì nǎlǐ rén?",
@@ -184,6 +224,42 @@
         "w_zhu"
       ],
       "text_en": "I live in [CITY] now."
+    },
+    {
+      "id": "f_place_reaction",
+      "text": "很好！",
+      "pinyin": "hěn hǎo!",
+      "text_en": "Great!",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_hao"],
+      "distractor_tokens": ["w_xiexie", "w_bukeqi"]
+    },
+    {
+      "id": "f_place_like_there",
+      "text": "你喜欢那儿吗？",
+      "pinyin": "nǐ xǐhuan nàr ma?",
+      "text_en": "Do you like it there?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_xihuan"],
+      "distractor_tokens": ["w_nali", "w_zhu"]
+    },
+    {
+      "id": "f_place_like_yes",
+      "text": "喜欢，很喜欢。",
+      "pinyin": "xǐhuan, wǒ hěn xǐhuan.",
+      "text_en": "Yes, I like it a lot.",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user",
+      "option_tokens": ["w_xihuan"],
+      "distractor_tokens": ["w_hao", "w_wo"]
     },
     {
       "id": "f_have_family",
@@ -366,6 +442,123 @@
       "text_en": "I rest on weekends."
     },
     {
+      "id": "f_weekend_hobby",
+      "text": "我周末{HOBBY}。",
+      "pinyin": "wǒ zhōumò {HOBBY}.",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [{"name": "HOBBY", "source": "fillers.hobbies"}],
+      "speaker": "user",
+      "option_tokens": ["w_wo"],
+      "text_en": "I [HOBBY] on weekends."
+    },
+    {
+      "id": "f_like_do_what",
+      "text": "你喜欢做什么？",
+      "pinyin": "nǐ xǐhuan zuò shénme?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_xihuan"],
+      "distractor_tokens": ["w_shenme", "w_aihao"],
+      "text_en": "What do you like to do?"
+    },
+    {
+      "id": "f_often_do",
+      "text": "你常做吗？",
+      "pinyin": "nǐ cháng zuò ma?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_shenme"],
+      "distractor_tokens": ["w_xihuan", "w_hao"],
+      "text_en": "Do you do it often?"
+    },
+    {
+      "id": "f_difficult_ma",
+      "text": "难吗？",
+      "pinyin": "nán ma?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nanbunan"],
+      "distractor_tokens": ["w_shenme", "w_hao"],
+      "text_en": "Is it difficult?"
+    },
+    {
+      "id": "f_recommend_ma",
+      "text": "你推荐吗？",
+      "pinyin": "nǐ tuījiàn ma?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_xihuan"],
+      "distractor_tokens": ["w_shenme", "w_hao"],
+      "text_en": "Do you recommend it?"
+    },
+    {
+      "id": "f_like_chinese_culture",
+      "text": "你喜欢中国文化吗？",
+      "pinyin": "nǐ xǐhuan Zhōngguó wénhuà ma?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_xihuan"],
+      "distractor_tokens": ["w_shenme", "w_hao"],
+      "text_en": "Do you like Chinese culture?"
+    },
+    {
+      "id": "f_like_what",
+      "text": "你喜欢什么？",
+      "pinyin": "nǐ xǐhuan shénme?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_xihuan"],
+      "distractor_tokens": ["w_shenme", "w_aihao"],
+      "text_en": "What do you like?"
+    },
+    {
+      "id": "f_i_like_cultural",
+      "text": "我喜欢{CULTURAL_HOBBY}。",
+      "pinyin": "wǒ xǐhuan {CULTURAL_HOBBY}.",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [{"name": "CULTURAL_HOBBY", "source": "fillers.cultural_hobbies"}],
+      "speaker": "user",
+      "option_tokens": ["w_xihuan"],
+      "text_en": "I like [CULTURAL_HOBBY]."
+    },
+    {
+      "id": "f_collect_what",
+      "text": "你收藏什么吗？",
+      "pinyin": "nǐ shōucáng shénme ma?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_shenme"],
+      "distractor_tokens": ["w_xihuan", "w_hao"],
+      "text_en": "Do you collect anything?"
+    },
+    {
+      "id": "f_i_collect",
+      "text": "我收藏{ITEM}。",
+      "pinyin": "wǒ shōucáng {ITEM}.",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [{"name": "ITEM", "source": "fillers.collecting"}],
+      "speaker": "user",
+      "option_tokens": ["w_wo"],
+      "text_en": "I collect [ITEM]."
+    },
+    {
       "id": "f_travel_where",
       "text": "你去过哪里？",
       "pinyin": "nǐ qù guo nǎlǐ?",
@@ -426,6 +619,88 @@
         "w_xiang"
       ],
       "text_en": "I want to go to [PLACE]."
+    },
+    {
+      "id": "f_food_what_good",
+      "text": "那儿有什么好吃的？",
+      "pinyin": "nàr yǒu shénme hǎochī de?",
+      "engine": "food",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_haochi"],
+      "distractor_tokens": ["w_shenme", "w_hao"],
+      "text_en": "What good food is there?"
+    },
+    {
+      "id": "f_food_there_is",
+      "text": "有很多{DISH}。",
+      "pinyin": "yǒu hěn duō {DISH}.",
+      "engine": "food",
+      "difficulty": 2,
+      "slots": [{"name": "DISH", "source": "fillers.dishes"}],
+      "speaker": "user",
+      "option_tokens": ["w_hao"],
+      "text_en": "There is a lot of [DISH]."
+    },
+    {
+      "id": "f_food_famous_dish",
+      "text": "你们那儿最有名的菜是什么？",
+      "pinyin": "nǐmen nàr zuì yǒumíng de cài shì shénme?",
+      "engine": "food",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_shenme"],
+      "distractor_tokens": ["w_haochi", "w_hao"],
+      "text_en": "What dish is your place most famous for?"
+    },
+    {
+      "id": "f_food_famous_answer",
+      "text": "最有名的是{DISH}。",
+      "pinyin": "zuì yǒumíng de shì {DISH}.",
+      "engine": "food",
+      "difficulty": 2,
+      "slots": [{"name": "DISH", "source": "fillers.dishes"}],
+      "speaker": "user",
+      "option_tokens": ["w_hao"],
+      "text_en": "The most famous is [DISH]."
+    },
+    {
+      "id": "f_food_like_spicy",
+      "text": "你喜欢吃辣吗？",
+      "pinyin": "nǐ xǐhuan chī là ma?",
+      "engine": "food",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_xihuan"],
+      "distractor_tokens": ["w_haochi", "w_shenme"],
+      "text_en": "Do you like spicy food?"
+    },
+    {
+      "id": "f_food_tasty",
+      "text": "好吃吗？",
+      "pinyin": "hǎochī ma?",
+      "engine": "food",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_haochi"],
+      "distractor_tokens": ["w_hao", "w_shenme"],
+      "text_en": "Is it tasty?"
+    },
+    {
+      "id": "f_food_expensive",
+      "text": "贵不贵？",
+      "pinyin": "guì bú guì?",
+      "engine": "food",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_shenme"],
+      "distractor_tokens": ["w_hao", "w_haochi"],
+      "text_en": "Is it expensive?"
     }
   ]
 }

@@ -4,6 +4,13 @@
   "name": "Survival Fillers",
   "description": "Slot fillers used by P1 frames to keep conversations interesting and personalized. Expand freely.",
   "fillers": {
+    "name_meanings": [
+      "光明",
+      "快乐",
+      "智慧",
+      "平安",
+      "希望"
+    ],
     "names": [
       "小明",
       "小红",
@@ -84,6 +91,16 @@
       "顾问",
       "研究员"
     ],
+    "travel_places": [
+      "北京",
+      "上海",
+      "成都",
+      "杭州",
+      "西安",
+      "日本",
+      "泰国",
+      "新西兰"
+    ],
     "hobbies": [
       "看书",
       "听音乐",
@@ -97,6 +114,27 @@
       "看电影",
       "打游戏",
       "喝咖啡"
+    ],
+    "cultural_hobbies": [
+      "书法",
+      "太极",
+      "喝茶",
+      "国画",
+      "围棋"
+    ],
+    "collecting": [
+      "茶",
+      "邮票",
+      "玉"
+    ],
+    "dishes": [
+      "火锅",
+      "饺子",
+      "包子",
+      "炒饭",
+      "面条",
+      "北京烤鸭",
+      "宫保鸡丁"
     ]
   }
 }

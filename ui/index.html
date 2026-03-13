@@ -23,10 +23,13 @@
               <!-- frames populated dynamically by loadPackFramesIntoDropdown -->
             </select>
             <button id="runBtn">Run Turn</button>
+            <button id="nextBtn" type="button" title="Next question (same topic)">Next</button>
+            <button id="changeTopicBtn" type="button" title="Switch to another topic (bridge)">Change topic</button>
           </div>
 
           <!-- Phase 8: Conversation = record of what was said; Active = last statement from MandarinOS -->
           <h2>Conversation</h2>
+          <div id="rememberedFacts" class="remembered-facts muted" style="display:none;" aria-live="polite"></div>
           <div class="conversation-panel">
             <div id="transcriptPanel" class="transcript-panel" role="log" aria-label="Record of what was said">
               <div class="transcript-panel-label">Record of what was said</div>
@@ -83,7 +86,7 @@
       }
       .frame-sentence-row .frame-sentence { flex: 1 1 200px; min-width: 0; }
       .frame-sentence {
-        font-size: 2rem; line-height: 2; min-height: 2.5rem;
+        font-size: 1.45rem; line-height: 1.6; min-height: 2.25rem;
         height: auto; overflow: visible; white-space: normal;
         position: relative; margin: 0;
         font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -139,6 +142,16 @@
       .hint-btn-inline { margin: 0; }
       .hint-row { margin-top: 6px; }
       #optionsContainerParent { margin-top: 10px; }
+      /* Oxygen loop: "Ask back" probe row */
+      .probe-row-container { margin-top: 10px; padding: 8px 0; border-top: 1px solid #e5e7eb; }
+      .probe-row-label { font-size: 0.9rem; color: #6b7280; margin-bottom: 6px; }
+      .probe-row-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+      .probe-btn {
+        padding: 6px 10px; font-size: 0.95rem; border: 1px solid #9ca3af; border-radius: 6px;
+        background: #f9fafb; color: #374151; cursor: pointer;
+        font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      .probe-btn:hover { background: #e5e7eb; border-color: #6b7280; }
 
       /* Phase 7.4: ui_mode visual states */
       .ui-mode-read    .options-area { opacity: 0.45; pointer-events: none; }
@@ -173,7 +186,7 @@
       .transcript-line.user .turn-marker { color: #0f766e; }
       .transcript-line.partner .transcript-text { color: #1e40af; }
       .transcript-line.user .transcript-text { color: #0d9488; }
-      .transcript-text.transcript-zh { font: 2rem "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .transcript-text.transcript-zh { font: 1rem "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
       .transcript-text.transcript-en { font: 0.9rem Arial, Helvetica, sans-serif; }
       .transcript-panel-label {
         font: 0.85rem Arial, Helvetica, sans-serif; color: #6b7280; margin-bottom: 6px;
