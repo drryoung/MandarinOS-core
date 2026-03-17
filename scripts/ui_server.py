@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse, parse_qs
 import mimetypes
+import os
 
 REPO_ROOT   = Path(__file__).resolve().parents[1]
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -32,9 +33,24 @@ except ImportError:
 # Re-asking (recall/drill) can be enabled later via e.g. drill_mode in request.
 RECALL_INTERVAL_TURNS = 5  # reserved for future drill mode
 
+# Phase 10.5 (behaviour tuning, revised): reaction micro-layer, contextual curiosity gating, blended reciprocity,
+# slot/topic-follow-up preference, weak-loop avoidance. No schema changes required.
+P_REACTION_AFTER_MEANINGFUL = 0.7
+P_LOOP_WHEN_TRIGGERED = 0.6
+MAX_CURIOSITY_DEPTH = 2
+EARLY_EXCHANGES = 3
+
 print("[ui_server] REPO_ROOT =", REPO_ROOT)
 print("[ui_server] UI_DIR    =", UI_DIR)
 print("[ui_server] RUNTIME_DIR =", RUNTIME_DIR)
+
+# Windows console can be cp1252; avoid crashing on printing Hanzi in payload logs.
+try:
+    if os.name == "nt":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # ── Load runtime indexes at startup ──────────────────────────────────────────
 _frt_path = RUNTIME_DIR / "out_phase7" / "frame_render_tokens.runtime.json"
@@ -166,6 +182,164 @@ _PROBE_STUB_BY_ID: dict = {
     "shenme_shihou_kaishi": "很久以前。",
 }
 _PROBE_STUB_DEFAULT: str = "嗯，好问题！"
+
+_WEAK_LOOP_FRAME_IDS: set = {
+    # From docs/specs/PHASE_10_5_BEHAVIOUR_IMPLEMENTATION_PLAN.md §6
+    "p2_pl_1", "p2_pl_3",
+    "p2_wk_1", "p2_wk_2", "p2_wk_4", "p2_wk_5",
+    "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4",
+}
+
+# Topic-specific reaction fallbacks (used only when no suitable reaction frame exists).
+# Keep short; vary per topic to avoid overusing generic reactions.
+_REACTION_FALLBACKS_BY_ENGINE: dict = {
+    "identity": ["哦。", "是吗。", "不错。"],
+    "place":    ["不错！", "挺好！", "很好！"],
+    "work":     ["哦。", "不错。", "挺好的。"],
+    "food":     ["听起来不错！", "好吃！", "不错！"],
+    "hobby":    ["不错！", "有意思！", "挺好！"],
+    "travel":   ["不错！", "听起来很好！", "真好！"],
+    "family":   ["哦。", "明白了。", "不错。"],
+    "life":     ["嗯。", "挺好。", "不错。"],
+}
+_REACTION_FALLBACKS_GENERIC: list = ["哦。", "是吗。", "不错。", "很好。"]
+
+# Oxygen selection by context (engine or slot). Only surface 1–2 when gating conditions fire.
+_OXYGEN_IDS_BY_ENGINE: dict = {
+    "place": ["zenmeyang", "nali"],
+    "work":  ["zenmeyang", "shenme_shihou"],  # busy? not available; keep lightweight
+    "food":  ["weishenme", "xihuan_ma"],
+}
+_OXYGEN_IDS_BY_SLOT: dict = {
+    "CITY": ["zenmeyang", "nali"],
+    "JOB":  ["zenmeyang"],
+    "DISH": ["weishenme", "xihuan_ma"],
+}
+
+# Slot/topic-specific follow-up preferences (attempt before generic engine ladder).
+_SLOT_FOLLOWUP_PREFERENCES: dict = {
+    # CITY: prefer convenience before “life怎么样” because p2_pl_1 is weak
+    # Also keep p2_pl_3 out of the slot path (known weak).
+    "CITY": ["p2_pl_4", "p2_pl_2", "f_place_like_there", "p2_pl_1"],
+    # JOB: prefer work-experience follow-ups (p2_wk_* are often weak; keep as last resort)
+    "JOB":  ["p2_wk_3", "p2_wk_1", "f_like_work"],
+    # DISH: prefer taste/spicy before generic “famous dish”
+    "DISH": ["f_food_tasty", "f_food_like_spicy", "f_food_famous_dish"],
+}
+
+
+def _stable_pick(seq: list, seed: str) -> Optional[str]:
+    """Deterministic pick from seq based on seed string."""
+    if not seq:
+        return None
+    s = (seed or "").encode("utf-8", errors="ignore")
+    h = 0
+    for b in s:
+        h = (h * 131 + b) % 2_147_483_647
+    return seq[h % len(seq)]
+
+
+def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
+    """Best-effort: infer slot names from the user's answer frame (question frame_id in last_answer)."""
+    if not last_answer or not isinstance(last_answer, dict):
+        return []
+    # last_answer.frame_id is the partner ask frame the user answered (e.g. f_from_where)
+    # selected option's card_id often points to a user frame with slots; try to infer via that mapping when possible.
+    # We only have selected_option_hanzi/meaning here; so use memory capture triggers + known ask frame ids.
+    fid = (last_answer.get("frame_id") or "").strip()
+    if fid == "frame.location.live_question":
+        return ["CITY"]
+    if fid == "f_what_work":
+        return ["JOB"]
+    if fid == "f_food_what_good":
+        return ["DISH"]
+    return []
+
+
+def _should_surface_curiosity(cs: dict, *, meaningful: bool, last_partner_was_loop: bool, last_partner_had_reaction: bool) -> bool:
+    """Visibility gating for probe row (curiosity options)."""
+    # Do not surface on very first greeting-like moment (no history)
+    recent = cs.get("recent_frame_ids") or []
+    if not recent or len(recent) <= 1:
+        return False
+    if cs.get("prefer_bridge") is True or cs.get("force_bridge") is True:
+        # keep recovery/bridge simple
+        return False
+    if last_partner_was_loop:
+        return True
+    if meaningful:
+        return True
+    # Interview drift: 2 consecutive asks without loop or reaction micro-layer (tracked by counters)
+    drift = int(cs.get("ask_chain_count") or 0)
+    if drift >= 2 and not last_partner_had_reaction:
+        return True
+    return False
+
+
+def _select_probe_options(engine_id: str, slot_names: List[str]) -> list:
+    """Return 1–2 probe option dicts from _OXYGEN_LOOP_PROBES based on context."""
+    engine_norm = (engine_id or "").strip().lower()
+    desired_ids: List[str] = []
+    for s in slot_names or []:
+        desired_ids.extend(_OXYGEN_IDS_BY_SLOT.get(s, []))
+    if not desired_ids:
+        desired_ids = _OXYGEN_IDS_BY_ENGINE.get(engine_norm, ["weishenme", "zenmeyang"])
+    # Deduplicate, preserve order, cap 2
+    seen = set()
+    desired = []
+    for pid in desired_ids:
+        if pid in seen:
+            continue
+        seen.add(pid)
+        desired.append(pid)
+        if len(desired) >= 2:
+            break
+    by_id = {p.get("id"): p for p in _OXYGEN_LOOP_PROBES if isinstance(p, dict)}
+    return [by_id[i] for i in desired if i in by_id]
+
+
+def _pick_reaction_text(engine_id: str, seed: str) -> str:
+    engine_norm = (engine_id or "").strip().lower()
+    seq = _REACTION_FALLBACKS_BY_ENGINE.get(engine_norm) or _REACTION_FALLBACKS_GENERIC
+    return _stable_pick(seq, seed) or "嗯。"
+
+
+def _pick_reaction_frame_id(engine_id: str) -> Optional[str]:
+    """Prefer existing topic-specific reaction frames where they exist."""
+    engine_norm = (engine_id or "").strip().lower()
+    # Currently only a few explicit reaction frames exist; keep this conservative.
+    if engine_norm == "place" and "f_place_reaction" in _frames_by_id:
+        return "f_place_reaction"
+    if engine_norm == "identity" and "f_nice_to_meet" in _frames_by_id:
+        return "f_nice_to_meet"
+    return None
+
+
+def _pick_slot_followup_frame_id(engine_id: str, slot_names: List[str], recent_frame_ids: list, memory: Optional[dict]) -> Optional[str]:
+    """Try slot/topic follow-up frames before generic ladder; avoid weak loop frames if possible."""
+    recent = set(recent_frame_ids or [])
+    for s in slot_names or []:
+        prefs = _SLOT_FOLLOWUP_PREFERENCES.get(s) or []
+        # Prefer non-weak frames first
+        ordered = [f for f in prefs if f not in _WEAK_LOOP_FRAME_IDS] + [f for f in prefs if f in _WEAK_LOOP_FRAME_IDS]
+        for fid in ordered:
+            if fid in recent:
+                continue
+            if memory is not None and _should_suppress_ask_frame(fid, memory, recent_frame_ids or [], RECALL_INTERVAL_TURNS):
+                continue
+            # Only allow partner questions
+            fr = _frames_by_id.get(fid) or {}
+            if "？" not in (fr.get("text") or ""):
+                continue
+            return fid
+    return None
+
+
+def _is_loop_candidate(frame_id: str) -> bool:
+    """Heuristic: treat selected P2 follow-ups and some engine follow-ups as loop-capable."""
+    if not frame_id:
+        return False
+    return frame_id.startswith("p2_") or frame_id in ("f_food_like_spicy", "f_food_tasty", "p2_pl_4")
 
 
 def _probe_stub_for_persona(probe_id: str, persona: Optional[dict]) -> str:
@@ -300,6 +474,51 @@ def _select_next_frame_ladder(current_engine: str, recent_frame_ids: list, memor
     return None
 
 
+def _select_next_frame_ladder_avoiding(
+    current_engine: str,
+    recent_frame_ids: list,
+    *,
+    avoid_frame_ids: set,
+    memory: Optional[dict] = None,
+) -> Optional[str]:
+    """
+    Like _select_next_frame_ladder, but will skip avoid_frame_ids when there is any non-avoided candidate available
+    in the same engine. This is used to deprioritize known weak loop frames (e.g. p2_pl_1, p2_pl_3) without
+    changing the overall selector order.
+    """
+    avoid = avoid_frame_ids or set()
+    recent = set(recent_frame_ids or [])
+    engine_norm = (current_engine or "").strip().lower()
+    same_engine = _engine_partner_question_frame_ids(engine_norm) or _engine_frame_ids(engine_norm)
+
+    def _deps_satisfied(fid: str) -> bool:
+        after = _FRAME_AFTER.get(fid) or []
+        return all(dep in recent for dep in after)
+
+    recent_list = list(recent_frame_ids or [])
+
+    def _not_suppressed(fid: str) -> bool:
+        if memory is None:
+            return True
+        return not _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS)
+
+    unseen = [fid for fid in same_engine if fid not in recent and _deps_satisfied(fid) and _not_suppressed(fid)]
+    if not unseen:
+        return _select_next_frame_ladder(current_engine, recent_frame_ids, memory=memory)
+
+    non_avoided = [fid for fid in unseen if fid not in avoid]
+    if non_avoided:
+        return non_avoided[0]
+
+    # Only avoided candidates remain. For the highest-impact weak loop frames, prefer to bridge away
+    # rather than forcing a low-quality loop.
+    if engine_norm == "place" and avoid.issuperset({"p2_pl_1", "p2_pl_3"}):
+        bridged = _select_next_frame_bridge(current_engine, recent_frame_ids, memory=memory)
+        if bridged and bridged not in recent:
+            return bridged
+    return unseen[0]
+
+
 def _stub_card_id(frame_id: str):
     """Return card_id for the first word token in the frame, or None."""
     tokens = _frame_tokens.get(frame_id, [])
@@ -397,6 +616,12 @@ class Handler(BaseHTTPRequestHandler):
             _phase10_learner_memory = None
             _phase10_persona_id = None
             _phase10_turn_type = None
+            # Phase 10.5 behaviour debug/telemetry (optional response fields; UI can ignore)
+            reaction_prefix_text = ""
+            reaction_used_fallback = False
+            loop_attempted = False
+            chosen_turn_type = "question"
+            new_memory_written = False
 
             # Phase 9.1/9.2: next_question + conversation_state → selector; prefer_bridge/force_bridge try bridge first
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
@@ -405,6 +630,10 @@ class Handler(BaseHTTPRequestHandler):
                 recent = cs.get("recent_frame_ids") or []
                 prefer_bridge = cs.get("prefer_bridge") is True
                 force_bridge = cs.get("force_bridge") is True
+                # Phase 10.5 behaviour state (client-maintained lightweight counters)
+                curiosity_depth = int(cs.get("curiosity_depth") or 0)
+                exchange_count = int(cs.get("exchange_count") or 0)
+                ask_chain_count = int(cs.get("ask_chain_count") or 0)
 
                 # Phase 10: after a response turn, capture facts and persist by learner_id
                 learner_id = (cs.get("learner_id") or "").strip() or None
@@ -420,15 +649,90 @@ class Handler(BaseHTTPRequestHandler):
                             submitted_text=last_answer.get("submitted_text"),
                         )
                         if updates:
+                            new_memory_written = True
                             memory = memory or _lm_load(learner_id)
                             memory = _lm_apply_updates(memory, updates)
                             _lm_save(learner_id, memory)
 
+                # Phase 10.5: reaction micro-layer + loop/ask decision (keep selector order as specified)
+                last_turn_was_answer = cs.get("last_turn_was_answer") is True
+                slot_names = _infer_slot_names_from_answer(last_answer) if last_turn_was_answer else []
+                meaningful = bool(slot_names) or bool(new_memory_written)
+                last_partner_was_loop = cs.get("last_partner_turn_type") == "loop_question"
+                last_partner_had_reaction = cs.get("last_partner_had_reaction") is True
+
+                # Reaction micro-layer: we cannot emit two separate partner turns without changing API.
+                # So when reaction triggers, we optionally prepend a short reaction phrase to the next question's text.
+                reaction_prefix_text = ""
+                reaction_used_fallback = False
+                if last_turn_was_answer and meaningful:
+                    # Vary with session+turn so we don't overuse generic fallbacks
+                    seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}"
+                    # Prefer reaction frame if available, else topic-specific fallback text
+                    if _stable_pick([1], seed) is not None:  # cheap deterministic gate: use probability via hash below
+                        # Implement probability gate using stable hash (no random module required)
+                        gate = 0
+                        for ch in seed:
+                            gate = (gate * 131 + ord(ch)) % 1000
+                        if gate < int(P_REACTION_AFTER_MEANINGFUL * 1000):
+                            rid = _pick_reaction_frame_id(current_engine)
+                            if rid:
+                                reaction_prefix_text = (_frames_by_id.get(rid) or {}).get("text") or ""
+                            else:
+                                reaction_prefix_text = _pick_reaction_text(current_engine, seed)
+                                reaction_used_fallback = True
+
+                # Partner curiosity: prefer loop when triggered and depth allows, but avoid weak loop frames if possible
                 chosen = None
-                if prefer_bridge or force_bridge:
-                    chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory)
-                if chosen is None and not force_bridge:
-                    chosen = _select_next_frame_ladder(current_engine, recent, memory=memory)
+                chosen_turn_type = "question"
+                loop_attempted = False
+                if last_turn_was_answer and meaningful and curiosity_depth < MAX_CURIOSITY_DEPTH:
+                    # stable probability gate for loop
+                    seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/loop"
+                    gate = 0
+                    for ch in seed:
+                        gate = (gate * 131 + ord(ch)) % 1000
+                    if gate < int(P_LOOP_WHEN_TRIGGERED * 1000):
+                        loop_attempted = True
+                        # Prefer slot/topic follow-up first (often loop-like), then fall back to engine ladder
+                        chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
+                        if chosen is None:
+                            # Fall back: next ladder frame, but avoid known weak loop frames if we have alternatives in engine
+                            chosen = _select_next_frame_ladder_avoiding(
+                                current_engine,
+                                recent,
+                                avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
+                                memory=memory,
+                            )
+                        if chosen and _is_loop_candidate(chosen):
+                            chosen_turn_type = "loop_question"
+                # Depth cap enforcement: if reached, force next ask/bridge and reset depth
+                if chosen is None:
+                    if curiosity_depth >= MAX_CURIOSITY_DEPTH:
+                        # Force ask/bridge; reset depth
+                        if prefer_bridge or force_bridge:
+                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory)
+                        if chosen is None and not force_bridge:
+                            chosen = _select_next_frame_ladder(current_engine, recent, memory=memory)
+                        curiosity_depth = 0
+                        chosen_turn_type = "question"
+                    else:
+                        # Soft chaining: slot/topic preference first, then existing bridge/ladder order
+                        if last_turn_was_answer and meaningful:
+                            chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
+                            if chosen and _is_loop_candidate(chosen):
+                                chosen_turn_type = "loop_question"
+                                curiosity_depth = min(curiosity_depth + 1, MAX_CURIOSITY_DEPTH)
+                        if chosen is None:
+                            if prefer_bridge or force_bridge:
+                                chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory)
+                            if chosen is None and not force_bridge:
+                                chosen = _select_next_frame_ladder_avoiding(
+                                    current_engine,
+                                    recent,
+                                    avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
+                                    memory=memory,
+                                )
 
                 if not chosen:
                     self._json_error(400, "no frame available for next question")
@@ -440,7 +744,7 @@ class Handler(BaseHTTPRequestHandler):
                 if memory is not None:
                     _phase10_learner_memory = dict(memory)
                 _phase10_persona_id = (cs.get("persona_id") or payload.get("persona_id") or "").strip() or None
-                _phase10_turn_type = "question"
+                _phase10_turn_type = chosen_turn_type
             else:
                 frame_id  = payload.get("frame_id", "unknown")
                 engine_id = payload.get("engine_id", "unknown")
@@ -464,11 +768,58 @@ class Handler(BaseHTTPRequestHandler):
                 "card_id":             gold["card_id"] if gold else card_id,
                 "system_note":         "phase7.4 static options"
             }
-            # Oxygen loop: offer probe options when user just gave an interesting answer
+            # Phase 10.5: reaction micro-layer prefix (if generated above)
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
-                if payload["conversation_state"].get("last_turn_was_answer") is True:
-                    response["probe_offer"] = True
-                    response["probe_options"] = _OXYGEN_LOOP_PROBES
+                if reaction_prefix_text:
+                    # Keep it lightweight: prepend only if the next frame is a question (avoid double-reactive turns)
+                    if "？" in (frame_rec.get("text") or ""):
+                        response["frame_text"] = f"{reaction_prefix_text}{response['frame_text']}"
+                        response["system_note"] = "phase10.5 reaction_micro_layer"
+                        response["reaction_used_fallback"] = bool(reaction_used_fallback)
+
+            # Phase 10.5: blended reciprocity injection early (prefer answer + 你呢？)
+            if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
+                cs = payload["conversation_state"]
+                exchange_count = int(cs.get("exchange_count") or 0)
+                if exchange_count < EARLY_EXCHANGES and isinstance(options, list) and options:
+                    # Use the gold (or first) answer option as the base.
+                    base_opt = next((o for o in options if isinstance(o, dict) and o.get("is_gold")), None) or (options[0] if isinstance(options[0], dict) else None)
+                    if base_opt and base_opt.get("hanzi"):
+                        blended = {
+                            "card_id": "__blended_reciprocate",
+                            "hanzi": f"{base_opt['hanzi']}你呢？",
+                            "pinyin": "",
+                            "meaning": "Blended reciprocity (answer + and you?)",
+                            "is_gold": False,
+                            "is_slot": False,
+                            "kind": "WORD",
+                        }
+                        # Insert into top 2 without displacing gold if present.
+                        new_opts = []
+                        if options and isinstance(options[0], dict) and options[0].get("is_gold"):
+                            new_opts.append(options[0])
+                            new_opts.append(blended)
+                            new_opts.extend(options[1:])
+                        else:
+                            new_opts.append(blended)
+                            new_opts.extend(options)
+                        options = new_opts[:]
+                        response["options"] = options
+                        response["option_count"] = len(options)
+
+            # Phase 10.5: contextual curiosity gating + oxygen selection (probe row)
+            if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
+                cs = payload["conversation_state"]
+                last_turn_was_answer = cs.get("last_turn_was_answer") is True
+                if last_turn_was_answer:
+                    slot_names = _infer_slot_names_from_answer(cs.get("last_answer") if isinstance(cs.get("last_answer"), dict) else None)
+                    meaningful = bool(slot_names) or bool(new_memory_written)
+                    should = _should_surface_curiosity(cs, meaningful=meaningful, last_partner_was_loop=(chosen_turn_type == "loop_question"), last_partner_had_reaction=bool(reaction_prefix_text))
+                    if should:
+                        response["probe_offer"] = True
+                        response["probe_options"] = _select_probe_options(engine_id, slot_names)
+                    else:
+                        response["probe_offer"] = False
 
             # Phase 10 Step 7: cross-session continuity — client can show remembered facts
             if _phase10_learner_memory is not None:
@@ -477,6 +828,11 @@ class Handler(BaseHTTPRequestHandler):
                 response["persona_id"] = _phase10_persona_id
             if _phase10_turn_type:
                 response["turn_type"] = _phase10_turn_type
+                # Inform client for state tracking (optional; safe extra fields)
+                response["curiosity_depth"] = curiosity_depth
+                response["loop_attempted"] = bool(loop_attempted)
+                response["weak_loop_encountered"] = bool(frame_id in _WEAK_LOOP_FRAME_IDS)
+                response["weak_loop_frame_id"] = frame_id if frame_id in _WEAK_LOOP_FRAME_IDS else None
 
             data = json.dumps(response, ensure_ascii=False).encode("utf-8")
             self.send_response(200)

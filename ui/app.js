@@ -30,6 +30,11 @@ if (typeof window._learnerId === "undefined") window._learnerId = "default_learn
 if (typeof window._lastAnswer === "undefined") window._lastAnswer = null;
 // Phase 10 Step 6: persona_id for persona-consistent stubs (e.g. probe responses); default first persona
 if (typeof window._personaId === "undefined") window._personaId = "zhang_wei";
+// Phase 10.5 behaviour state (client-side, lightweight)
+if (typeof window._exchangeCount === "undefined") window._exchangeCount = 0;
+if (typeof window._curiosityDepth === "undefined") window._curiosityDepth = 0;
+if (typeof window._askChainCount === "undefined") window._askChainCount = 0;
+if (typeof window._lastPartnerTurnType === "undefined") window._lastPartnerTurnType = "question";
 // Card panel: which cards have etymology expanded (click "Show etymology" to reveal). Enables future brush/radical clicks.
 let _cardEtymologyExpanded = new Set();
 
@@ -1814,7 +1819,12 @@ async function runTurn(isNext = false, opts = {}) {
       session_id: window._sessionId,
       current_engine: currentEngine,
       last_partner_frame_id: lastPartnerFrameId,
-      recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : []
+      recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : [],
+      // Phase 10.5 selector state
+      exchange_count: window._exchangeCount || 0,
+      curiosity_depth: window._curiosityDepth || 0,
+      ask_chain_count: window._askChainCount || 0,
+      last_partner_turn_type: window._lastPartnerTurnType || "question"
     };
     if (window._learnerId) conversation_state.learner_id = window._learnerId;
     if (window._personaId) conversation_state.persona_id = window._personaId;
@@ -1894,6 +1904,24 @@ async function runTurn(isNext = false, opts = {}) {
     data = await res.json();
   } catch (e) {
     console.warn("[app] runTurn: failed to parse response JSON", e);
+  }
+
+  // Phase 10.5: update behaviour counters from server response (UI can ignore extras; we use for next selector call).
+  if (opts?.last_turn_was_answer === true) {
+    window._exchangeCount = (window._exchangeCount || 0) + 1;
+  }
+  if (typeof data.turn_type === "string") {
+    window._lastPartnerTurnType = data.turn_type;
+    if (data.turn_type === "loop_question") {
+      window._curiosityDepth = Math.min((window._curiosityDepth || 0) + 1, 2);
+      window._askChainCount = 0;
+    } else if (data.turn_type === "question") {
+      window._askChainCount = (window._askChainCount || 0) + 1;
+      // Leaving a curiosity chain resets depth.
+      if ((window._askChainCount || 0) >= 1) window._curiosityDepth = 0;
+    } else if (data.turn_type === "reaction") {
+      window._askChainCount = 0;
+    }
   }
 
   const frameId = data.frame_id || selected;

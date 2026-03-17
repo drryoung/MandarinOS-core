@@ -43,13 +43,18 @@ def _extract_name_from_hanzi(hanzi: str) -> Optional[str]:
     if not hanzi or not isinstance(hanzi, str):
         return None
     s = hanzi.strip()
-    # 我叫小明。 / 我叫丽丽。
-    m = re.match(r"我叫\s*(.+?)\s*[。.]?\s*$", s)
+    # Allow blended reciprocity suffix like “你呢？” after the answer.
+    # Example: 我叫小明。你呢？
+    # We prefer extracting from the first sentence-like segment.
+    # (Do not require strict punctuation since many options omit it.)
+    first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
+    # 我叫小明 / 我叫丽丽
+    m = re.match(r"我叫\s*(.+?)\s*$", first)
     if m:
         return m.group(1).strip() or None
-    if s.startswith("我叫"):
-        return s[2:].strip().rstrip("。.").strip() or None
-    return s[:50].strip() or None  # fallback: use as name if short
+    if first.startswith("我叫"):
+        return first[2:].strip() or None
+    return first[:50].strip() or None  # fallback: use as name if short
 
 
 def _extract_origin_from_hanzi(hanzi: str) -> Optional[str]:
@@ -57,14 +62,15 @@ def _extract_origin_from_hanzi(hanzi: str) -> Optional[str]:
     if not hanzi or not isinstance(hanzi, str):
         return None
     s = hanzi.strip()
-    m = re.match(r"我是\s*(.+?)人\s*[。.]?\s*$", s)
+    first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
+    m = re.match(r"我是\s*(.+?)人\s*$", first)
     if m:
         return m.group(1).strip() or None
-    if "人。" in s and "我是" in s:
-        idx = s.find("我是") + 2
-        end = s.find("人。")
+    if "人" in first and "我是" in first:
+        idx = first.find("我是") + 2
+        end = first.rfind("人")
         if end > idx:
-            return s[idx:end].strip() or None
+            return first[idx:end].strip() or None
     return None
 
 
@@ -73,15 +79,13 @@ def _extract_city_from_hanzi(hanzi: str) -> Optional[str]:
     if not hanzi or not isinstance(hanzi, str):
         return None
     s = hanzi.strip()
-    m = re.match(r"(?:我现在)?住在\s*(.+?)\s*[。.]?\s*$", s)
+    first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
+    m = re.match(r"(?:我现在)?住在\s*(.+?)\s*$", first)
     if m:
         return m.group(1).strip() or None
-    if "住在" in s:
-        idx = s.find("住在") + 2
-        end = s.find("。", idx)
-        if end == -1:
-            end = len(s)
-        return s[idx:end].strip() or None
+    if "住在" in first:
+        idx = first.find("住在") + 2
+        return first[idx:].strip() or None
     return None
 
 
@@ -90,7 +94,8 @@ def _extract_job_from_hanzi(hanzi: str) -> Optional[str]:
     if not hanzi or not isinstance(hanzi, str):
         return None
     s = hanzi.strip()
-    m = re.match(r"我是\s*(.+?)\s*[。.]?\s*$", s)
+    first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
+    m = re.match(r"我是\s*(.+?)\s*$", first)
     if m:
         return m.group(1).strip() or None
     return None
@@ -101,15 +106,13 @@ def _extract_food_from_hanzi(hanzi: str) -> Optional[str]:
     if not hanzi or not isinstance(hanzi, str):
         return None
     s = hanzi.strip()
-    m = re.match(r"有很多\s*(.+?)\s*[。.]?\s*$", s)
+    first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
+    m = re.match(r"有很多\s*(.+?)\s*$", first)
     if m:
         return m.group(1).strip() or None
-    if "有很多" in s:
-        idx = s.find("有很多") + 3
-        end = s.find("。", idx)
-        if end == -1:
-            end = len(s)
-        return s[idx:end].strip() or None
+    if "有很多" in first:
+        idx = first.find("有很多") + 3
+        return first[idx:].strip() or None
     return None
 
 
