@@ -1,0 +1,343 @@
+# MANDARINOS — PHASE 10.5 BEHAVIOUR TUNING SPEC
+
+## Purpose
+
+Refine Phase 10.5 conversation behaviour so that:
+
+* conversations feel natural (human-like rhythm)
+* curiosity is continuous (not event-based)
+* reactions and reciprocity are correctly weighted
+* oxygen vocabulary is used contextually
+* no major schema changes required
+
+This is a **behavioural tuning layer**, not a structural rewrite.
+
+---
+
+# 1. CORE PRINCIPLE
+
+Current system:
+→ structurally correct but mechanically sequenced
+
+Target system:
+→ dynamically weighted conversation flow
+
+We are NOT adding new architecture.
+We are adjusting **selection priorities and defaults**.
+
+---
+
+# 2. TURN FLOW (UPDATED BASELINE)
+
+Replace implicit flow:
+
+ASK → ANSWER → NEXT ASK
+
+With:
+
+ASK → ANSWER → [REACTION (default)] → [OPTIONAL LOOP] → NEXT MOVE
+
+---
+
+# 3. REACTION LAYER (MANDATORY BIAS)
+
+## Rule
+
+After ANY user ANSWER:
+
+→ Insert REACTION with probability = 0.7
+
+## Implementation
+
+If reaction frame exists:
+→ use it
+
+Else:
+→ fallback lightweight reaction (short phrase), e.g.:
+
+* 哦
+* 是吗
+* 不错
+* 很好
+
+## Notes
+
+* Reaction does NOT increment curiosity depth
+* Reaction should be short (1–3 words preferred)
+
+---
+
+# 4. CURIOSITY SYSTEM (CONTINUOUS MODE)
+
+## Change
+
+Curiosity is NOT event-triggered only
+Curiosity must be ALWAYS AVAILABLE (user side)
+
+---
+
+## 4.1 User Curiosity (ALWAYS ON)
+
+Every turn must include 1–2 curiosity options:
+
+Examples:
+
+* 为什么？
+* 怎么样？
+* 哪里？
+* 喜欢吗？
+
+Selection rules:
+
+* limit to 1–2 options
+* must be context-relevant (see Section 7)
+
+---
+
+## 4.2 Partner Curiosity (WEIGHTED)
+
+When user provides meaningful input:
+
+Trigger conditions:
+
+* slot filled (CITY, JOB, FOOD)
+* extend answer
+* new memory value
+
+Then:
+
+→ prefer LOOP_QUESTION with probability = 0.6
+
+Else:
+→ fallback to REACTION or ASK
+
+---
+
+## 4.3 Curiosity Depth Control
+
+Set:
+
+max_curiosity_depth = 2
+
+Rules:
+
+* LOOP_QUESTION increments depth
+* REACTION does NOT
+* After depth reached:
+  → force NEXT ASK or BRIDGE
+
+---
+
+# 5. RECIPROCITY BIAS (EARLY CONVERSATION)
+
+## Rule
+
+For first 3 exchanges:
+
+→ prioritize reciprocate option
+
+Implementation:
+
+* ensure reciprocate option appears in top 2 options
+* examples:
+
+  * 你呢？
+  * 你叫什么名字？
+
+---
+
+# 6. EXTEND BEHAVIOUR (IMPORTANT CHANGE)
+
+## Problem
+
+Extend is currently treated as optional
+
+## Fix
+
+Allow SOFT EXTENSION
+
+### Rule
+
+If user selects minimal answer:
+
+→ next turn may incorporate extension implicitly
+
+Example:
+
+User:
+我住在北京
+
+Next system understanding:
+→ treat as:
+“我住在北京（+ possible context expansion）”
+
+---
+
+## Optional (if easy)
+
+Add blended options:
+
+* minimal + extend combined
+  e.g.
+  我住在北京，现在在这里工作
+
+---
+
+# 7. OXYGEN VOCABULARY (CONTEXTUAL SELECTION)
+
+## Rule
+
+Do NOT show generic curiosity options
+
+Select based on topic/slot:
+
+---
+
+### PLACE / CITY
+
+Options:
+
+* 怎么样？
+* 方便吗？
+* 哪里？
+
+---
+
+### JOB / WORK
+
+Options:
+
+* 忙吗？
+* 怎么样？
+
+---
+
+### FOOD
+
+Options:
+
+* 好吃吗？
+* 喜欢吗？
+* 为什么？
+
+---
+
+### GENERAL / FALLBACK
+
+Options:
+
+* 为什么？
+* 怎么样？
+
+---
+
+## Implementation
+
+Use:
+
+* engine_id OR
+* slot type
+
+No AI required.
+
+---
+
+# 8. TRANSITION LOGIC (SOFT CHAINING)
+
+## Problem
+
+Current:
+→ hard engine transitions
+
+## Fix
+
+Allow soft chaining:
+
+### Rule
+
+If user answer introduces new topic:
+
+→ next ASK may follow user content instead of fixed order
+
+Example:
+
+User:
+我喜欢火锅
+
+Next:
+→ food question (not forced by engine order)
+
+---
+
+# 9. LOOP QUESTION PRIORITISATION
+
+## Rule
+
+When curiosity_triggered:
+
+Priority order:
+
+1. LOOP_QUESTION (if exists)
+2. REACTION
+3. NEXT ASK
+
+---
+
+## Requirement
+
+Tag frames:
+
+* LOOP_QUESTION
+* REACTION
+
+If missing:
+→ fallback allowed
+
+---
+
+# 10. OPTION SET (FINAL REQUIREMENT)
+
+Each question should aim to include:
+
+* minimal (required)
+* extend (if available)
+* reciprocate (early bias)
+* repair (optional)
+* curiosity (1–2 options ALWAYS)
+
+---
+
+# 11. DO NOT CHANGE
+
+* existing frame schema
+* existing API contracts
+* runtime architecture
+* card system
+
+---
+
+# 12. SUCCESS CRITERIA
+
+Conversation should:
+
+✔ include reactions frequently
+✔ allow curiosity at any time
+✔ show early reciprocity
+✔ avoid rigid question chains
+✔ feel like natural dialogue, not interview
+
+---
+
+# 13. OUTPUT REQUIRED FROM CURSOR
+
+1. Updated selector logic (pseudocode or implementation)
+2. Example conversation showing:
+
+   * reactions
+   * curiosity loop
+   * reciprocity
+3. List of required missing frames (if any)
+
+---
+
+END OF SPEC

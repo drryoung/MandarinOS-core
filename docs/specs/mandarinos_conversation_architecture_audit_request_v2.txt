@@ -1,0 +1,127 @@
+
+MANDARINOS — CONVERSATION SYSTEM STRUCTURAL OVERVIEW REQUEST (REVISED)
+Phase: Pre–Phase 11 Alpha (Design Audit)
+Purpose: Generate a neutral structural report of the current conversation system
+
+Context
+-------
+We are currently between Phase 10 and Phase 11 of MandarinOS development.
+Before implementing further adaptive behavior or conversation refinements,
+we want a clear structural overview of the conversation architecture that
+currently exists in the repository.
+
+This request is NOT asking for code changes or improvements.
+It is strictly an architectural inspection and report.
+
+Your task is to analyze the existing codebase and produce a structured
+overview of how the conversation system is currently implemented.
+
+Important Constraints
+---------------------
+1. Do NOT modify any code.
+2. Do NOT propose improvements yet.
+3. Do NOT rewrite conversation content.
+4. Only analyze and report the current structure.
+5. The goal is architectural visibility.
+
+Report Sections to Produce
+--------------------------
+
+1. Conversation Engines
+   - List all engines currently defined.
+   - For each engine:
+       • engine id
+       • purpose (if documented)
+       • number of frames attached
+       • likely next engines (if defined)
+       • any routing logic visible in code
+
+2. Frames
+   - Total number of frames in the system.
+   - Frames grouped by engine.
+   - For each frame:
+       • frame id
+       • frame text
+       • number of response options
+       • words referenced
+
+3. Response Options
+   - How options are currently stored and selected.
+   - Average number of options per frame.
+   - Any filtering or selection logic in the runtime.
+
+4. Hint System
+   - Describe how hints currently work in the runtime.
+   - Sentence-level hints
+   - Word-level hints
+   - Hint cascade steps (if present)
+   - How hints are triggered in the UI.
+
+5. Word Interaction Layer
+   - How clicking or selecting words currently works.
+   - Card panel behavior.
+   - Word metadata used for hints or learning.
+
+6. Etymology / Character Support
+   - Whether etymology is available.
+   - How character data is retrieved.
+   - Which words currently have etymology coverage.
+
+7. Conversation Flow
+   - What happens during a typical turn:
+       • frame selection
+       • option selection
+       • acknowledgement
+       • reciprocity
+       • next turn trigger
+
+8. Bridges Between Engines
+   - Identify any explicit bridge logic between engines.
+   - If no bridge logic exists, state that clearly.
+
+9. Example Conversation Paths
+   Provide 2–3 examples of possible conversation paths using
+   real frames and options from the current system.
+
+10. Curiosity Engine and Question Types
+    Analyze whether the following question types currently exist
+    in the conversation system and how they are implemented:
+
+       • Opening questions
+       • Treasure questions
+       • Loop questions
+       • Bridge questions
+
+    For each type:
+       - identify example frames if present
+       - explain how they are triggered
+       - explain which engine they belong to
+       - explain whether the runtime treats them differently
+
+11. Curiosity Engine Integration
+    - Is there a distinct "curiosity engine" implemented?
+    - If yes, describe:
+        • where it is defined
+        • which frames belong to it
+        • how it influences conversation flow
+    - If not explicitly implemented, explain whether any existing
+      engine behaves like a curiosity engine.
+
+12. Coverage Observations (Descriptive Only)
+    Without proposing changes, report:
+       • frames with no options
+       • frames with weak coverage
+       • hint gaps
+       • etymology coverage gaps
+       • missing question types
+
+Output Format
+-------------
+Provide the report as a structured Markdown document with
+clear headings and bullet points.
+
+Goal
+----
+The goal of this report is to help the strategist understand
+the current architecture before designing Phase 10.5
+conversation and hint system refinements.
