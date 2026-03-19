@@ -18,10 +18,44 @@ const cardCloseBtn = document.getElementById("cardCloseBtn");
 let state = Object.assign({}, _initialState);
 let uiTrace = [];
 let currentPlay = null; // { utterance_id, start, timeoutId, duration_ms }
+let _directionCaps = { supports_reverse: false, supports_why: false };
 
 // Phase 7 completion: transcript array for "You said" + Phase 8 Conversation Loop UI reuse.
 // Each entry: { role: 'user'|'partner', text: string }. Append on option select; Phase 8 will render full transcript.
 let conversationTranscript = [];
+let transcriptDisplayMode = "zh";
+let transcriptReplaySpeed = 1.0;
+let transcriptLineUiState = {}; // { [lineId]: { showEn: boolean, showPy: boolean } }
+let transcriptReplayState = { active: false, activeLineId: null, queue: [] };
+let transcriptSegmentMode = false;
+let transcriptSelectedLineIds = [];
+let transcriptReplayToken = 0;
+let userTranslationIndex = {};
+
+function addTranscriptEntry(role, textZh, extras = {}) {
+  conversationTranscript.push({
+    id: "line_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
+    role: role === "partner" ? "partner" : "user",
+    text_zh: textZh || "",
+    text_en: extras.text_en || "",
+    pinyin: extras.pinyin || "",
+    frame_id: extras.frame_id || "",
+    turn_uid: extras.turn_uid || "",
+    replayable: true,
+    created_at: new Date().toISOString(),
+  });
+}
+
+function _normalizeTranscriptText(s) {
+  return (s || "").trim().replace(/\s+/g, "");
+}
+
+function _upsertUserTranslation(hanzi, english) {
+  const key = _normalizeTranscriptText(hanzi);
+  const val = (english || "").trim();
+  if (!key || !val) return;
+  userTranslationIndex[key] = val;
+}
 // Phase 9.1: minimal conversation state for selector-driven next question (session_id, current_engine, last_partner_frame_id, recent_frame_ids)
 if (typeof window._sessionId === "undefined") window._sessionId = "session_" + Date.now();
 if (typeof window._recentFrameIds === "undefined") window._recentFrameIds = [];
@@ -35,6 +69,13 @@ if (typeof window._exchangeCount === "undefined") window._exchangeCount = 0;
 if (typeof window._curiosityDepth === "undefined") window._curiosityDepth = 0;
 if (typeof window._askChainCount === "undefined") window._askChainCount = 0;
 if (typeof window._lastPartnerTurnType === "undefined") window._lastPartnerTurnType = "question";
+if (typeof window._sameEngineChainCount === "undefined") window._sameEngineChainCount = 0;
+if (typeof window._sameSlotChainCount === "undefined") window._sameSlotChainCount = 0;
+if (typeof window._lastFocusSlot === "undefined") window._lastFocusSlot = "";
+if (typeof window._pendingListeningMove === "undefined") window._pendingListeningMove = false;
+if (typeof window._listeningWaitTurns === "undefined") window._listeningWaitTurns = 0;
+if (typeof window._lastInterestLevel === "undefined") window._lastInterestLevel = "low";
+if (typeof window._lastUserText === "undefined") window._lastUserText = "";
 // Card panel: which cards have etymology expanded (click "Show etymology" to reveal). Enables future brush/radical clicks.
 let _cardEtymologyExpanded = new Set();
 
@@ -105,18 +146,13 @@ function setUiMode(mode) {
     main.classList.remove("ui-mode-read", "ui-mode-respond");
     main.classList.add(`ui-mode-${effective.toLowerCase()}`);
   }
-  // Mic / Speak: always visible — full "Speak your answer" in READ, small mic in RESPOND (try again)
+  // Mic / Speak: always microphone icon for consistency.
   const tryBtn = document.getElementById("tryRespondingBtn");
   if (tryBtn) {
-    if (effective === "RESPOND") {
-      tryBtn.classList.add("mic-only");
-      tryBtn.textContent = "\uD83C\uDFA4";
-      tryBtn.title = "Speak again";
-    } else {
-      tryBtn.classList.remove("mic-only");
-      tryBtn.textContent = "Speak your answer";
-      tryBtn.title = "Speak your answer";
-    }
+    tryBtn.classList.add("mic-only");
+    tryBtn.textContent = "\uD83C\uDFA4";
+    tryBtn.title = "Speak your answer";
+    tryBtn.setAttribute("aria-label", "Speak your answer");
   }
 }
 
@@ -172,11 +208,24 @@ async function _openCardForWordId(wordId) {
 }
 
 let frameOptionsRuntime = {};
+function rebuildUserTranslationIndex() {
+  userTranslationIndex = {
+    [_normalizeTranscriptText("你呢？")]: "And you?",
+    [_normalizeTranscriptText("为什么？")]: "Why?",
+  };
+  const byFrame = frameOptionsRuntime?.frames || {};
+  Object.values(byFrame).forEach((f) => {
+    (f?.options || []).forEach((opt) => {
+      _upsertUserTranslation(opt?.hanzi || "", opt?.text_en || opt?.meaning || "");
+    });
+  });
+}
 async function loadFrameOptions() {
   try {
     const resp = await fetch("/runtime/out_phase7/frame_options.runtime.json");
     if (!resp.ok) { console.warn(`[app] frame_options not available (HTTP ${resp.status})`); return; }
     frameOptionsRuntime = await resp.json();
+    rebuildUserTranslationIndex();
     window._frameOptionsRuntime = frameOptionsRuntime;
     console.info(`[app] frame_options loaded (${Object.keys(frameOptionsRuntime.frames || {}).length} frame(s))`);
   } catch (e) {
@@ -365,7 +414,8 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
     if (hintBtn) {
       const hasAny = levelHasContent(1) || levelHasContent(2) || levelHasContent(3);
       hintBtn.style.display = hasAny ? "block" : "none";
-      hintBtn.textContent = getHintButtonLabel(level, levelHasContent);
+      hintBtn.textContent = "?";
+      hintBtn.title = getHintButtonLabel(level, levelHasContent);
     }
     return;
   }
@@ -410,7 +460,8 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
     if (hintBtn) {
       const hasAny = levelHasContent(1) || levelHasContent(2) || levelHasContent(3);
       hintBtn.style.display = hasAny ? "block" : "none";
-      hintBtn.textContent = getHintButtonLabel(level, levelHasContent);
+      hintBtn.textContent = "?";
+      hintBtn.title = getHintButtonLabel(level, levelHasContent);
     }
   } else {
     // Word in active sentence: use global hint rows; clear option hint blocks
@@ -451,7 +502,8 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
     if (hintBtn) {
       const hasAny = levelHasContent(1) || levelHasContent(2) || levelHasContent(3);
       hintBtn.style.display = hasAny ? "block" : "none";
-      hintBtn.textContent = getHintButtonLabel(level, levelHasContent);
+      hintBtn.textContent = "?";
+      hintBtn.title = getHintButtonLabel(level, levelHasContent);
     }
   }
 }
@@ -462,22 +514,216 @@ function renderTranscript() {
   const container = document.getElementById("transcriptContent");
   if (!container) return;
   container.innerHTML = "";
-  (conversationTranscript || []).forEach((entry) => {
+  (conversationTranscript || []).forEach((entry, idx) => {
+    const lineId = entry.id || String(idx);
+    const text = entry.text_zh || entry.text || "";
+    const textEn = entry.text_en || "";
+    const textPy = entry.pinyin || "";
+    const role = entry.role === "partner" ? "partner" : "user";
+    const uiState = transcriptLineUiState[lineId] || { showEn: false, showPy: false };
+
     const line = document.createElement("div");
-    line.className = "transcript-line " + (entry.role === "partner" ? "partner" : "user");
+    line.className = "transcript-line " + role;
+    line.setAttribute("data-line-id", lineId);
+    if (transcriptReplayState.active && transcriptReplayState.activeLineId === lineId) {
+      line.classList.add("active-replay");
+    }
+
+    const main = document.createElement("div");
+    main.className = "transcript-main";
     const marker = document.createElement("span");
     marker.className = "turn-marker";
-    marker.textContent = entry.role === "partner" ? "APP:" : "You:";
-    line.appendChild(marker);
-    const text = entry.text || "";
+    marker.textContent = role === "partner" ? "APP:" : "You:";
+    main.appendChild(marker);
+    if (transcriptSegmentMode) {
+      const sel = document.createElement("input");
+      sel.type = "checkbox";
+      sel.className = "transcript-select";
+      sel.checked = transcriptSelectedLineIds.includes(lineId);
+      sel.setAttribute("aria-label", "Select transcript line");
+      sel.addEventListener("change", () => {
+        if (sel.checked) {
+          if (!transcriptSelectedLineIds.includes(lineId)) transcriptSelectedLineIds.push(lineId);
+        } else {
+          transcriptSelectedLineIds = transcriptSelectedLineIds.filter((id) => id !== lineId);
+        }
+        updateReplaySelectedButton();
+      });
+      main.appendChild(sel);
+    }
     const contentSpan = document.createElement("span");
     contentSpan.className = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text) ? "transcript-text transcript-zh" : "transcript-text transcript-en";
     contentSpan.textContent = " " + text;
-    line.appendChild(contentSpan);
+    main.appendChild(contentSpan);
+    line.appendChild(main);
+
+    const actions = document.createElement("div");
+    actions.className = "transcript-actions";
+    const replayBtn = document.createElement("button");
+    replayBtn.type = "button";
+    replayBtn.className = "transcript-action-btn";
+    replayBtn.textContent = "🔊";
+    replayBtn.title = "Replay line";
+    replayBtn.setAttribute("aria-label", "Replay this line");
+    replayBtn.disabled = transcriptReplayState.active && transcriptReplayState.activeLineId === lineId;
+    replayBtn.addEventListener("click", () => replayTranscriptLine(lineId));
+    actions.appendChild(replayBtn);
+
+    const enBtn = document.createElement("button");
+    enBtn.type = "button";
+    enBtn.className = "transcript-action-btn";
+    enBtn.textContent = "EN";
+    enBtn.title = "Toggle translation";
+    enBtn.setAttribute("aria-label", "Toggle English translation");
+    enBtn.addEventListener("click", () => toggleLineEnglish(lineId));
+    actions.appendChild(enBtn);
+    if (role === "partner" && textPy) {
+      const pyBtn = document.createElement("button");
+      pyBtn.type = "button";
+      pyBtn.className = "transcript-action-btn";
+      pyBtn.textContent = "PY";
+      pyBtn.title = "Toggle pinyin";
+      pyBtn.setAttribute("aria-label", "Toggle pinyin");
+      pyBtn.addEventListener("click", () => {
+        const st = transcriptLineUiState[lineId] || { showEn: false, showPy: false };
+        transcriptLineUiState[lineId] = { ...st, showPy: !st.showPy };
+        renderTranscript();
+      });
+      actions.appendChild(pyBtn);
+    }
+    line.appendChild(actions);
     container.appendChild(line);
+
+    const shouldShowEn = transcriptDisplayMode === "zh_en" || uiState.showEn;
+    const shouldShowPy = !!uiState.showPy;
+    if (shouldShowEn || shouldShowPy) {
+      const detail = document.createElement("div");
+      detail.className = "transcript-line-detail";
+      const chunks = [];
+      if (shouldShowPy) chunks.push(textPy ? textPy : "Pinyin not available");
+      if (shouldShowEn) chunks.push(textEn ? textEn : "No translation available yet");
+      detail.textContent = chunks.join("  |  ");
+      container.appendChild(detail);
+    }
   });
   const panel = document.getElementById("transcriptPanel");
   if (panel) panel.scrollTop = panel.scrollHeight;
+}
+
+function resolveUserLineTranslation(entry) {
+  if (!entry || entry.role !== "user") return "";
+  if ((entry.text_en || "").trim()) return entry.text_en.trim();
+  const key = _normalizeTranscriptText(entry.text_zh || entry.text || "");
+  return userTranslationIndex[key] || "";
+}
+
+function toggleLineEnglish(lineId) {
+  const entry = (conversationTranscript || []).find((e, idx) => (e.id || String(idx)) === lineId);
+  const st = transcriptLineUiState[lineId] || { showEn: false, showPy: false };
+  if (!entry) return;
+  if (entry.role === "user" && !(entry.text_en || "").trim()) {
+    const resolved = resolveUserLineTranslation(entry);
+    if (resolved) {
+      entry.text_en = resolved;
+    } else if (!st.showEn) {
+      entry.text_en = "No translation available yet";
+    }
+  }
+  transcriptLineUiState[lineId] = { ...st, showEn: !st.showEn };
+  renderTranscript();
+}
+
+
+function updateReplaySelectedButton() {
+  const btn = document.getElementById("replaySelectedBtn");
+  if (!btn) return;
+  btn.disabled = !transcriptSegmentMode || transcriptSelectedLineIds.length < 2;
+}
+
+function setReplayStatus(text) {
+  const statusEl = document.getElementById("replayStatus");
+  const stopBtn = document.getElementById("stopReplayBtn");
+  if (!statusEl || !stopBtn) return;
+  if (text) {
+    statusEl.style.display = "";
+    statusEl.textContent = text;
+    stopBtn.style.display = "";
+  } else {
+    statusEl.style.display = "none";
+    statusEl.textContent = "";
+    stopBtn.style.display = "none";
+  }
+}
+
+function stopTranscriptReplay() {
+  transcriptReplayToken += 1;
+  transcriptReplayState = { active: false, activeLineId: null, queue: [] };
+  try {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  } catch (_) {}
+  setReplayStatus("");
+  renderTranscript();
+}
+
+function replayTranscriptLine(lineId) {
+  const entry = (conversationTranscript || []).find((e, idx) => (e.id || String(idx)) === lineId);
+  if (!entry) return;
+  const text = (entry.text_zh || entry.text || "").trim();
+  if (!text) return;
+  replayTranscriptQueue([lineId]);
+}
+
+function speakTranscriptLine(entry, token) {
+  const text = (entry?.text_zh || entry?.text || "").trim();
+  if (!text) return Promise.resolve();
+  return new Promise((resolve) => {
+    if (token !== transcriptReplayToken) return resolve();
+    ttsSpeak({
+      text,
+      lang: "zh-CN",
+      rate: transcriptReplaySpeed,
+      onEvent: (ev) => {
+        if (token !== transcriptReplayToken) return resolve();
+        if (ev?.payload?.completed || ev?.type === "AUDIO_ERROR") resolve();
+      },
+    });
+  });
+}
+
+function waitMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function replayTranscriptQueue(lineIds) {
+  const ids = (lineIds || []).filter(Boolean);
+  if (!ids.length) return;
+  stopTranscriptReplay();
+  const token = transcriptReplayToken;
+  transcriptReplayState = { active: true, activeLineId: null, queue: ids.slice() };
+  for (let i = 0; i < ids.length; i += 1) {
+    if (token !== transcriptReplayToken) return;
+    const lineId = ids[i];
+    const entry = (conversationTranscript || []).find((e, idx) => (e.id || String(idx)) === lineId);
+    if (!entry) continue;
+    transcriptReplayState.activeLineId = lineId;
+    setReplayStatus(ids.length > 1 ? `Replaying selected ${i + 1}/${ids.length}...` : "Replaying line...");
+    renderTranscript();
+    await speakTranscriptLine(entry, token);
+    if (i < ids.length - 1) await waitMs(320);
+  }
+  if (token !== transcriptReplayToken) return;
+  transcriptReplayState = { active: false, activeLineId: null, queue: [] };
+  setReplayStatus("");
+  renderTranscript();
+}
+
+function replaySelectedTranscriptLines() {
+  if (!transcriptSegmentMode || transcriptSelectedLineIds.length < 2) return;
+  // Keep transcript order
+  const orderedIds = (conversationTranscript || [])
+    .map((e, idx) => e.id || String(idx))
+    .filter((id) => transcriptSelectedLineIds.includes(id));
+  replayTranscriptQueue(orderedIds);
 }
 
 async function loadCardsIndex() {
@@ -583,6 +829,65 @@ function matchTranscriptToOption(transcript, options) {
     }
   }
   return null;
+}
+
+function isOpenEndedFrame(frameId) {
+  const fid = (frameId || "").trim();
+  return new Set([
+    "f_ask_you_name",
+    "p2_id_2",
+    "p2_id_4",
+    "p2_id_5",
+    "f_ask_name_meaning",
+    "f_from_where",
+    "frame.location.live_question",
+    "f_what_work",
+    "f_food_what_good",
+    "f_travel_where",
+    "f_want_go_where",
+  ]).has(fid);
+}
+
+function isLikelyUnderstandableFreeAnswer(text) {
+  const s = (text || "").trim();
+  if (!s) return false;
+  const zhMatches = s.match(/[\u4e00-\u9fff]/g) || [];
+  const zhCount = zhMatches.length;
+  const latinCount = (s.match(/[A-Za-z]/g) || []).length;
+  // Too short in Chinese usually means we likely misheard.
+  if (zhCount > 0 && zhCount < 2) return false;
+  // Heavy Latin in a Chinese answer often indicates ASR noise for this app mode.
+  if (latinCount > zhCount + 2) return false;
+  // Repeated single word noise (e.g., 牛肉牛肉牛肉) should trigger repair.
+  const norm = s.replace(/[，。！？、\s]/g, "");
+  if (norm.length >= 4) {
+    const half = Math.floor(norm.length / 2);
+    if (half > 0 && norm.slice(0, half) === norm.slice(half)) return false;
+  }
+  return s.length >= 2;
+}
+
+function shouldAcceptUnmatchedFreeAnswer(transcript, options, frameId) {
+  const opts = Array.isArray(options) ? options : [];
+  if (opts.length === 0) return true;
+  if (isOpenEndedFrame(frameId)) return isLikelyUnderstandableFreeAnswer(transcript);
+  // If this turn is mostly closed options, be stricter and prefer repair on unmatched speech.
+  const hasStructuredSlots = opts.some((o) => (o?.kind || "").toUpperCase() === "FRAME_WITH_SLOTS");
+  if (hasStructuredSlots) return isLikelyUnderstandableFreeAnswer(transcript);
+  return false;
+}
+
+function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId) {
+  const opts = Array.isArray(options) ? options : [];
+  const hasStructuredSlots = opts.some((o) => (o?.kind || "").toUpperCase() === "FRAME_WITH_SLOTS");
+  const openEnded = isOpenEndedFrame(frameId);
+  const understandable = isLikelyUnderstandableFreeAnswer(transcript);
+  if (opts.length === 0) return { accept: true, reason: "no_options" };
+  if (openEnded && understandable) return { accept: true, reason: "open_ended_understandable" };
+  if (hasStructuredSlots && understandable) return { accept: true, reason: "slot_frame_understandable" };
+  if (openEnded && !understandable) return { accept: false, reason: "open_ended_low_confidence" };
+  if (hasStructuredSlots && !understandable) return { accept: false, reason: "slot_frame_low_confidence" };
+  return { accept: false, reason: "closed_options_unmatched" };
 }
 
 /**
@@ -1436,7 +1741,7 @@ function renderOptions(options, frameId) {
           container.querySelectorAll(".option-panel").forEach((p) => p.classList.remove("selected"));
           panel.classList.add("selected");
           const userText = (phrase.hanzi || "").trim();
-          conversationTranscript.push({ role: "user", text: userText });
+          addTranscriptEntry("user", userText, { text_en: phrase.meaning || "" });
           const action = getRecoveryAction(phrase);
           const currentQuestion = (window._currentFrameText || "").trim();
 
@@ -1475,7 +1780,7 @@ function renderOptions(options, frameId) {
               segments = (currentQuestion || "").split("").map((c) => ({ t: c }));
             }
           }
-          conversationTranscript.push({ role: "partner", text: partnerLine });
+          addTranscriptEntry("partner", partnerLine);
           renderTranscript();
           setActivePartnerStatement(partnerLine, "recovery_repeat", segments);
           // Speak user's phrase first, then partner response
@@ -1617,7 +1922,7 @@ function renderOptions(options, frameId) {
         const currentQuestion = (window._currentFrameText || "").trim();
 
         if (action === "next_turn") {
-          conversationTranscript.push({ role: "user", text: userText });
+          addTranscriptEntry("user", userText, { text_en: opt.meaning || "" });
           renderTranscript();
           ttsSpeak({
             text: userText,
@@ -1650,8 +1955,8 @@ function renderOptions(options, frameId) {
             segments = (currentQuestion || "").split("").map((c) => ({ t: c }));
           }
         }
-        conversationTranscript.push({ role: "user", text: userText });
-        conversationTranscript.push({ role: "partner", text: partnerLine });
+        addTranscriptEntry("user", userText, { text_en: opt.meaning || "" });
+        addTranscriptEntry("partner", partnerLine);
         renderTranscript();
         setActivePartnerStatement(partnerLine, "recovery_repeat", segments);
         ttsSpeak({
@@ -1684,7 +1989,7 @@ function renderOptions(options, frameId) {
       // (e.g. 很高兴认识你。 or 你的名字是什么意思？) instead of staying on hardcoded "你呢？"
       // Phase 10: record last_answer for fact-capture (server stores by learner_id)
       window._lastAnswer = { frame_id: frameId, selected_option_hanzi: userText, selected_option_meaning: opt.meaning || undefined };
-      conversationTranscript.push({ role: "user", text: userText });
+      addTranscriptEntry("user", userText, { text_en: opt.meaning || "" });
       renderTranscript();
       // Speak the user's response, then advance to next turn (server returns next partner line and we speak it)
       ttsSpeak({
@@ -1743,11 +2048,73 @@ function hideProbeRow() {
   if (row) row.style.display = "none";
 }
 
+function renderDirectionButtons() {
+  const reverseBtn = document.getElementById("reverseBtn");
+  const whyBtn = document.getElementById("whyBtn");
+  if (!reverseBtn || !whyBtn) return;
+  reverseBtn.style.display = _directionCaps.supports_reverse ? "" : "none";
+  whyBtn.style.display = _directionCaps.supports_why ? "" : "none";
+}
+
+async function runDirectionTurn(intent) {
+  const map = { reverse: "你呢？", why: "为什么？" };
+  const userText = map[intent] || "";
+  if (!userText) return;
+  addTranscriptEntry("user", userText, { text_en: intent === "reverse" ? "And you?" : "Why?" });
+  renderTranscript();
+  ttsSpeak({ text: userText, lang: "zh-CN" });
+
+  const currentEngine = window._currentEngineId ?? "identity";
+  const payload = {
+    env: "dev",
+    turn_uid: "ui_direction_" + Date.now(),
+    direction_intent: intent,
+    direction_hanzi: userText,
+    conversation_state: {
+      session_id: window._sessionId,
+      current_engine: currentEngine,
+      last_partner_frame_id: window._lastPartnerFrameId ?? null,
+      recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : []
+    }
+  };
+  if (window._personaId) payload.persona_id = window._personaId;
+
+  let res;
+  try {
+    res = await fetch("/api/run_turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.warn("[app] runDirectionTurn fetch failed", e);
+    return;
+  }
+  if (!res.ok) return;
+  let data = {};
+  try { data = await res.json(); } catch (_) { return; }
+
+  const stub = (data.frame_text || "").trim();
+  if (stub) {
+    addTranscriptEntry("partner", stub);
+    renderTranscript();
+    ttsSpeak({
+      text: stub,
+      lang: "zh-CN",
+      onEvent: (e) => {
+        if (e?.payload?.completed) runTurn(true);
+      },
+    });
+  } else {
+    runTurn(true);
+  }
+}
+
 /** Send probe as user message, show partner stub, then request next question. */
 async function runProbeTurn(probe) {
   const hanzi = (probe.hanzi || "").trim();
   if (!hanzi) return;
-  conversationTranscript.push({ role: "user", text: hanzi });
+  addTranscriptEntry("user", hanzi, { text_en: probe.meaning || "" });
   renderTranscript();
   ttsSpeak({ text: hanzi, lang: "zh-CN" });
 
@@ -1785,7 +2152,7 @@ async function runProbeTurn(probe) {
   }
   const stub = (data.frame_text || "").trim();
   if (stub) {
-    conversationTranscript.push({ role: "partner", text: stub });
+    addTranscriptEntry("partner", stub);
     renderTranscript();
     ttsSpeak({
       text: stub,
@@ -1824,7 +2191,14 @@ async function runTurn(isNext = false, opts = {}) {
       exchange_count: window._exchangeCount || 0,
       curiosity_depth: window._curiosityDepth || 0,
       ask_chain_count: window._askChainCount || 0,
-      last_partner_turn_type: window._lastPartnerTurnType || "question"
+      last_partner_turn_type: window._lastPartnerTurnType || "question",
+      same_engine_chain_count: window._sameEngineChainCount || 0,
+      same_slot_chain_count: window._sameSlotChainCount || 0,
+      last_focus_slot: window._lastFocusSlot || "",
+      pending_listening_move: window._pendingListeningMove === true,
+      listening_wait_turns: window._listeningWaitTurns || 0,
+      last_interest_level: window._lastInterestLevel || "low",
+      last_user_text: window._lastUserText || ""
     };
     if (window._learnerId) conversation_state.learner_id = window._learnerId;
     if (window._personaId) conversation_state.persona_id = window._personaId;
@@ -1923,6 +2297,13 @@ async function runTurn(isNext = false, opts = {}) {
       window._askChainCount = 0;
     }
   }
+  if (typeof data.same_engine_chain_count === "number") window._sameEngineChainCount = data.same_engine_chain_count;
+  if (typeof data.same_slot_chain_count === "number") window._sameSlotChainCount = data.same_slot_chain_count;
+  if (typeof data.last_focus_slot === "string") window._lastFocusSlot = data.last_focus_slot;
+  if (typeof data.pending_listening_move === "boolean") window._pendingListeningMove = data.pending_listening_move;
+  if (typeof data.listening_wait_turns === "number") window._listeningWaitTurns = data.listening_wait_turns;
+  if (typeof data.last_interest_level === "string") window._lastInterestLevel = data.last_interest_level;
+  if (typeof data.last_user_text === "string") window._lastUserText = data.last_user_text;
 
   const frameId = data.frame_id || selected;
   const engineId = data.engine_id ?? (payload.engine_id || engineIdFromDropdown);
@@ -1959,7 +2340,12 @@ async function runTurn(isNext = false, opts = {}) {
   window._currentFrameText = (fallbackText && fallbackText.trim()) ? fallbackText.trim() : "";
   // Phase 8: append partner question to transcript when we show a new question
   if (window._currentFrameText) {
-    conversationTranscript.push({ role: "partner", text: window._currentFrameText });
+    addTranscriptEntry("partner", window._currentFrameText, {
+      text_en: data.frame_text_en || "",
+      pinyin: data.frame_pinyin || "",
+      frame_id: frameId,
+      turn_uid: payload.turn_uid,
+    });
     renderTranscript();
   }
   // Auto-play active sentence (most people better at hearing than reading)
@@ -2007,6 +2393,12 @@ async function runTurn(isNext = false, opts = {}) {
   } else {
     hideProbeRow();
   }
+  // Direction actions for question reversal/why
+  _directionCaps = {
+    supports_reverse: data.supports_reverse === true,
+    supports_why: data.supports_why === true
+  };
+  renderDirectionButtons();
   renderHintAffordance(hintAffordance, turnUid, "tap");
   
   // Wire hint button click: use current turn so recovery (and 你呢？) hint isn't reset to frame
@@ -2091,6 +2483,41 @@ window.addEventListener("load", async () => {
     loadRecoveryPhrases(),
   ]);
   if (dataBuildInfoEl) dataBuildInfoEl.textContent = `Data: ${UI_DATA_BUILD_LABEL}`;
+  const displayModeEl = document.getElementById("transcriptDisplayMode");
+  if (displayModeEl) {
+    displayModeEl.value = transcriptDisplayMode;
+    displayModeEl.addEventListener("change", (e) => {
+      transcriptDisplayMode = e.target.value === "zh_en" ? "zh_en" : "zh";
+      renderTranscript();
+    });
+  }
+  const replaySpeedEl = document.getElementById("transcriptReplaySpeed");
+  if (replaySpeedEl) {
+    replaySpeedEl.value = String(transcriptReplaySpeed.toFixed(1));
+    replaySpeedEl.addEventListener("change", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!Number.isNaN(v) && v > 0) transcriptReplaySpeed = v;
+    });
+  }
+  const stopReplayBtn = document.getElementById("stopReplayBtn");
+  if (stopReplayBtn) {
+    stopReplayBtn.addEventListener("click", () => stopTranscriptReplay());
+  }
+  const segmentModeToggle = document.getElementById("segmentModeToggle");
+  if (segmentModeToggle) {
+    segmentModeToggle.checked = transcriptSegmentMode;
+    segmentModeToggle.addEventListener("change", (e) => {
+      transcriptSegmentMode = !!e.target.checked;
+      if (!transcriptSegmentMode) transcriptSelectedLineIds = [];
+      updateReplaySelectedButton();
+      renderTranscript();
+    });
+  }
+  const replaySelectedBtn = document.getElementById("replaySelectedBtn");
+  if (replaySelectedBtn) {
+    replaySelectedBtn.addEventListener("click", () => replaySelectedTranscriptLines());
+  }
+  updateReplaySelectedButton();
   // Phase 7.4: Speak-first — actually listen (Web Speech API), then either advance turn or show recovery
   const LISTEN_BEFORE_RECOVERY_MS = 7000;
   document.getElementById("showOptionsBtn")?.addEventListener("click", () => {
@@ -2103,7 +2530,6 @@ window.addEventListener("load", async () => {
     const options = (window._tapOptions && window._tapOptions.length > 0)
       ? window._tapOptions
       : (Array.isArray(optionsFromFrame) ? optionsFromFrame : []);
-    const wasInReadMode = _uiMode === "READ";
     if (btn) btn.textContent = "Listening…";
     if (options.length === 0) {
       emitUITrace({ type: "SPEECH_LISTEN_OPTIONS", timestamp: new Date().toISOString(), payload: { frame_id: frameId, option_count: 0, warning: "No options to match against; use Run Turn first or check frame_options" } });
@@ -2113,8 +2539,8 @@ window.addEventListener("load", async () => {
     const { transcript, matchedOption } = await listenForResponse(options, LISTEN_BEFORE_RECOVERY_MS);
     emitUITrace({ type: "SPEECH_RESULT", timestamp: new Date().toISOString(), payload: { transcript: transcript || "", transcript_length: (transcript || "").length, matched: !!matchedOption } });
     if (btn) {
-      if (_uiMode === "RESPOND") btn.textContent = "\uD83C\uDFA4";
-      else btn.textContent = "Speak your answer";
+      btn.textContent = "\uD83C\uDFA4";
+      btn.title = "Speak your answer";
     }
     if (matchedOption) {
       window._consecutiveNotUnderstood = 0;
@@ -2130,7 +2556,7 @@ window.addEventListener("load", async () => {
         const toSelect = optionsContainer.querySelector(`.option-panel[data-card-id="${(matchedOption.card_id || "").replace(/"/g, "")}"]`);
         if (toSelect) toSelect.classList.add("selected");
       }
-      conversationTranscript.push({ role: "user", text: (matchedOption.hanzi || "").trim() });
+      addTranscriptEntry("user", (matchedOption.hanzi || "").trim(), { text_en: matchedOption.meaning || "" });
       renderTranscript();
       const saidText = (matchedOption.hanzi || "").trim();
       window._lastAnswer = { frame_id: frameId, selected_option_hanzi: saidText, selected_option_meaning: matchedOption.meaning || undefined };
@@ -2148,11 +2574,16 @@ window.addEventListener("load", async () => {
     }
     // No option match but user said something substantial — accept and advance to sustain conversation (no "correct answer" required)
     const saidTrimmed = (transcript && typeof transcript === "string") ? transcript.trim() : "";
-    const substantialAnswer = saidTrimmed.length >= 2; // e.g. "意思是光明" or "快乐" — accept and move on
+    const unmatchedDecision = classifyUnmatchedFreeAnswerDecision(saidTrimmed, options, frameId);
+    const substantialAnswer = unmatchedDecision.accept;
     if (substantialAnswer) {
       window._consecutiveNotUnderstood = 0;
-      emitUITrace({ type: "SPEECH_ACCEPTED_AS_ANSWER", timestamp: new Date().toISOString(), payload: { transcript: saidTrimmed, matched: false } });
-      conversationTranscript.push({ role: "user", text: saidTrimmed });
+      emitUITrace({
+        type: "SPEECH_ACCEPTED_AS_ANSWER",
+        timestamp: new Date().toISOString(),
+        payload: { transcript: saidTrimmed, matched: false, unmatched_decision_reason: unmatchedDecision.reason, frame_id: frameId }
+      });
+      addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
       window._lastAnswer = { frame_id: frameId, submitted_text: saidTrimmed };
       ttsSpeak({
@@ -2168,12 +2599,16 @@ window.addEventListener("load", async () => {
       return;
     }
     // Not understood: update conversation with what we heard and partner's recovery (Phase 9: improve decision so reasonable answers aren't treated as not understood)
-    emitUITrace({ type: "SPEECH_NOT_UNDERSTOOD", timestamp: new Date().toISOString(), payload: { transcript } });
-    conversationTranscript.push({ role: "user", text: (transcript && transcript.trim()) ? transcript.trim() : "[couldn't understand]" });
+    emitUITrace({
+      type: "SPEECH_NOT_UNDERSTOOD",
+      timestamp: new Date().toISOString(),
+      payload: { transcript, unmatched_decision_reason: unmatchedDecision.reason, frame_id: frameId }
+    });
+    addTranscriptEntry("user", (transcript && transcript.trim()) ? transcript.trim() : "[couldn't understand]");
     const lastRecoveryId = window._lastRecoveryPhraseId || null;
     const phrase = getRecoveryPhraseForNotUnderstood(lastRecoveryId);
     window._lastRecoveryPhraseId = phrase.id;
-    conversationTranscript.push({ role: "partner", text: phrase.hanzi });
+    addTranscriptEntry("partner", phrase.hanzi);
     renderTranscript();
     const recoverySegments = (phrase.hanzi || "").split("").map((c) => ({ t: c }));
     setActivePartnerStatement(phrase.hanzi, "recovery", recoverySegments);
@@ -2226,6 +2661,10 @@ window.addEventListener("load", async () => {
 
 runBtn.addEventListener("click", () => runTurn(false));
 if (nextBtn) nextBtn.addEventListener("click", () => runTurn(true));
+const reverseBtn = document.getElementById("reverseBtn");
+if (reverseBtn) reverseBtn.addEventListener("click", () => runDirectionTurn("reverse"));
+const whyBtn = document.getElementById("whyBtn");
+if (whyBtn) whyBtn.addEventListener("click", () => runDirectionTurn("why"));
 const changeTopicBtn = document.getElementById("changeTopicBtn");
 if (changeTopicBtn) changeTopicBtn.addEventListener("click", () => runTurn(true, { prefer_bridge: true }));
 if (playBtn) {

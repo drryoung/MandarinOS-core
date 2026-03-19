@@ -33,6 +33,24 @@
           <div class="conversation-panel">
             <div id="transcriptPanel" class="transcript-panel" role="log" aria-label="Record of what was said">
               <div class="transcript-panel-label">Record of what was said</div>
+              <div class="transcript-toolbar">
+                <label for="transcriptDisplayMode">Display</label>
+                <select id="transcriptDisplayMode" aria-label="Transcript display mode">
+                  <option value="zh">Chinese only</option>
+                  <option value="zh_en">Show English</option>
+                </select>
+                <label for="transcriptReplaySpeed">Speed</label>
+                <select id="transcriptReplaySpeed" aria-label="Transcript replay speed">
+                  <option value="0.8">0.8x</option>
+                  <option value="1.0" selected>1.0x</option>
+                  <option value="1.2">1.2x</option>
+                </select>
+                <label for="segmentModeToggle">Segment</label>
+                <input id="segmentModeToggle" type="checkbox" aria-label="Enable segment selection" />
+                <button id="replaySelectedBtn" type="button" disabled aria-label="Replay selected lines">Replay selected</button>
+                <button id="stopReplayBtn" type="button" style="display:none;" aria-label="Stop replay">Stop</button>
+              </div>
+              <div id="replayStatus" class="replay-status" style="display:none;" aria-live="polite"></div>
               <div id="transcriptContent" class="transcript-content"></div>
             </div>
             <div class="current-turn">
@@ -40,14 +58,16 @@
               <div class="frame-sentence-row">
                 <div id="frameSentence" class="frame-sentence"></div>
                 <button id="playQuestionBtn" type="button" class="play-question-speaker" title="Speak the question" aria-label="Play question">🔊</button>
+                <button id="hintBtn" class="play-question-speaker hint-icon-btn" style="display:none;" title="Show hints" aria-label="Hint">?</button>
               </div>
               <div id="hintPinyin"  class="hint-row hint-pinyin"  style="display:none;"></div>
               <div id="hintMeaning" class="hint-row hint-meaning"  style="display:none;"></div>
               <div id="hintEtymology" class="hint-row hint-etymology" style="display:none;"></div>
               <div id="actionLadder" class="action-ladder">
-                <button id="tryRespondingBtn" class="action-ladder-btn" title="Speak your answer">Speak your answer</button>
+                <button id="tryRespondingBtn" class="action-ladder-btn mic-only" title="Speak your answer" aria-label="Speak your answer">🎤</button>
                 <button id="showOptionsBtn" class="action-ladder-btn action-ladder-help" title="Show response options (when stuck)">Show options</button>
-                <button id="hintBtn" class="action-ladder-btn hint-btn-inline" style="display:none;">Hint →</button>
+                <button id="reverseBtn" class="action-ladder-btn" style="display:none;" title="Ask back: and you?">Ask back</button>
+                <button id="whyBtn" class="action-ladder-btn" style="display:none;" title="Ask why">Ask why</button>
               </div>
               <div id="optionsContainerParent"></div>
             </div>
@@ -134,8 +154,18 @@
       .action-ladder-btn:hover { background: #e8f0fe; }
       .action-ladder-help { border-color: #e67e22; color: #e67e22; }
       .action-ladder-help:hover { background: #fef3e2; }
-      .action-ladder-btn.mic-only {
-        padding: 6px 12px; font-size: 1.1rem; min-width: auto;
+      .action-ladder-btn.mic-only { padding: 8px 12px; font-size: 1.1rem; min-width: 44px; }
+      .hint-icon-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        padding: 0;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        line-height: 1;
       }
       .ui-mode-read #showOptionsBtn { display: inline-flex; }
       .ui-mode-respond #showOptionsBtn { display: none; }
@@ -180,7 +210,7 @@
       .transcript-line { margin-bottom: 6px; display: flex; align-items: baseline; flex-wrap: wrap; }
       .transcript-line .turn-marker {
         font: 0.9rem Arial, Helvetica, sans-serif; font-weight: 600;
-        min-width: 5.5em; flex-shrink: 0; margin-right: 6px;
+        min-width: 3.7em; flex-shrink: 0; margin-right: 1px;
       }
       .transcript-line.partner .turn-marker { color: #1e40af; }
       .transcript-line.user .turn-marker { color: #0f766e; }
@@ -190,6 +220,52 @@
       .transcript-text.transcript-en { font: 0.9rem Arial, Helvetica, sans-serif; }
       .transcript-panel-label {
         font: 0.85rem Arial, Helvetica, sans-serif; color: #6b7280; margin-bottom: 6px;
+      }
+      .transcript-toolbar {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .transcript-toolbar label {
+        font: 0.8rem Arial, Helvetica, sans-serif; color: #6b7280;
+      }
+      .transcript-toolbar select, .transcript-toolbar button {
+        font: 0.8rem Arial, Helvetica, sans-serif;
+        padding: 3px 6px;
+      }
+      .replay-status {
+        font: 0.8rem Arial, Helvetica, sans-serif;
+        color: #1e40af;
+        margin-bottom: 6px;
+      }
+      .transcript-line {
+        justify-content: space-between;
+      }
+      .transcript-main {
+        display: flex; align-items: baseline; flex-wrap: wrap; min-width: 0; flex: 1;
+      }
+      .transcript-actions {
+        display: flex; gap: 4px; flex-shrink: 0;
+      }
+      .transcript-action-btn {
+        font: 0.75rem Arial, Helvetica, sans-serif;
+        border: 1px solid #9ca3af;
+        background: #f9fafb;
+        border-radius: 4px;
+        padding: 1px 5px;
+        cursor: pointer;
+      }
+      .transcript-action-btn:hover { background: #e5e7eb; }
+      .transcript-line.active-replay {
+        background: rgba(37, 99, 235, 0.08);
+        border-radius: 6px;
+      }
+      .transcript-line-detail {
+        margin-left: 3.95em;
+        font: 0.85rem Arial, Helvetica, sans-serif;
+        color: #374151;
+      }
+      .transcript-select {
+        margin-right: 6px;
       }
       /* Active conversation: white window with border to draw attention; buttons live here */
       .current-turn {
