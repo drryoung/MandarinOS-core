@@ -36,9 +36,19 @@ RECALL_INTERVAL_TURNS = 5  # reserved for future drill mode
 # Phase 10.5 (behaviour tuning, revised): reaction micro-layer, contextual curiosity gating, blended reciprocity,
 # slot/topic-follow-up preference, weak-loop avoidance. No schema changes required.
 P_REACTION_AFTER_MEANINGFUL = 0.7
-P_LOOP_WHEN_TRIGGERED = 0.6
+P_LOOP_WHEN_TRIGGERED = 0.75  # prefer loop/curiosity on same topic before bridging
 MAX_CURIOSITY_DEPTH = 2
 EARLY_EXCHANGES = 3
+# Interest-driven responsiveness tuning (10.5 refinement)
+INTEREST_MEDIUM_THRESHOLD = 1
+INTEREST_HIGH_THRESHOLD = 3
+P_CURIOUS_WHEN_INTEREST_MED = 0.60
+P_CURIOUS_WHEN_INTEREST_HIGH = 0.80
+P_BRIDGE_WHEN_INTEREST_HIGH = 0.70
+MAX_SAME_ENGINE_AFTER_INTEREST = 1
+MAX_SAME_SLOT_CHAIN_AFTER_INTEREST = 1
+INTEREST_FORCE_WINDOW_TURNS = 1
+MIN_SAME_ENGINE_CHAIN_BEFORE_BRIDGE = 2
 
 print("[ui_server] REPO_ROOT =", REPO_ROOT)
 print("[ui_server] UI_DIR    =", UI_DIR)
@@ -111,10 +121,12 @@ def _engine_frame_ids(engine_norm: str) -> List[str]:
 # Order follows spec: core → treasure (follow-ups) → loop so we use treasure/loop questions, not just core.
 # P2 question frames (大家一般怎么叫你？, 你觉得{CITY}生活怎么样？, etc.) are included so we don't exhaust after 2–3 questions.
 _FRAME_ORDER: dict = {
-    "identity": ["f_ask_you_name", "f_ask_name_meaning", "p2_id_2", "p2_id_4", "p2_id_5"],  # core then treasure/loop (怎么叫你, 名字怎么样, 意义)
+    # Identity flow: name → how people call you → meaning → evaluations.
+    "identity": ["f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_4", "p2_id_5"],  # core then treasure/loop
     "place": ["f_from_where", "f_place_like_there", "frame.location.live_question", "p2_pl_1", "p2_pl_2", "p2_pl_3", "p2_pl_4"],  # core then treasure/loop (生活怎么样, 好吃的, 喜欢去, 方便吗)
     "family": ["f_have_family", "f_have_siblings", "p2_fa_1", "p2_fa_2", "p2_fa_5"],  # core then treasure/loop (跟家人住, 多久见, 周末做什么)
-    "work": ["f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_4", "p2_wk_5"],  # core then treasure/loop (几点下班, 忙不忙, 怎么安排, 怎么解决)
+    # Work: compact high-interest sequence approved by user.
+    "work": ["f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5"],
     "hobby": ["f_what_hobby", "f_like_do_what", "f_often_do", "f_difficult_ma", "f_recommend_ma", "f_weekend_do", "f_like_chinese_culture", "f_like_what", "f_collect_what", "p2_hb_1", "p2_hb_2", "p2_hb_4", "p2_hb_5"],  # core → treasure → weekend/culture
     "travel": ["f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4"],  # core then treasure/loop (哪些国家, 最喜欢哪里, 好玩的, 旅行怎么样)
     "food": ["f_food_what_good", "f_food_famous_dish", "f_food_tasty", "f_food_like_spicy", "f_food_expensive"],  # core → treasure
@@ -123,7 +135,46 @@ _FRAME_ORDER: dict = {
 # A frame id may only be chosen if all of its "after" frames are in recent_frame_ids (already asked).
 _FRAME_AFTER: dict = {
     "f_ask_name_meaning": ["f_ask_you_name"],  # don't ask name meaning before asking name
+    # Identity follow-up assumes a name exists
+    "p2_id_2": ["f_ask_you_name"],
 }
+
+# "OR" dependencies: any one prerequisite is sufficient.
+# Place follow-ups need an established referent ("there"/CITY) first; prevents out-of-context “那里”.
+_FRAME_AFTER_ANY: dict = {
+    "f_place_like_there": ["f_from_where", "frame.location.live_question"],
+    "p2_pl_1": ["f_from_where", "frame.location.live_question"],
+    "p2_pl_2": ["f_from_where", "frame.location.live_question"],
+    "p2_pl_3": ["f_from_where", "frame.location.live_question"],
+    "p2_pl_4": ["f_from_where", "frame.location.live_question"],
+}
+
+
+def _deictic_context_fresh(fid: str, recent_frame_ids: list, window: int = 4) -> bool:
+    """
+    Extra recency guard for deictic/place-referential questions like "那里".
+    Even if a place anchor exists somewhere in history, require it to be recent.
+    """
+    anchors = {
+        "f_place_like_there": ["f_from_where", "frame.location.live_question", "p2_pl_4", "p2_pl_2"],
+    }.get(fid)
+    if not anchors:
+        return True
+    recent_tail = list(recent_frame_ids or [])[-max(1, int(window)):]
+    return any(a in recent_tail for a in anchors)
+
+
+def _frame_deps_satisfied(fid: str, recent: set, recent_frame_ids: Optional[list] = None) -> bool:
+    """True if frame fid's AFTER/AFTER_ANY prerequisites are satisfied given recent frame ids."""
+    after_all = _FRAME_AFTER.get(fid) or []
+    if after_all and not all(dep in recent for dep in after_all):
+        return False
+    after_any = _FRAME_AFTER_ANY.get(fid) or []
+    if after_any and not any(dep in recent for dep in after_any):
+        return False
+    if not _deictic_context_fresh(fid, recent_frame_ids or []):
+        return False
+    return True
 
 
 def _engine_partner_question_frame_ids(engine_norm: str) -> List[str]:
@@ -147,7 +198,7 @@ def _engine_partner_question_frame_ids(engine_norm: str) -> List[str]:
 # Phase 9.2: which engines we can bridge to from each engine (deterministic order; from conversation specs)
 _BRIDGE_TARGETS: dict = {
     "identity": ["place", "family", "work"],
-    "place": ["identity", "family", "travel", "food"],
+    "place": ["food", "family", "work", "travel", "identity"],
     "family": ["identity", "place", "work"],
     "work": ["identity", "place", "family"],
     "hobby": ["identity", "travel", "food"],
@@ -158,6 +209,7 @@ _BRIDGE_TARGETS: dict = {
 
 # When prefer_bridge (recovery / change topic): try engines in this order so the next question feels like a natural switch (place/identity/family first), not a jump to food/travel.
 _RECOVERY_BRIDGE_ENGINE_ORDER: list = ["place", "identity", "family", "work", "hobby", "travel", "food", "life"]
+_BRIDGE_PREFIXES: list = ["对了，", "顺便问一下，", "说到这个，"]
 
 # Oxygen loop questions (canonical list from MandarinOS_conversation_ladders_full_draft_v2.md) — offered as "Ask back" when user gave an interesting answer.
 _OXYGEN_LOOP_PROBES: list = [
@@ -186,7 +238,6 @@ _PROBE_STUB_DEFAULT: str = "嗯，好问题！"
 _WEAK_LOOP_FRAME_IDS: set = {
     # From docs/specs/PHASE_10_5_BEHAVIOUR_IMPLEMENTATION_PLAN.md §6
     "p2_pl_1", "p2_pl_3",
-    "p2_wk_1", "p2_wk_2", "p2_wk_4", "p2_wk_5",
     "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4",
 }
 
@@ -214,6 +265,7 @@ _OXYGEN_IDS_BY_SLOT: dict = {
     "CITY": ["zenmeyang", "nali"],
     "JOB":  ["zenmeyang"],
     "DISH": ["weishenme", "xihuan_ma"],
+    "NAME": ["weishenme"],
 }
 
 # Slot/topic-specific follow-up preferences (attempt before generic engine ladder).
@@ -221,10 +273,13 @@ _SLOT_FOLLOWUP_PREFERENCES: dict = {
     # CITY: prefer convenience before “life怎么样” because p2_pl_1 is weak
     # Also keep p2_pl_3 out of the slot path (known weak).
     "CITY": ["p2_pl_4", "p2_pl_2", "f_place_like_there", "p2_pl_1"],
-    # JOB: prefer work-experience follow-ups (p2_wk_* are often weak; keep as last resort)
-    "JOB":  ["p2_wk_3", "p2_wk_1", "f_like_work"],
+    # JOB: compact high-interest sequence approved by user.
+    "JOB":  ["f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5"],
     # DISH: prefer taste/spicy before generic “famous dish”
     "DISH": ["f_food_tasty", "f_food_like_spicy", "f_food_famous_dish"],
+    "NAME": ["p2_id_4", "p2_id_5"],
+    # TRAVEL: deepen on destination/motivation before generic country checklist.
+    "TRAVEL": ["f_want_go_where", "p2_tr_2", "p2_tr_3", "p2_tr_4", "p2_tr_1"],
 }
 
 
@@ -239,6 +294,45 @@ def _stable_pick(seq: list, seed: str) -> Optional[str]:
     return seq[h % len(seq)]
 
 
+def _looks_food_related_answer(text: str) -> bool:
+    if not text:
+        return False
+    cues = (
+        "好吃", "吃", "饺子", "火锅", "牛肉", "羊肉", "鸡肉", "鱼", "面", "米饭",
+        "菜", "辣", "甜", "咸", "酸", "汤", "烧烤", "奶茶", "咖啡"
+    )
+    return any(c in text for c in cues)
+
+
+def _looks_travel_related_answer(text: str) -> bool:
+    if not text:
+        return False
+    cues = ("去过", "想去", "旅行", "旅游", "国家", "城市", "地方", "机票", "景点", "出国")
+    return any(c in text for c in cues)
+
+
+def _is_unscripted_substantive_answer(last_answer: Optional[dict], slot_names: List[str]) -> bool:
+    """
+    Generic probe-first rule:
+    If user gives non-trivial free text but we failed to infer slots, try one curiosity probe
+    before skipping/bridging away.
+    """
+    if slot_names:
+        return False
+    if not isinstance(last_answer, dict):
+        return False
+    # Prefer free-typed content.
+    submitted = (last_answer.get("submitted_text") or "").strip()
+    if not submitted:
+        return False
+    if len(submitted) < 4:
+        return False
+    # Obvious low-information fillers.
+    if submitted in ("不知道", "还好", "一般", "好", "嗯", "可以"):
+        return False
+    return True
+
+
 def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
     """Best-effort: infer slot names from the user's answer frame (question frame_id in last_answer)."""
     if not last_answer or not isinstance(last_answer, dict):
@@ -247,13 +341,159 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
     # selected option's card_id often points to a user frame with slots; try to infer via that mapping when possible.
     # We only have selected_option_hanzi/meaning here; so use memory capture triggers + known ask frame ids.
     fid = (last_answer.get("frame_id") or "").strip()
-    if fid == "frame.location.live_question":
-        return ["CITY"]
-    if fid == "f_what_work":
-        return ["JOB"]
-    if fid == "f_food_what_good":
-        return ["DISH"]
-    return []
+    txt = _answer_text_from_last_answer(last_answer)
+
+    slots: List[str] = []
+    if fid in ("f_ask_you_name", "p2_id_2", "f_ask_name_meaning"):
+        slots.append("NAME")
+    if fid in ("f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5"):
+        slots.append("JOB")
+    if fid in ("f_food_what_good", "f_food_tasty", "f_food_like_spicy", "f_food_famous_dish", "f_food_expensive"):
+        slots.append("DISH")
+    if fid in ("f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4"):
+        slots.append("TRAVEL")
+    if fid in ("f_from_where", "frame.location.live_question", "p2_pl_1", "p2_pl_2", "p2_pl_3", "p2_pl_4", "f_place_like_there"):
+        slots.append("CITY")
+
+    # Soft-chaining: if user answer itself names food while in place thread, prioritize DISH.
+    if _looks_food_related_answer(txt) and "DISH" not in slots:
+        slots.insert(0, "DISH")
+    elif fid == "p2_pl_2" and "DISH" not in slots:
+        # p2_pl_2 asks about food in {CITY}; treat answers as dish/topic-bearing by default.
+        slots.insert(0, "DISH")
+    if _looks_travel_related_answer(txt) and "TRAVEL" not in slots:
+        slots.insert(0, "TRAVEL")
+
+    # Deduplicate preserving order.
+    dedup: List[str] = []
+    for s in slots:
+        if s not in dedup:
+            dedup.append(s)
+    return dedup
+
+
+def _norm_text(s: Optional[str]) -> str:
+    return (s or "").strip()
+
+
+def _answer_text_from_last_answer(last_answer: Optional[dict]) -> str:
+    if not isinstance(last_answer, dict):
+        return ""
+    return _norm_text(
+        last_answer.get("submitted_text")
+        or last_answer.get("selected_option_hanzi")
+        or ""
+    )
+
+
+def _stable_gate(seed: str) -> int:
+    gate = 0
+    for ch in (seed or ""):
+        gate = (gate * 131 + ord(ch)) % 1000
+    return gate
+
+
+def _score_answer_interest(
+    last_answer: Optional[dict],
+    slot_names: List[str],
+    new_memory_written: bool,
+    cs: dict,
+) -> int:
+    text = _answer_text_from_last_answer(last_answer)
+    score = 0
+    if slot_names:
+        score += 2
+    if new_memory_written:
+        score += 1
+    if len(text) >= 4:
+        score += 1
+    if any(k in text for k in ("因为", "所以", "觉得", "但是", "最", "其实")):
+        score += 1
+    prev = _norm_text(cs.get("last_user_text") if isinstance(cs, dict) else "")
+    if text and prev and text == prev:
+        score -= 1
+    if text in ("好", "嗯", "不知道"):
+        score -= 1
+    return max(0, score)
+
+
+def _classify_interest(score: int) -> str:
+    if score >= INTEREST_HIGH_THRESHOLD:
+        return "high"
+    if score >= INTEREST_MEDIUM_THRESHOLD:
+        return "medium"
+    return "low"
+
+
+def _topic_chain_exceeded(cs: dict, slot_names: List[str]) -> bool:
+    same_engine_chain = int(cs.get("same_engine_chain_count") or 0)
+    same_slot_chain = int(cs.get("same_slot_chain_count") or 0)
+    if same_engine_chain > MAX_SAME_ENGINE_AFTER_INTEREST:
+        return True
+    if slot_names and same_slot_chain > MAX_SAME_SLOT_CHAIN_AFTER_INTEREST:
+        return True
+    return False
+
+
+def _should_force_listening_move(cs: dict, interest_level: str) -> bool:
+    if interest_level == "high":
+        return True
+    if interest_level == "medium":
+        pending = cs.get("pending_listening_move") is True
+        turns_waited = int(cs.get("listening_wait_turns") or 0)
+        return pending and turns_waited >= INTEREST_FORCE_WINDOW_TURNS
+    return False
+
+
+def _is_user_question(last_answer: Optional[dict]) -> bool:
+    """
+    Best-effort detection for when the user's turn is a question (counter-question / repair).
+    This is important for early reciprocity: if the user asks “怎么叫你呢？”, we should answer that
+    before continuing the engine ladder.
+    """
+    if not last_answer or not isinstance(last_answer, dict):
+        return False
+    # Prefer submitted free text; fall back to selected option hanzi.
+    text = (last_answer.get("submitted_text") or "").strip()
+    if not text:
+        text = (last_answer.get("selected_option_hanzi") or "").strip()
+    if not text:
+        return False
+    if "？" in text or "?" in text:
+        return True
+    # Common interrogative markers without explicit punctuation
+    starters = ("怎么", "为什么", "哪里", "谁", "什么时候", "多少", "几", "哪儿", "哪裡")
+    if text.startswith(starters):
+        return True
+    if text.endswith("吗") or ("吗" in text and len(text) <= 8):
+        return True
+    return False
+
+
+def _assistant_name_from_persona(persona: Optional[dict]) -> str:
+    # Keep deterministic and short; don't rely on extra schema.
+    if persona and isinstance(persona, dict):
+        n = (persona.get("name") or persona.get("assistant_name") or "").strip()
+        if n:
+            return n
+    return "MandarinOS"
+
+
+def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[dict]) -> Optional[str]:
+    """
+    Return a short prefix that answers common counter-questions without adding new API turns.
+    We only handle the high-value early case: user asks what to call the app.
+    """
+    if not _is_user_question(last_answer):
+        return None
+    t = (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
+    if not t:
+        return None
+    # If user asked how to address the app, answer with app name.
+    if ("叫你" in t) or ("怎么叫" in t) or ("你叫什么" in t) or ("你叫啥" in t):
+        an = _assistant_name_from_persona(persona)
+        return f"你可以叫我{an}。"
+    return None
 
 
 def _should_surface_curiosity(cs: dict, *, meaningful: bool, last_partner_was_loop: bool, last_partner_had_reaction: bool) -> bool:
@@ -362,6 +602,35 @@ def _probe_stub_for_persona(probe_id: str, persona: Optional[dict]) -> str:
     return base
 
 
+def _direction_stub(intent: str, engine_id: str, last_partner_frame_id: str, persona: Optional[dict]) -> str:
+    """Short partner stub for direction actions (reverse/why), then client resumes thread."""
+    eng = (engine_id or "").strip().lower()
+    fid = (last_partner_frame_id or "").strip()
+    if intent == "reverse":
+        if eng == "identity":
+            return f"我呢，我叫{_assistant_name_from_persona(persona)}。"
+        if eng == "work":
+            return "我呢，我挺喜欢我的工作。"
+        if eng == "place":
+            return "我呢，我觉得这里挺方便。"
+        if eng == "family":
+            return "我呢，我常跟家人联系。"
+        return "我呢，也差不多。"
+    if intent == "why":
+        if fid in ("p2_wk_1",):
+            return "因为我可以帮助别人。"
+        if fid in ("p2_wk_2",):
+            return "刚开始有点难。"
+        if fid in ("p2_wk_3",):
+            return "因为时间不够。"
+        if fid in ("p2_wk_4",):
+            return "还可以，比较稳定。"
+        if fid in ("p2_wk_5",):
+            return "推荐，可以学很多。"
+        return "因为我觉得很有意思。"
+    return "嗯。"
+
+
 def _should_suppress_ask_frame(
     frame_id: str,
     memory: Optional[dict],
@@ -384,6 +653,34 @@ def _should_suppress_ask_frame(
     return bool((memory.get(field) or "").strip())
 
 
+def _has_learner_name(memory: Optional[dict]) -> bool:
+    if not memory or not isinstance(memory, dict):
+        return False
+    return bool((memory.get("learner_name") or "").strip())
+
+
+def _is_greeting_text(text: str) -> bool:
+    t = (text or "").strip()
+    if not t:
+        return False
+    # Keep simple + conservative; treat very short greetings as greeting turns.
+    greetings = {"你好", "您好", "嗨", "哈喽", "哈囉", "hi", "hello", "hey"}
+    if t.lower() in greetings:
+        return True
+    if len(t) <= 4 and any(g in t for g in ("你好", "您好", "嗨", "哈喽", "哈囉")):
+        return True
+    return False
+
+
+def _is_greeting_answer(last_answer: Optional[dict]) -> bool:
+    if not last_answer or not isinstance(last_answer, dict):
+        return False
+    text = (last_answer.get("submitted_text") or "").strip()
+    if not text:
+        text = (last_answer.get("selected_option_hanzi") or "").strip()
+    return _is_greeting_text(text)
+
+
 def _select_next_frame_bridge(current_engine: str, recent_frame_ids: list, use_recovery_order: bool = False, memory: Optional[dict] = None) -> Optional[str]:
     """
     Phase 9.2: bridge to another engine. Only used after MIN_TURNS_BEFORE_BRIDGE turns in current engine.
@@ -398,7 +695,18 @@ def _select_next_frame_bridge(current_engine: str, recent_frame_ids: list, use_r
         if use_recovery_order
         else _BRIDGE_TARGETS.get(engine_norm) or []
     )
+    # Reduce ping-pong: try engines we haven't visited recently first (so we don't jump A->B->A->B).
     recent_list = recent_frame_ids or []
+    if recent_list and targets:
+        last_index_by_engine = {}
+        for i, fid in enumerate(recent_list):
+            fr = _frames_by_id.get(fid) or {}
+            eng = (fr.get("engine") or "").strip().lower()
+            if eng:
+                last_index_by_engine[eng] = i
+        def _recent_rank(e):
+            return last_index_by_engine.get((e or "").strip().lower(), -1)
+        targets = sorted(targets, key=_recent_rank)  # least recently used first
     for target_engine in targets:
         target_norm = (target_engine or "").strip().lower()
         if target_norm == engine_norm:
@@ -409,6 +717,8 @@ def _select_next_frame_bridge(current_engine: str, recent_frame_ids: list, use_r
             candidates = _engine_frame_ids(target_norm)
         for fid in candidates:
             if fid not in recent:
+                if not _frame_deps_satisfied(fid, recent, recent_list):
+                    continue
                 if memory is not None and _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS):
                     continue
                 return fid
@@ -430,11 +740,9 @@ def _select_next_frame_ladder(current_engine: str, recent_frame_ids: list, memor
         same_engine = _engine_frame_ids(engine_norm)
 
     # Tier 1: same engine, exclude recent, and only offer frame if its "after" deps are satisfied
-    def _deps_satisfied(fid: str) -> bool:
-        after = _FRAME_AFTER.get(fid) or []
-        return all(dep in recent for dep in after)
-
     recent_list = list(recent_frame_ids or [])
+    def _deps_satisfied(fid: str) -> bool:
+        return _frame_deps_satisfied(fid, recent, recent_list)
     def _not_suppressed(fid: str) -> bool:
         if memory is None:
             return True
@@ -491,11 +799,9 @@ def _select_next_frame_ladder_avoiding(
     engine_norm = (current_engine or "").strip().lower()
     same_engine = _engine_partner_question_frame_ids(engine_norm) or _engine_frame_ids(engine_norm)
 
-    def _deps_satisfied(fid: str) -> bool:
-        after = _FRAME_AFTER.get(fid) or []
-        return all(dep in recent for dep in after)
-
     recent_list = list(recent_frame_ids or [])
+    def _deps_satisfied(fid: str) -> bool:
+        return _frame_deps_satisfied(fid, recent, recent_list)
 
     def _not_suppressed(fid: str) -> bool:
         if memory is None:
@@ -580,6 +886,36 @@ class Handler(BaseHTTPRequestHandler):
 
             print(f"[ui_server] /api/run_turn: {payload}")
 
+            # Direction actions: learner asks back/why, partner gives short stub, then UI resumes thread.
+            direction_intent = (payload.get("direction_intent") or "").strip().lower()
+            if direction_intent in ("reverse", "why"):
+                cs = payload.get("conversation_state") or {}
+                persona_id = (payload.get("persona_id") or cs.get("persona_id") or "").strip() or None
+                persona = _get_persona(persona_id) if _get_persona else None
+                engine_id = (cs.get("current_engine") or "unknown").strip()
+                last_partner_frame_id = (cs.get("last_partner_frame_id") or "").strip()
+                stub = _direction_stub(direction_intent, engine_id, last_partner_frame_id, persona)
+                response = {
+                    "turn_uid": payload.get("turn_uid", ""),
+                    "engine_id": engine_id,
+                    "frame_id": "direction_response",
+                    "frame_text": stub,
+                    "frame_pinyin": "",
+                    "frame_text_en": "",
+                    "result": "ok",
+                    "options": [],
+                    "option_count": 0,
+                    "is_direction_response": True,
+                    "thread_return": "resume_question",
+                }
+                data = json.dumps(response, ensure_ascii=False).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+
             # Oxygen loop: user asked a probe (为什么？, 谁？, etc.) — return stub partner response (persona-consistent when available)
             probe_id = (payload.get("probe_id") or "").strip()
             if probe_id:
@@ -619,9 +955,21 @@ class Handler(BaseHTTPRequestHandler):
             # Phase 10.5 behaviour debug/telemetry (optional response fields; UI can ignore)
             reaction_prefix_text = ""
             reaction_used_fallback = False
+            bridge_prefix_text = ""
             loop_attempted = False
             chosen_turn_type = "question"
             new_memory_written = False
+            interest_score = 0
+            interest_level = "low"
+            pending_listening_move = False
+            listening_wait_turns = 0
+            listening_move_selected = "none"
+            listening_move_reason = ""
+            same_engine_chain_count = 0
+            same_slot_chain_count = 0
+            last_focus_slot = ""
+            last_user_text = ""
+            last_interest_level = "low"
 
             # Phase 9.1/9.2: next_question + conversation_state → selector; prefer_bridge/force_bridge try bridge first
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
@@ -634,6 +982,12 @@ class Handler(BaseHTTPRequestHandler):
                 curiosity_depth = int(cs.get("curiosity_depth") or 0)
                 exchange_count = int(cs.get("exchange_count") or 0)
                 ask_chain_count = int(cs.get("ask_chain_count") or 0)
+                same_engine_chain_count = int(cs.get("same_engine_chain_count") or 0)
+                same_slot_chain_count = int(cs.get("same_slot_chain_count") or 0)
+                last_focus_slot = (cs.get("last_focus_slot") or "").strip()
+                pending_listening_move = cs.get("pending_listening_move") is True
+                listening_wait_turns = int(cs.get("listening_wait_turns") or 0)
+                last_interest_level = (cs.get("last_interest_level") or "low").strip()
 
                 # Phase 10: after a response turn, capture facts and persist by learner_id
                 learner_id = (cs.get("learner_id") or "").strip() or None
@@ -658,14 +1012,40 @@ class Handler(BaseHTTPRequestHandler):
                 last_turn_was_answer = cs.get("last_turn_was_answer") is True
                 slot_names = _infer_slot_names_from_answer(last_answer) if last_turn_was_answer else []
                 meaningful = bool(slot_names) or bool(new_memory_written)
+                user_asked_question = _is_user_question(last_answer) if last_turn_was_answer else False
                 last_partner_was_loop = cs.get("last_partner_turn_type") == "loop_question"
                 last_partner_had_reaction = cs.get("last_partner_had_reaction") is True
+                last_answer_fid = (last_answer.get("frame_id") or "").strip() if last_turn_was_answer and isinstance(last_answer, dict) else ""
+                answer_text = _answer_text_from_last_answer(last_answer) if last_turn_was_answer else ""
+                force_food_followup = last_turn_was_answer and (not user_asked_question) and (
+                    last_answer_fid == "p2_pl_2" or _looks_food_related_answer(answer_text)
+                )
+                if force_food_followup and "DISH" not in slot_names:
+                    slot_names = ["DISH"] + slot_names
+                    meaningful = True
+                unscripted_probe_first = last_turn_was_answer and (not user_asked_question) and _is_unscripted_substantive_answer(last_answer, slot_names)
+                weak_reply = last_turn_was_answer and len(answer_text) <= 2
+                interest_score = 0
+                interest_level = "low"
+                if last_turn_was_answer:
+                    interest_score = _score_answer_interest(last_answer, slot_names, new_memory_written, cs)
+                    interest_level = _classify_interest(interest_score)
+                    # One-turn resilience: if previous turn was interesting but this answer is short,
+                    # try one more curiosity move before exiting the topic.
+                    if weak_reply and (last_interest_level in ("medium", "high")) and interest_level == "low":
+                        interest_level = "medium"
+                        interest_score = max(interest_score, INTEREST_MEDIUM_THRESHOLD)
+                    last_interest_level = interest_level
+                    if interest_level in ("medium", "high") and (not user_asked_question):
+                        pending_listening_move = True
+                        listening_wait_turns = 0
 
                 # Reaction micro-layer: we cannot emit two separate partner turns without changing API.
                 # So when reaction triggers, we optionally prepend a short reaction phrase to the next question's text.
                 reaction_prefix_text = ""
                 reaction_used_fallback = False
-                if last_turn_was_answer and meaningful:
+                # Spec §3: after ANY user answer, bias to reaction (not only when "meaningful").
+                if last_turn_was_answer:
                     # Vary with session+turn so we don't overuse generic fallbacks
                     seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}"
                     # Prefer reaction frame if available, else topic-specific fallback text
@@ -677,16 +1057,102 @@ class Handler(BaseHTTPRequestHandler):
                         if gate < int(P_REACTION_AFTER_MEANINGFUL * 1000):
                             rid = _pick_reaction_frame_id(current_engine)
                             if rid:
-                                reaction_prefix_text = (_frames_by_id.get(rid) or {}).get("text") or ""
+                                # Avoid repeating "nice to meet you" beyond the very start; it feels interrogative.
+                                if (current_engine or "").strip().lower() == "identity" and exchange_count >= 1 and rid == "f_nice_to_meet":
+                                    reaction_prefix_text = _pick_reaction_text(current_engine, seed)
+                                    reaction_used_fallback = True
+                                else:
+                                    reaction_prefix_text = (_frames_by_id.get(rid) or {}).get("text") or ""
                             else:
                                 reaction_prefix_text = _pick_reaction_text(current_engine, seed)
                                 reaction_used_fallback = True
+
+                # User-question override (spec-friendly, no schema changes):
+                # if the user asked a question (counter-question), answer it via a short prefix first.
+                persona_id = (payload.get("persona_id") or cs.get("persona_id") or "").strip() or None
+                persona = _get_persona(persona_id) if _get_persona else None
+                uq_prefix = _answer_user_question_prefix(last_answer, persona) if last_turn_was_answer else None
+                if uq_prefix:
+                    # Put the answer before any reaction so it reads naturally.
+                    reaction_prefix_text = f"{uq_prefix}{reaction_prefix_text}"
 
                 # Partner curiosity: prefer loop when triggered and depth allows, but avoid weak loop frames if possible
                 chosen = None
                 chosen_turn_type = "question"
                 loop_attempted = False
-                if last_turn_was_answer and meaningful and curiosity_depth < MAX_CURIOSITY_DEPTH:
+                listening_move_selected = "none"
+                listening_move_reason = ""
+                if force_food_followup:
+                    chosen = _pick_slot_followup_frame_id(current_engine, ["DISH"], recent, memory)
+                    if chosen:
+                        chosen_turn_type = "loop_question" if _is_loop_candidate(chosen) else "question"
+                        listening_move_selected = "loop_question" if chosen_turn_type == "loop_question" else "question"
+                        listening_move_reason = "food_followup_priority"
+                        pending_listening_move = False
+                        listening_wait_turns = 0
+                # Generic probe-first: when unscripted answer sounds substantive, try one same-topic probe
+                # before bridging away. If it misses, normal bridge logic still runs next.
+                if chosen is None and unscripted_probe_first:
+                    chosen = _select_next_frame_ladder_avoiding(
+                        current_engine,
+                        recent,
+                        avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
+                        memory=memory,
+                    )
+                    if chosen:
+                        chosen_turn_type = "loop_question" if _is_loop_candidate(chosen) else "question"
+                        listening_move_selected = "loop_question" if chosen_turn_type == "loop_question" else "question"
+                        listening_move_reason = "unscripted_probe_first"
+                        pending_listening_move = False
+                        listening_wait_turns = 0
+                if chosen is None and last_turn_was_answer and (not user_asked_question):
+                    force_listening = _should_force_listening_move(cs, interest_level)
+                    chain_exceeded = _topic_chain_exceeded(cs, slot_names)
+                    # Resilience override: after a short reply that follows a recent interesting turn,
+                    # allow one more same-topic probe before chain-cap forces a bridge.
+                    if weak_reply and (last_interest_level in ("medium", "high")):
+                        chain_exceeded = False
+                    bridge_allowed = (
+                        force_bridge
+                        or prefer_bridge
+                        or (same_engine_chain_count >= MIN_SAME_ENGINE_CHAIN_BEFORE_BRIDGE)
+                    )
+                    if pending_listening_move or force_listening or chain_exceeded:
+                        seed_base = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/interest"
+                        gate_br = _stable_gate(seed_base + "/br")
+                        p_br = P_BRIDGE_WHEN_INTEREST_HIGH if interest_level == "high" else 0.35
+                        # Curiosity-first policy: whenever we have meaningful/unscripted signal and depth allows,
+                        # attempt a same-topic probe BEFORE considering bridge.
+                        has_curiosity_signal = bool(slot_names) or bool(unscripted_probe_first) or bool(meaningful)
+                        if curiosity_depth < MAX_CURIOSITY_DEPTH and has_curiosity_signal:
+                            chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
+                            if chosen is None:
+                                chosen = _select_next_frame_ladder_avoiding(
+                                    current_engine,
+                                    recent,
+                                    avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
+                                    memory=memory,
+                                )
+                            if chosen and _is_loop_candidate(chosen):
+                                chosen_turn_type = "loop_question"
+                                curiosity_depth = min(curiosity_depth + 1, MAX_CURIOSITY_DEPTH)
+                                listening_move_selected = "loop_question"
+                                listening_move_reason = "interest_policy"
+                                pending_listening_move = False
+                                listening_wait_turns = 0
+                        # Only default to bridge when curiosity had no viable frame.
+                        if chosen is None and bridge_allowed and (force_listening or chain_exceeded or gate_br < int(p_br * 1000)):
+                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory)
+                            if chosen:
+                                chosen_turn_type = "question"
+                                listening_move_selected = "bridge"
+                                listening_move_reason = "interest_policy_or_chain_cap"
+                                pending_listening_move = False
+                                listening_wait_turns = 0
+                        if chosen is None and pending_listening_move:
+                            listening_wait_turns += 1
+                # If user asked a question, do NOT attempt loop-questioning; keep flow simple and reciprocal.
+                if chosen is None and last_turn_was_answer and (not user_asked_question) and meaningful and curiosity_depth < MAX_CURIOSITY_DEPTH:
                     # stable probability gate for loop
                     seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/loop"
                     gate = 0
@@ -706,6 +1172,8 @@ class Handler(BaseHTTPRequestHandler):
                             )
                         if chosen and _is_loop_candidate(chosen):
                             chosen_turn_type = "loop_question"
+                            pending_listening_move = False
+                            listening_wait_turns = 0
                 # Depth cap enforcement: if reached, force next ask/bridge and reset depth
                 if chosen is None:
                     if curiosity_depth >= MAX_CURIOSITY_DEPTH:
@@ -718,14 +1186,19 @@ class Handler(BaseHTTPRequestHandler):
                         chosen_turn_type = "question"
                     else:
                         # Soft chaining: slot/topic preference first, then existing bridge/ladder order
-                        if last_turn_was_answer and meaningful:
+                        if last_turn_was_answer and (not user_asked_question) and meaningful:
                             chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
                             if chosen and _is_loop_candidate(chosen):
                                 chosen_turn_type = "loop_question"
                                 curiosity_depth = min(curiosity_depth + 1, MAX_CURIOSITY_DEPTH)
+                                pending_listening_move = False
+                                listening_wait_turns = 0
                         if chosen is None:
                             if prefer_bridge or force_bridge:
                                 chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory)
+                                if chosen:
+                                    pending_listening_move = False
+                                    listening_wait_turns = 0
                             if chosen is None and not force_bridge:
                                 chosen = _select_next_frame_ladder_avoiding(
                                     current_engine,
@@ -737,13 +1210,76 @@ class Handler(BaseHTTPRequestHandler):
                 if not chosen:
                     self._json_error(400, "no frame available for next question")
                     return
+
+                # Hard guarantee: if this turn classified as medium/high interest but no explicit
+                # listening move was selected, force a probe attempt on the very next turn.
+                if interest_level in ("medium", "high") and listening_move_selected == "none":
+                    pending_listening_move = True
+                    listening_wait_turns = max(int(listening_wait_turns or 0), INTEREST_FORCE_WINDOW_TURNS)
+
+                # Identity coherence gate: don't ask name-meta questions unless "name" is established.
+                # This prevents post-greeting jumps like “你觉得你的名字怎么样？” with no context.
+                engine_norm = (current_engine or "").strip().lower()
+                if engine_norm == "identity":
+                    # Greeting reset: regardless of remembered name, don't jump into "name evaluation" immediately.
+                    # First ask for/confirm the name in-session so the dialogue doesn't feel like an interrogation.
+                    if last_turn_was_answer and _is_greeting_answer(last_answer):
+                        chosen = "f_ask_you_name"
+                        chosen_turn_type = "question"
+                    else:
+                        name_meta_frames = {"p2_id_4", "p2_id_5", "f_ask_name_meaning", "p2_id_2"}
+                        # In-session name context: user just answered a name-related question
+                        has_name_context_now = ("NAME" in (slot_names or []))
+                        has_name_in_memory = _has_learner_name(memory)
+                        if chosen in name_meta_frames and (not has_name_context_now) and (not has_name_in_memory):
+                            # Force the basic name question first (unless suppressed for some reason)
+                            fallback = "f_ask_you_name"
+                            if fallback not in set(recent or []) and not _should_suppress_ask_frame(fallback, memory, recent or [], RECALL_INTERVAL_TURNS):
+                                chosen = fallback
+                                chosen_turn_type = "question"
+                            else:
+                                # If we can't ask name, switch topic to avoid awkward interrogation
+                                bridged = _select_next_frame_bridge(current_engine, recent, use_recovery_order=True, memory=memory)
+                                if bridged:
+                                    chosen = bridged
+                                    chosen_turn_type = "question"
+
                 frame_id = chosen
                 frame_rec_chosen = _frames_by_id.get(frame_id, {})
                 engine_id = (frame_rec_chosen.get("engine") or current_engine or "unknown").strip()
+                # Bridge micro-layer: if selector switched engines, prepend a short transition phrase.
+                current_engine_norm = (current_engine or "").strip().lower()
+                chosen_engine_norm = (engine_id or "").strip().lower()
+                if (
+                    last_turn_was_answer
+                    and chosen_engine_norm
+                    and current_engine_norm
+                    and chosen_engine_norm != current_engine_norm
+                    and exchange_count >= 1
+                ):
+                    bridge_seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine_norm}->{chosen_engine_norm}"
+                    bridge_prefix_text = _stable_pick(_BRIDGE_PREFIXES, bridge_seed) or "对了，"
+                    # Avoid awkward double prefix like "顺便问一下，哦。"
+                    reaction_prefix_text = ""
                 # Step 7: include learner_memory and persona in response so client can show continuity
                 if memory is not None:
                     _phase10_learner_memory = dict(memory)
                 _phase10_persona_id = (cs.get("persona_id") or payload.get("persona_id") or "").strip() or None
+                if chosen_turn_type == "loop_question":
+                    same_engine_chain_count += 1
+                    if slot_names:
+                        focus = slot_names[0]
+                        same_slot_chain_count = same_slot_chain_count + 1 if focus == last_focus_slot else 1
+                        last_focus_slot = focus
+                else:
+                    same_engine_chain_count += 1
+                    chosen_engine = (frame_rec_chosen.get("engine") or "").strip().lower()
+                    current_engine_norm = (current_engine or "").strip().lower()
+                    if chosen_engine and current_engine_norm and chosen_engine != current_engine_norm:
+                        same_engine_chain_count = 0
+                        same_slot_chain_count = 0
+                        last_focus_slot = ""
+                last_user_text = _answer_text_from_last_answer(last_answer) if last_turn_was_answer else _norm_text(cs.get("last_user_text"))
                 _phase10_turn_type = chosen_turn_type
             else:
                 frame_id  = payload.get("frame_id", "unknown")
@@ -768,6 +1304,19 @@ class Handler(BaseHTTPRequestHandler):
                 "card_id":             gold["card_id"] if gold else card_id,
                 "system_note":         "phase7.4 static options"
             }
+            # Frame-level direction metadata (for UI action buttons)
+            supports_reverse = False
+            supports_why = False
+            if "？" in (response.get("frame_text") or ""):
+                supports_reverse = True
+                supports_why = True
+            if isinstance(fo, dict):
+                if fo.get("supports_reverse") is True:
+                    supports_reverse = True
+                if fo.get("supports_why") is True:
+                    supports_why = True
+            response["supports_reverse"] = bool(supports_reverse)
+            response["supports_why"] = bool(supports_why)
             # Phase 10.5: reaction micro-layer prefix (if generated above)
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
                 if reaction_prefix_text:
@@ -776,6 +1325,9 @@ class Handler(BaseHTTPRequestHandler):
                         response["frame_text"] = f"{reaction_prefix_text}{response['frame_text']}"
                         response["system_note"] = "phase10.5 reaction_micro_layer"
                         response["reaction_used_fallback"] = bool(reaction_used_fallback)
+                if bridge_prefix_text and "？" in (frame_rec.get("text") or ""):
+                    response["frame_text"] = f"{bridge_prefix_text}{response['frame_text']}"
+                    response["bridge_prefix_applied"] = True
 
             # Phase 10.5: blended reciprocity injection early (prefer answer + 你呢？)
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
@@ -833,6 +1385,17 @@ class Handler(BaseHTTPRequestHandler):
                 response["loop_attempted"] = bool(loop_attempted)
                 response["weak_loop_encountered"] = bool(frame_id in _WEAK_LOOP_FRAME_IDS)
                 response["weak_loop_frame_id"] = frame_id if frame_id in _WEAK_LOOP_FRAME_IDS else None
+                response["interest_score"] = int(interest_score)
+                response["interest_level"] = interest_level
+                response["last_interest_level"] = last_interest_level
+                response["pending_listening_move"] = bool(pending_listening_move)
+                response["listening_wait_turns"] = int(listening_wait_turns)
+                response["listening_move_selected"] = listening_move_selected
+                response["listening_move_reason"] = listening_move_reason
+                response["same_engine_chain_count"] = int(same_engine_chain_count)
+                response["same_slot_chain_count"] = int(same_slot_chain_count)
+                response["last_focus_slot"] = last_focus_slot
+                response["last_user_text"] = last_user_text
 
             data = json.dumps(response, ensure_ascii=False).encode("utf-8")
             self.send_response(200)

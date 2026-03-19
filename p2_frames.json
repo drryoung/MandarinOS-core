@@ -235,68 +235,63 @@
     },
     {
       "id": "p2_wk_1",
-      "text": "你每天几点下班？",
-      "pinyin": "nǐ měitiān jǐ diǎn xiàbān?",
+      "text": "你为什么喜欢这份工作？",
+      "pinyin": "nǐ wèishénme xǐhuan zhè fèn gōngzuò?",
       "engine": "work",
       "difficulty": 3,
       "slots": [],
       "option_tokens": [
         "w_xiaban"
       ],
-      "text_en": "What time do you get off work every day?"
+      "text_en": "Why do you like this job?"
     },
     {
       "id": "p2_wk_2",
-      "text": "你最近工作忙不忙？",
-      "pinyin": "nǐ zuìjìn gōngzuò máng bù máng?",
+      "text": "这份工作难吗？",
+      "pinyin": "zhè fèn gōngzuò nán ma?",
       "engine": "work",
       "difficulty": 3,
       "slots": [],
       "option_tokens": [
         "w_zuijin"
       ],
-      "text_en": "Have you been busy at work lately?"
+      "text_en": "Is this job hard?"
     },
     {
       "id": "p2_wk_3",
-      "text": "我最近工作有点{REASON_NEG}。",
-      "pinyin": "wǒ zuìjìn gōngzuò yǒudiǎn {REASON_NEG}.",
+      "text": "你工作里最难的部分是什么？",
+      "pinyin": "nǐ gōngzuò lǐ zuì nán de bùfen shì shénme?",
       "engine": "work",
       "difficulty": 3,
-      "slots": [
-        {
-          "name": "REASON_NEG",
-          "source": "fillers.reasons_negative"
-        }
-      ],
+      "slots": [],
       "option_tokens": [
         "w_zuijin"
       ],
-      "text_en": "Work has been a bit [REASON_NEG] lately."
+      "text_en": "What is the hardest part of your work?"
     },
     {
       "id": "p2_wk_4",
-      "text": "你一般怎么安排一天的工作？",
-      "pinyin": "nǐ yībān zěnme ānpái yītiān de gōngzuò?",
+      "text": "这份工作收入怎么样？",
+      "pinyin": "zhè fèn gōngzuò shōurù zěnmeyàng?",
       "engine": "work",
       "difficulty": 3,
       "slots": [],
       "option_tokens": [
         "w_anpai"
       ],
-      "text_en": "How do you usually plan your workday?"
+      "text_en": "Is this job well paid?"
     },
     {
       "id": "p2_wk_5",
-      "text": "遇到问题你会怎么解决？",
-      "pinyin": "yùdào wèntí nǐ huì zěnme jiějué?",
+      "text": "你推荐年轻人做这份工作吗？为什么？",
+      "pinyin": "nǐ tuījiàn niánqīngrén zuò zhè fèn gōngzuò ma? wèishénme?",
       "engine": "work",
       "difficulty": 3,
       "slots": [],
       "option_tokens": [
         "w_jiejue"
       ],
-      "text_en": "to encounter problem; question you will; can how to solve"
+      "text_en": "Do you recommend this job for young people? Why?"
     },
     {
       "id": "p2_hb_1",
