@@ -141,6 +141,27 @@ so the UI can open the correct card panel for a clicked word or selected frame.
 Important known mapping:
 - runtime `cards_index.by_word_id` maps both **word_id and frame_id** to **card_id**.
 
+### 2.4 Character breakdown & etymology (authoritative — do not invent fields)
+
+**Sources of truth (human-curated / canonical):**
+
+| Input | Role |
+|--------|------|
+| **`characters_1200.json`** (repo root **and/or** `data/characters_1200.json`) | Character records: `id`, `hanzi`, `pinyin`, `gloss_en`, `primary_radical`, `decomposition`, `etymology`, `mnemonic`, etc. The filename reflects the original core set; the **same schema** may hold a much larger corpus (e.g. thousands of characters). Builder and audit **load both paths if present and pick the file with more `characters[]` rows** (so a tiny root sample does not shadow a full `data/` copy). UI dev server serves `/data/…` so the client can load the large file without copying to root. |
+| **`word_character_links.json`** (repo root) | Maps **`word_id` → `character_id`s** (and optional roles). Regenerate from p1/p2 + corpus: **`python tools/generate_word_character_links.py --write`**, then rebuild runtime. |
+
+**Generated runtime (builder only — never hand-edit):**
+
+- **`tools/build_runtime_artifacts.py`** reads the two files above plus cards and writes **`runtime/out_phase7/word_etymology.runtime.json`**. If a link row’s `character_id` is absent from the corpus (e.g. old `c_de` vs new `c_auto_*`), the builder **resolves the row by `hanzi`** when present so etymology still merges.
+- Shape: `words[word_id].characters[]` — each row is the merged character payload for that **word’s** component glyphs (radical, decomposition, notes), suitable for UI lookup **in the context of the open card’s `word_id`**.
+- **Inferred word narratives (optional):** if **`data/word_etymology_top1000_curated_v2_inferred_narrative.json`** exists, the builder adds **`word_narrative`** when the headword equals a narrative row’s `hanzi`, else **`glyph_narrative`** on each `characters[]` row whose `char` appears in that file. Stats: **`build_report.narrative_merge`**. UI shows these in the card etymology block (`buildWordNarrativeSectionHTML` + `formatWordEtymologyCharRecordHtml` in `ui/app.js`).
+
+**UI rule:** Resolve character hints by **looking up existing rows** in `word_etymology` for the **open word** first (match glyph to `characters[].char`), then single-character `word_id` if present, then **`characters_1200.json`** loaded for Hanzi→row. Do not treat card JSON nulls as the place “where data lives”; cards are for display/actions, not the character corpus.
+
+**Coverage audit:** Run `python scripts/audit_vocab_character_coverage.py` from repo root; it prints gaps and writes `docs/reports/vocab_character_coverage_audit.md` (UTF-8). Use it whenever lexicon, links, or `characters_1200.json` change.
+
+**Corpus recovery:** If the full character DB is missing from the clone, see **`docs/reports/CORPUS_RECOVERY_NOTES.md`** (git/OneDrive forensic notes from Step 1).
+
 ---
 
 ## 3) Critical runtime contract: OPEN_CARD payload

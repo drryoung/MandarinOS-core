@@ -16,6 +16,34 @@ def _now_iso():
 
 REPO_ROOT    = Path(__file__).resolve().parents[1]
 RUNTIME_OUT  = REPO_ROOT / "runtime" / "out_phase7"
+
+
+def load_best_characters_1200() -> tuple[Path | None, dict | None]:
+    """
+    Load characters_1200 from repo root and/or data/.
+    If both exist (e.g. tiny sample at root + full corpus in data/), prefer the file with more rows.
+    """
+    best_path: Path | None = None
+    best_blob: dict | None = None
+    best_n = -1
+    for p in (
+        REPO_ROOT / "characters_1200.json",
+        REPO_ROOT / "data" / "characters_1200.json",
+    ):
+        if not p.is_file():
+            continue
+        try:
+            blob = json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(blob, dict):
+            continue
+        n = len(blob.get("characters") or [])
+        if n > best_n:
+            best_n = n
+            best_path = p
+            best_blob = blob
+    return best_path, best_blob
 CARDS_PATH   = REPO_ROOT / "tools" / "cards" / "out" / "cards_by_id.json"
 CONTENT_RECOVERY = REPO_ROOT / "content" / "recovery_phrases.json"
 P1_FILLERS   = REPO_ROOT / "p1_fillers.json"
@@ -23,7 +51,68 @@ P2_FILLERS   = REPO_ROOT / "p2_fillers.json"
 FRAME_WITH_SLOTS_TOKEN = "FRAME_WITH_SLOTS"
 BUILDER_VERSION = "7.7.0"
 
+# Optional: inferred word-level etymology narratives (SUBTLEX-top curated subset).
+WORD_NARRATIVE_JSON = REPO_ROOT / "data" / "word_etymology_top1000_curated_v2_inferred_narrative.json"
+
 random.seed(42)  # deterministic distractor selection
+
+
+def _package_narrative_row(src: dict) -> dict:
+    """Subset for runtime JSON (drop heavy subtlex counts)."""
+    slim = {
+        "hanzi":        src.get("hanzi"),
+        "pinyin":       src.get("pinyin"),
+        "gloss_en":     src.get("gloss_en"),
+        "subtlex_rank": src.get("subtlex_rank"),
+        "etymology":    src.get("etymology"),
+    }
+    return {k: v for k, v in slim.items() if v is not None}
+
+
+def merge_inferred_word_narratives(words: dict, narrative_path: Path) -> dict:
+    """
+    Mutates words: adds word_narrative when full headword matches narrative hanzi;
+    else adds glyph_narrative on each character row whose char appears in the narrative index.
+    First occurrence of each hanzi in the narrative file wins (list is SUBTLEX-ordered).
+    """
+    stats: dict = {
+        "source":             None,
+        "words_with_word_narrative": 0,
+        "glyph_slots_with_narrative": 0,
+        "skipped_no_file":    False,
+    }
+    if not narrative_path.is_file():
+        stats["skipped_no_file"] = True
+        return stats
+    stats["source"] = str(narrative_path.relative_to(REPO_ROOT))
+    try:
+        raw = json.loads(narrative_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        stats["error"] = str(e)
+        return stats
+    if not isinstance(raw, list):
+        stats["error"] = "expected JSON array"
+        return stats
+    by_hz: dict[str, dict] = {}
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        hz = (row.get("hanzi") or "").strip()
+        if hz and hz not in by_hz:
+            by_hz[hz] = row
+
+    for entry in words.values():
+        wh = (entry.get("hanzi") or "").strip()
+        if wh in by_hz:
+            entry["word_narrative"] = _package_narrative_row(by_hz[wh])
+            stats["words_with_word_narrative"] += 1
+            continue
+        for ch in entry.get("characters") or []:
+            g = (ch.get("char") or "").strip()
+            if g in by_hz:
+                ch["glyph_narrative"] = _package_narrative_row(by_hz[g])
+                stats["glyph_slots_with_narrative"] += 1
+    return stats
 
 # Question frames that get full-sentence options from their answer frame (template + fillers)
 QUESTION_FRAME_SENTENCE_OPTIONS = {
@@ -333,11 +422,14 @@ def build_cards_index(all_frames: list, render_tokens: dict) -> dict:
     return {"by_word_id": by_word_id}
 
 
-def build_word_etymology(cards: dict, char_links: list, char_by_id: dict) -> tuple[dict, dict]:
+def build_word_etymology(
+    cards: dict, char_links: list, char_by_id: dict, char_by_hanzi: dict
+) -> tuple[dict, dict]:
     """
     Phase 7.7 — build word_etymology.runtime.json keyed by word_id.
     Option C: silently skip character_ids missing from characters_1200.json.
     Missing etymology/mnemonic fields → omit key entirely.
+    If character_id misses (e.g. c_de vs c_auto_* in a newer master), resolve by link row hanzi.
     Returns (result, build_report).
     """
     result       = {}
@@ -348,16 +440,19 @@ def build_word_etymology(cards: dict, char_links: list, char_by_id: dict) -> tup
         chars_out = []
 
         for c in link.get("characters", []):
-            cid   = c["character_id"]
-            entry = char_by_id.get(cid)
+            cid = c.get("character_id")
+            hz_link = (c.get("hanzi") or "").strip()
+            entry = char_by_id.get(cid) if cid else None
+            if entry is None and hz_link:
+                entry = char_by_hanzi.get(hz_link)
             if entry is None:
                 # Option C — skip silently, record for build report only
-                missing_cids.setdefault(word_id, []).append(cid)
+                missing_cids.setdefault(word_id, []).append(cid or hz_link or "?")
                 continue
 
             char_record = {
-                "char":         entry["hanzi"],
-                "character_id": cid,
+                "char":         entry.get("hanzi") or hz_link,
+                "character_id": entry.get("id", cid),
             }
 
             decomp = entry.get("decomposition", "")
@@ -502,22 +597,42 @@ def main():
 
     # ── 6. Load etymology source data ─────────────────────────────────────────
     char_links_path = REPO_ROOT / "word_character_links.json"
-    chars_path      = REPO_ROOT / "characters_1200.json"
+    chars_path, chars_data = load_best_characters_1200()
 
     if not char_links_path.is_file():
         print(f"[build] WARNING: word_character_links.json not found — skipping etymology build")
-    elif not chars_path.is_file():
-        print(f"[build] WARNING: characters_1200.json not found — skipping etymology build")
+    elif chars_path is None or chars_data is None:
+        print(f"[build] WARNING: characters_1200.json not found (tried repo root and data/) — skipping etymology build")
     else:
         char_links_data = json.loads(char_links_path.read_text(encoding="utf-8"))
-        chars_data      = json.loads(chars_path.read_text(encoding="utf-8"))
-        char_by_id      = { c["id"]: c for c in chars_data.get("characters", []) }
-        char_links      = char_links_data.get("links", [])
+        characters_list = chars_data.get("characters", []) if isinstance(chars_data, dict) else []
+        char_by_id = {c["id"]: c for c in characters_list if c.get("id")}
+        char_by_hanzi = {}
+        for c in characters_list:
+            hz = (c.get("hanzi") or "").strip()
+            if hz and hz not in char_by_hanzi:
+                char_by_hanzi[hz] = c
+        char_links = char_links_data.get("links", [])
 
-        print(f"[build] etymology source: {len(char_links)} word links, {len(char_by_id)} characters")
+        print(f"[build] etymology chars file: {chars_path.relative_to(REPO_ROOT)}")
+        print(f"[build] etymology source: {len(char_links)} word links, {len(char_by_id)} characters by id, {len(char_by_hanzi)} by hanzi")
 
         # ── 7. Build and write word_etymology ─────────────────────────────────
-        word_etymology, build_report = build_word_etymology(cards, char_links, char_by_id)
+        word_etymology, build_report = build_word_etymology(
+            cards, char_links, char_by_id, char_by_hanzi
+        )
+
+        narrative_stats = merge_inferred_word_narratives(word_etymology, WORD_NARRATIVE_JSON)
+        build_report["narrative_merge"] = narrative_stats
+        if narrative_stats.get("skipped_no_file"):
+            print(f"[build] word narrative: file not found — {WORD_NARRATIVE_JSON.name} (optional)")
+        elif narrative_stats.get("error"):
+            print(f"[build] word narrative: skipped — {narrative_stats['error']}")
+        else:
+            print(
+                f"[build] word narrative: {narrative_stats.get('words_with_word_narrative', 0)} word hit(s), "
+                f"{narrative_stats.get('glyph_slots_with_narrative', 0)} glyph slot(s) from {narrative_stats.get('source')}"
+            )
 
         missing_count = build_report["missing_character_id_count"]
         if missing_count:
