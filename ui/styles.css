@@ -58,6 +58,98 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
   margin-top: 6px;
 }
 
+.card-composition {
+  margin-top: 8px;
+}
+
+/* In-card progressive hints (pinyin → meaning → characters → etymology) */
+.card-inhint-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.card-inhint-next {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #1a56db;
+  background: #eff6ff;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+.card-inhint-next:hover {
+  background: #dbeafe;
+}
+
+.char-chip.char-chip-focus {
+  border-color: #1a56db;
+  box-shadow: 0 0 0 2px rgba(26, 86, 219, 0.25);
+  background: #eff6ff;
+}
+
+.card-char-detail {
+  font-size: 0.85rem;
+  color: #4b5563;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  line-height: 1.45;
+}
+.card-char-detail-py {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+.card-char-detail-mean {
+  margin-top: 4px;
+  color: #374151;
+}
+.card-char-detail-etym {
+  margin-top: 8px;
+}
+.card-char-detail-etym-empty {
+  font-size: 0.82rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.char-glyph-fallback .etym-origin {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #374151;
+}
+.char-glyph-fallback .char-fallback-py {
+  color: #6b7280;
+  font-weight: 500;
+}
+.card-char-detail-etym .etym-word {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.card-char-detail-etym .etym-char {
+  font-size: 12px;
+  padding: 6px 8px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.card-etymology-revealed {
+  margin-top: 12px;
+}
+
+.card-composition-hint {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-top: 6px;
+}
+
 /* Card panel etymology (when available): "Show etymology" expands in place */
 .card-etymology {
   margin-top: 16px;
@@ -117,6 +209,37 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
   font-size: 11px;
   color: #888;
   margin-top: 2px;
+}
+.card-etymology-content .etym-word-narrative {
+  flex: 1 1 100%;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  background: #f0f7ff;
+  border-radius: 6px;
+  border: 1px solid #cfe8ff;
+}
+.card-etymology-content .etym-narrative-type {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #1565c0;
+  margin-bottom: 4px;
+}
+.card-etymology-content .etym-under-chars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.card-etymology-content .etym-structure,
+.card-etymology-content .etym-usage-narrative {
+  display: block;
+  font-size: 12px;
+  color: #555;
+  margin-top: 2px;
+}
+.card-etymology-content .etym-usage-narrative {
+  color: #2e7d32;
 }
 
 /* ── Phase 7.4: response options (each option is a panel: Chinese row + hints below) ── */
@@ -284,6 +407,51 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
 }
 
 .option-hanzi   { font-size: 1.45rem; font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight: 600; color: #0d9488; }
+/* Clickable word/character spans inside options — match legacy .option-hanzi sizing */
+.option-hanzi-tokens {
+  display: inline;
+  font-size: 1.45rem;
+  font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 600;
+  color: #0d9488;
+}
+.option-hanzi-tokens .tok-word,
+.option-hanzi-tokens .tok-word-unknown {
+  color: #0d9488;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.option-hanzi-tokens .tok-word:hover,
+.option-hanzi-tokens .tok-word-unknown:hover {
+  color: #0f766e;
+}
+
+/* Hint cascade step 3 — etymology or character strip */
+.hint-depth-block {
+  font: 0.88rem/1.45 Arial, Helvetica, sans-serif;
+  color: #374151;
+  margin-top: 4px;
+}
+.hint-char-chip {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 1.05rem;
+}
+
+/* Card panel — short pointer to ? cascade + below */
+.card-explore-tip {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #6b7280;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+}
 .option-pinyin  { font: 0.9rem Arial, Helvetica, sans-serif; color: #555; }
 .option-meaning { font: 0.9rem Arial, Helvetica, sans-serif; color: #888; }
 .option-slot-placeholder {

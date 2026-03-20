@@ -74,10 +74,11 @@
           </div>
 
           <!-- Phase 7.4: Micro-gloss popover (singleton, repositioned on each token click) -->
-          <div id="microGloss" class="microgloss" style="display:none;" role="tooltip">
+          <div id="microGloss" class="microgloss" style="display:none;" role="dialog" aria-label="Word insight">
             <span id="microGlossHeadword" class="microgloss-headword"></span>
             <span id="microGlossBody" class="microgloss-body"></span>
-            <button id="microGlossOpenCard" class="microgloss-open-card">Open card →</button>
+            <div id="microGlossEtym" class="microgloss-etym" style="display:none;"></div>
+            <button id="microGlossOpenCard" type="button" class="microgloss-open-card">Open card →</button>
           </div>
 
           <h2>Trace</h2>
@@ -126,18 +127,25 @@
       .tok-word { color: #1a56db; cursor: pointer; }
       .tok-word:hover { text-decoration: underline; }
       .tok-word-unknown { color: #888; cursor: pointer; }
+      /* Larger tap padding for mobile (overlap ok); avoids 44px-per-glyph row height */
+      .word-insight-token { display: inline-block; padding: 6px 4px; margin: -2px 0; border-radius: 4px; }
+      /* Option Chinese size/colour: see styles.css .option-hanzi-tokens */
       .tok-slot { border-bottom: 1px dotted #888; color: #555; }
       .tok-punct, .tok-space, .tok-other { color: #111; }
 
-      /* Phase 7.4: micro-gloss popover */
+      /* Phase 7.4 + Mobile word insight: fixed-position popover (position set in JS) */
       .microgloss {
-        position: absolute; z-index: 999; background: #fff;
-        border: 1px solid #ccc; border-radius: 6px; padding: 6px 10px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15); font: 0.9rem Arial, Helvetica, sans-serif;
-        min-width: 140px; max-width: 240px; pointer-events: auto;
+        position: fixed; z-index: 10000; background: #fff;
+        border: 1px solid #ccc; border-radius: 8px; padding: 8px 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.18); font: 0.9rem Arial, Helvetica, sans-serif;
+        min-width: 148px; max-width: min(280px, calc(100vw - 24px)); max-height: min(50vh, 320px);
+        overflow-y: auto; pointer-events: auto;
       }
-      .microgloss-headword { font-weight: bold; display: block; margin-bottom: 2px; }
+      .microgloss-headword { font-weight: bold; display: block; margin-bottom: 4px; font-size: 1.05rem; }
       .microgloss-body { color: #444; font-size: 0.85rem; display: block; margin-bottom: 6px; }
+      .microgloss-etym {
+        font-size: 0.78rem; color: #6b7280; display: block; margin-bottom: 8px; line-height: 1.35;
+      }
       .microgloss-open-card {
         font-size: 0.82rem; color: #1a56db; background: none;
         border: 1px solid #1a56db; border-radius: 4px; padding: 2px 8px; cursor: pointer;

@@ -856,6 +856,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.startswith("/runtime/"):
             file_path = RUNTIME_DIR / path[len("/runtime/"):]
+        elif path.startswith("/data/"):
+            # Curated datasets at repo root data/ (e.g. characters_1200.json master copy)
+            file_path = REPO_ROOT / path.lstrip("/")
         elif path.startswith("/ui/") or path in ("/ui", "/ui/index.html"):
             rel = path[len("/ui/"):] if path.startswith("/ui/") else "index.html"
             file_path = UI_DIR / rel

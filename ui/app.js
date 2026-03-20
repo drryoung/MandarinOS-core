@@ -1,5 +1,6 @@
 import { initialState as _initialState, reduce } from "./state/cardPanelState.js";
 import { ttsSpeak } from "./ttsSpeak.js";
+import { splitHeadwordPinyinToGraphemes } from "./pinyinAlign.js";
 
 const frameSelect = document.getElementById("frameSelect");
 const runBtn = document.getElementById("runBtn");
@@ -76,8 +77,14 @@ if (typeof window._pendingListeningMove === "undefined") window._pendingListenin
 if (typeof window._listeningWaitTurns === "undefined") window._listeningWaitTurns = 0;
 if (typeof window._lastInterestLevel === "undefined") window._lastInterestLevel = "low";
 if (typeof window._lastUserText === "undefined") window._lastUserText = "";
-// Card panel: which cards have etymology expanded (click "Show etymology" to reveal). Enables future brush/radical clicks.
-let _cardEtymologyExpanded = new Set();
+if (typeof window._unmatchedByFrame === "undefined") window._unmatchedByFrame = {};
+// In-card progressive hints (no need to use ? after opening card)
+let _cardRevealCardId = null;
+/** How many optional blocks are visible after headword: 0 = hanzi only, then +pinyin, +meaning, +composition, +etymology in order. */
+let _cardExtrasVisible = 0;
+/** Focused character chip index + step for per-char reveal (0 TTS, 1 pinyin, 2 meaning, 3 char etymology). */
+let _cardCharFocusIdx = null;
+let _cardCharPhase = 0;
 
 // ── Phase 6: Frame Render Tokens ──────────────────────────────────────────
 
@@ -156,47 +163,165 @@ function setUiMode(mode) {
   }
 }
 
-// ── Phase 7.4: Micro-gloss singleton ────────────────────────────────────────
+// ── Phase 7.4 + Mobile word insight: singleton popover (fixed position) ─────
 let _microGlossActiveTokenEl = null;
+
+/** True on large + fine pointer: also open side card panel on token tap (desktop habit). */
+function _shouldAlsoOpenCardPanel() {
+  try {
+    return window.matchMedia("(min-width: 960px) and (pointer: fine)").matches;
+  } catch (e) {
+    return false;
+  }
+}
+
+/** Map __opt_N (option-hint pseudo id) to real card_id for etymology index lookup. */
+function resolveWordIdForEtymology(wordId) {
+  if (!wordId || typeof wordId !== "string") return null;
+  if (wordId.startsWith("__opt_")) {
+    const idx = parseInt(wordId.slice(6), 10);
+    const opt = Array.isArray(window._tapOptions) && Number.isInteger(idx) ? window._tapOptions[idx] : null;
+    return opt?.card_id || null;
+  }
+  return wordId;
+}
+
+/** Card id we can open in the side panel (index map or direct key in cards_by_id cache). */
+function resolveOpenableCardId(wordId) {
+  if (!wordId || typeof wordId !== "string") return null;
+  const resolved = resolveWordIdForEtymology(wordId) || wordId;
+  const fromIdx = cardsIndex?.by_word_id?.[resolved];
+  if (typeof fromIdx === "string" && fromIdx) return fromIdx;
+  if (window._cardsByIdCache?.[resolved]) return resolved;
+  return null;
+}
+
+function getCardFromCacheByWordId(wordId) {
+  const key = resolveOpenableCardId(wordId);
+  if (!key || !window._cardsByIdCache) return null;
+  return window._cardsByIdCache[key] || null;
+}
 
 function _closeMicroGloss() {
   const mg = document.getElementById("microGloss");
-  if (mg) mg.style.display = "none";
+  if (mg) {
+    mg.style.display = "none";
+    delete mg.dataset.insightSource;
+  }
   const openBtn = document.getElementById("microGlossOpenCard");
-  if (openBtn) openBtn.style.display = "";
+  if (openBtn) {
+    openBtn.style.display = "";
+    openBtn.onclick = null;
+  }
+  const etymEl = document.getElementById("microGlossEtym");
+  if (etymEl) {
+    etymEl.textContent = "";
+    etymEl.style.display = "none";
+  }
   _microGlossActiveTokenEl = null;
 }
 
-function _openMicroGloss(tokenEl, wordId, surfaceText) {
-  const mg          = document.getElementById("microGloss");
-  const headwordEl  = document.getElementById("microGlossHeadword");
-  const bodyEl      = document.getElementById("microGlossBody");
+function _positionMicroGlossNearEl(tokenEl) {
+  const mg = document.getElementById("microGloss");
+  if (!mg || !tokenEl) return;
+  const rect = tokenEl.getBoundingClientRect();
+  const margin = 8;
+  const gap = 6;
+  const maxW = Math.min(280, window.innerWidth - 2 * margin);
+  mg.style.maxWidth = `${maxW}px`;
+  mg.style.position = "fixed";
+  mg.style.zIndex = "10000";
+  let left = rect.left;
+  let top = rect.bottom + gap;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  if (left + maxW > vw - margin) left = Math.max(margin, vw - margin - maxW);
+  if (left < margin) left = margin;
+  mg.style.left = `${Math.round(left)}px`;
+  mg.style.top = `${Math.round(top)}px`;
+  requestAnimationFrame(() => {
+    const mh = mg.offsetHeight || 120;
+    if (top + mh > vh - margin) {
+      const up = rect.top - mh - gap;
+      if (up >= margin) top = up;
+      else top = Math.max(margin, vh - margin - mh);
+    }
+    mg.style.top = `${Math.round(top)}px`;
+  });
+}
+
+/**
+ * Word insight popover (MOBILE_WORD_INSIGHT_UI_SPEC): pinyin/gloss, etymology status, optional open card.
+ * @param {HTMLElement} tokenEl
+ * @param {string|null} wordId
+ * @param {string} surfaceText
+ * @param {string} [insightSource] e.g. active_sentence, option:0
+ */
+function _openWordInsightPopover(tokenEl, wordId, surfaceText, insightSource) {
+  const mg = document.getElementById("microGloss");
+  const headwordEl = document.getElementById("microGlossHeadword");
+  const bodyEl = document.getElementById("microGlossBody");
+  const etymEl = document.getElementById("microGlossEtym");
   const openCardBtn = document.getElementById("microGlossOpenCard");
   if (!mg || !headwordEl || !bodyEl || !openCardBtn) return;
-  headwordEl.textContent = surfaceText;
-  const rc = window._resolvedCard;
-  if (rc && rc.card_id && cardsIndex?.by_word_id?.[wordId] === rc.card_id) {
-    const pinyin  = rc.content?.headword?.pinyin || "";
-    const meaning = rc.content?.meaning || "";
-    bodyEl.textContent = [pinyin, meaning].filter(Boolean).join(" — ");
-  } else {
-    bodyEl.textContent = "";
+  if (insightSource) mg.dataset.insightSource = insightSource;
+  else delete mg.dataset.insightSource;
+
+  headwordEl.textContent = surfaceText || "";
+
+  if (!wordId) {
+    bodyEl.textContent = "Not in lexicon yet.";
+    if (etymEl) {
+      etymEl.textContent = "";
+      etymEl.style.display = "none";
+    }
+    openCardBtn.style.display = "none";
+    openCardBtn.onclick = null;
+    _positionMicroGlossNearEl(tokenEl);
+    mg.style.display = "block";
+    _microGlossActiveTokenEl = tokenEl;
+    return;
   }
-  const sentEl   = document.getElementById("frameSentence");
-  const rect     = tokenEl.getBoundingClientRect();
-  const sentRect = sentEl ? sentEl.getBoundingClientRect() : { left: 0, top: 0 };
-  mg.style.position = "absolute";
-  mg.style.left     = `${rect.left - sentRect.left}px`;
-  mg.style.top      = `${rect.bottom - sentRect.top + 4}px`;
-  mg.style.display  = "";
-  openCardBtn.onclick = () => { _closeMicroGloss(); _openCardForWordId(wordId); };
+
+  const hint = getWordHintData(wordId);
+  const py = (hint?.pinyin || "").trim();
+  const mean = (hint?.meaning || "").trim();
+  bodyEl.textContent = [py, mean].filter(Boolean).join(" — ") || "(No pinyin or gloss in index yet.)";
+
+  const etWid = resolveWordIdForEtymology(wordId) || wordId;
+  const hasEtym = !!buildCardPanelWordEtymologyHTML(etWid, surfaceText);
+  // No “no etymology” clutter — only show a line when we actually have etymology notes.
+  if (etymEl) {
+    if (hasEtym) {
+      etymEl.style.display = "block";
+      etymEl.textContent = "Etymology: open the card, use “Next hint”, or tap character chips when shown.";
+    } else {
+      etymEl.textContent = "";
+      etymEl.style.display = "none";
+    }
+  }
+
+  const openId = resolveOpenableCardId(wordId);
+  if (openId) {
+    openCardBtn.style.display = "";
+    openCardBtn.onclick = () => {
+      _closeMicroGloss();
+      _openCardForWordId(wordId);
+    };
+  } else {
+    openCardBtn.style.display = "none";
+    openCardBtn.onclick = null;
+  }
+
+  _positionMicroGlossNearEl(tokenEl);
+  mg.style.display = "block";
   _microGlossActiveTokenEl = tokenEl;
 }
 
 async function _openCardForWordId(wordId) {
   if (!wordId) return;
-  const cardId = cardsIndex?.by_word_id?.[wordId];
-  if (!cardId) { console.warn(`[app] _openCardForWordId: no card_id for word_id "${wordId}"`); return; }
+  const cardId = resolveOpenableCardId(wordId);
+  if (!cardId) { console.warn(`[app] _openCardForWordId: no card for word_id "${wordId}"`); return; }
   const frameId  = document.getElementById("frameSelect")?.value || null;
   const sel      = document.getElementById("frameSelect");
   const engineId = sel?.options[sel?.selectedIndex]?.dataset?.engineId || null;
@@ -253,13 +378,127 @@ async function loadWordEtymology() {
   }
 }
 
+/** Hanzi → row from `characters_1200.json` (radical, decomposition, notes). Fills gaps when word_etymology.runtime.json is absent. */
+let charCoreByHanzi = Object.create(null);
+async function loadCharacters1200Core() {
+  try {
+    let resp = await fetch("/characters_1200.json");
+    if (!resp.ok) {
+      resp = await fetch("/data/characters_1200.json");
+    }
+    if (!resp.ok) {
+      console.warn(`[app] characters_1200 not available (HTTP ${resp.status})`);
+      return;
+    }
+    const data = await resp.json();
+    const arr = Array.isArray(data.characters) ? data.characters : [];
+    const map = Object.create(null);
+    for (const row of arr) {
+      const hz = row && row.hanzi != null ? String(row.hanzi).trim() : "";
+      if (hz && map[hz] === undefined) map[hz] = row;
+    }
+    charCoreByHanzi = map;
+    window._charCoreByHanzi = charCoreByHanzi;
+    console.info(`[app] characters_1200 core loaded (${Object.keys(map).length} character(s))`);
+  } catch (e) {
+    console.warn("[app] characters_1200 load failed:", e);
+  }
+}
+
 // ── §2.4 + §3.3 Hint cascade — Phase 6 ────────────────────────────────────
 let hint_cascade_state = { level: 0, turn_uid: null };
 let lastClickedWordId = null;
 window.lastClickedWordId = null;
 let _hanziToWordId = {};  // Phase 6 — reverse lookup hanzi → word_id
 
-/** Word-level hint content: resolved card > index object > option from _tapOptions or by __opt_ index (runtime index is word_id→string). */
+/** Pinyin + gloss from a full card JSON object. */
+function _hintFromCardPayload(card) {
+  if (!card?.content) return null;
+  return {
+    pinyin: card.content.headword?.pinyin || "",
+    meaning: card.content.meaning || "",
+  };
+}
+
+/** Native `title` / tooltip: prefer getWordHintData, then read card cache (covers race before index merge). */
+function getInsightTitleForWordId(wid) {
+  if (!wid) return "";
+  const h = getWordHintData(wid);
+  const a = [h.pinyin, h.meaning].filter((x) => x && String(x).trim());
+  if (a.length) return a.join(" — ");
+  const c = window._cardsByIdCache?.[wid];
+  if (c?.content) {
+    const py = c.content.headword?.pinyin;
+    const mn = c.content.meaning;
+    const b = [py, mn].filter((x) => x && String(x).trim());
+    if (b.length) return b.join(" — ");
+  }
+  return "";
+}
+
+/**
+ * Greedy longest-match hanzi → word_id (card_id), aligned with frame tokeniser / cards headwords.
+ * Call after _cardsByIdCache is populated or extended.
+ */
+function rebuildHanziWordLookupFromCardsCache() {
+  const cache = window._cardsByIdCache;
+  if (!cache || typeof cache !== "object") {
+    window._hanziLongestMatchMap = {};
+    return;
+  }
+  const pairs = [];
+  for (const [cid, card] of Object.entries(cache)) {
+    if (typeof cid !== "string" || !cid.startsWith("w_")) continue;
+    const hz = card?.content?.headword?.hanzi;
+    if (typeof hz === "string" && hz.length > 0) pairs.push({ hz, wid: cid });
+  }
+  pairs.sort((a, b) => b.hz.length - a.hz.length || a.wid.localeCompare(b.wid));
+  const map = Object.create(null);
+  for (const { hz, wid } of pairs) {
+    if (map[hz] === undefined) map[hz] = wid;
+  }
+  window._hanziLongestMatchMap = map;
+}
+
+/**
+ * Tokenise option Hanzi like the active sentence: multi-character words first, then single CJK fallback.
+ * @param {string} hanziStr
+ * @param {{ card_id?: string }} opt
+ * @returns {Array<{ t: string, word_id: string | null }>}
+ */
+function tokenizeHanziForOption(hanziStr, opt) {
+  const text = hanziStr || "";
+  const map = window._hanziLongestMatchMap || {};
+  const keys = Object.keys(map);
+  keys.sort((a, b) => b.length - a.length);
+  let i = 0;
+  const segments = [];
+  while (i < text.length) {
+    let matched = false;
+    for (const hz of keys) {
+      if (hz && text.startsWith(hz, i)) {
+        segments.push({ t: hz, word_id: map[hz] });
+        i += hz.length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      const ch = [...text.slice(i)][0];
+      if (!ch) break;
+      const isCjk = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch);
+      const wid = isCjk ? (_hanziToWordId[ch] || opt.card_id || null) : null;
+      segments.push({ t: ch, word_id: wid });
+      i += ch.length;
+    }
+  }
+  return segments;
+}
+
+/**
+ * Word-level hint content: last resolved card > cards_by_id cache > index object > tap option.
+ * cards_index.by_word_id is usually word_id → card_id (string); we resolve gloss via _cardsByIdCache.
+ */
 function getWordHintData(wordId) {
   if (typeof wordId === "string" && wordId.startsWith("__opt_")) {
     const idx = parseInt(wordId.slice(6), 10);
@@ -272,14 +511,100 @@ function getWordHintData(wordId) {
   const fromIndex = window.cardsIndex?.by_word_id?.[wordId];
   if (fromIndex && typeof fromIndex === "object" && (fromIndex.pinyin != null || fromIndex.meaning != null))
     return { pinyin: fromIndex.pinyin || "", meaning: fromIndex.meaning || "" };
+  const cardIdFromIndex = typeof fromIndex === "string" ? fromIndex : null;
+  const cache = window._cardsByIdCache;
+  for (const cid of [cardIdFromIndex, wordId]) {
+    if (!cid || !cache) continue;
+    const fromCache = _hintFromCardPayload(cache[cid]);
+    if (fromCache && (fromCache.pinyin || fromCache.meaning)) return fromCache;
+  }
   const opt = window._tapOptions?.find(o => o.card_id === wordId);
   return opt ? { pinyin: opt.pinyin || "", meaning: opt.meaning || "" } : { pinyin: "", meaning: "" };
+}
+
+/** Single-Hanzi → word_id using cards cache (same as option tokeniser). */
+function resolveWordIdForSingleHanziChar(ch) {
+  const s = ch && String(ch).trim();
+  if (!s || [...s].length !== 1) return null;
+  const map = window._hanziLongestMatchMap || {};
+  return map[s] || null;
+}
+
+/**
+ * Pinyin + gloss for one composition row: prefer inline card fields, then content.characters, then lexicon (w_* card for that Hanzi).
+ * Most cards leave word_composition.characters[].pinyin|meaning null — those are filled from the matching headword card.
+ */
+function resolveCharPinyinMeaning(cardContent, compChar, compIndex) {
+  const ch = (compChar && (compChar.char || compChar.hanzi || "")).trim();
+  const pick = (o) => {
+    if (!o || typeof o !== "object") return { pinyin: "", meaning: "" };
+    const py = o.pinyin != null && String(o.pinyin).trim() ? String(o.pinyin).trim() : "";
+    const mn = o.meaning != null && String(o.meaning).trim() ? String(o.meaning).trim() : "";
+    return { pinyin: py, meaning: mn };
+  };
+  const fromComp = pick(compChar);
+  if (fromComp.pinyin || fromComp.meaning) return fromComp;
+
+  const arr = cardContent && Array.isArray(cardContent.characters) ? cardContent.characters : null;
+  if (arr && ch) {
+    const byIndex = arr[compIndex];
+    if (byIndex && String(byIndex.char || byIndex.hanzi || "").trim() === ch) {
+      const p = pick(byIndex);
+      if (p.pinyin || p.meaning) return p;
+    }
+    const byMatch = arr.find((x) => String(x.char || x.hanzi || "").trim() === ch);
+    if (byMatch) {
+      const p = pick(byMatch);
+      if (p.pinyin || p.meaning) return p;
+    }
+  }
+
+  const wid = resolveWordIdForSingleHanziChar(ch);
+  if (wid) {
+    const h = getWordHintData(wid);
+    return {
+      pinyin: (h.pinyin || "").trim(),
+      meaning: (h.meaning || "").trim(),
+    };
+  }
+
+  /** Author `characters_1200.json` fields (pinyin, gloss_en) — same file may hold thousands of rows at repo root. */
+  const coreMap = window._charCoreByHanzi || charCoreByHanzi;
+  const coreRow = ch && coreMap ? coreMap[ch] : null;
+  if (coreRow && typeof coreRow === "object") {
+    const cpy = coreRow.pinyin != null && String(coreRow.pinyin).trim() ? String(coreRow.pinyin).trim() : "";
+    const cgloss = coreRow.gloss_en != null && String(coreRow.gloss_en).trim() ? String(coreRow.gloss_en).trim() : "";
+    if (cpy || cgloss) return { pinyin: cpy, meaning: cgloss };
+  }
+
+  /** Multi-character headword on this card: align compact pinyin (e.g. zěnmeyàng) to each 字 — no single-char w_* card needed. */
+  const hw = (cardContent?.headword?.hanzi || "").trim();
+  const headPy = cardContent?.headword?.pinyin;
+  const glyphs = [...hw];
+  if (ch && hw && glyphs.length > 1 && glyphs[compIndex] === ch) {
+    const per = splitHeadwordPinyinToGraphemes(hw, headPy);
+    if (per && per[compIndex]) {
+      const wm = (cardContent.meaning != null && String(cardContent.meaning).trim()) ? String(cardContent.meaning).trim() : "";
+      return {
+        pinyin: per[compIndex],
+        meaning: wm ? `In “${hw}”: ${wm}` : `Part of “${hw}”.`,
+      };
+    }
+  }
+
+  return { pinyin: "", meaning: "" };
+}
+
+/** Word id to use for character-level etymology HTML: etymology index first, else same card map as gloss. */
+function resolveWordIdForCharEtymology(ch) {
+  const s = ch && String(ch).trim();
+  if (!s) return null;
+  return _hanziToWordId[s] || resolveWordIdForSingleHanziChar(s) || null;
 }
 
 /** Whether a hint level has content (shared by getNextHintLevel and renderHintAffordance). */
 function hintLevelHasContent(lvl, sentenceMode, sentenceHint, activeWordId) {
   if (lvl === 0) return false; // skip 0 so we don't land on "nothing" after Hide
-  if (lvl === 3) return true;  // hide is valid stop
   if (sentenceMode) {
     if (lvl === 1) return !!(sentenceHint.pinyin && String(sentenceHint.pinyin).trim());
     if (lvl === 2) return !!(sentenceHint.text_en && String(sentenceHint.text_en).trim());
@@ -288,13 +613,12 @@ function hintLevelHasContent(lvl, sentenceMode, sentenceHint, activeWordId) {
   }
   const goldWordId = window._tapOptions?.find(o => o.is_gold)?.card_id;
   const wordId = activeWordId || goldWordId;
+  if (!wordId) return false;
+  // Word / option: deeper exploration (etymology, parts) lives in the card panel after Open card — not under ?.
+  if (lvl === 3) return false;
   const cardData = getWordHintData(wordId);
   if (lvl === 1) return !!(cardData.pinyin && String(cardData.pinyin).trim());
   if (lvl === 2) return !!(cardData.meaning && String(cardData.meaning).trim());
-  if (lvl === 3) {
-    const entry = wordEtymologyIndex[wordId];
-    return !!(entry?.characters && entry.characters.length > 0);
-  }
   return true;
 }
 
@@ -329,7 +653,7 @@ function normalizeHintLevel(level, sentenceMode, sentenceHint, activeWordId) {
 function getHintButtonLabel(level, levelHasContent) {
   if (level === 0) return levelHasContent(1) ? "Hint \u2192" : "";
   if (level === 1) return levelHasContent(2) ? "Meaning \u2192" : "Hide hints \u2192";
-  if (level === 2) return levelHasContent(3) ? "Etymology \u2192" : "Hide hints \u2192";
+  if (level === 2) return "Hide hints \u2192";
   return "Hide hints \u2192";
 }
 
@@ -366,7 +690,7 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
       : getWordHintData(activeWordId);
     const levelHasContent = (optForHint && optForHint.kind === "RECOVERY")
       ? (lvl) => (lvl === 1 && !!(cardData?.pinyin && String(cardData.pinyin).trim())) || (lvl === 2 && !!(cardData?.meaning && String(cardData.meaning).trim()))
-      : (lvl) => hintLevelHasContent(lvl, false, sentenceHint, activeWordId);
+      : (lvl) => lvl !== 3 && hintLevelHasContent(lvl, false, sentenceHint, activeWordId);
     if (hint_cascade_state.turn_uid !== turnUid) {
       hint_cascade_state = { level: 0, turn_uid: turnUid };
     }
@@ -399,20 +723,16 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
       if (level >= 2 && cardData?.meaning) {
         if (optHintMeaning) { optHintMeaning.textContent = cardData.meaning; optHintMeaning.style.display = "block"; }
       } else if (optHintMeaning) optHintMeaning.style.display = "none";
-      const wordIdForEtymology = (window._tapOptions && window._tapOptions[optionIndex]) ? window._tapOptions[optionIndex].card_id : null;
-      if (level >= 3 && levelHasContent(3) && wordIdForEtymology) {
-        if (optHintEtymology) {
-          optHintEtymology.style.display = "block";
-          const html = buildEtymologyHTML(wordIdForEtymology);
-          optHintEtymology.innerHTML = html || "";
-        }
-      } else if (optHintEtymology) optHintEtymology.style.display = "none";
-      const hasContent = level >= 1 && (levelHasContent(1) || levelHasContent(2) || levelHasContent(3));
+      if (optHintEtymology) {
+        optHintEtymology.innerHTML = "";
+        optHintEtymology.style.display = "none";
+      }
+      const hasContent = level >= 1 && (levelHasContent(1) || levelHasContent(2));
       optionHintBlock.style.setProperty("display", hasContent ? "block" : "none");
       optionHintBlock.setAttribute("aria-hidden", hasContent ? "false" : "true");
     }
     if (hintBtn) {
-      const hasAny = levelHasContent(1) || levelHasContent(2) || levelHasContent(3);
+      const hasAny = levelHasContent(1) || levelHasContent(2);
       hintBtn.style.display = hasAny ? "block" : "none";
       hintBtn.textContent = "?";
       hintBtn.title = getHintButtonLabel(level, levelHasContent);
@@ -464,10 +784,9 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
       hintBtn.title = getHintButtonLabel(level, levelHasContent);
     }
   } else {
-    // Word in active sentence: use global hint rows; clear option hint blocks
+    // Word in active sentence: use global hint rows only until the matching card is open — then hints live in the card panel.
     const goldWordId = window._tapOptions?.find(o => o.is_gold)?.card_id;
     const wordId = activeWordId || goldWordId;
-    const cardData = getWordHintData(wordId);
     const container = document.getElementById("optionsContainer");
     container?.querySelectorAll(".option-hint-block").forEach((blk) => {
       blk.style.display = "none";
@@ -475,6 +794,14 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
         el.textContent = ""; if (el.classList.contains("option-hint-etymology")) el.innerHTML = ""; el.style.display = "none";
       });
     });
+    if (cardPanelCoversWordHints()) {
+      if (hintPinyin) { hintPinyin.textContent = ""; hintPinyin.style.display = "none"; }
+      if (hintMeaning) { hintMeaning.textContent = ""; hintMeaning.style.display = "none"; }
+      if (hintEtymEl) { hintEtymEl.innerHTML = ""; hintEtymEl.style.display = "none"; }
+      if (hintBtn) hintBtn.style.display = "none";
+      return;
+    }
+    const cardData = getWordHintData(wordId);
     if (hintPinyin) {
       if (level >= 1 && cardData?.pinyin) {
         hintPinyin.textContent = cardData.pinyin;
@@ -492,15 +819,11 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
       }
     }
     if (hintEtymEl) {
-      if (level >= 3 && levelHasContent(3)) {
-        hintEtymEl.style.display = "block";
-        renderEtymologyForWord(wordId);
-      } else {
-        hintEtymEl.style.display = "none";
-      }
+      hintEtymEl.innerHTML = "";
+      hintEtymEl.style.display = "none";
     }
     if (hintBtn) {
-      const hasAny = levelHasContent(1) || levelHasContent(2) || levelHasContent(3);
+      const hasAny = levelHasContent(1) || levelHasContent(2);
       hintBtn.style.display = hasAny ? "block" : "none";
       hintBtn.textContent = "?";
       hintBtn.title = getHintButtonLabel(level, levelHasContent);
@@ -735,10 +1058,28 @@ async function loadCardsIndex() {
     }
     cardsIndex = await resp.json();
     window.cardsIndex = cardsIndex;
-    window.cardsIndex = cardsIndex; // <-- ADD THIS LINE
     console.info(`[app] cards_index loaded`);
   } catch (e) {
     console.warn("[app] cards_index load failed:", e);
+  }
+}
+
+/** Full card payloads for hint/popover text (cards_index only maps word_id → card_id string). */
+async function loadCardsByIdBlob() {
+  const path = "tools/cards/out/cards_by_id.json";
+  try {
+    const q = new URLSearchParams({ path });
+    const resp = await fetch(`/api/cards?${q.toString()}`);
+    if (!resp.ok) {
+      console.warn(`[app] cards_by_id preload not available (HTTP ${resp.status})`);
+      return;
+    }
+    const cards = await resp.json();
+    window._cardsByIdCache = cards && typeof cards === "object" ? cards : {};
+    rebuildHanziWordLookupFromCardsCache();
+    console.info(`[app] cards_by_id cache primed (${Object.keys(window._cardsByIdCache).length} card(s))`);
+  } catch (e) {
+    console.warn("[app] cards_by_id preload failed:", e);
   }
 }
 
@@ -848,16 +1189,18 @@ function isOpenEndedFrame(frameId) {
   ]).has(fid);
 }
 
-function isLikelyUnderstandableFreeAnswer(text) {
+function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
   const s = (text || "").trim();
   if (!s) return false;
+  const fid = (frameId || "").trim();
   const zhMatches = s.match(/[\u4e00-\u9fff]/g) || [];
   const zhCount = zhMatches.length;
   const latinCount = (s.match(/[A-Za-z]/g) || []).length;
   // Too short in Chinese usually means we likely misheard.
   if (zhCount > 0 && zhCount < 2) return false;
-  // Heavy Latin in a Chinese answer often indicates ASR noise for this app mode.
-  if (latinCount > zhCount + 2) return false;
+  // Mixed-script is common for names in identity frames (e.g., Raymond).
+  const identityOpen = new Set(["f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning"]).has(fid);
+  if (!identityOpen && latinCount > zhCount + 2) return false;
   // Repeated single word noise (e.g., 牛肉牛肉牛肉) should trigger repair.
   const norm = s.replace(/[，。！？、\s]/g, "");
   if (norm.length >= 4) {
@@ -867,22 +1210,56 @@ function isLikelyUnderstandableFreeAnswer(text) {
   return s.length >= 2;
 }
 
-function shouldAcceptUnmatchedFreeAnswer(transcript, options, frameId) {
-  const opts = Array.isArray(options) ? options : [];
-  if (opts.length === 0) return true;
-  if (isOpenEndedFrame(frameId)) return isLikelyUnderstandableFreeAnswer(transcript);
-  // If this turn is mostly closed options, be stricter and prefer repair on unmatched speech.
-  const hasStructuredSlots = opts.some((o) => (o?.kind || "").toUpperCase() === "FRAME_WITH_SLOTS");
-  if (hasStructuredSlots) return isLikelyUnderstandableFreeAnswer(transcript);
+function semanticSoftMatch(transcript, frameId) {
+  const t = (transcript || "").trim();
+  const fid = (frameId || "").trim();
+  if (!t) return false;
+  // Identity nickname question: allow "大家叫我Raymond" style free answers.
+  if (fid === "p2_id_2") {
+    if (t.includes("叫我") || t.includes("大家叫")) return true;
+    const hasZh = /[\u4e00-\u9fff]/.test(t);
+    const hasLatin = /[A-Za-z]/.test(t);
+    if (hasZh && hasLatin) return true;
+  }
+  // Famous dish: accept concrete food nouns and valid "don't know/no famous dish" replies.
+  if (fid === "f_food_famous_dish") {
+    if (/汉堡|牛肉|羊肉|火锅|饺子|面|米饭|烤|汤|鱼|鸡|菜/.test(t)) return true;
+    if (/不知道|没有|不清楚/.test(t)) return true;
+  }
+  // Family frequency: accept natural free responses about seeing family.
+  if (fid === "p2_fa_2") {
+    if (/(家人|妈妈|爸爸|父母)/.test(t) && /(天|周|月|常|每天|经常|周末)/.test(t)) return true;
+  }
+  // Work "why like this job": accept reason-like content.
+  if (fid === "p2_wk_1") {
+    if (/(因为|为了|可以|能|学|帮助|工资|时间|喜欢)/.test(t)) return true;
+  }
   return false;
 }
 
-function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId) {
+function shouldAcceptUnmatchedFreeAnswer(transcript, options, frameId, unmatchedCount) {
+  const opts = Array.isArray(options) ? options : [];
+  if (opts.length === 0) return true;
+  if (isOpenEndedFrame(frameId)) return isLikelyUnderstandableFreeAnswer(transcript, frameId);
+  // If this turn is mostly closed options, be stricter and prefer repair on unmatched speech.
+  const hasStructuredSlots = opts.some((o) => (o?.kind || "").toUpperCase() === "FRAME_WITH_SLOTS");
+  if (hasStructuredSlots) return isLikelyUnderstandableFreeAnswer(transcript, frameId);
+  // Semantic soft-match for selected closed frames.
+  if (semanticSoftMatch(transcript, frameId)) return true;
+  // Two-strike graceful fallback: avoid endless "not understood" loop when answer is substantive.
+  if ((unmatchedCount || 0) >= 2 && isLikelyUnderstandableFreeAnswer(transcript, frameId)) return true;
+  return false;
+}
+
+function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmatchedCount) {
   const opts = Array.isArray(options) ? options : [];
   const hasStructuredSlots = opts.some((o) => (o?.kind || "").toUpperCase() === "FRAME_WITH_SLOTS");
   const openEnded = isOpenEndedFrame(frameId);
-  const understandable = isLikelyUnderstandableFreeAnswer(transcript);
+  const understandable = isLikelyUnderstandableFreeAnswer(transcript, frameId);
+  const semantic = semanticSoftMatch(transcript, frameId);
   if (opts.length === 0) return { accept: true, reason: "no_options" };
+  if (semantic) return { accept: true, reason: "semantic_soft_match" };
+  if ((unmatchedCount || 0) >= 2 && understandable) return { accept: true, reason: "two_strike_substantive_fallback" };
   if (openEnded && understandable) return { accept: true, reason: "open_ended_understandable" };
   if (hasStructuredSlots && understandable) return { accept: true, reason: "slot_frame_understandable" };
   if (openEnded && !understandable) return { accept: false, reason: "open_ended_low_confidence" };
@@ -982,18 +1359,21 @@ function setActivePartnerStatement(text, turnUidForHint, segments) {
     for (const seg of segments) {
       const span = document.createElement("span");
       span.textContent = seg.t || "";
-      span.className = "tok tok-word";
+      span.className = "tok tok-word word-insight-token";
       span.dataset.kind = "word";
       if (seg.word_id) span.dataset.wordId = seg.word_id;
+      span.dataset.insightSource = "active_sentence";
       span.addEventListener("click", async (e) => {
         e.stopPropagation();
         if (seg.word_id) {
           lastClickedWordId = seg.word_id;
           window.lastClickedWordId = seg.word_id;
-          await _openCardForWordId(seg.word_id);
+          _openWordInsightPopover(span, seg.word_id, seg.t || "", "active_sentence");
+          if (_shouldAlsoOpenCardPanel()) await _openCardForWordId(seg.word_id);
         } else {
           lastClickedWordId = null;
           window.lastClickedWordId = null;
+          _openWordInsightPopover(span, null, seg.t || "", "active_sentence");
         }
         hint_cascade_state = { level: 1, turn_uid: turnUid };
         renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
@@ -1004,12 +1384,14 @@ function setActivePartnerStatement(text, turnUidForHint, segments) {
     for (const char of str) {
       const span = document.createElement("span");
       span.textContent = char;
-      span.className = "tok tok-word";
+      span.className = "tok tok-word word-insight-token";
       span.dataset.kind = "word";
+      span.dataset.insightSource = "active_sentence";
       span.addEventListener("click", (e) => {
         e.stopPropagation();
         lastClickedWordId = null;
         window.lastClickedWordId = null;
+        _openWordInsightPopover(span, null, char, "active_sentence");
         hint_cascade_state = { level: 1, turn_uid: turnUid };
         renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
       });
@@ -1044,58 +1426,44 @@ function renderFrameSentence(frame) {
     return;
   }
 
-  // Detect schema version: Phase 7.4 tokens have `kind`; Phase 6 tokens have `t` type field
-  const isNewSchema = rawTokens.length > 0 && ("kind" in rawTokens[0]);
+  // Phase 7.4: every token has string `kind`. Phase 6 uses `t` as type ("word"|"lit") without `kind`.
+  const isNewSchema = rawTokens.length > 0 && rawTokens.every((t) => t && typeof t.kind === "string");
 
   rawTokens.forEach((tok) => {
     const span = document.createElement("span");
 
     if (isNewSchema) {
       // ── Phase 7.4 schema ──
+      const wordId74 = tok.word_id ?? tok.id ?? null;
       span.textContent          = tok.t;
       span.dataset.kind         = tok.kind;
       span.dataset.text         = tok.t;
       if (frame?.id)    span.dataset.frameId  = frame.id;
-      if (tok.word_id)  span.dataset.wordId   = tok.word_id;
+      if (wordId74)     span.dataset.wordId   = wordId74;
       if (tok.slot_name) span.dataset.slotName = tok.slot_name;
 
-      if (tok.kind === "word" && tok.word_id) {
-        span.className = "tok tok-word";
+      if (tok.kind === "word" && wordId74) {
+        span.className = "tok tok-word word-insight-token";
+        span.dataset.insightSource = "active_sentence";
+        const hd = getWordHintData(wordId74);
+        if (hd.pinyin || hd.meaning) span.title = [hd.pinyin, hd.meaning].filter(Boolean).join(" — ");
         span.addEventListener("click", async (e) => {
           e.stopPropagation();
-          lastClickedWordId        = tok.word_id;
+          lastClickedWordId        = wordId74;
           window.lastClickedWordId = lastClickedWordId;
-          await _openCardForWordId(tok.word_id);
-          // Update hint area for this word (pinyin → meaning → etymology) so user can explore
+          _openWordInsightPopover(span, wordId74, tok.t, "active_sentence");
           const turnUid = window._currentTurnUid || frame?.id || "";
           hint_cascade_state = { level: 1, turn_uid: turnUid };
           renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
+          if (_shouldAlsoOpenCardPanel()) await _openCardForWordId(wordId74);
         });
       } else if (tok.kind === "word") {
         // Unknown word — no word_id
-
-
-
-
-
-        // Unknown word — no word_id
-        span.className = "tok tok-word tok-word-unknown";
+        span.className = "tok tok-word tok-word-unknown word-insight-token";
+        span.dataset.insightSource = "active_sentence";
         span.addEventListener("click", (e) => {
           e.stopPropagation();
-          const mg       = document.getElementById("microGloss");
-          const hwEl     = document.getElementById("microGlossHeadword");
-          const bodyEl   = document.getElementById("microGlossBody");
-          const openBtn  = document.getElementById("microGlossOpenCard");
-          if (!mg || !hwEl || !bodyEl || !openBtn) return;
-          hwEl.textContent    = tok.t;
-          bodyEl.textContent  = "Not in lexicon yet";
-          openBtn.style.display = "none";
-          const rect     = span.getBoundingClientRect();
-          const sentRect = el.getBoundingClientRect();
-          mg.style.left    = `${rect.left - sentRect.left}px`;
-          mg.style.top     = `${rect.bottom - sentRect.top + 4}px`;
-          mg.style.display = "";
-          _microGlossActiveTokenEl = span;
+          _openWordInsightPopover(span, null, tok.t, "active_sentence");
         });
       } else if (tok.kind === "slot") {
         span.className = "tok tok-slot";
@@ -1107,26 +1475,32 @@ function renderFrameSentence(frame) {
       // ── Phase 6 schema fallback (tok.t is kind, tok.s is surface) ──
       span.textContent = tok.text ?? tok.s ?? tok.t ?? "";
       if (tok.t === "word") {
-        span.className    = "frame-word-token";
+        span.className    = "frame-word-token word-insight-token";
         span.style.cursor = "pointer";
-        span.title        = tok.id || "";
-        span.addEventListener("click", () => {
+        span.dataset.insightSource = "active_sentence";
+        const hd = tok.id ? getWordHintData(tok.id) : {};
+        if (hd.pinyin || hd.meaning) span.title = [hd.pinyin, hd.meaning].filter(Boolean).join(" — ");
+        else span.title = tok.id || "";
+        span.addEventListener("click", async () => {
           lastClickedWordId        = tok.id;
           window.lastClickedWordId = lastClickedWordId;
           const turnUid = window._currentTurnUid || frame?.id || "";
           hint_cascade_state = { level: 1, turn_uid: turnUid };
           renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
+          _openWordInsightPopover(span, tok.id, span.textContent, "active_sentence");
           const cardId = cardsIndex?.by_word_id?.[tok.id];
           if (!cardId) {
             console.warn(`[app] renderFrameSentence: no card_id for word_id '${tok.id}'`);
             return;
           }
-          emitUITrace({
-            type: "OPEN_CARD", timestamp: new Date().toISOString(),
-            payload: { frame_id: frame?.id, card_id: cardId, reason: "card_available" }
-          });
-          dispatch({ type: "OPEN_CARD", payload: { card_id: cardId } });
-          resolveCard(cardId, "tools/cards/out/cards_by_id.json");
+          if (_shouldAlsoOpenCardPanel()) {
+            emitUITrace({
+              type: "OPEN_CARD", timestamp: new Date().toISOString(),
+              payload: { frame_id: frame?.id, card_id: cardId, reason: "card_available" }
+            });
+            dispatch({ type: "OPEN_CARD", payload: { card_id: cardId } });
+            await resolveCard(cardId, "tools/cards/out/cards_by_id.json");
+          }
         });
       } else {
         span.className = "frame-lit-token";
@@ -1143,29 +1517,229 @@ function renderFrameSentence(frame) {
 }
 
 // ── §2.4 Etymology (shared: hint + card panel) — Phase 6 ───────────────────
+/** Normalize radical field: runtime / JSON may use string or `{ glyph, meaning_en }`. */
+function _etymRadicalToText(r) {
+  if (r == null || r === "") return "";
+  if (typeof r === "string") return r.trim();
+  if (typeof r === "object") {
+    const g = r.glyph != null ? String(r.glyph).trim() : "";
+    const m = r.meaning_en != null ? String(r.meaning_en).trim() : "";
+    if (g && m) return `${g} (${m})`;
+    return g || m;
+  }
+  return String(r);
+}
+
+/** Normalize decomposition: string or `{ type, components: [] }` from characters_1200. */
+function _etymDecompToText(d) {
+  if (d == null || d === "") return "";
+  if (typeof d === "string") return d.trim();
+  if (typeof d === "object" && Array.isArray(d.components)) {
+    return d.components.filter(Boolean).join(" + ");
+  }
+  if (typeof d === "object" && d.type) return String(d.type);
+  return "";
+}
+
+/** One character block from `characters_1200` (no outer etym-word wrapper). */
+function buildCharacterCoreInsightInnerHTML(hanzi) {
+  const map = window._charCoreByHanzi || charCoreByHanzi;
+  const ch = hanzi && String(hanzi).trim();
+  if (!ch || !map) return null;
+  const entry = map[ch];
+  if (!entry || typeof entry !== "object") return null;
+  const rad = _etymRadicalToText(entry.primary_radical);
+  const decomp = _etymDecompToText(entry.decomposition);
+  const origin = entry.etymology?.origin_note ? String(entry.etymology.origin_note).trim() : "";
+  const story = entry.mnemonic?.story ? String(entry.mnemonic.story).trim() : "";
+  const disclaim = entry.mnemonic?.disclaimer ? String(entry.mnemonic.disclaimer).trim() : "";
+  if (!rad && !decomp && !origin && !story) return null;
+  let html = `<div class="etym-char char-core-insight"><span class="etym-hanzi">${ch}</span>`;
+  if (rad) html += `<span class="etym-radical">Radical: ${rad}</span>`;
+  if (decomp) html += `<span class="etym-decomp">Parts: ${decomp}</span>`;
+  if (origin) html += `<span class="etym-origin">${origin}</span>`;
+  if (story) html += `<span class="etym-mnemonic">${story}</span>`;
+  if (disclaim) html += `<span class="etym-disclaimer">${disclaim}</span>`;
+  html += `</div>`;
+  return html;
+}
+
+function buildCharacterCoreInsightHTML(hanzi) {
+  const inner = buildCharacterCoreInsightInnerHTML(hanzi);
+  return inner ? `<div class="etym-word">${inner}</div>` : null;
+}
+
+/** Multi-character headword: stack per-glyph core rows when runtime word etymology is missing. */
+function buildAggregatedCharCoreHTML(headwordHanzi) {
+  const hz = (headwordHanzi || "").trim();
+  if (!hz) return null;
+  const parts = [];
+  for (const grapheme of hz) {
+    const inner = buildCharacterCoreInsightInnerHTML(grapheme);
+    if (inner) parts.push(inner);
+  }
+  if (!parts.length) return null;
+  return `<div class="etym-word">${parts.join("")}</div>`;
+}
+
+/**
+ * Chip “deep” step: prefer word_etymology.runtime.json for that glyph’s w_* id, else characters_1200.
+ */
+function buildCharDeepHintHTML(hanzi) {
+  const ch = hanzi && String(hanzi).trim();
+  if (!ch) return null;
+  const wid = resolveWordIdForCharEtymology(ch);
+  if (wid) {
+    const fromRuntime = buildEtymologyHTML(wid);
+    if (fromRuntime) return fromRuntime;
+  }
+  return buildCharacterCoreInsightHTML(ch);
+}
+
+function escapeHtmlForInsight(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * No characters_1200 / word_etymology row for this glyph: explain syllable + word context from the open card headword.
+ */
+function buildCharGlyphFallbackHTML(cardContent, chText, charIndex) {
+  const hz = (cardContent?.headword?.hanzi || "").trim();
+  const mean =
+    cardContent?.meaning != null && String(cardContent.meaning).trim()
+      ? String(cardContent.meaning).trim()
+      : "";
+  const pyFull =
+    cardContent?.headword?.pinyin != null && String(cardContent.headword.pinyin).trim()
+      ? String(cardContent.headword.pinyin).trim()
+      : "";
+  const ch = (chText || "").trim();
+  if (!hz || ![...hz].includes(ch)) return null;
+  const per = splitHeadwordPinyinToGraphemes(hz, pyFull);
+  const pyOne = per && charIndex >= 0 && per[charIndex] ? per[charIndex] : "";
+  const e = escapeHtmlForInsight;
+  let body = `This character appears in <strong>${e(hz)}</strong>`;
+  if (pyFull) body += ` (${e(pyFull)})`;
+  if (pyOne) body += ` — syllable for this glyph: <strong>${e(pyOne)}</strong>`;
+  if (mean) body += `. Gloss for the whole word: ${e(mean)}`;
+  body += `. No row yet for this glyph under this word in <code>word_etymology.runtime.json</code> (run <code>tools/build_runtime_artifacts.py</code> after <code>word_character_links.json</code> + <code>characters_1200.json</code> include it), and no Hanzi match in the loaded character corpus.`;
+  return `<div class="etym-word"><div class="etym-char char-glyph-fallback"><span class="etym-hanzi">${e(ch)}</span><span class="etym-origin">${body}</span></div></div>`;
+}
+
+/** Word-level card etymology row: runtime bundle first, else aggregate character core. */
+function buildCardPanelWordEtymologyHTML(wordId, headwordHanzi) {
+  const fromRuntime = wordId ? buildEtymologyHTML(wordId) : null;
+  if (fromRuntime) return fromRuntime;
+  return buildAggregatedCharCoreHTML(headwordHanzi || "");
+}
+
+/** Curated inferred narrative block (merged at build from data/word_etymology_top1000_…). */
+function buildWordNarrativeSectionHTML(wordNarrative) {
+  if (!wordNarrative || !wordNarrative.etymology) return "";
+  const et = wordNarrative.etymology;
+  const ex = et.explanation_en != null ? String(et.explanation_en).trim() : "";
+  if (!ex) return "";
+  const mag = escapeHtmlForInsight;
+  const type = et.type != null ? String(et.type).trim() : "";
+  let h = `<div class="etym-word-narrative">`;
+  if (type) h += `<span class="etym-narrative-type">${mag(type)}</span>`;
+  h += `<span class="etym-origin">${mag(ex)}</span>`;
+  h += `</div>`;
+  return h;
+}
+
+/**
+ * One character row from word_etymology.runtime.json (structural fields + optional glyph_narrative).
+ */
+function formatWordEtymologyCharRecordHtml(ch) {
+  if (!ch || !ch.char) return "";
+  const e = escapeHtmlForInsight;
+  const hz = String(ch.char).trim();
+  const rad = ch.radical != null ? String(ch.radical).trim() : "";
+  const decomp = _etymDecompToText(ch.decomposition);
+  const et = ch.etymology;
+  let structNote = "";
+  if (et && typeof et === "object") {
+    structNote = et.origin_note ? String(et.origin_note).trim() : "";
+    if (!structNote && et.explanation_en) structNote = String(et.explanation_en).trim();
+  }
+  const gn = ch.glyph_narrative;
+  let usageNote = "";
+  if (gn && gn.etymology && gn.etymology.explanation_en) {
+    usageNote = String(gn.etymology.explanation_en).trim();
+  }
+  if (!rad && !decomp && !structNote && !usageNote) return "";
+
+  let html = `<div class="etym-char char-runtime-insight"><span class="etym-hanzi">${e(hz)}</span>`;
+  if (rad) html += `<span class="etym-radical">Radical: ${e(rad)}</span>`;
+  if (decomp) html += `<span class="etym-decomp">Parts: ${e(decomp)}</span>`;
+  if (structNote) html += `<span class="etym-structure">${e(structNote)}</span>`;
+  if (usageNote) html += `<span class="etym-usage-narrative">${e(usageNote)}</span>`;
+  html += `</div>`;
+  return html;
+}
+
 /** Returns HTML string for word etymology, or null if none. Card_id equals word_id in our data. */
 function buildEtymologyHTML(wordId) {
   if (!wordId || !wordEtymologyIndex[wordId]) return null;
   const entry = wordEtymologyIndex[wordId];
-  if (!entry.characters || entry.characters.length === 0) return null;
-  const parts = entry.characters.map(ch => {
-    let html = `<div class="etym-char"><span class="etym-hanzi">${ch.char}</span>`;
-    if (ch.radical)                 html += `<span class="etym-radical">Radical: ${ch.radical}</span>`;
-    if (ch.decomposition)           html += `<span class="etym-decomp">Parts: ${ch.decomposition}</span>`;
-    if (ch.etymology?.origin_note)  html += `<span class="etym-origin">${ch.etymology.origin_note}</span>`;
-    if (ch.mnemonic?.story)         html += `<span class="etym-mnemonic">${ch.mnemonic.story}</span>`;
-    if (ch.mnemonic?.disclaimer)    html += `<span class="etym-disclaimer">${ch.mnemonic.disclaimer}</span>`;
-    html += `</div>`;
-    return html;
-  }).join("");
-  return `<div class="etym-word">${parts}</div>`;
+  const narr = buildWordNarrativeSectionHTML(entry.word_narrative);
+  const parts = (entry.characters || [])
+    .map((ch) => formatWordEtymologyCharRecordHtml(ch))
+    .filter(Boolean)
+    .join("");
+  if (!narr && !parts) return null;
+  const body = `${narr}<div class="etym-under-chars">${parts}</div>`;
+  return `<div class="etym-word">${body}</div>`;
 }
 
-function renderEtymologyForWord(wordId) {
-  const el = document.getElementById("hintEtymology");
-  if (!el) return;
-  const html = buildEtymologyHTML(wordId);
-  el.innerHTML = html || "<span class='etym-fallback'>No etymology available yet</span>";
+/** While this word’s card is open, hide global ? rows — progressive hints are in the card. */
+function cardPanelCoversWordHints() {
+  try {
+    if (!state?.isOpen || !state.activeCardId) return false;
+    const wid = window.lastClickedWordId;
+    if (!wid || String(wid).startsWith("__opt_")) return false;
+    return resolveOpenableCardId(wid) === state.activeCardId;
+  } catch (e) {
+    return false;
+  }
+}
+
+/** Ordered blocks after headword. */
+function buildCardRevealExtras(cardContent, activeCardId) {
+  const extras = [];
+  const py = cardContent.headword?.pinyin;
+  if (py && String(py).trim()) extras.push({ key: "pinyin" });
+  const mean = cardContent.meaning;
+  if (mean && String(mean).trim()) extras.push({ key: "meaning" });
+  const comp = cardContent.word_composition?.characters;
+  if (comp && comp.length) extras.push({ key: "composition", chars: comp });
+  const hw = cardContent.headword?.hanzi || "";
+  if (buildCardPanelWordEtymologyHTML(activeCardId, hw)) extras.push({ key: "etymology" });
+  return extras;
+}
+
+function syncCardRevealUiForCard(activeCardId) {
+  if (activeCardId !== _cardRevealCardId) {
+    _cardRevealCardId = activeCardId;
+    _cardExtrasVisible = 0;
+    _cardCharFocusIdx = null;
+    _cardCharPhase = 0;
+  }
+}
+
+function nextCardRevealButtonLabel(extras, visible) {
+  if (visible >= extras.length) return "Reset hints";
+  const nx = extras[visible];
+  if (nx.key === "pinyin") return "Show pinyin →";
+  if (nx.key === "meaning") return "Show meaning →";
+  if (nx.key === "composition") return "Show characters →";
+  if (nx.key === "etymology") return "Show word etymology →";
+  return "Next →";
 }
 // ── end Phase 6 ────────────────────────────────────────────────────────────
 
@@ -1262,10 +1836,12 @@ function render() {
     cardError.textContent = state.error ? (state.error.message || state.error.kind || "Error") : "";
     cardIdEl.textContent = state.activeCardId || "";
     const titleText = (state.activeCard && state.activeCard.title) || "";
-    cardTitle.textContent = titleText;
+    while (cardTitle.firstChild) cardTitle.removeChild(cardTitle.firstChild);
+    if (titleText) cardTitle.appendChild(document.createTextNode(titleText));
 
+    const activeCardId = state.activeCardId || "";
+    syncCardRevealUiForCard(activeCardId);
 
-    // Phase 6: Single source of truth for card content
     const cardContent = (state.activeCard && state.activeCard.content) || {};
     const headwordHanzi =
       (cardContent.headword && cardContent.headword.hanzi)
@@ -1277,22 +1853,158 @@ function render() {
         : "";
     const meaning = cardContent.meaning || "";
 
-    // Main display text
-    const mainText = [headwordHanzi, pinyin, meaning]
-      .filter(Boolean)
-      .join("\n");
+    const extras = buildCardRevealExtras(cardContent, activeCardId);
+    const maxExtras = extras.length;
 
-    // Render main text
     clearEl(cardBody);
 
     const mainDisplayDiv = document.createElement("div");
     mainDisplayDiv.className = "card-main";
 
-    if (headwordHanzi) mainDisplayDiv.appendChild(makeDiv("card-main-hanzi", headwordHanzi));
-    if (pinyin) mainDisplayDiv.appendChild(makeDiv("card-main-pinyin", pinyin));
-    if (meaning) mainDisplayDiv.appendChild(makeDiv("card-main-meaning", meaning));
+    if (maxExtras > 0) {
+      const hintRow = document.createElement("div");
+      hintRow.className = "card-inhint-row";
+      const nextHintBtn = document.createElement("button");
+      nextHintBtn.type = "button";
+      nextHintBtn.className = "card-inhint-next";
+      nextHintBtn.textContent = nextCardRevealButtonLabel(extras, _cardExtrasVisible);
+      nextHintBtn.title = "Reveal the next level in this card (pinyin → meaning → characters → word etymology). Then Reset.";
+      nextHintBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (_cardExtrasVisible >= maxExtras) {
+          _cardExtrasVisible = 0;
+          _cardCharFocusIdx = null;
+          _cardCharPhase = 0;
+        } else {
+          _cardExtrasVisible += 1;
+        }
+        render();
+      });
+      hintRow.appendChild(nextHintBtn);
+      mainDisplayDiv.appendChild(hintRow);
+    }
 
-cardBody.appendChild(mainDisplayDiv);
+    if (headwordHanzi) mainDisplayDiv.appendChild(makeDiv("card-main-hanzi", headwordHanzi));
+
+    for (let i = 0; i < _cardExtrasVisible && i < extras.length; i++) {
+      const ex = extras[i];
+      if (ex.key === "pinyin" && pinyin) mainDisplayDiv.appendChild(makeDiv("card-main-pinyin", pinyin));
+      else if (ex.key === "meaning" && meaning) mainDisplayDiv.appendChild(makeDiv("card-main-meaning", meaning));
+      else if (ex.key === "composition" && ex.chars && ex.chars.length) {
+        const compWrap = makeDiv("card-composition", "");
+        const row = document.createElement("div");
+        row.className = "card-composition-row";
+        ex.chars.forEach((c, idx) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "char-chip" + (_cardCharFocusIdx === idx ? " char-chip-focus" : "");
+          const chSurface = c.char || c.hanzi || "";
+          btn.textContent = chSurface;
+          btn.disabled = !btn.textContent;
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const cardId = state.activeCardId || "unknown_card";
+            const utteranceId = `card:${cardId}:char:${idx}`;
+            if (_cardCharFocusIdx !== idx) {
+              _cardCharFocusIdx = idx;
+              _cardCharPhase = 1;
+              emitUITrace({
+                type: "AUDIO_PLAY_REQUESTED",
+                timestamp: new Date().toISOString(),
+                payload: { utterance_id: utteranceId, text: chSurface, source: "card_composition_char" },
+              });
+              ttsSpeak({
+                text: chSurface,
+                lang: "zh-CN",
+                utterance_id: utteranceId,
+                onEvent: (traceEntry) => emitUITrace(traceEntry),
+              });
+            } else {
+              _cardCharPhase = (_cardCharPhase + 1) % 4;
+              if (_cardCharPhase === 0) _cardCharFocusIdx = null;
+              else if (_cardCharPhase === 1) {
+                emitUITrace({
+                  type: "AUDIO_PLAY_REQUESTED",
+                  timestamp: new Date().toISOString(),
+                  payload: { utterance_id: utteranceId, text: chSurface, source: "card_composition_char" },
+                });
+                ttsSpeak({
+                  text: chSurface,
+                  lang: "zh-CN",
+                  utterance_id: utteranceId,
+                  onEvent: (traceEntry) => emitUITrace(traceEntry),
+                });
+              }
+            }
+            render();
+          });
+          row.appendChild(btn);
+        });
+        compWrap.appendChild(row);
+
+        const det = document.createElement("div");
+        det.className = "card-char-detail";
+        if (_cardCharFocusIdx == null) {
+          det.textContent = "Tap a character to hear it. Tap the same character again for pinyin, then gloss, then etymology when available.";
+        } else if (_cardCharPhase === 0) {
+          det.textContent = "Tap a character to start again.";
+        } else {
+          const c = ex.chars[_cardCharFocusIdx];
+          const chText = (c?.char || c?.hanzi || "").trim();
+          const reading = resolveCharPinyinMeaning(cardContent, c, _cardCharFocusIdx);
+          if (_cardCharPhase >= 1) {
+            const pyLine = document.createElement("div");
+            pyLine.className = "card-char-detail-py";
+            pyLine.textContent = reading.pinyin || "—";
+            det.appendChild(pyLine);
+          }
+          if (_cardCharPhase >= 2) {
+            const mnLine = document.createElement("div");
+            mnLine.className = "card-char-detail-mean";
+            mnLine.textContent = reading.meaning || "—";
+            det.appendChild(mnLine);
+          }
+          if (_cardCharPhase >= 3) {
+            const et =
+              buildCharDeepHintHTML(chText, activeCardId) ||
+              buildCharGlyphFallbackHTML(cardContent, chText, _cardCharFocusIdx);
+            if (et) {
+              const etDiv = document.createElement("div");
+              etDiv.className = "card-char-detail-etym";
+              etDiv.innerHTML = et;
+              det.appendChild(etDiv);
+            } else {
+              const miss = document.createElement("div");
+              miss.className = "card-char-detail-etym card-char-detail-etym-empty";
+              miss.textContent =
+                "No breakdown or word context available for this glyph.";
+              det.appendChild(miss);
+            }
+          }
+        }
+        compWrap.appendChild(det);
+
+        const hint = document.createElement("div");
+        hint.className = "card-composition-hint";
+        hint.innerHTML = "<em>Same character: next hint level (then cycles).</em>";
+        compWrap.appendChild(hint);
+
+        mainDisplayDiv.appendChild(compWrap);
+      } else if (ex.key === "etymology") {
+        const etHTML = buildCardPanelWordEtymologyHTML(activeCardId, headwordHanzi);
+        if (etHTML) {
+          const ew = document.createElement("div");
+          ew.className = "card-etymology card-etymology-revealed";
+          const inner = document.createElement("div");
+          inner.className = "card-etymology-content";
+          inner.innerHTML = etHTML;
+          ew.appendChild(inner);
+          mainDisplayDiv.appendChild(ew);
+        }
+      }
+    }
+
+    cardBody.appendChild(mainDisplayDiv);
 
 
     // Phase 6: Word-level play button
@@ -1325,90 +2037,14 @@ cardBody.appendChild(mainDisplayDiv);
     }
 
 
-renderModeledOptions(cardBody, state.panelOptions, state);
-// --- Phase 6: render clickable characters from content.word_composition (if present)
-const compChars =
-
-  state.activeCard &&
-  state.activeCard.content &&
-  state.activeCard.content.word_composition &&
-  Array.isArray(state.activeCard.content.word_composition.characters)
-    ? state.activeCard.content.word_composition.characters
-    : null;
-
-if (compChars && compChars.length) {
-  const compWrap = makeDiv("card-composition", "");
-  
-
-
-
-  const row = document.createElement("div");
-  row.className = "card-composition-row";
-
-  compChars.forEach((c, idx) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "char-chip";
-    btn.textContent = c.char || c.hanzi || "";
-    btn.disabled = !btn.textContent;
-
-    btn.addEventListener("click", async () => {
-      const ch = btn.textContent;
-      const cardId = state.activeCardId || "unknown_card";
-      const utteranceId = `card:${cardId}:char:${idx}`;
-
-      emitUITrace({
-        type: "AUDIO_PLAY_REQUESTED",
-        timestamp: new Date().toISOString(),
-        payload: { utterance_id: utteranceId, text: ch, source: "card_composition_char" }
-      });
-
-      ttsSpeak({
-        text: ch,
-        lang: "zh-CN",
-        utterance_id: utteranceId,
-        onEvent: (traceEntry) => emitUITrace(traceEntry),
-      });
-    });
-
-    row.appendChild(btn);
-  });
-
-  compWrap.appendChild(row);
-
-  const hint = document.createElement("div");
-  hint.className = "card-composition-hint";
-  hint.innerHTML = "<em>Tap a character to hear it.</em>";
-  compWrap.appendChild(hint);
-
-  cardBody.appendChild(compWrap);
-}
-// --- end composition rendering
-
-    // Etymology in card panel: "Show etymology" link, expands in place (room for future brush/radical clicks).
-    const etymHTML = buildEtymologyHTML(state.activeCardId);
-    if (etymHTML) {
-      const etymWrap = document.createElement("div");
-      etymWrap.className = "card-etymology";
-      const cardId = state.activeCardId;
-      const isExpanded = _cardEtymologyExpanded.has(cardId);
-      const trigger = document.createElement("button");
-      trigger.type = "button";
-      trigger.className = "card-etymology-trigger";
-      trigger.textContent = isExpanded ? "Hide etymology" : "Show etymology";
-      trigger.addEventListener("click", () => {
-        if (_cardEtymologyExpanded.has(cardId)) _cardEtymologyExpanded.delete(cardId);
-        else _cardEtymologyExpanded.add(cardId);
-        render();
-      });
-      etymWrap.appendChild(trigger);
-      if (isExpanded) {
-        const etymInner = document.createElement("div");
-        etymInner.className = "card-etymology-content";
-        etymInner.innerHTML = etymHTML;
-        etymWrap.appendChild(etymInner);
-      }
-      cardBody.appendChild(etymWrap);
+    const compCharsForSkip = cardContent.word_composition?.characters;
+    const skipModeledOpts =
+      state.panelOptions &&
+      /^\s*characters\b/i.test(String(state.panelOptions.section_title || "").trim()) &&
+      Array.isArray(compCharsForSkip) &&
+      compCharsForSkip.length > 0;
+    if (!skipModeledOpts) {
+      renderModeledOptions(cardBody, state.panelOptions, state);
     }
 
     // play affordance visible for surface devices; enable when a card is active
@@ -1424,6 +2060,7 @@ if (compChars && compChars.length) {
     cardTitle.textContent = "";
     cardBody.textContent = "";
     if (playBtn) playBtn.style.display = "none";
+    _cardRevealCardId = null;
   }
 }
 
@@ -1486,6 +2123,11 @@ async function resolveCard(cardId, cards_path) {
     const q = new URLSearchParams({ path: cards_path });
     const cardsResp = await fetch(`/api/cards?${q.toString()}`);
     const cards = await cardsResp.json();
+    if (cards && typeof cards === "object") {
+      window._cardsByIdCache = window._cardsByIdCache || {};
+      Object.assign(window._cardsByIdCache, cards);
+      rebuildHanziWordLookupFromCardsCache();
+    }
     const card = cards && cards[cardId] ? cards[cardId] : null;
     if (card) {
       window._resolvedCard = card;
@@ -1844,8 +2486,41 @@ function renderOptions(options, frameId) {
         else if (part) optionContent.appendChild(document.createTextNode(part));
       });
     } else {
-      const h = document.createElement("span"); h.className = "option-hanzi"; h.textContent = opt.hanzi || "";
-      optionContent.appendChild(h);
+      const hanziStr = opt.hanzi || "";
+      const hanziWrap = document.createElement("span");
+      hanziWrap.className = "option-hanzi option-hanzi-tokens";
+      const segments = tokenizeHanziForOption(hanziStr, opt);
+      segments.forEach((seg) => {
+        const wid = seg.word_id;
+        const surface = seg.t;
+        const span = document.createElement("span");
+        span.textContent = surface;
+        span.className = wid ? "tok tok-word word-insight-token" : "tok tok-word-unknown word-insight-token";
+        span.dataset.kind = "word";
+        if (wid) span.dataset.wordId = wid;
+        span.dataset.insightSource = `option:${idx}`;
+        let tip = wid ? getInsightTitleForWordId(wid) : "";
+        if (!tip && wid && wid === opt.card_id && (opt.pinyin || opt.meaning))
+          tip = [opt.pinyin, opt.meaning].filter(Boolean).join(" — ");
+        if (tip) span.title = tip;
+        span.addEventListener("click", async (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          if (!wid) {
+            _openWordInsightPopover(span, null, surface, `option:${idx}`);
+            return;
+          }
+          lastClickedWordId = wid;
+          window.lastClickedWordId = wid;
+          _openWordInsightPopover(span, wid, surface, `option:${idx}`);
+          const turnUid = window._currentTurnUid || frameId;
+          hint_cascade_state = { level: 1, turn_uid: turnUid };
+          renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
+          if (_shouldAlsoOpenCardPanel()) await _openCardForWordId(wid);
+        });
+        hanziWrap.appendChild(span);
+      });
+      optionContent.appendChild(hanziWrap);
     }
     btn.appendChild(optionContent);
     const optionActions = document.createElement("div");
@@ -1909,7 +2584,8 @@ function renderOptions(options, frameId) {
     optionHintBlock.appendChild(optHintEtymology);
     panel.appendChild(optionHintBlock);
 
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (ev) => {
+      if (ev.target.closest(".word-insight-token")) return;
       emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
         payload: { frame_id: frameId, card_id: opt.card_id, is_gold: opt.is_gold, is_slot: opt.is_slot, option_idx: idx, kind: opt.kind } });
       container.querySelectorAll(".option-panel").forEach(p => p.classList.remove("selected"));
@@ -2477,8 +3153,10 @@ window.addEventListener("load", async () => {
     loadPackFramesIntoDropdown(),
     loadFrameRenderTokens(),
     loadCardsIndex(),
+    loadCardsByIdBlob(),
     loadFrameOptions(),
     loadWordEtymology(),
+    loadCharacters1200Core(),
     loadFrameTokens(),
     loadRecoveryPhrases(),
   ]);
@@ -2543,6 +3221,7 @@ window.addEventListener("load", async () => {
       btn.title = "Speak your answer";
     }
     if (matchedOption) {
+      if (frameId) window._unmatchedByFrame[frameId] = 0;
       window._consecutiveNotUnderstood = 0;
       // Understood: update conversation and move to next turn (same as selecting that option)
       emitUITrace({ type: "SPEECH_UNDERSTOOD", timestamp: new Date().toISOString(), payload: { transcript, matched_hanzi: matchedOption.hanzi } });
@@ -2574,9 +3253,11 @@ window.addEventListener("load", async () => {
     }
     // No option match but user said something substantial — accept and advance to sustain conversation (no "correct answer" required)
     const saidTrimmed = (transcript && typeof transcript === "string") ? transcript.trim() : "";
-    const unmatchedDecision = classifyUnmatchedFreeAnswerDecision(saidTrimmed, options, frameId);
+    const unmatchedCount = frameId ? (window._unmatchedByFrame?.[frameId] || 0) : 0;
+    const unmatchedDecision = classifyUnmatchedFreeAnswerDecision(saidTrimmed, options, frameId, unmatchedCount);
     const substantialAnswer = unmatchedDecision.accept;
     if (substantialAnswer) {
+      if (frameId) window._unmatchedByFrame[frameId] = 0;
       window._consecutiveNotUnderstood = 0;
       emitUITrace({
         type: "SPEECH_ACCEPTED_AS_ANSWER",
@@ -2602,8 +3283,9 @@ window.addEventListener("load", async () => {
     emitUITrace({
       type: "SPEECH_NOT_UNDERSTOOD",
       timestamp: new Date().toISOString(),
-      payload: { transcript, unmatched_decision_reason: unmatchedDecision.reason, frame_id: frameId }
+      payload: { transcript, unmatched_decision_reason: unmatchedDecision.reason, frame_id: frameId, unmatched_count: unmatchedCount + 1 }
     });
+    if (frameId) window._unmatchedByFrame[frameId] = unmatchedCount + 1;
     addTranscriptEntry("user", (transcript && transcript.trim()) ? transcript.trim() : "[couldn't understand]");
     const lastRecoveryId = window._lastRecoveryPhraseId || null;
     const phrase = getRecoveryPhraseForNotUnderstood(lastRecoveryId);
@@ -2650,11 +3332,13 @@ window.addEventListener("load", async () => {
       onEvent: (traceEntry) => emitUITrace(traceEntry),
     });
   });
-  // Close micro-gloss on click outside sentence area
-  document.addEventListener('click', (e) => {
-    const mg = document.getElementById('microGloss');
-    const fs = document.getElementById('frameSentence');
-    if (mg && fs && !fs.contains(e.target) && !mg.contains(e.target)) _closeMicroGloss();
+  // Close word-insight popover on click outside (tokens use stopPropagation; option tokens included)
+  document.addEventListener("click", (e) => {
+    const mg = document.getElementById("microGloss");
+    if (!mg || mg.style.display === "none") return;
+    if (mg.contains(e.target)) return;
+    if (e.target.closest(".word-insight-token")) return;
+    _closeMicroGloss();
   });
   render();
 });
