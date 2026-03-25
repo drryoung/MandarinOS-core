@@ -71,12 +71,25 @@ export function splitHeadwordPinyinToGraphemes(hanzi, pinyinStr) {
   if (graph.length === 0) return null;
   const py = String(pinyinStr).trim();
   const partsBySpace = py.split(/\s+/).filter(Boolean);
+  if (partsBySpace.length === 0) return null;
+
+  // One token per 字 (e.g. "nǐ hǎo" + 你好)
   if (partsBySpace.length === graph.length) return partsBySpace;
-  if (partsBySpace.length === 1 && graph.length > 1) {
-    const plain = pinyinStripTonesForMatch(py.toLowerCase());
+
+  // Fewer spaced groups than 字 (e.g. "zěnme jiào" + 怎么叫): join and greedy-syllable split.
+  // Same as single-token compact pinyin when partsBySpace.length === 1.
+  if (graph.length > 1) {
+    const joined = partsBySpace.join("");
+    const plain = pinyinStripTonesForMatch(joined.toLowerCase());
     const syls = splitPlainPinyinToSyllables(plain);
-    if (!syls || syls.length !== graph.length) return null;
-    return sliceTonedPinyin(py, syls);
+    if (syls && syls.length === graph.length) {
+      return sliceTonedPinyin(joined, syls);
+    }
   }
+
+  if (graph.length === 1) {
+    return [partsBySpace.join(" ")];
+  }
+
   return null;
 }

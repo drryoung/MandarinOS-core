@@ -6,15 +6,11 @@ const frameSelect = document.getElementById("frameSelect");
 const runBtn = document.getElementById("runBtn");
 const nextBtn = document.getElementById("nextBtn");
 const traceEl = document.getElementById("trace");
-const dataBuildInfoEl = document.getElementById("dataBuildInfo");
 const cardPanel = document.getElementById("cardPanel");
 const noCard = document.getElementById("noCard");
-const cardIdEl = document.getElementById("cardId");
 const cardTitle = document.getElementById("cardTitle");
 const cardBody = document.getElementById("cardBody");
 const cardError = document.getElementById("cardError");
-const playBtn = document.getElementById("playBtn");
-const cardCloseBtn = document.getElementById("cardCloseBtn");
 
 let state = Object.assign({}, _initialState);
 let uiTrace = [];
@@ -288,17 +284,9 @@ function _openWordInsightPopover(tokenEl, wordId, surfaceText, insightSource) {
   const mean = (hint?.meaning || "").trim();
   bodyEl.textContent = [py, mean].filter(Boolean).join(" — ") || "(No pinyin or gloss in index yet.)";
 
-  const etWid = resolveWordIdForEtymology(wordId) || wordId;
-  const hasEtym = !!buildCardPanelWordEtymologyHTML(etWid, surfaceText);
-  // No “no etymology” clutter — only show a line when we actually have etymology notes.
   if (etymEl) {
-    if (hasEtym) {
-      etymEl.style.display = "block";
-      etymEl.textContent = "Etymology: open the card, use “Next hint”, or tap character chips when shown.";
-    } else {
-      etymEl.textContent = "";
-      etymEl.style.display = "none";
-    }
+    etymEl.textContent = "";
+    etymEl.style.display = "none";
   }
 
   const openId = resolveOpenableCardId(wordId);
@@ -380,6 +368,35 @@ async function loadWordEtymology() {
 
 /** Hanzi → row from `characters_1200.json` (radical, decomposition, notes). Fills gaps when word_etymology.runtime.json is absent. */
 let charCoreByHanzi = Object.create(null);
+
+/** Merged from `/component_gloss_maps.json` (radical variants + teaching supplement). */
+window._radicalVariantGlossEn = window._radicalVariantGlossEn || Object.create(null);
+window._teachingSupplementGlossEn = window._teachingSupplementGlossEn || Object.create(null);
+
+async function loadComponentGlossMaps() {
+  try {
+    // Repo root (ui_server: top-level *.json) — same pattern as characters_1200.json
+    let r = await fetch("/component_gloss_maps.json");
+    if (!r.ok) {
+      r = await fetch("/data/component_gloss_maps.json");
+    }
+    if (!r.ok) {
+      console.warn(`[app] component_gloss_maps not available (HTTP ${r.status})`);
+      return;
+    }
+    const d = await r.json();
+    const rv = d.radical_variant_gloss_en && typeof d.radical_variant_gloss_en === "object" ? d.radical_variant_gloss_en : {};
+    const ts = d.teaching_supplement_en && typeof d.teaching_supplement_en === "object" ? d.teaching_supplement_en : {};
+    Object.assign(window._radicalVariantGlossEn, rv);
+    Object.assign(window._teachingSupplementGlossEn, ts);
+    console.info(
+      `[app] component gloss maps loaded (${Object.keys(rv).length} radical variant(s), ${Object.keys(ts).length} teaching supplement(s))`
+    );
+  } catch (e) {
+    console.warn("[app] component_gloss_maps load failed:", e);
+  }
+}
+
 async function loadCharacters1200Core() {
   try {
     let resp = await fetch("/characters_1200.json");
@@ -600,6 +617,223 @@ function resolveWordIdForCharEtymology(ch) {
   const s = ch && String(ch).trim();
   if (!s) return null;
   return _hanziToWordId[s] || resolveWordIdForSingleHanziChar(s) || null;
+}
+
+/** Fallback English gloss for components when corpus/card omit gloss_en (curriculum-safe). */
+const GLYPH_TEACHING_GLOSS_EN = {
+  吃: "eat",
+  喝: "drink",
+  看: "look",
+  见: "see",
+  说: "speak",
+  听: "listen",
+  走: "walk",
+  来: "come",
+  去: "go",
+  有: "have",
+  没: "not have",
+  不: "not",
+  很: "very",
+  吗: "(question particle)",
+  呢: "(topic particle)",
+  了: "(completed action)",
+  的: "(modifier particle)",
+  我: "I; me",
+  你: "you",
+  他: "he",
+  她: "she",
+  们: "(plural)",
+  口: "mouth",
+  女: "woman",
+  子: "child",
+  木: "tree; wood",
+  水: "water",
+  火: "fire",
+  心: "heart; mind",
+  手: "hand",
+  足: "foot",
+  目: "eye",
+  人: "person",
+  大: "big",
+  小: "small",
+  上: "up; on",
+  下: "down",
+  中: "middle",
+  国: "country",
+  学: "study",
+  生: "life; born",
+  先: "first",
+  明: "bright",
+  天: "day; sky",
+  今: "today",
+  昨: "yesterday",
+  什: "what",
+  么: "(particle)",
+  怎: "how",
+  样: "kind; appearance",
+  好: "good",
+  多: "many",
+  少: "few",
+  几: "how many",
+  点: "point; o'clock",
+  钟: "clock",
+  气: "air; qi",
+  雨: "rain",
+  门: "door",
+  问: "ask",
+  题: "topic",
+  工: "work",
+  作: "do; make",
+  名: "name",
+  字: "character",
+  爱: "love",
+  喜: "happy",
+  欢: "joy",
+  北: "north",
+  京: "capital",
+  白: "white",
+  菜: "dish; vegetable",
+  饭: "rice; meal",
+  茶: "tea",
+  书: "book",
+  车: "vehicle",
+  飞: "fly",
+  机: "machine",
+  电: "electric",
+  话: "speech",
+  谢: "thanks",
+  请: "please",
+  对: "correct; to",
+  起: "rise",
+  早: "early",
+  晚: "late",
+  忙: "busy",
+  累: "tired",
+  饿: "hungry",
+  冷: "cold",
+  热: "hot",
+  高: "tall",
+  新: "new",
+  旧: "old",
+  快: "fast",
+  慢: "slow",
+  难: "difficult",
+  易: "easy",
+  想: "think; want",
+  要: "want; need",
+  会: "can; will",
+  能: "can",
+  可: "can; may",
+  以: "by means of; in order to",
+  所: "that which; place",
+  因: "cause",
+  为: "for; as",
+  打: "hit; do",
+  算: "count; plan",
+  计: "plan",
+  划: "draw; plan",
+  最: "most",
+  近: "near; recent",
+  面: "face; side",
+  过: "pass; experienced",
+  乞: "beg (formal piece in some graphs)",
+};
+
+function cjkGraphemesFromString(hz) {
+  return [...String(hz || "").trim()].filter((ch) => /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch));
+}
+
+/** English gloss for one Hanzi: card headword → gloss_en → teaching map. */
+function resolveGlyphGlossEn(glyph) {
+  const g = glyph && String(glyph).trim();
+  if (!g) return "";
+  const wid = resolveWordIdForSingleHanziChar(g);
+  if (wid) {
+    const m = (getWordHintData(wid).meaning || "").trim();
+    if (m) {
+      const first = m.split(/[;；]/)[0].split(/[,，]/)[0].trim();
+      return first.length > 56 ? `${first.slice(0, 53)}…` : first;
+    }
+  }
+  const core = (window._charCoreByHanzi || charCoreByHanzi)?.[g];
+  const ge = core?.gloss_en != null ? String(core.gloss_en).trim() : "";
+  if (ge) {
+    const seg = ge.split(/[;/]/)[0].trim();
+    return seg.length > 56 ? `${seg.slice(0, 53)}…` : seg;
+  }
+  const rv = (window._radicalVariantGlossEn || {})[g];
+  if (rv != null && String(rv).trim()) {
+    const s = String(rv).trim();
+    return s.length > 56 ? `${s.slice(0, 53)}…` : s;
+  }
+  const sup = (window._teachingSupplementGlossEn || {})[g];
+  if (sup != null && String(sup).trim()) {
+    const s = String(sup).trim();
+    return s.length > 56 ? `${s.slice(0, 53)}…` : s;
+  }
+  return GLYPH_TEACHING_GLOSS_EN[g] || "";
+}
+
+/** e.g. 好 + 吃 → tasty (word-level “why this word”, not per-character IDS). */
+function buildWordLevelCompositionExplainerHTML(wordId, cardContent) {
+  const hw = (cardContent?.headword?.hanzi || "").trim();
+  let wordMeaning =
+    cardContent?.meaning != null && String(cardContent.meaning).trim()
+      ? String(cardContent.meaning).trim()
+      : "";
+  if (!wordMeaning && wordId) {
+    wordMeaning = (getWordHintData(wordId).meaning || "").trim();
+    wordMeaning = wordMeaning.split(/[;；]/)[0].split(/[,，]/)[0].trim();
+  }
+  const glyphs = cjkGraphemesFromString(hw);
+  if (glyphs.length < 2) return "";
+
+  const glosses = glyphs.map((g) => resolveGlyphGlossEn(g));
+  const usable = glosses.filter(Boolean);
+  if (usable.length < 2) return "";
+
+  const e = escapeHtmlForInsight;
+  const joined = usable.join(" + ");
+  const arrow = wordMeaning ? ` → ${e(wordMeaning)}` : "";
+  return `<div class="etym-word-compositional"><p class="etym-origin">${e(joined)}${arrow}</p></div>`;
+}
+
+/** English line for radical + pieces (e.g. 吃 → mouth + …) from characters_1200 tree. */
+function buildComponentEnglishGlossLine(hz) {
+  const ch = hz && String(hz).trim();
+  if (!ch) return "";
+  const core = (window._charCoreByHanzi || charCoreByHanzi)?.[ch];
+  if (!core || typeof core !== "object") return "";
+
+  const bits = [];
+  const radTxt = core.primary_radical ? _etymRadicalToText(core.primary_radical) : "";
+  if (radTxt) bits.push(`Radical: ${radTxt}`);
+
+  const args = core.decomposition_tree && Array.isArray(core.decomposition_tree.args) ? core.decomposition_tree.args : null;
+  if (args && args.length) {
+    const pieces = args
+      .map((a) => {
+        const c = a?.char;
+        if (!c) return null;
+        const g = resolveGlyphGlossEn(c);
+        return g ? `${c} (${g})` : String(c);
+      })
+      .filter(Boolean);
+    if (pieces.length) bits.push(`Form: ${pieces.join(" + ")}`);
+  } else if (Array.isArray(core.components_flat) && core.components_flat.length) {
+    const pieces = core.components_flat.map((c) => {
+      const g = resolveGlyphGlossEn(c);
+      return g ? `${c} (${g})` : String(c);
+    });
+    bits.push(`Form: ${pieces.join(" · ")}`);
+  }
+
+  const decompOnly = _etymDecompToText(core.decomposition);
+  if (!bits.some((b) => /^Form:\s/i.test(b)) && decompOnly) {
+    bits.push(`Form: ${decompOnly}`);
+  }
+
+  return bits.length ? bits.join(" · ") : "";
 }
 
 /** Whether a hint level has content (shared by getNextHintLevel and renderHintAffordance). */
@@ -1517,6 +1751,36 @@ function renderFrameSentence(frame) {
 }
 
 // ── §2.4 Etymology (shared: hint + card panel) — Phase 6 ───────────────────
+/** Strip internal corpus disclaimer; keep learner-facing copy uncluttered. */
+function scrubStructuralEtymologyDisclaimer(text) {
+  if (text == null) return "";
+  let t = String(text).trim();
+  if (!t) return "";
+  const disclaim =
+    "Derived structural metadata only. No historical etymology asserted.";
+  const re = new RegExp(disclaim.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*", "gi");
+  t = t.replace(re, "").trim();
+  return t.replace(/^[,;.\s—-]+|[,;.\s—-]+$/g, "").trim();
+}
+
+/**
+ * Inferred narratives often prefix with “High-frequency lexicalized…”. Learners only need the
+ * short core line when present, e.g. “Core sense/role: good.”
+ */
+function simplifyInferredNarrativeForLearner(text) {
+  if (text == null) return "";
+  const t = String(text).trim();
+  if (!t) return "";
+  const re = /(core\s*sense\/role\s*:\s*[^.]+)(\.|$)/i;
+  const m = t.match(re);
+  if (m) {
+    let s = m[1].trim();
+    if (!s.endsWith(".")) s += ".";
+    return s;
+  }
+  return t;
+}
+
 /** Normalize radical field: runtime / JSON may use string or `{ glyph, meaning_en }`. */
 function _etymRadicalToText(r) {
   if (r == null || r === "") return "";
@@ -1550,13 +1814,19 @@ function buildCharacterCoreInsightInnerHTML(hanzi) {
   if (!entry || typeof entry !== "object") return null;
   const rad = _etymRadicalToText(entry.primary_radical);
   const decomp = _etymDecompToText(entry.decomposition);
-  const origin = entry.etymology?.origin_note ? String(entry.etymology.origin_note).trim() : "";
+  const origin = scrubStructuralEtymologyDisclaimer(
+    entry.etymology?.origin_note ? String(entry.etymology.origin_note).trim() : ""
+  );
   const story = entry.mnemonic?.story ? String(entry.mnemonic.story).trim() : "";
   const disclaim = entry.mnemonic?.disclaimer ? String(entry.mnemonic.disclaimer).trim() : "";
-  if (!rad && !decomp && !origin && !story) return null;
+  let compLine = buildComponentEnglishGlossLine(ch);
+  if (!compLine && decomp) compLine = `Form: ${decomp}`;
+  if (!rad && !origin && !story && !compLine) return null;
   let html = `<div class="etym-char char-core-insight"><span class="etym-hanzi">${ch}</span>`;
   if (rad) html += `<span class="etym-radical">Radical: ${rad}</span>`;
-  if (decomp) html += `<span class="etym-decomp">Parts: ${decomp}</span>`;
+  if (compLine) {
+    html += `<span class="etym-components-en">${escapeHtmlForInsight(compLine)}</span>`;
+  }
   if (origin) html += `<span class="etym-origin">${origin}</span>`;
   if (story) html += `<span class="etym-mnemonic">${story}</span>`;
   if (disclaim) html += `<span class="etym-disclaimer">${disclaim}</span>`;
@@ -1583,11 +1853,23 @@ function buildAggregatedCharCoreHTML(headwordHanzi) {
 }
 
 /**
- * Chip “deep” step: prefer word_etymology.runtime.json for that glyph’s w_* id, else characters_1200.
+ * Chip “deep” step: prefer runtime row for this glyph under the **open card’s** word_id (e.g. 样 inside 怎么样),
+ * then standalone w_* for that Hanzi, else characters_1200.
  */
-function buildCharDeepHintHTML(hanzi) {
+function buildCharDeepHintHTML(hanzi, openWordId) {
   const ch = hanzi && String(hanzi).trim();
   if (!ch) return null;
+
+  const ow = openWordId != null ? String(openWordId).trim() : "";
+  if (ow && wordEtymologyIndex[ow]) {
+    const entry = wordEtymologyIndex[ow];
+    const row = (entry.characters || []).find((r) => String(r?.char || "").trim() === ch);
+    if (row) {
+      const inner = formatWordEtymologyCharRecordHtml(row);
+      if (inner) return `<div class="etym-word">${inner}</div>`;
+    }
+  }
+
   const wid = resolveWordIdForCharEtymology(ch);
   if (wid) {
     const fromRuntime = buildEtymologyHTML(wid);
@@ -1630,23 +1912,42 @@ function buildCharGlyphFallbackHTML(cardContent, chText, charIndex) {
   return `<div class="etym-word"><div class="etym-char char-glyph-fallback"><span class="etym-hanzi">${e(ch)}</span><span class="etym-origin">${body}</span></div></div>`;
 }
 
-/** Word-level card etymology row: runtime bundle first, else aggregate character core. */
-function buildCardPanelWordEtymologyHTML(wordId, headwordHanzi) {
-  const fromRuntime = wordId ? buildEtymologyHTML(wordId) : null;
-  if (fromRuntime) return fromRuntime;
+/**
+ * Word-level “Show word …” block: for multi-character words prefer compositional gloss (好 + 吃 → tasty)
+ * plus optional curated narrative — not a repeat of per-character chip breakdown.
+ */
+function buildEtymologyWordPanelHTML(wordId, headwordHanzi, cardContent) {
+  const entry = wordId && wordEtymologyIndex[wordId];
+  const narr = entry ? buildWordNarrativeSectionHTML(entry.word_narrative) : "";
+  const compExpl = buildWordLevelCompositionExplainerHTML(wordId, cardContent || {});
+  const glyphs = cjkGraphemesFromString(headwordHanzi || "");
+  const multi = glyphs.length >= 2;
+
+  if (multi && compExpl) {
+    const body = `${narr}${compExpl}`;
+    return body ? `<div class="etym-word">${body}</div>` : null;
+  }
+
+  const runtimeFull = wordId ? buildEtymologyHTML(wordId) : null;
+  if (runtimeFull) return runtimeFull;
   return buildAggregatedCharCoreHTML(headwordHanzi || "");
+}
+
+/** Word-level card etymology (Explore word panel). */
+function buildCardPanelWordEtymologyHTML(wordId, headwordHanzi, cardContent) {
+  if (!wordId && !headwordHanzi) return null;
+  return buildEtymologyWordPanelHTML(wordId, headwordHanzi, cardContent);
 }
 
 /** Curated inferred narrative block (merged at build from data/word_etymology_top1000_…). */
 function buildWordNarrativeSectionHTML(wordNarrative) {
   if (!wordNarrative || !wordNarrative.etymology) return "";
   const et = wordNarrative.etymology;
-  const ex = et.explanation_en != null ? String(et.explanation_en).trim() : "";
+  let ex = et.explanation_en != null ? String(et.explanation_en).trim() : "";
+  ex = simplifyInferredNarrativeForLearner(ex);
   if (!ex) return "";
   const mag = escapeHtmlForInsight;
-  const type = et.type != null ? String(et.type).trim() : "";
   let h = `<div class="etym-word-narrative">`;
-  if (type) h += `<span class="etym-narrative-type">${mag(type)}</span>`;
   h += `<span class="etym-origin">${mag(ex)}</span>`;
   h += `</div>`;
   return h;
@@ -1659,24 +1960,46 @@ function formatWordEtymologyCharRecordHtml(ch) {
   if (!ch || !ch.char) return "";
   const e = escapeHtmlForInsight;
   const hz = String(ch.char).trim();
-  const rad = ch.radical != null ? String(ch.radical).trim() : "";
-  const decomp = _etymDecompToText(ch.decomposition);
+  const map = window._charCoreByHanzi || charCoreByHanzi;
+  const core = map && map[hz] && typeof map[hz] === "object" ? map[hz] : null;
+
+  let rad =
+    ch.radical != null && ch.radical !== "" ? _etymRadicalToText(ch.radical) : "";
+  if (!rad && core) rad = _etymRadicalToText(core.primary_radical);
+
+  let decomp = _etymDecompToText(ch.decomposition);
+  if (!decomp && core) {
+    decomp = _etymDecompToText(core.decomposition);
+    if (!decomp && Array.isArray(core.components_flat) && core.components_flat.length) {
+      decomp = core.components_flat.filter(Boolean).join(" · ");
+    }
+  }
+
   const et = ch.etymology;
   let structNote = "";
   if (et && typeof et === "object") {
-    structNote = et.origin_note ? String(et.origin_note).trim() : "";
-    if (!structNote && et.explanation_en) structNote = String(et.explanation_en).trim();
+    structNote = scrubStructuralEtymologyDisclaimer(
+      et.origin_note ? String(et.origin_note).trim() : ""
+    );
+    if (!structNote && et.explanation_en) {
+      structNote = scrubStructuralEtymologyDisclaimer(String(et.explanation_en).trim());
+    }
   }
   const gn = ch.glyph_narrative;
   let usageNote = "";
   if (gn && gn.etymology && gn.etymology.explanation_en) {
-    usageNote = String(gn.etymology.explanation_en).trim();
+    usageNote = simplifyInferredNarrativeForLearner(String(gn.etymology.explanation_en).trim());
   }
-  if (!rad && !decomp && !structNote && !usageNote) return "";
+  if (structNote) structNote = simplifyInferredNarrativeForLearner(structNote);
+
+  let compEn = buildComponentEnglishGlossLine(hz);
+  if (!compEn && decomp) compEn = `Form: ${decomp}`;
+
+  if (!rad && !structNote && !usageNote && !compEn) return "";
 
   let html = `<div class="etym-char char-runtime-insight"><span class="etym-hanzi">${e(hz)}</span>`;
   if (rad) html += `<span class="etym-radical">Radical: ${e(rad)}</span>`;
-  if (decomp) html += `<span class="etym-decomp">Parts: ${e(decomp)}</span>`;
+  if (compEn) html += `<span class="etym-components-en">${e(compEn)}</span>`;
   if (structNote) html += `<span class="etym-structure">${e(structNote)}</span>`;
   if (usageNote) html += `<span class="etym-usage-narrative">${e(usageNote)}</span>`;
   html += `</div>`;
@@ -1709,17 +2032,17 @@ function cardPanelCoversWordHints() {
   }
 }
 
-/** Ordered blocks after headword. */
+/** Ordered blocks after headword: word story sits under pinyin + gloss, then character chips. */
 function buildCardRevealExtras(cardContent, activeCardId) {
   const extras = [];
   const py = cardContent.headword?.pinyin;
   if (py && String(py).trim()) extras.push({ key: "pinyin" });
   const mean = cardContent.meaning;
   if (mean && String(mean).trim()) extras.push({ key: "meaning" });
+  const hw = cardContent.headword?.hanzi || "";
+  if (buildCardPanelWordEtymologyHTML(activeCardId, hw, cardContent)) extras.push({ key: "etymology" });
   const comp = cardContent.word_composition?.characters;
   if (comp && comp.length) extras.push({ key: "composition", chars: comp });
-  const hw = cardContent.headword?.hanzi || "";
-  if (buildCardPanelWordEtymologyHTML(activeCardId, hw)) extras.push({ key: "etymology" });
   return extras;
 }
 
@@ -1737,8 +2060,8 @@ function nextCardRevealButtonLabel(extras, visible) {
   const nx = extras[visible];
   if (nx.key === "pinyin") return "Show pinyin →";
   if (nx.key === "meaning") return "Show meaning →";
+  if (nx.key === "etymology") return "Show word story →";
   if (nx.key === "composition") return "Show characters →";
-  if (nx.key === "etymology") return "Show word etymology →";
   return "Next →";
 }
 // ── end Phase 6 ────────────────────────────────────────────────────────────
@@ -1747,12 +2070,6 @@ function dispatch(action) {
   state = reduce(state, action);
   render();
 }
-if (cardCloseBtn) {
-  cardCloseBtn.addEventListener("click", () => {
-    dispatch({ type: "CARD_PANEL_CLOSED" });
-  });
-}
-
 function appendTrace(event) {
   uiTrace.push(event);
   // If you already have a dedicated trace renderer, call it here.
@@ -1834,7 +2151,6 @@ function render() {
     cardPanel.classList.remove("hidden");
     noCard.style.display = "none";
     cardError.textContent = state.error ? (state.error.message || state.error.kind || "Error") : "";
-    cardIdEl.textContent = state.activeCardId || "";
     const titleText = (state.activeCard && state.activeCard.title) || "";
     while (cardTitle.firstChild) cardTitle.removeChild(cardTitle.firstChild);
     if (titleText) cardTitle.appendChild(document.createTextNode(titleText));
@@ -1861,14 +2177,17 @@ function render() {
     const mainDisplayDiv = document.createElement("div");
     mainDisplayDiv.className = "card-main";
 
+    const toolbar = document.createElement("div");
+    toolbar.className = "card-panel-toolbar";
+    const toolbarLeft = document.createElement("div");
+    toolbarLeft.className = "card-toolbar-left";
     if (maxExtras > 0) {
-      const hintRow = document.createElement("div");
-      hintRow.className = "card-inhint-row";
       const nextHintBtn = document.createElement("button");
       nextHintBtn.type = "button";
       nextHintBtn.className = "card-inhint-next";
       nextHintBtn.textContent = nextCardRevealButtonLabel(extras, _cardExtrasVisible);
-      nextHintBtn.title = "Reveal the next level in this card (pinyin → meaning → characters → word etymology). Then Reset.";
+      nextHintBtn.title =
+        "Reveal the next level (pinyin → English → word story under those → character chips). Then Reset.";
       nextHintBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         if (_cardExtrasVisible >= maxExtras) {
@@ -1880,11 +2199,51 @@ function render() {
         }
         render();
       });
-      hintRow.appendChild(nextHintBtn);
-      mainDisplayDiv.appendChild(hintRow);
+      toolbarLeft.appendChild(nextHintBtn);
     }
+    toolbar.appendChild(toolbarLeft);
+    const closePanelBtn = document.createElement("button");
+    closePanelBtn.type = "button";
+    closePanelBtn.className = "card-close-btn";
+    closePanelBtn.setAttribute("aria-label", "Close panel");
+    closePanelBtn.title = "Close";
+    closePanelBtn.textContent = "✕";
+    closePanelBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dispatch({ type: "CARD_PANEL_CLOSED" });
+    });
+    toolbar.appendChild(closePanelBtn);
+    mainDisplayDiv.appendChild(toolbar);
 
-    if (headwordHanzi) mainDisplayDiv.appendChild(makeDiv("card-main-hanzi", headwordHanzi));
+    if (headwordHanzi) {
+      const headRow = document.createElement("div");
+      headRow.className = "card-headword-row";
+      headRow.appendChild(makeDiv("card-main-hanzi", headwordHanzi));
+      const headSpeak = document.createElement("button");
+      headSpeak.type = "button";
+      headSpeak.className = "card-headword-speak";
+      headSpeak.setAttribute("aria-label", "Play word");
+      headSpeak.title = "Play word";
+      headSpeak.textContent = "🔊";
+      headSpeak.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const cardId = state.activeCardId || "unknown_card";
+        const utterance_id = `card:${cardId}:word`;
+        emitUITrace({
+          type: "AUDIO_PLAY_REQUESTED",
+          timestamp: new Date().toISOString(),
+          payload: { utterance_id, text: headwordHanzi, source: "card_headword" },
+        });
+        ttsSpeak({
+          text: headwordHanzi,
+          lang: "zh-CN",
+          utterance_id,
+          onEvent: (traceEntry) => emitUITrace(traceEntry),
+        });
+      });
+      headRow.appendChild(headSpeak);
+      mainDisplayDiv.appendChild(headRow);
+    }
 
     for (let i = 0; i < _cardExtrasVisible && i < extras.length; i++) {
       const ex = extras[i];
@@ -1920,9 +2279,10 @@ function render() {
                 onEvent: (traceEntry) => emitUITrace(traceEntry),
               });
             } else {
-              _cardCharPhase = (_cardCharPhase + 1) % 4;
-              if (_cardCharPhase === 0) _cardCharFocusIdx = null;
-              else if (_cardCharPhase === 1) {
+              // Phases 1→2→3 = pinyin → +gloss → +character form. Avoid %4→0, which cleared focus on the 4th tap
+              // (users expected a 4th “level”, but got reset). After 3, cycle back to 1 + replay TTS.
+              if (_cardCharPhase >= 3) {
+                _cardCharPhase = 1;
                 emitUITrace({
                   type: "AUDIO_PLAY_REQUESTED",
                   timestamp: new Date().toISOString(),
@@ -1934,6 +2294,8 @@ function render() {
                   utterance_id: utteranceId,
                   onEvent: (traceEntry) => emitUITrace(traceEntry),
                 });
+              } else {
+                _cardCharPhase += 1;
               }
             }
             render();
@@ -1945,9 +2307,9 @@ function render() {
         const det = document.createElement("div");
         det.className = "card-char-detail";
         if (_cardCharFocusIdx == null) {
-          det.textContent = "Tap a character to hear it. Tap the same character again for pinyin, then gloss, then etymology when available.";
+          det.textContent = "click character to explore";
         } else if (_cardCharPhase === 0) {
-          det.textContent = "Tap a character to start again.";
+          det.textContent = "click character to explore";
         } else {
           const c = ex.chars[_cardCharFocusIdx];
           const chText = (c?.char || c?.hanzi || "").trim();
@@ -1986,12 +2348,13 @@ function render() {
 
         const hint = document.createElement("div");
         hint.className = "card-composition-hint";
-        hint.innerHTML = "<em>Same character: next hint level (then cycles).</em>";
+        hint.innerHTML =
+          "<em>Same character: pinyin → gloss → structure. Next tap returns to pinyin (focus stays).</em>";
         compWrap.appendChild(hint);
 
         mainDisplayDiv.appendChild(compWrap);
       } else if (ex.key === "etymology") {
-        const etHTML = buildCardPanelWordEtymologyHTML(activeCardId, headwordHanzi);
+        const etHTML = buildCardPanelWordEtymologyHTML(activeCardId, headwordHanzi, cardContent);
         if (etHTML) {
           const ew = document.createElement("div");
           ew.className = "card-etymology card-etymology-revealed";
@@ -2006,37 +2369,6 @@ function render() {
 
     cardBody.appendChild(mainDisplayDiv);
 
-
-    // Phase 6: Word-level play button
-    if (headwordHanzi) {
-      const wordPlay = document.createElement("button");
-      wordPlay.type = "button";
-      wordPlay.className = "word-play";
-      wordPlay.textContent = " 🔊 Play word";
-
-      wordPlay.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const cardId = state.activeCardId || "unknown_card";
-        const utterance_id = `card:${cardId}:word`;
-
-        emitUITrace({
-          type: "AUDIO_PLAY_REQUESTED",
-          timestamp: new Date().toISOString(),
-          payload: { utterance_id, text: headwordHanzi, source: "card_headword" }
-        });
-
-        ttsSpeak({
-          text: headwordHanzi,
-          lang: "zh-CN",
-          utterance_id,
-          onEvent: (traceEntry) => emitUITrace(traceEntry),
-        });
-      });
-
-      cardTitle.appendChild(wordPlay);
-    }
-
-
     const compCharsForSkip = cardContent.word_composition?.characters;
     const skipModeledOpts =
       state.panelOptions &&
@@ -2047,19 +2379,12 @@ function render() {
       renderModeledOptions(cardBody, state.panelOptions, state);
     }
 
-    // play affordance visible for surface devices; enable when a card is active
-    if (playBtn) {
-      playBtn.style.display = "inline-block";
-      playBtn.disabled = !(state.activeCardId || (state.activeCard && (state.activeCard.content || state.activeCard.title)));
-    }
   } else {
     cardPanel.classList.add("hidden");
     noCard.style.display = "block";
     cardError.textContent = "";
-    cardIdEl.textContent = "";
     cardTitle.textContent = "";
     cardBody.textContent = "";
-    if (playBtn) playBtn.style.display = "none";
     _cardRevealCardId = null;
   }
 }
@@ -3142,10 +3467,6 @@ cardPanel.addEventListener("click", (e) => {
   if (e.target === cardPanel) dispatch({ type: "CARD_PANEL_CLOSED" });
 });
 
-// UI-only: human-readable label for which data build is currently in use
-const UI_DATA_BUILD_LABEL = "p1/p2 enriched (schema-preserving) + characters_1200 (v3 content) + runtime_indexes_v1";
-
-
 // defaults
 window.addEventListener("load", async () => {
   // Phase 6: load render tokens and cards index in parallel with existing loads
@@ -3156,11 +3477,11 @@ window.addEventListener("load", async () => {
     loadCardsByIdBlob(),
     loadFrameOptions(),
     loadWordEtymology(),
+    loadComponentGlossMaps(),
     loadCharacters1200Core(),
     loadFrameTokens(),
     loadRecoveryPhrases(),
   ]);
-  if (dataBuildInfoEl) dataBuildInfoEl.textContent = `Data: ${UI_DATA_BUILD_LABEL}`;
   const displayModeEl = document.getElementById("transcriptDisplayMode");
   if (displayModeEl) {
     displayModeEl.value = transcriptDisplayMode;
@@ -3351,101 +3672,6 @@ const whyBtn = document.getElementById("whyBtn");
 if (whyBtn) whyBtn.addEventListener("click", () => runDirectionTurn("why"));
 const changeTopicBtn = document.getElementById("changeTopicBtn");
 if (changeTopicBtn) changeTopicBtn.addEventListener("click", () => runTurn(true, { prefer_bridge: true }));
-if (playBtn) {
-  playBtn.addEventListener("click", () => {
-        // Panel Play: derive speakable text from DOM (presentation truth), not reducer state
-    const hanziEl = document.querySelector("#cardBody .card-main-hanzi");
-    const titleEl = document.getElementById("cardTitle");
-    const bodyEl = document.getElementById("cardBody");
-
-    let text = "";
-    if (hanziEl && hanziEl.textContent && hanziEl.textContent.trim()) {
-      text = hanziEl.textContent.trim();
-    } else if (titleEl && titleEl.textContent && titleEl.textContent.trim()) {
-      text = titleEl.textContent.trim();
-    } else if (bodyEl && bodyEl.textContent && bodyEl.textContent.trim()) {
-      text = bodyEl.textContent.trim();
-    }
-
-    if (!text) {
-      emitUITrace({
-        type: "AUDIO_ERROR",
-        timestamp: new Date().toISOString(),
-        payload: { utterance_id: "card:unknown:panel", error: "No speakable text found in Card Panel DOM" },
-      });
-      return;
-    }
-
-  //  if (!state || !state.activeCard) return;
-
-        if (state.activeCard) {
-      const hw = state.activeCard.headword && state.activeCard.headword.hanzi;
-      if (typeof hw === "string" && hw.trim()) {
-        text = hw.trim();
-      } else if (typeof state.activeCard.content === "string" && state.activeCard.content.trim()) {
-        text = state.activeCard.content.trim();
-      } else if (typeof state.activeCard.title === "string" && state.activeCard.title.trim()) {
-        text = state.activeCard.title.trim();
-      }
-    }
-
-    if (!text) return;
-
-
-    const utterance_id = `card:${state.activeCardId || "unknown"}:panel`;
-
-    // Trace: intent
-   emitUITrace({
-  type: "AUDIO_PLAY_REQUESTED",
-  timestamp: new Date().toISOString(),
-  payload: {
-    utterance_id,
-    source: "card_panel",
-    card_id: state.activeCardId || null,
-    text,
-  },
-});
-
-
-    // Speak (side-effect)
-    ttsSpeak({
-      text,
-      lang: "zh-CN",
-      utterance_id,
-     onEvent: (traceEntry) => {
-        emitUITrace(traceEntry);
-      },
-    });
-  });
-}
-
-// UI-only: make card ID clickable to copy
-if (cardIdEl) {
-  cardIdEl.style.cursor = "pointer";
-
-  cardIdEl.addEventListener("click", async () => {
-    const text = cardIdEl.textContent;
-    if (!text) return;
-
-    try {
-      await navigator.clipboard.writeText(text);
-
-      // Show a temporary indicator without overwriting the ID text
-      const original = cardIdEl.textContent;
-      cardIdEl.textContent = `${original} (copied)`;
-      setTimeout(() => {
-        // Remove only the indicator
-        if (cardIdEl.textContent === `${original} (copied)`) {
-          cardIdEl.textContent = original;
-        }
-      }, 1000);
-
-
-    } catch (err) {
-      console.warn("Clipboard copy failed:", err);
-    }
-  });
-}
 // ── Phase 6 — expose to window for console access + external callers ────────
 window.SystemFaultLog          = SystemFaultLog;
 window.buildDiagnosticCompleted = buildDiagnosticCompleted;

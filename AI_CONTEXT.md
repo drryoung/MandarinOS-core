@@ -160,6 +160,10 @@ Important known mapping:
 
 **Coverage audit:** Run `python scripts/audit_vocab_character_coverage.py` from repo root; it prints gaps and writes `docs/reports/vocab_character_coverage_audit.md` (UTF-8). Use it whenever lexicon, links, or `characters_1200.json` change.
 
+**Deferred product plans (not implemented):**
+- Lighter “learner memory bridge” between Form and full etymology — **`docs/plans/learner_etymology_hints_plan.md`**.
+- Parenthetical **component/radical glosses** on the Form line — implemented via **`component_gloss_maps.json`** at repo root (UI: `GET /component_gloss_maps.json`; fallback `/data/…`) + `loadComponentGlossMaps()` in `ui/app.js`; audit **`python scripts/audit_component_gloss_coverage.py`** → `docs/reports/component_gloss_coverage.md`; optional corpus sync **`python tools/backfill_component_gloss_en.py`**. Plan: **`docs/plans/component_radical_gloss_plan.md`**.
+
 **Corpus recovery:** If the full character DB is missing from the clone, see **`docs/reports/CORPUS_RECOVERY_NOTES.md`** (git/OneDrive forensic notes from Step 1).
 
 ---
@@ -197,6 +201,8 @@ This supports future UI where individual tokens are clickable (word → card pan
 All conversation-design decisions (engines, sentence selector, memory, capability map, steering, ladders, persona network) live under **`docs/specs/`**. The single entry point is:
 
 - **`docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md`** — Lists every conversation-related spec: 7 engines (Identity, Place, Food, Family, Study/Work, Travel, Interests), Next Question Selector, memory model, capability map, steering engine, ladders, support packs, persona network. Use it when implementing or reviewing conversation logic so no iPhone/ChatGPT design work is missed.
+
+**Strategist handoffs (ChatGPT):** e.g. **`docs/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md`** — Phase 10.5/10.6 delivery summary, alpha notes, defer-naturalness-until-post–Phase‑11 intent, and questions for next-step feedback. Older context: `docs/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md`. Phase 10.7 / move grammar: **`docs/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt`**, **`docs/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt`**. **Minimal implementation plan (preserve 10.5/10.6):** **`docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md`**.
 
 ### 5.1 Runtime (server-side)
 Likely areas:

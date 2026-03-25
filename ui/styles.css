@@ -62,6 +62,43 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
   margin-top: 8px;
 }
 
+/* Explore word: top row = next-hint (left) + close ✕ (right) */
+.card-panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.card-toolbar-left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-close-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-close-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
 /* In-card progressive hints (pinyin → meaning → characters → etymology) */
 .card-inhint-row {
   display: flex;
@@ -240,6 +277,145 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
 }
 .card-etymology-content .etym-usage-narrative {
   color: #2e7d32;
+}
+
+/* Explore word (#cardPanel): one readable size for gloss, pinyin, per-character drill, etymology */
+#cardPanel .card-main {
+  font-size: 1rem;
+}
+#cardPanel .card-main-hanzi {
+  font-size: 1.15rem;
+}
+#cardPanel .card-main-pinyin,
+#cardPanel .card-main-meaning {
+  font-size: 1rem;
+}
+#cardPanel .card-char-detail {
+  font-size: 1rem;
+  color: #374151;
+}
+#cardPanel .card-char-detail-py,
+#cardPanel .card-char-detail-mean {
+  font-size: 1rem;
+}
+#cardPanel .card-char-detail-etym-empty {
+  font-size: 1rem;
+}
+#cardPanel .card-composition-hint {
+  font-size: 0.95rem;
+}
+#cardPanel .char-glyph-fallback .etym-origin {
+  font-size: 1rem;
+}
+#cardPanel .card-char-detail-etym .etym-word {
+  font-size: 1rem;
+}
+#cardPanel .card-char-detail-etym .etym-char {
+  font-size: 1rem;
+  padding: 8px 10px;
+}
+/* Chip detail: user already selected the glyph — hide duplicate head char before Radical/Form lines */
+#cardPanel .card-char-detail-etym .etym-hanzi {
+  display: none;
+}
+#cardPanel .card-char-detail-etym .etym-radical,
+#cardPanel .card-char-detail-etym .etym-decomp,
+#cardPanel .card-char-detail-etym .etym-origin,
+#cardPanel .card-char-detail-etym .etym-structure,
+#cardPanel .card-char-detail-etym .etym-usage-narrative,
+#cardPanel .card-char-detail-etym .etym-mnemonic,
+#cardPanel .card-char-detail-etym .etym-disclaimer,
+#cardPanel .card-char-detail-etym .etym-narrative-type {
+  font-size: 1rem;
+}
+#cardPanel .card-etymology-content {
+  font-size: 1rem;
+}
+#cardPanel .card-etymology-content .etym-char {
+  font-size: 1rem;
+  padding: 8px 10px;
+}
+#cardPanel .card-etymology-content .etym-hanzi {
+  font-size: 1.1rem;
+}
+#cardPanel .card-etymology-content .etym-radical,
+#cardPanel .card-etymology-content .etym-decomp,
+#cardPanel .card-etymology-content .etym-origin,
+#cardPanel .card-etymology-content .etym-mnemonic,
+#cardPanel .card-etymology-content .etym-disclaimer,
+#cardPanel .card-etymology-content .etym-structure,
+#cardPanel .card-etymology-content .etym-usage-narrative {
+  font-size: 1rem;
+}
+#cardPanel .card-etymology-content .etym-word-narrative {
+  font-size: 1rem;
+}
+#cardPanel .card-etymology-content .etym-narrative-type {
+  font-size: 0.85rem;
+}
+#cardPanel .card-inhint-next {
+  font-size: 1rem;
+}
+#cardPanel .card-close-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+}
+#cardPanel .char-chip {
+  font-family: "Ma Shan Zheng", "KaiTi", "STKaiti", serif;
+  font-size: 2.35rem;
+  line-height: 1.1;
+  padding: 12px 18px;
+  margin: 6px 8px;
+  min-width: 3.25rem;
+  min-height: 3.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Headword row: Hanzi + round speaker (aligned with main word) */
+#cardPanel .card-headword-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+#cardPanel .card-headword-row .card-main-hanzi {
+  flex: 1;
+  min-width: 0;
+}
+#cardPanel .card-headword-speak {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 2px solid #1a56db;
+  border-radius: 50%;
+  background: #fff;
+  color: #1a56db;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#cardPanel .card-headword-speak:hover {
+  background: #e8f0fe;
+}
+
+/* English gloss for radicals / form pieces */
+#cardPanel .etym-components-en {
+  display: block;
+  font-size: 1rem;
+  color: #1e40af;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+#cardPanel .etym-word-compositional {
+  margin-bottom: 8px;
 }
 
 /* ── Phase 7.4: response options (each option is a panel: Chinese row + hints below) ── */

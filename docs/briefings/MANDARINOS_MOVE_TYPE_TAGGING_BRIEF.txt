@@ -1,0 +1,140 @@
+MANDARINOS — MOVE_TYPE TAGGING PASS (PHASE 10.7)
+
+Purpose:
+Add a lightweight behavioural annotation layer to existing frames so the runtime can reason about conversation structure before Phase 11 adaptivity.
+
+IMPORTANT:
+- Do NOT rewrite any frame text
+- Do NOT modify runtime logic yet
+- This is an analysis + tagging pass only
+
+---------------------------------------------------------------------
+SECTION 1 — MOVE TYPE TAXONOMY
+---------------------------------------------------------------------
+
+Use exactly these move_type values:
+
+OPEN
+ASK
+ANSWER
+REACTION
+EXTEND
+LOOP
+RECIPROCITY
+REPAIR
+BRIDGE
+CLOSE
+
+Definitions:
+
+OPEN — starts a conversational lane (greeting / entry question)
+ASK — requests information
+ANSWER — provides requested information
+REACTION — acknowledgement without advancing topic
+EXTEND — adds detail to an answer
+LOOP — curiosity follow-up on same topic
+RECIPROCITY — returns question (e.g. “你呢？”)
+REPAIR — handles confusion / inability
+BRIDGE — shifts topic
+CLOSE — ends interaction
+
+---------------------------------------------------------------------
+SECTION 2 — RESPONSE ROLE TAXONOMY
+---------------------------------------------------------------------
+
+Use these response_role values:
+
+SAFE
+EXPAND
+REPAIR
+RECIPROCITY
+
+---------------------------------------------------------------------
+SECTION 3 — TASK (STAGED APPROACH)
+---------------------------------------------------------------------
+
+Stage 1 — Frame Audit
+
+Scan all frames and produce a report with:
+
+- frame_id
+- engine_id
+- frame text
+- proposed move_type
+- confidence (high / medium / low)
+- short reason
+
+Example:
+
+{
+  "frame_id": "p2_id_2",
+  "text": "你叫什么名字？",
+  "engine_id": "identity",
+  "proposed_move_type": "OPEN",
+  "confidence": "high",
+  "reason": "Used to initiate identity exchange"
+}
+
+---------------------------------------------------------------------
+
+Stage 2 — Decision Rules
+
+Apply:
+
+1. Choose ONE primary conversational function only
+2. Prefer conversational role over grammar
+3. “你呢？” → RECIPROCITY (not ASK)
+4. LOOP = deeper curiosity on SAME topic
+5. BRIDGE = shift to NEW topic
+6. REACTION = acknowledgement only
+
+---------------------------------------------------------------------
+
+Stage 3 — Response Role Proposal
+
+For each frame, propose:
+
+- allowed_response_roles
+- default_next_move_types
+
+---------------------------------------------------------------------
+
+Stage 4 — Output
+
+Produce:
+
+1. Markdown audit report
+2. Machine-readable JSON tagging artifact
+3. List of low-confidence frames for review
+
+---------------------------------------------------------------------
+SECTION 4 — TRANSITION MODEL (REFERENCE)
+---------------------------------------------------------------------
+
+OPEN → ANSWER / REACTION / RECIPROCITY
+ASK → ANSWER / REPAIR
+ANSWER → REACTION / LOOP / RECIPROCITY / BRIDGE / CLOSE
+REACTION → LOOP / RECIPROCITY / BRIDGE / CLOSE
+LOOP → ANSWER / REPAIR
+RECIPROCITY → ANSWER / REPAIR
+REPAIR → ASK / ANSWER / REACTION
+BRIDGE → ASK / OPEN / REACTION
+CLOSE → (end)
+
+---------------------------------------------------------------------
+SECTION 5 — CONSTRAINTS
+---------------------------------------------------------------------
+
+Do NOT:
+- rewrite frame content
+- introduce new move types
+- hard-code behaviour
+- silently resolve ambiguous cases
+
+Do:
+- surface ambiguity
+- use confidence labels
+- keep tagging simple and explicit
+
+---------------------------------------------------------------------
+END OF BRIEFING

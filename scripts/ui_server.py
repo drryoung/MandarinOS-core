@@ -4,6 +4,7 @@ import json
 import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
+from socketserver import ThreadingMixIn
 from typing import List, Optional
 from urllib.parse import urlparse, parse_qs
 import mimetypes
@@ -49,6 +50,8 @@ MAX_SAME_ENGINE_AFTER_INTEREST = 1
 MAX_SAME_SLOT_CHAIN_AFTER_INTEREST = 1
 INTEREST_FORCE_WINDOW_TURNS = 1
 MIN_SAME_ENGINE_CHAIN_BEFORE_BRIDGE = 2
+ENGINE_DEPTH_GUARD_TURNS = 4          # Phase 11.1: block bridge if too few same-engine turns and fresh frames remain
+ENGINE_DEPTH_GUARD_MIN_REMAINING = 3  # Phase 11.1: bridge blocked when ≥ this many unseen frames still available
 
 print("[ui_server] REPO_ROOT =", REPO_ROOT)
 print("[ui_server] UI_DIR    =", UI_DIR)
@@ -108,6 +111,22 @@ def _reload_frames_by_id():
 _frames_by_id = _reload_frames_by_id()
 print(f"[ui_server] frames_by_id loaded ({len(_frames_by_id)} frames)")
 
+# Phase 10.7: optional declarative move_type transition table
+_move_type_transitions: Optional[dict] = None
+_mt_path = REPO_ROOT / "data" / "move_type_transitions.json"
+try:
+    if _mt_path.is_file():
+        _raw_mt = json.loads(_mt_path.read_text(encoding="utf-8"))
+        if isinstance(_raw_mt, dict):
+            _move_type_transitions = {k: set(v) for k, v in _raw_mt.items() if isinstance(v, list)}
+            print(f"[ui_server] move_type_transitions loaded ({len(_move_type_transitions)} move types)")
+        else:
+            print("[ui_server] WARNING: move_type_transitions.json is not a dict — skipping")
+    else:
+        print(f"[ui_server] INFO: move_type_transitions.json not found at {_mt_path} — move_type filter disabled")
+except Exception as _e:
+    print(f"[ui_server] WARNING: move_type_transitions load failed: {_e} — move_type filter disabled")
+
 
 def _engine_frame_ids(engine_norm: str) -> List[str]:
     """All frame_ids for the given engine (normalized), in stable sorted order."""
@@ -127,7 +146,7 @@ _FRAME_ORDER: dict = {
     "family": ["f_have_family", "f_have_siblings", "p2_fa_1", "p2_fa_2", "p2_fa_5"],  # core then treasure/loop (跟家人住, 多久见, 周末做什么)
     # Work: compact high-interest sequence approved by user.
     "work": ["f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5"],
-    "hobby": ["f_what_hobby", "f_like_do_what", "f_often_do", "f_difficult_ma", "f_recommend_ma", "f_weekend_do", "f_like_chinese_culture", "f_like_what", "f_collect_what", "p2_hb_1", "p2_hb_2", "p2_hb_4", "p2_hb_5"],  # core → treasure → weekend/culture
+    "hobby": ["f_what_hobby", "f_often_do", "f_difficult_ma", "f_like_do_what", "f_recommend_ma", "f_weekend_do", "f_like_chinese_culture", "f_like_what", "f_collect_what", "p2_hb_1", "p2_hb_2", "p2_hb_4", "p2_hb_5"],  # Phase 11.1: f_like_do_what moved to pos 3 to avoid consecutive duplicate opener
     "travel": ["f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4"],  # core then treasure/loop (哪些国家, 最喜欢哪里, 好玩的, 旅行怎么样)
     "food": ["f_food_what_good", "f_food_famous_dish", "f_food_tasty", "f_food_like_spicy", "f_food_expensive"],  # core → treasure
     "life": [],
@@ -138,6 +157,10 @@ _FRAME_AFTER: dict = {
     # Identity follow-up assumes a name exists
     "p2_id_2": ["f_ask_you_name"],
 }
+
+# Phase 11.1: OPEN frames that must not be re-entered once the session is established (exchange_count ≥ 2).
+# These are opening gambits — re-asking them after real conversation has begun feels unnatural.
+_IDENTITY_OPEN_FRAMES: frozenset = frozenset({"f_ask_you_name"})
 
 # "OR" dependencies: any one prerequisite is sufficient.
 # Place follow-ups need an established referent ("there"/CITY) first; prevents out-of-context “那里”.
@@ -175,6 +198,256 @@ def _frame_deps_satisfied(fid: str, recent: set, recent_frame_ids: Optional[list
     if not _deictic_context_fresh(fid, recent_frame_ids or []):
         return False
     return True
+
+
+# ── Phase 10.7: move_type helpers ────────────────────────────────────────────
+
+def _get_frame_move_type(frame_id: str) -> Optional[str]:
+    """Return the move_type string for a frame, or None if unset."""
+    fr = _frames_by_id.get(frame_id) or {}
+    mt = fr.get("move_type")
+    return str(mt).strip() or None if mt else None
+
+
+def _get_allowed_next_move_types(current_move_type: Optional[str]) -> Optional[set]:
+    """
+    Phase 10.7: look up allowed next move types from the declarative transition table.
+    Returns None (meaning: do not filter) when:
+    - transition table not loaded
+    - current_move_type is None / empty
+    - current_move_type not found in table
+    """
+    if _move_type_transitions is None:
+        return None
+    if not current_move_type:
+        return None
+    allowed = _move_type_transitions.get(current_move_type)
+    return allowed if allowed is not None else None
+
+
+# ── Phase 11.0: candidate scoring scaffold ───────────────────────────────────
+# Scoring weights: kept conservative so signals nudge rather than dominate.
+# Legacy rank step = 0.10 → each rank position is worth this much.
+# move_type bonus = 0.30  → compatible move_type can overcome ~3 legacy rank positions.
+# capability/energy = ±0.08 → each can overcome ~1 legacy rank position.
+_P11_LEGACY_RANK_STEP  = 0.10
+_P11_MT_BONUS_VALID    = 0.30
+_P11_MT_PENALTY_MISS   = 0.10
+_P11_CAP_BONUS         = 0.08
+_P11_CAP_PENALTY       = 0.08
+_P11_ENERGY_PENALTY    = 0.08
+
+
+def _phase11_score_candidate(
+    frame_id: str,
+    legacy_rank: int,
+    allowed_move_types: Optional[set],
+    exchange_count: int,
+    same_engine_chain_count: int,
+) -> tuple:
+    """
+    Phase 11.0: additive score for one candidate frame.  Higher = more preferred.
+    Returns (score: float, trace: dict).
+
+    Signals:
+      legacy_rank            – 0-based position in Phase 10.5 preferred order (lower = better)
+      allowed_move_types     – set from transition table; None → skip move_type signal
+      exchange_count         – total session exchanges (coarse capability proxy)
+      same_engine_chain_count – consecutive same-engine turns (coarse energy proxy)
+    """
+    fr = _frames_by_id.get(frame_id) or {}
+
+    # 1. Legacy baseline — preserves Phase 10.5 preference order as default.
+    legacy_score = max(0.0, 1.0 - legacy_rank * _P11_LEGACY_RANK_STEP)
+
+    # 2. move_type compatibility bonus.
+    cand_mt = _get_frame_move_type(frame_id)
+    mt_contribution = 0.0
+    if allowed_move_types is not None:
+        if cand_mt and cand_mt in allowed_move_types:
+            mt_contribution = _P11_MT_BONUS_VALID
+        elif cand_mt:
+            # In candidates_after all are already valid; this handles edge cases.
+            mt_contribution = -_P11_MT_PENALTY_MISS
+
+    # 3. Capability: corrective signal only — penalise clear mismatches, neutral otherwise.
+    difficulty = int(fr.get("difficulty") or 2)
+    cap_contribution = 0.0
+    if difficulty == 1 and exchange_count >= 8:
+        cap_contribution = -_P11_CAP_PENALTY   # very basic frame, late in session
+    elif difficulty == 3 and exchange_count < 3:
+        cap_contribution = -_P11_CAP_PENALTY   # complex frame, too early
+    # else: neutral (0.0) — no default boost
+
+    # 4. Energy: slight anti-repetition nudge for deep same-engine chains.
+    energy_contribution = 0.0
+    if same_engine_chain_count >= 4:
+        energy_contribution = -_P11_ENERGY_PENALTY
+
+    total = legacy_score + mt_contribution + cap_contribution + energy_contribution
+    trace = {
+        "frame_id":                frame_id,
+        "legacy_rank":             legacy_rank,
+        "move_type":               cand_mt,
+        "mt_contribution":         round(mt_contribution, 3),
+        "capability_contribution": round(cap_contribution, 3),
+        "energy_contribution":     round(energy_contribution, 3),
+        "total_score":             round(total, 3),
+    }
+    return total, trace
+
+
+def _phase11_rank_shortlist(
+    candidates: list,
+    allowed_move_types: Optional[set],
+    exchange_count: int,
+    same_engine_chain_count: int,
+) -> tuple:
+    """
+    Phase 11.0: score and rank a shortlist of candidate frame IDs.
+    Returns (best_id, scored_list, selection_source).
+
+    selection_source values:
+      "scored_preferred"  – scoring changed the ordering (best != candidates[0])
+      "legacy"            – scoring confirmed the legacy first choice
+      "fallback_after_empty" – no candidates supplied
+    """
+    if not candidates:
+        return None, [], "fallback_after_empty"
+
+    scored = []
+    for rank, fid in enumerate(candidates):
+        score, trace = _phase11_score_candidate(
+            fid, rank, allowed_move_types, exchange_count, same_engine_chain_count
+        )
+        scored.append((score, rank, fid, trace))
+
+    # Sort: highest score first; legacy rank as stable tie-breaker.
+    scored.sort(key=lambda x: (-x[0], x[1]))
+
+    best_id = scored[0][2]
+    traces  = [s[3] for s in scored]
+    source  = "scored_preferred" if best_id != candidates[0] else "legacy"
+    return best_id, traces, source
+
+
+def _apply_move_type_filter(
+    chosen: Optional[str],
+    last_frame_id: str,
+    engine_norm: str,
+    recent: list,
+    memory: Optional[dict],
+    exchange_count: int = 0,           # Phase 11.0: capability / energy scoring inputs
+    same_engine_chain_count: int = 0,
+) -> dict:
+    """
+    Phase 10.7-C + Phase 11.0: move_type soft-preference filter with additive scoring.
+
+    Caller contract:
+    - filtered_chosen is None  → keep original chosen (all fallback paths).
+    - filtered_chosen == chosen → no change.
+    - filtered_chosen != chosen → use filtered_chosen.
+
+    Fallback conditions (any one → skip, filtered_chosen=None):
+    - transition table not loaded                        → fallback_after_missing_tags
+    - last_frame_id has no move_type tag                 → fallback_after_missing_tags
+    - current move_type not in transition table          → fallback_after_missing_tags
+    - no valid same-engine alternatives found            → fallback_after_empty
+
+    Phase 11.0 scoring (runs whenever candidates_after has ≥ 1 entry):
+    - Legacy rank as baseline
+    - move_type compatibility as structural preference
+    - Difficulty / session-depth as coarse capability signal
+    - same_engine_chain_count as coarse energy signal
+    """
+    result: dict = {
+        "current_move_type":               None,
+        "move_type_filter_applied":        False,
+        "allowed_next_move_types":         None,
+        "candidates_before_move_filter":   None,
+        "candidates_after_move_filter":    None,
+        "move_type_filter_skipped_reason": None,
+        "fallback_occurred":               False,
+        "selection_source":                "legacy",
+        "filtered_chosen":                 None,
+        "phase11_scoring":                 [],
+        "phase11_selection_source":        "legacy",
+    }
+
+    # ── Guard: transition table ──────────────────────────────────────────
+    if _move_type_transitions is None:
+        result["move_type_filter_skipped_reason"] = "table_not_loaded"
+        result["fallback_occurred"] = True
+        result["selection_source"] = "fallback_after_missing_tags"
+        return result
+
+    # ── Guard: last partner frame must be tagged ─────────────────────────
+    current_mt = _get_frame_move_type(last_frame_id)
+    result["current_move_type"] = current_mt
+    if not current_mt:
+        result["move_type_filter_skipped_reason"] = "last_frame_has_no_move_type"
+        result["fallback_occurred"] = True
+        result["selection_source"] = "fallback_after_missing_tags"
+        return result
+
+    # ── Guard: transition rule must exist ────────────────────────────────
+    allowed_list = _get_allowed_next_move_types(current_mt)
+    if allowed_list is None:
+        result["move_type_filter_skipped_reason"] = "move_type_not_in_table"
+        result["fallback_occurred"] = True
+        result["selection_source"] = "fallback_after_missing_tags"
+        return result
+    allowed = set(allowed_list)
+    result["allowed_next_move_types"] = sorted(allowed)
+
+    # ── Build full candidate pool (Phase 11: always built for proper scoring) ──
+    recent_set  = set(recent or [])
+    recent_list = list(recent or [])
+    same_engine = _engine_partner_question_frame_ids(engine_norm) or _engine_frame_ids(engine_norm)
+
+    candidates_before = [
+        fid for fid in same_engine
+        if fid not in recent_set
+        and _frame_deps_satisfied(fid, recent_set, recent_list)
+        and (memory is None or not _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS))
+        and _get_frame_move_type(fid) is not None
+    ]
+    result["candidates_before_move_filter"] = len(candidates_before)
+
+    # Valid same-engine candidates (move_type in allowed set).
+    candidates_after = [fid for fid in candidates_before if _get_frame_move_type(fid) in allowed]
+
+    # If chosen is already valid, insert it at the front to preserve Phase 10.5 priority.
+    # This works whether chosen is same-engine or cross-engine (bridge).
+    chosen_mt = _get_frame_move_type(chosen) if chosen else None
+    chosen_valid = bool(chosen_mt and chosen_mt in allowed)
+    if chosen_valid:
+        candidates_after = [chosen] + [f for f in candidates_after if f != chosen]
+
+    result["candidates_after_move_filter"] = len(candidates_after)
+
+    if not candidates_after:
+        result["move_type_filter_skipped_reason"] = "no_tagged_candidates_in_allowed_set"
+        result["fallback_occurred"] = True
+        result["selection_source"]  = "fallback_after_empty"
+        return result
+
+    # ── Phase 11.0: score and rank candidates ────────────────────────────
+    best, p11_traces, p11_source = _phase11_rank_shortlist(
+        candidates_after, allowed, exchange_count, same_engine_chain_count
+    )
+
+    result["move_type_filter_applied"] = True
+    result["fallback_occurred"]        = False
+    result["phase11_scoring"]          = p11_traces
+    result["phase11_selection_source"] = p11_source
+
+    if best and best != chosen:
+        result["selection_source"] = p11_source   # "scored_preferred" or "legacy"
+    else:
+        result["selection_source"] = "legacy"
+    result["filtered_chosen"] = best or chosen
+    return result
 
 
 def _engine_partner_question_frame_ids(engine_norm: str) -> List[str]:
@@ -278,8 +551,8 @@ _SLOT_FOLLOWUP_PREFERENCES: dict = {
     # DISH: prefer taste/spicy before generic “famous dish”
     "DISH": ["f_food_tasty", "f_food_like_spicy", "f_food_famous_dish"],
     "NAME": ["p2_id_4", "p2_id_5"],
-    # TRAVEL: deepen on destination/motivation before generic country checklist.
-    "TRAVEL": ["f_want_go_where", "p2_tr_2", "p2_tr_3", "p2_tr_4", "p2_tr_1"],
+    # TRAVEL: follow FRAME_ORDER so p2_tr_1 (countries visited) isn't deferred until after deeper follow-ups.
+    "TRAVEL": ["f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4"],
 }
 
 
@@ -681,12 +954,19 @@ def _is_greeting_answer(last_answer: Optional[dict]) -> bool:
     return _is_greeting_text(text)
 
 
-def _select_next_frame_bridge(current_engine: str, recent_frame_ids: list, use_recovery_order: bool = False, memory: Optional[dict] = None) -> Optional[str]:
+def _select_next_frame_bridge(
+    current_engine: str,
+    recent_frame_ids: list,
+    use_recovery_order: bool = False,
+    memory: Optional[dict] = None,
+    exchange_count: int = 0,
+) -> Optional[str]:
     """
     Phase 9.2: bridge to another engine. Only used after MIN_TURNS_BEFORE_BRIDGE turns in current engine.
     Prefers partner-question frames so the next line is a question, not a reactive phrase.
     When use_recovery_order is True (e.g. after 我不懂 or Change topic), try engines in _RECOVERY_BRIDGE_ENGINE_ORDER
     so the next question is a more natural switch (place/identity/family) rather than jumping to food/travel.
+    Phase 11.1: skips identity OPEN frames (e.g. f_ask_you_name) once session is established (exchange_count ≥ 2).
     """
     recent = set(recent_frame_ids or [])
     engine_norm = (current_engine or "").strip().lower()
@@ -721,17 +1001,26 @@ def _select_next_frame_bridge(current_engine: str, recent_frame_ids: list, use_r
                     continue
                 if memory is not None and _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS):
                     continue
+                # Phase 11.1: don't re-open with identity OPEN gambits once conversation is established
+                if exchange_count >= 2 and fid in _IDENTITY_OPEN_FRAMES:
+                    continue
                 return fid
     return None
 
 
-def _select_next_frame_ladder(current_engine: str, recent_frame_ids: list, memory: Optional[dict] = None) -> Optional[str]:
+def _select_next_frame_ladder(
+    current_engine: str,
+    recent_frame_ids: list,
+    memory: Optional[dict] = None,
+    exchange_count: int = 0,
+) -> Optional[str]:
     """
     Phase 9.1/9.2: deterministic next-frame ladder.
     1. Same engine, excluding recent_frame_ids (no repeat yet).
     2. If all frames in this engine were already used, bridge to another engine (new topic) so we never repeat a question already asked.
     3. Same-engine repeat only if bridge failed (e.g. no other engines).
     4. Safe fallback so we never dead-end.
+    Phase 11.1: exchange_count forwarded to bridge to enforce identity OPEN frame guard.
     """
     recent = set(recent_frame_ids or [])
     engine_norm = (current_engine or "").strip().lower()
@@ -748,15 +1037,20 @@ def _select_next_frame_ladder(current_engine: str, recent_frame_ids: list, memor
             return True
         return not _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS)
 
+    # Phase 11.1: exclude OPEN gambits (e.g. f_ask_you_name) once session is established
+    _open_excl = _IDENTITY_OPEN_FRAMES if exchange_count >= 2 else frozenset()
     unseen_same = [
         fid for fid in same_engine
-        if fid not in recent and _deps_satisfied(fid) and _not_suppressed(fid)
+        if fid not in recent
+        and fid not in _open_excl
+        and _deps_satisfied(fid)
+        and _not_suppressed(fid)
     ]
     if unseen_same:
         return unseen_same[0]
 
     # Tier 2: all frames in this engine were already used — bridge to a new topic instead of repeating
-    chosen = _select_next_frame_bridge(current_engine, recent_frame_ids, memory=memory)
+    chosen = _select_next_frame_bridge(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count)
     if chosen:
         return chosen
 
@@ -788,11 +1082,13 @@ def _select_next_frame_ladder_avoiding(
     *,
     avoid_frame_ids: set,
     memory: Optional[dict] = None,
+    exchange_count: int = 0,
 ) -> Optional[str]:
     """
     Like _select_next_frame_ladder, but will skip avoid_frame_ids when there is any non-avoided candidate available
     in the same engine. This is used to deprioritize known weak loop frames (e.g. p2_pl_1, p2_pl_3) without
     changing the overall selector order.
+    Phase 11.1: exchange_count forwarded to bridge/ladder for identity OPEN frame guard.
     """
     avoid = avoid_frame_ids or set()
     recent = set(recent_frame_ids or [])
@@ -808,9 +1104,17 @@ def _select_next_frame_ladder_avoiding(
             return True
         return not _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS)
 
-    unseen = [fid for fid in same_engine if fid not in recent and _deps_satisfied(fid) and _not_suppressed(fid)]
+    # Phase 11.1: exclude OPEN gambits (e.g. f_ask_you_name) once session is established
+    _open_excluded = _IDENTITY_OPEN_FRAMES if exchange_count >= 2 else frozenset()
+    unseen = [
+        fid for fid in same_engine
+        if fid not in recent
+        and fid not in _open_excluded
+        and _deps_satisfied(fid)
+        and _not_suppressed(fid)
+    ]
     if not unseen:
-        return _select_next_frame_ladder(current_engine, recent_frame_ids, memory=memory)
+        return _select_next_frame_ladder(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count)
 
     non_avoided = [fid for fid in unseen if fid not in avoid]
     if non_avoided:
@@ -819,10 +1123,54 @@ def _select_next_frame_ladder_avoiding(
     # Only avoided candidates remain. For the highest-impact weak loop frames, prefer to bridge away
     # rather than forcing a low-quality loop.
     if engine_norm == "place" and avoid.issuperset({"p2_pl_1", "p2_pl_3"}):
-        bridged = _select_next_frame_bridge(current_engine, recent_frame_ids, memory=memory)
+        bridged = _select_next_frame_bridge(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count)
         if bridged and bridged not in recent:
             return bridged
     return unseen[0]
+
+
+def _count_remaining_engine_frames(engine: str, recent_list: list, memory: Optional[dict]) -> int:
+    """Phase 11.1: count unseen, dep-satisfied, non-suppressed partner frames in this engine."""
+    engine_norm = (engine or "").strip().lower()
+    recent_set = set(recent_list or [])
+    frames = _engine_partner_question_frame_ids(engine_norm)
+    if not frames:
+        frames = _engine_frame_ids(engine_norm)
+    return sum(
+        1 for fid in frames
+        if fid not in recent_set
+        and _frame_deps_satisfied(fid, recent_set, recent_list or [])
+        and (memory is None or not _should_suppress_ask_frame(fid, memory, recent_list or [], RECALL_INTERVAL_TURNS))
+    )
+
+
+def _frame_order_priority(
+    engine: str,
+    chosen_fid: str,
+    recent_set: set,
+    recent_list: list,
+    memory: Optional[dict],
+) -> Optional[str]:
+    """
+    Phase 11.1: soft FRAME_ORDER enforcement.
+    If chosen_fid is later in FRAME_ORDER than some unseen, dep-satisfied frame, return that
+    earlier frame instead. Returns None when chosen is already optimal or not in FRAME_ORDER.
+    """
+    order = _FRAME_ORDER.get((engine or "").strip().lower()) or []
+    if not order or chosen_fid not in order:
+        return None
+    chosen_pos = order.index(chosen_fid)
+    if chosen_pos == 0:
+        return None
+    for fid in order[:chosen_pos]:
+        if fid in recent_set:
+            continue
+        if not _frame_deps_satisfied(fid, recent_set, recent_list):
+            continue
+        if memory and _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS):
+            continue
+        return fid
+    return None
 
 
 def _stub_card_id(frame_id: str):
@@ -1088,6 +1436,7 @@ class Handler(BaseHTTPRequestHandler):
                 if force_food_followup:
                     chosen = _pick_slot_followup_frame_id(current_engine, ["DISH"], recent, memory)
                     if chosen:
+                        chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
                         chosen_turn_type = "loop_question" if _is_loop_candidate(chosen) else "question"
                         listening_move_selected = "loop_question" if chosen_turn_type == "loop_question" else "question"
                         listening_move_reason = "food_followup_priority"
@@ -1101,6 +1450,7 @@ class Handler(BaseHTTPRequestHandler):
                         recent,
                         avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
                         memory=memory,
+                        exchange_count=exchange_count,
                     )
                     if chosen:
                         chosen_turn_type = "loop_question" if _is_loop_candidate(chosen) else "question"
@@ -1115,10 +1465,19 @@ class Handler(BaseHTTPRequestHandler):
                     # allow one more same-topic probe before chain-cap forces a bridge.
                     if weak_reply and (last_interest_level in ("medium", "high")):
                         chain_exceeded = False
+                    # Phase 11.1: depth guard — block bridge if fresh frames remain and depth is shallow
+                    _remaining_in_engine = _count_remaining_engine_frames(current_engine, recent, memory)
+                    _depth_guard_blocks = (
+                        same_engine_chain_count < ENGINE_DEPTH_GUARD_TURNS
+                        and _remaining_in_engine >= ENGINE_DEPTH_GUARD_MIN_REMAINING
+                    )
                     bridge_allowed = (
                         force_bridge
                         or prefer_bridge
-                        or (same_engine_chain_count >= MIN_SAME_ENGINE_CHAIN_BEFORE_BRIDGE)
+                        or (
+                            same_engine_chain_count >= MIN_SAME_ENGINE_CHAIN_BEFORE_BRIDGE
+                            and not _depth_guard_blocks
+                        )
                     )
                     if pending_listening_move or force_listening or chain_exceeded:
                         seed_base = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/interest"
@@ -1129,12 +1488,15 @@ class Handler(BaseHTTPRequestHandler):
                         has_curiosity_signal = bool(slot_names) or bool(unscripted_probe_first) or bool(meaningful)
                         if curiosity_depth < MAX_CURIOSITY_DEPTH and has_curiosity_signal:
                             chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
+                            if chosen is not None:
+                                chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
                             if chosen is None:
                                 chosen = _select_next_frame_ladder_avoiding(
                                     current_engine,
                                     recent,
                                     avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
                                     memory=memory,
+                                    exchange_count=exchange_count,
                                 )
                             if chosen and _is_loop_candidate(chosen):
                                 chosen_turn_type = "loop_question"
@@ -1145,7 +1507,7 @@ class Handler(BaseHTTPRequestHandler):
                                 listening_wait_turns = 0
                         # Only default to bridge when curiosity had no viable frame.
                         if chosen is None and bridge_allowed and (force_listening or chain_exceeded or gate_br < int(p_br * 1000)):
-                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory)
+                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count)
                             if chosen:
                                 chosen_turn_type = "question"
                                 listening_move_selected = "bridge"
@@ -1165,6 +1527,8 @@ class Handler(BaseHTTPRequestHandler):
                         loop_attempted = True
                         # Prefer slot/topic follow-up first (often loop-like), then fall back to engine ladder
                         chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
+                        if chosen is not None:
+                            chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
                         if chosen is None:
                             # Fall back: next ladder frame, but avoid known weak loop frames if we have alternatives in engine
                             chosen = _select_next_frame_ladder_avoiding(
@@ -1172,6 +1536,7 @@ class Handler(BaseHTTPRequestHandler):
                                 recent,
                                 avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
                                 memory=memory,
+                                exchange_count=exchange_count,
                             )
                         if chosen and _is_loop_candidate(chosen):
                             chosen_turn_type = "loop_question"
@@ -1182,15 +1547,17 @@ class Handler(BaseHTTPRequestHandler):
                     if curiosity_depth >= MAX_CURIOSITY_DEPTH:
                         # Force ask/bridge; reset depth
                         if prefer_bridge or force_bridge:
-                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory)
+                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count)
                         if chosen is None and not force_bridge:
-                            chosen = _select_next_frame_ladder(current_engine, recent, memory=memory)
+                            chosen = _select_next_frame_ladder(current_engine, recent, memory=memory, exchange_count=exchange_count)
                         curiosity_depth = 0
                         chosen_turn_type = "question"
                     else:
                         # Soft chaining: slot/topic preference first, then existing bridge/ladder order
                         if last_turn_was_answer and (not user_asked_question) and meaningful:
                             chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
+                            if chosen is not None:
+                                chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
                             if chosen and _is_loop_candidate(chosen):
                                 chosen_turn_type = "loop_question"
                                 curiosity_depth = min(curiosity_depth + 1, MAX_CURIOSITY_DEPTH)
@@ -1198,7 +1565,7 @@ class Handler(BaseHTTPRequestHandler):
                                 listening_wait_turns = 0
                         if chosen is None:
                             if prefer_bridge or force_bridge:
-                                chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory)
+                                chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count)
                                 if chosen:
                                     pending_listening_move = False
                                     listening_wait_turns = 0
@@ -1208,6 +1575,7 @@ class Handler(BaseHTTPRequestHandler):
                                     recent,
                                     avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
                                     memory=memory,
+                                    exchange_count=exchange_count,
                                 )
 
                 if not chosen:
@@ -1235,17 +1603,45 @@ class Handler(BaseHTTPRequestHandler):
                         has_name_context_now = ("NAME" in (slot_names or []))
                         has_name_in_memory = _has_learner_name(memory)
                         if chosen in name_meta_frames and (not has_name_context_now) and (not has_name_in_memory):
-                            # Force the basic name question first (unless suppressed for some reason)
-                            fallback = "f_ask_you_name"
-                            if fallback not in set(recent or []) and not _should_suppress_ask_frame(fallback, memory, recent or [], RECALL_INTERVAL_TURNS):
-                                chosen = fallback
-                                chosen_turn_type = "question"
-                            else:
-                                # If we can't ask name, switch topic to avoid awkward interrogation
-                                bridged = _select_next_frame_bridge(current_engine, recent, use_recovery_order=True, memory=memory)
+                            # Phase 11.1: once session is established, don't re-ask the opening name question.
+                            # For early turns (exchange < 2) we still force f_ask_you_name; for established sessions bridge away.
+                            if exchange_count >= 2:
+                                bridged = _select_next_frame_bridge(current_engine, recent, use_recovery_order=True, memory=memory, exchange_count=exchange_count)
                                 if bridged:
                                     chosen = bridged
                                     chosen_turn_type = "question"
+                            else:
+                                # Force the basic name question first (unless suppressed for some reason)
+                                fallback = "f_ask_you_name"
+                                if fallback not in set(recent or []) and not _should_suppress_ask_frame(fallback, memory, recent or [], RECALL_INTERVAL_TURNS):
+                                    chosen = fallback
+                                    chosen_turn_type = "question"
+                                else:
+                                    # If we can't ask name, switch topic to avoid awkward interrogation
+                                    bridged = _select_next_frame_bridge(current_engine, recent, use_recovery_order=True, memory=memory, exchange_count=exchange_count)
+                                    if bridged:
+                                        chosen = bridged
+                                        chosen_turn_type = "question"
+
+                # Phase 10.7: optional declarative move_type filter (additive, safe fallback).
+                # Runs AFTER all Phase 10.5 logic and identity coherence gate.
+                # Only changes `chosen` when a tagged alternative in the allowed transition set exists.
+                _mt_filter_debug: dict = {}
+                if last_answer_fid and chosen:
+                    _engine_for_filter = (current_engine or "").strip().lower()
+                    _mt_filter_debug = _apply_move_type_filter(
+                        chosen=chosen,
+                        last_frame_id=last_answer_fid,
+                        engine_norm=_engine_for_filter,
+                        recent=list(recent or []),
+                        memory=memory,
+                        exchange_count=exchange_count,
+                        same_engine_chain_count=same_engine_chain_count,
+                    )
+                    _fc = _mt_filter_debug.get("filtered_chosen")
+                    if _fc and _fc != chosen:
+                        chosen = _fc
+                        # Note: chosen_turn_type intentionally kept from 10.5 logic; filter is structural only.
 
                 frame_id = chosen
                 frame_rec_chosen = _frames_by_id.get(frame_id, {})
@@ -1399,6 +1795,23 @@ class Handler(BaseHTTPRequestHandler):
                 response["same_slot_chain_count"] = int(same_slot_chain_count)
                 response["last_focus_slot"] = last_focus_slot
                 response["last_user_text"] = last_user_text
+                # Phase 10.7-C: move_type filter trace — always emitted when selector ran.
+                if _mt_filter_debug:
+                    response["move_type_filter"] = {
+                        # Phase 10.7 fields
+                        "current_move_type":               _mt_filter_debug.get("current_move_type"),
+                        "allowed_next_move_types":         _mt_filter_debug.get("allowed_next_move_types"),
+                        "candidates_before_move_filter":   _mt_filter_debug.get("candidates_before_move_filter"),
+                        "candidates_after_move_filter":    _mt_filter_debug.get("candidates_after_move_filter"),
+                        "fallback_occurred":               _mt_filter_debug.get("fallback_occurred", True),
+                        "selection_source":                _mt_filter_debug.get("selection_source", "legacy"),
+                        "move_type_filter_applied":        _mt_filter_debug.get("move_type_filter_applied", False),
+                        "move_type_filter_skipped_reason": _mt_filter_debug.get("move_type_filter_skipped_reason"),
+                        # Phase 11.0 scoring fields
+                        "phase11_selection_source":        _mt_filter_debug.get("phase11_selection_source", "legacy"),
+                        "phase11_scores":                  _mt_filter_debug.get("phase11_scoring", []),
+                        "phase11_candidate_count":         len(_mt_filter_debug.get("phase11_scoring", [])),
+                    }
 
             data = json.dumps(response, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
@@ -1441,7 +1854,13 @@ class Handler(BaseHTTPRequestHandler):
         print(f"[ui_server] {self.address_string()} - {format % args}")
 
 
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Serve multiple parallel GETs (browser Promise.all on load). Single-threaded server can stall or reset on Windows."""
+
+    daemon_threads = True
+
+
 if __name__ == "__main__":
     port = 8765
     print(f"[ui_server] Listening on http://localhost:{port}")
-    HTTPServer(("", port), Handler).serve_forever()
+    ThreadedHTTPServer(("", port), Handler).serve_forever()

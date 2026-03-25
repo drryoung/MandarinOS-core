@@ -16,7 +16,16 @@
       "speaker": "partner",
       "option_tokens": [
         "w_nihao"
-      ]
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "ANSWER",
+        "REACTION"
+      ],
+      "move_type": "OPEN"
     },
     {
       "id": "frame.greeting.hello_reply",
@@ -31,7 +40,18 @@
       "option_tokens": [
         "w_nihao"
       ],
-      "distractor_tokens": ["w_xiexie", "w_bukeqi"]
+      "distractor_tokens": [
+        "w_xiexie",
+        "w_bukeqi"
+      ],
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "RECIPROCITY"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_ask_you_name",
@@ -45,7 +65,19 @@
       "option_tokens": [
         "w_jiao"
       ],
-      "distractor_tokens": ["w_shenme", "w_mingzi"]
+      "distractor_tokens": [
+        "w_shenme",
+        "w_mingzi"
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "OPEN"
     },
     {
       "id": "frame.identity.name",
@@ -64,7 +96,16 @@
       "option_tokens": [
         "w_jiao"
       ],
-      "text_en": "My name is [NAME]."
+      "text_en": "My name is [NAME].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "RECIPROCITY"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_you_ne",
@@ -77,7 +118,16 @@
       "speaker": "user",
       "option_tokens": [
         "w_ne"
-      ]
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "ANSWER",
+        "REPAIR"
+      ],
+      "move_type": "RECIPROCITY"
     },
     {
       "id": "f_partner_name",
@@ -90,7 +140,15 @@
       "option_tokens": [
         "w_jiao"
       ],
-      "text_en": "My name is Li Ming."
+      "text_en": "My name is Li Ming.",
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_thanks",
@@ -103,8 +161,20 @@
       "option_tokens": [
         "w_xiexie"
       ],
-      "distractor_tokens": ["w_nihao", "w_bukeqi"],
-      "text_en": "Thanks!"
+      "distractor_tokens": [
+        "w_nihao",
+        "w_bukeqi"
+      ],
+      "text_en": "Thanks!",
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "RECIPROCITY",
+        "BRIDGE",
+        "CLOSE"
+      ],
+      "move_type": "REACTION"
     },
     {
       "id": "f_no_problem",
@@ -117,7 +187,15 @@
       "option_tokens": [
         "w_bukeqi"
       ],
-      "text_en": "you're welcome"
+      "text_en": "you're welcome",
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "BRIDGE",
+        "CLOSE"
+      ],
+      "move_type": "REACTION"
     },
     {
       "id": "f_nice_to_meet",
@@ -128,8 +206,21 @@
       "difficulty": 1,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_hao"],
-      "distractor_tokens": ["w_ni", "w_xiexie"]
+      "option_tokens": [
+        "w_hao"
+      ],
+      "distractor_tokens": [
+        "w_ni",
+        "w_xiexie"
+      ],
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "BRIDGE",
+        "ASK"
+      ],
+      "move_type": "REACTION"
     },
     {
       "id": "f_ask_name_meaning",
@@ -140,8 +231,22 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_mingzi"],
-      "distractor_tokens": ["w_shenme", "w_jiao"]
+      "option_tokens": [
+        "w_mingzi"
+      ],
+      "distractor_tokens": [
+        "w_shenme",
+        "w_jiao"
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "frame.identity.name_meaning",
@@ -157,7 +262,19 @@
         }
       ],
       "speaker": "user",
-      "option_tokens": ["w_mingzi"]
+      "option_tokens": [
+        "w_mingzi"
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "RECIPROCITY",
+        "BRIDGE"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_from_where",
@@ -167,11 +284,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "distractor_tokens": ["w_beijing", "w_shanghai"],
+      "distractor_tokens": [
+        "w_beijing",
+        "w_shanghai"
+      ],
       "option_tokens": [
         "w_nali"
       ],
-      "text_en": "Where are you from?"
+      "text_en": "Where are you from?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "OPEN"
     },
     {
       "id": "frame.identity.nationality",
@@ -190,7 +319,16 @@
       "option_tokens": [
         "w_wo"
       ],
-      "text_en": "I'm [NATIONALITY]."
+      "text_en": "I'm [NATIONALITY].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "frame.location.live_question",
@@ -204,7 +342,16 @@
       "option_tokens": [
         "w_zhu"
       ],
-      "text_en": "Where do you live now?"
+      "text_en": "Where do you live now?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "frame.location.live",
@@ -223,7 +370,17 @@
       "option_tokens": [
         "w_zhu"
       ],
-      "text_en": "I live in [CITY] now."
+      "text_en": "I live in [CITY] now.",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP",
+        "RECIPROCITY"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_place_reaction",
@@ -234,8 +391,22 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_hao"],
-      "distractor_tokens": ["w_xiexie", "w_bukeqi"]
+      "option_tokens": [
+        "w_hao"
+      ],
+      "distractor_tokens": [
+        "w_xiexie",
+        "w_bukeqi"
+      ],
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "LOOP",
+        "RECIPROCITY",
+        "BRIDGE"
+      ],
+      "move_type": "REACTION"
     },
     {
       "id": "f_place_like_there",
@@ -246,8 +417,22 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_xihuan"],
-      "distractor_tokens": ["w_nali", "w_zhu"]
+      "option_tokens": [
+        "w_xihuan"
+      ],
+      "distractor_tokens": [
+        "w_nali",
+        "w_zhu"
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "f_place_like_yes",
@@ -258,8 +443,22 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "user",
-      "option_tokens": ["w_xihuan"],
-      "distractor_tokens": ["w_hao", "w_wo"]
+      "option_tokens": [
+        "w_xihuan"
+      ],
+      "distractor_tokens": [
+        "w_hao",
+        "w_wo"
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_have_family",
@@ -272,7 +471,16 @@
       "option_tokens": [
         "w_jiaren"
       ],
-      "text_en": "Do you have family?"
+      "text_en": "Do you have family?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "OPEN"
     },
     {
       "id": "f_yes_have_family",
@@ -285,7 +493,15 @@
       "option_tokens": [
         "w_jiaren"
       ],
-      "text_en": "Yes, I have family."
+      "text_en": "Yes, I have family.",
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_have_siblings",
@@ -298,7 +514,16 @@
       "option_tokens": [
         "w_you"
       ],
-      "text_en": "Do you have any siblings?"
+      "text_en": "Do you have any siblings?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "f_have_brother",
@@ -311,7 +536,16 @@
       "speaker": "user",
       "option_tokens": [
         "w_gege"
-      ]
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_have_sister",
@@ -324,7 +558,16 @@
       "option_tokens": [
         "w_jiejie"
       ],
-      "text_en": "I have an older sister."
+      "text_en": "I have an older sister.",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_what_work",
@@ -337,7 +580,16 @@
       "option_tokens": [
         "w_gongzuo"
       ],
-      "text_en": "What do you do for work?"
+      "text_en": "What do you do for work?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "OPEN"
     },
     {
       "id": "f_i_am_job",
@@ -355,7 +607,16 @@
       "option_tokens": [
         "w_wo"
       ],
-      "text_en": "I'm a [JOB]."
+      "text_en": "I'm a [JOB].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_like_work",
@@ -368,7 +629,16 @@
       "option_tokens": [
         "w_xihuan"
       ],
-      "text_en": "Do you like your job?"
+      "text_en": "Do you like your job?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "frame.opinion.like",
@@ -382,7 +652,17 @@
       "option_tokens": [
         "w_xihuan"
       ],
-      "text_en": "Yes, I like it a lot."
+      "text_en": "Yes, I like it a lot.",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP",
+        "RECIPROCITY"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_what_hobby",
@@ -395,7 +675,16 @@
       "option_tokens": [
         "w_aihao"
       ],
-      "text_en": "you to have what hobby"
+      "text_en": "you to have what hobby",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "OPEN"
     },
     {
       "id": "f_i_like_hobby",
@@ -413,7 +702,17 @@
       "option_tokens": [
         "w_xihuan"
       ],
-      "text_en": "I like [HOBBY]."
+      "text_en": "I like [HOBBY].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP",
+        "RECIPROCITY"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_weekend_do",
@@ -426,7 +725,16 @@
       "option_tokens": [
         "w_shenme"
       ],
-      "text_en": "What do you do on weekends?"
+      "text_en": "What do you do on weekends?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "f_weekend_rest",
@@ -439,7 +747,15 @@
       "option_tokens": [
         "w_wo"
       ],
-      "text_en": "I rest on weekends."
+      "text_en": "I rest on weekends.",
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_weekend_hobby",
@@ -447,10 +763,26 @@
       "pinyin": "wǒ zhōumò {HOBBY}.",
       "engine": "hobby",
       "difficulty": 2,
-      "slots": [{"name": "HOBBY", "source": "fillers.hobbies"}],
+      "slots": [
+        {
+          "name": "HOBBY",
+          "source": "fillers.hobbies"
+        }
+      ],
       "speaker": "user",
-      "option_tokens": ["w_wo"],
-      "text_en": "I [HOBBY] on weekends."
+      "option_tokens": [
+        "w_wo"
+      ],
+      "text_en": "I [HOBBY] on weekends.",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_like_do_what",
@@ -460,9 +792,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_xihuan"],
-      "distractor_tokens": ["w_shenme", "w_aihao"],
-      "text_en": "What do you like to do?"
+      "option_tokens": [
+        "w_xihuan"
+      ],
+      "distractor_tokens": [
+        "w_shenme",
+        "w_aihao"
+      ],
+      "text_en": "What do you like to do?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "f_often_do",
@@ -472,9 +818,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_shenme"],
-      "distractor_tokens": ["w_xihuan", "w_hao"],
-      "text_en": "Do you do it often?"
+      "option_tokens": [
+        "w_shenme"
+      ],
+      "distractor_tokens": [
+        "w_xihuan",
+        "w_hao"
+      ],
+      "text_en": "Do you do it often?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "f_difficult_ma",
@@ -484,9 +844,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_nanbunan"],
-      "distractor_tokens": ["w_shenme", "w_hao"],
-      "text_en": "Is it difficult?"
+      "option_tokens": [
+        "w_nanbunan"
+      ],
+      "distractor_tokens": [
+        "w_shenme",
+        "w_hao"
+      ],
+      "text_en": "Is it difficult?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "f_recommend_ma",
@@ -496,9 +870,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_xihuan"],
-      "distractor_tokens": ["w_shenme", "w_hao"],
-      "text_en": "Do you recommend it?"
+      "option_tokens": [
+        "w_xihuan"
+      ],
+      "distractor_tokens": [
+        "w_shenme",
+        "w_hao"
+      ],
+      "text_en": "Do you recommend it?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "f_like_chinese_culture",
@@ -508,9 +896,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_xihuan"],
-      "distractor_tokens": ["w_shenme", "w_hao"],
-      "text_en": "Do you like Chinese culture?"
+      "option_tokens": [
+        "w_xihuan"
+      ],
+      "distractor_tokens": [
+        "w_shenme",
+        "w_hao"
+      ],
+      "text_en": "Do you like Chinese culture?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "f_like_what",
@@ -520,9 +922,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_xihuan"],
-      "distractor_tokens": ["w_shenme", "w_aihao"],
-      "text_en": "What do you like?"
+      "option_tokens": [
+        "w_xihuan"
+      ],
+      "distractor_tokens": [
+        "w_shenme",
+        "w_aihao"
+      ],
+      "text_en": "What do you like?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "f_i_like_cultural",
@@ -530,10 +946,26 @@
       "pinyin": "wǒ xǐhuan {CULTURAL_HOBBY}.",
       "engine": "hobby",
       "difficulty": 2,
-      "slots": [{"name": "CULTURAL_HOBBY", "source": "fillers.cultural_hobbies"}],
+      "slots": [
+        {
+          "name": "CULTURAL_HOBBY",
+          "source": "fillers.cultural_hobbies"
+        }
+      ],
       "speaker": "user",
-      "option_tokens": ["w_xihuan"],
-      "text_en": "I like [CULTURAL_HOBBY]."
+      "option_tokens": [
+        "w_xihuan"
+      ],
+      "text_en": "I like [CULTURAL_HOBBY].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_collect_what",
@@ -543,9 +975,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_shenme"],
-      "distractor_tokens": ["w_xihuan", "w_hao"],
-      "text_en": "Do you collect anything?"
+      "option_tokens": [
+        "w_shenme"
+      ],
+      "distractor_tokens": [
+        "w_xihuan",
+        "w_hao"
+      ],
+      "text_en": "Do you collect anything?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "f_i_collect",
@@ -553,10 +999,26 @@
       "pinyin": "wǒ shōucáng {ITEM}.",
       "engine": "hobby",
       "difficulty": 2,
-      "slots": [{"name": "ITEM", "source": "fillers.collecting"}],
+      "slots": [
+        {
+          "name": "ITEM",
+          "source": "fillers.collecting"
+        }
+      ],
       "speaker": "user",
-      "option_tokens": ["w_wo"],
-      "text_en": "I collect [ITEM]."
+      "option_tokens": [
+        "w_wo"
+      ],
+      "text_en": "I collect [ITEM].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_travel_where",
@@ -569,7 +1031,16 @@
       "option_tokens": [
         "w_quguo"
       ],
-      "text_en": "Where have you been?"
+      "text_en": "Where have you been?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "OPEN"
     },
     {
       "id": "f_been_to_place",
@@ -587,7 +1058,17 @@
       "option_tokens": [
         "w_quguo"
       ],
-      "text_en": "I've been to [PLACE]."
+      "text_en": "I've been to [PLACE].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP",
+        "RECIPROCITY"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_want_go_where",
@@ -600,7 +1081,16 @@
       "option_tokens": [
         "w_nali"
       ],
-      "text_en": "Where do you want to go?"
+      "text_en": "Where do you want to go?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "f_want_go_place",
@@ -618,7 +1108,16 @@
       "option_tokens": [
         "w_xiang"
       ],
-      "text_en": "I want to go to [PLACE]."
+      "text_en": "I want to go to [PLACE].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_food_what_good",
@@ -628,9 +1127,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_haochi"],
-      "distractor_tokens": ["w_shenme", "w_hao"],
-      "text_en": "What good food is there?"
+      "option_tokens": [
+        "w_haochi"
+      ],
+      "distractor_tokens": [
+        "w_shenme",
+        "w_hao"
+      ],
+      "text_en": "What good food is there?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "OPEN"
     },
     {
       "id": "f_food_there_is",
@@ -638,10 +1151,26 @@
       "pinyin": "yǒu hěn duō {DISH}.",
       "engine": "food",
       "difficulty": 2,
-      "slots": [{"name": "DISH", "source": "fillers.dishes"}],
+      "slots": [
+        {
+          "name": "DISH",
+          "source": "fillers.dishes"
+        }
+      ],
       "speaker": "user",
-      "option_tokens": ["w_hao"],
-      "text_en": "There is a lot of [DISH]."
+      "option_tokens": [
+        "w_hao"
+      ],
+      "text_en": "There is a lot of [DISH].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_food_famous_dish",
@@ -651,9 +1180,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_shenme"],
-      "distractor_tokens": ["w_haochi", "w_hao"],
-      "text_en": "What dish is your place most famous for?"
+      "option_tokens": [
+        "w_shenme"
+      ],
+      "distractor_tokens": [
+        "w_haochi",
+        "w_hao"
+      ],
+      "text_en": "What dish is your place most famous for?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "f_food_famous_answer",
@@ -661,10 +1204,26 @@
       "pinyin": "zuì yǒumíng de shì {DISH}.",
       "engine": "food",
       "difficulty": 2,
-      "slots": [{"name": "DISH", "source": "fillers.dishes"}],
+      "slots": [
+        {
+          "name": "DISH",
+          "source": "fillers.dishes"
+        }
+      ],
       "speaker": "user",
-      "option_tokens": ["w_hao"],
-      "text_en": "The most famous is [DISH]."
+      "option_tokens": [
+        "w_hao"
+      ],
+      "text_en": "The most famous is [DISH].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "f_food_like_spicy",
@@ -674,9 +1233,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_xihuan"],
-      "distractor_tokens": ["w_haochi", "w_shenme"],
-      "text_en": "Do you like spicy food?"
+      "option_tokens": [
+        "w_xihuan"
+      ],
+      "distractor_tokens": [
+        "w_haochi",
+        "w_shenme"
+      ],
+      "text_en": "Do you like spicy food?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "f_food_tasty",
@@ -686,9 +1259,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_haochi"],
-      "distractor_tokens": ["w_hao", "w_shenme"],
-      "text_en": "Is it tasty?"
+      "option_tokens": [
+        "w_haochi"
+      ],
+      "distractor_tokens": [
+        "w_hao",
+        "w_shenme"
+      ],
+      "text_en": "Is it tasty?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "f_food_expensive",
@@ -698,9 +1285,23 @@
       "difficulty": 2,
       "slots": [],
       "speaker": "partner",
-      "option_tokens": ["w_shenme"],
-      "distractor_tokens": ["w_hao", "w_haochi"],
-      "text_en": "Is it expensive?"
+      "option_tokens": [
+        "w_shenme"
+      ],
+      "distractor_tokens": [
+        "w_hao",
+        "w_haochi"
+      ],
+      "text_en": "Is it expensive?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     }
   ]
 }

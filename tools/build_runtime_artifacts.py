@@ -49,7 +49,7 @@ CONTENT_RECOVERY = REPO_ROOT / "content" / "recovery_phrases.json"
 P1_FILLERS   = REPO_ROOT / "p1_fillers.json"
 P2_FILLERS   = REPO_ROOT / "p2_fillers.json"
 FRAME_WITH_SLOTS_TOKEN = "FRAME_WITH_SLOTS"
-BUILDER_VERSION = "7.7.0"
+BUILDER_VERSION = "7.7.1"  # Phase 10.7-A: move_type copy-through added
 
 # Optional: inferred word-level etymology narratives (SUBTLEX-top curated subset).
 WORD_NARRATIVE_JSON = REPO_ROOT / "data" / "word_etymology_top1000_curated_v2_inferred_narrative.json"
@@ -249,10 +249,39 @@ def build_frame_options(all_frames: list, cards: dict, fillers: dict | None = No
     frames_by_id = {f["id"]: f for f in all_frames}
     fillers = fillers or load_fillers()
 
+    # Phase 11.1: build per-engine card pool so distractors stay domain-relevant.
+    # Include both option_tokens and distractor_tokens from all frames in the same engine.
+    engine_card_pool: dict[str, list[str]] = {}
+    for _f in all_frames:
+        _eng = (_f.get("engine") or "").strip().lower()
+        if not _eng:
+            continue
+        _pool = engine_card_pool.setdefault(_eng, [])
+        for _tok in (_f.get("option_tokens") or []):
+            if _tok in cards and _tok not in _pool:
+                _pool.append(_tok)
+        for _tok in (_f.get("distractor_tokens") or []):
+            if _tok in cards and _tok not in _pool:
+                _pool.append(_tok)
+
     for f in all_frames:
         frame_id     = f["id"]
         is_slotted   = bool(f.get("slots"))
         option_tokens = f.get("option_tokens") or []
+        frame_engine  = (f.get("engine") or "").strip().lower()
+
+        # Phase 11.1: prefer same-engine cards as distractors; fall back to global pool.
+        _same_engine_pool = [
+            cid for cid in (engine_card_pool.get(frame_engine) or [])
+        ]
+        _fallback_pool = [cid for cid in all_card_ids if cid not in _same_engine_pool]
+
+        def _build_distractor_pool(exclude: set) -> list[str]:
+            primary = [c for c in _same_engine_pool if c not in exclude]
+            secondary = [c for c in _fallback_pool if c not in exclude]
+            random.shuffle(primary)
+            random.shuffle(secondary)
+            return primary + secondary
 
         options = []
 
@@ -273,13 +302,9 @@ def build_frame_options(all_frames: list, cards: dict, fillers: dict | None = No
             }
             options.append(slot_option)
 
-            # Add 2 distractors: use frame distractor_tokens if present, else random
+            # Add 2 distractors: use frame distractor_tokens if present, else same-engine pool
             explicit = [c for c in (f.get("distractor_tokens") or []) if c in cards and c != gold_token][:2]
-            distractor_pool = [
-                cid for cid in all_card_ids
-                if cid != gold_token and cid not in explicit
-            ]
-            random.shuffle(distractor_pool)
+            distractor_pool = _build_distractor_pool({gold_token} | set(explicit))
             for cid in explicit:
                 options.append(card_to_option(cid, cards[cid], is_gold=False, is_slot=False))
             for cid in distractor_pool[: 2 - len(explicit)]:
@@ -301,11 +326,7 @@ def build_frame_options(all_frames: list, cards: dict, fillers: dict | None = No
                     print(f"[build] WARNING: gold token {gold_token!r} not in cards for frame {frame_id}")
 
                 explicit = [c for c in (f.get("distractor_tokens") or []) if c in cards and c != gold_token][:2]
-                distractor_pool = [
-                    cid for cid in all_card_ids
-                    if cid != gold_token and cid not in explicit
-                ]
-                random.shuffle(distractor_pool)
+                distractor_pool = _build_distractor_pool({gold_token} | set(explicit))
                 for cid in explicit:
                     options.append(card_to_option(cid, cards[cid], is_gold=False))
                 for cid in distractor_pool[: 2 - len(explicit)]:
@@ -318,10 +339,18 @@ def build_frame_options(all_frames: list, cards: dict, fillers: dict | None = No
         combined = non_gold_items + gold_items
         random.shuffle(combined)
 
-        frame_options[frame_id] = {
-            "options":          combined,
-            "hint_affordance":  { "visible": True }   # §2.4 — always visible in tap mode
+        fo_entry: dict = {
+            "options":         combined,
+            "hint_affordance": {"visible": True},  # §2.4 — always visible in tap mode
         }
+        # Phase 10.7 — copy declarative move_type metadata when present on source frame.
+        # Selector does NOT use these yet (Phase C is deferred); they are metadata only.
+        if f.get("move_type"):
+            fo_entry["move_type"] = f["move_type"]
+        if f.get("allowed_response_roles"):
+            fo_entry["allowed_response_roles"] = list(f["allowed_response_roles"])
+
+        frame_options[frame_id] = fo_entry
 
         # Invariant check
         gold_count = sum(1 for o in combined if o["is_gold"])

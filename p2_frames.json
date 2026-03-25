@@ -19,7 +19,17 @@
       "option_tokens": [
         "w_yiyisi"
       ],
-      "text_en": "My name is interesting because [REASON_POS]."
+      "text_en": "My name is interesting because [REASON_POS].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP",
+        "RECIPROCITY"
+      ],
+      "move_type": "EXTEND"
     },
     {
       "id": "p2_id_2",
@@ -31,7 +41,16 @@
       "option_tokens": [
         "w_zenmejiao"
       ],
-      "text_en": "What do people usually call you?"
+      "text_en": "What do people usually call you?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_id_3",
@@ -48,7 +67,16 @@
       "option_tokens": [
         "w_bijiao"
       ],
-      "text_en": "I'm usually quite [STYLE]."
+      "text_en": "I'm usually quite [STYLE].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "RECIPROCITY"
+      ],
+      "move_type": "EXTEND"
     },
     {
       "id": "p2_id_4",
@@ -60,7 +88,16 @@
       "option_tokens": [
         "w_zenmeyang"
       ],
-      "text_en": "What do you think of your name?"
+      "text_en": "What do you think of your name?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_id_5",
@@ -72,7 +109,16 @@
       "option_tokens": [
         "w_yiyi"
       ],
-      "text_en": "What does this name mean to you?"
+      "text_en": "What does this name mean to you?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_pl_1",
@@ -89,7 +135,16 @@
       "option_tokens": [
         "w_zenmeyang"
       ],
-      "text_en": "you to feel; to think [CITY] life; to live how is it"
+      "text_en": "you to feel; to think [CITY] life; to live how is it",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_pl_2",
@@ -106,7 +161,16 @@
       "option_tokens": [
         "w_haochi"
       ],
-      "text_en": "[CITY] to have what tasty possessive/attribute particle"
+      "text_en": "[CITY] to have what tasty possessive/attribute particle",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_pl_3",
@@ -123,7 +187,16 @@
       "option_tokens": [
         "w_xihuan"
       ],
-      "text_en": "you usually; in daily life to like to go [PLACE] question particle"
+      "text_en": "you usually; in daily life to like to go [PLACE] question particle",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_pl_4",
@@ -140,7 +213,16 @@
       "option_tokens": [
         "w_fangbian"
       ],
-      "text_en": "Is it convenient living in [CITY]?"
+      "text_en": "Is it convenient living in [CITY]?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_pl_5",
@@ -161,7 +243,16 @@
       "option_tokens": [
         "w_juede"
       ],
-      "text_en": "I think [CITY] is [REASON_POS]."
+      "text_en": "I think [CITY] is [REASON_POS].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "p2_fa_1",
@@ -173,7 +264,16 @@
       "option_tokens": [
         "w_zhuyiqi"
       ],
-      "text_en": "Do you live with your family?"
+      "text_en": "Do you live with your family?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "p2_fa_2",
@@ -185,7 +285,16 @@
       "option_tokens": [
         "w_duojiu"
       ],
-      "text_en": "How often do you see your family?"
+      "text_en": "How often do you see your family?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_fa_3",
@@ -202,7 +311,16 @@
       "option_tokens": [
         "w_guanxi"
       ],
-      "text_en": "I; me with [FAMILY_ROLE] relationship very good"
+      "text_en": "I; me with [FAMILY_ROLE] relationship very good",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "EXTEND"
     },
     {
       "id": "p2_fa_4",
@@ -219,7 +337,15 @@
       "option_tokens": [
         "w_zuijin"
       ],
-      "text_en": "My [FAMILY_ROLE] has been very busy lately."
+      "text_en": "My [FAMILY_ROLE] has been very busy lately.",
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "EXTEND"
     },
     {
       "id": "p2_fa_5",
@@ -231,7 +357,16 @@
       "option_tokens": [
         "w_yiqi"
       ],
-      "text_en": "weekend usually with family together to do what"
+      "text_en": "weekend usually with family together to do what",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_wk_1",
@@ -243,7 +378,16 @@
       "option_tokens": [
         "w_xiaban"
       ],
-      "text_en": "Why do you like this job?"
+      "text_en": "Why do you like this job?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_wk_2",
@@ -255,7 +399,16 @@
       "option_tokens": [
         "w_zuijin"
       ],
-      "text_en": "Is this job hard?"
+      "text_en": "Is this job hard?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_wk_3",
@@ -267,7 +420,16 @@
       "option_tokens": [
         "w_zuijin"
       ],
-      "text_en": "What is the hardest part of your work?"
+      "text_en": "What is the hardest part of your work?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_wk_4",
@@ -279,7 +441,16 @@
       "option_tokens": [
         "w_anpai"
       ],
-      "text_en": "Is this job well paid?"
+      "text_en": "Is this job well paid?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_wk_5",
@@ -291,7 +462,16 @@
       "option_tokens": [
         "w_jiejue"
       ],
-      "text_en": "Do you recommend this job for young people? Why?"
+      "text_en": "Do you recommend this job for young people? Why?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_hb_1",
@@ -308,7 +488,16 @@
       "option_tokens": [
         "w_shenmeshihou"
       ],
-      "text_en": "When did you start [HOBBY]?"
+      "text_en": "When did you start [HOBBY]?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_hb_2",
@@ -325,7 +514,16 @@
       "option_tokens": [
         "w_weishenme"
       ],
-      "text_en": "you why to like [HOBBY]"
+      "text_en": "you why to like [HOBBY]",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_hb_3",
@@ -346,7 +544,16 @@
       "option_tokens": [
         "w_juede"
       ],
-      "text_en": "I find [HOBBY] [REASON_POS]."
+      "text_en": "I find [HOBBY] [REASON_POS].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "EXTEND"
     },
     {
       "id": "p2_hb_4",
@@ -363,7 +570,16 @@
       "option_tokens": [
         "w_nanbunan"
       ],
-      "text_en": "Do you find [HOBBY] difficult?"
+      "text_en": "Do you find [HOBBY] difficult?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_hb_5",
@@ -375,7 +591,16 @@
       "option_tokens": [
         "w_zuida"
       ],
-      "text_en": "What's your biggest achievement?"
+      "text_en": "What's your biggest achievement?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_tr_1",
@@ -387,7 +612,16 @@
       "option_tokens": [
         "w_quguo"
       ],
-      "text_en": "Which countries have you been to?"
+      "text_en": "Which countries have you been to?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_tr_2",
@@ -399,7 +633,16 @@
       "option_tokens": [
         "w_xihuan"
       ],
-      "text_en": "Where do you like best?"
+      "text_en": "Where do you like best?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_tr_3",
@@ -411,7 +654,16 @@
       "option_tokens": [
         "w_haowan"
       ],
-      "text_en": "What's fun to do there?"
+      "text_en": "What's fun to do there?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_tr_4",
@@ -423,7 +675,16 @@
       "option_tokens": [
         "w_zenmeyang"
       ],
-      "text_en": "you to feel; to think then; that how is it"
+      "text_en": "you to feel; to think then; that how is it",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_tr_5",
@@ -440,7 +701,17 @@
       "option_tokens": [
         "w_nanwange"
       ],
-      "text_en": "The most memorable for me was [PLACE]."
+      "text_en": "The most memorable for me was [PLACE].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP",
+        "BRIDGE"
+      ],
+      "move_type": "EXTEND"
     },
     {
       "id": "p2_pln_1",
@@ -457,7 +728,16 @@
       "option_tokens": [
         "w_jihua"
       ],
-      "text_en": "you [TIME] to have what plan"
+      "text_en": "you [TIME] to have what plan",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "p2_pln_2",
@@ -474,7 +754,16 @@
       "option_tokens": [
         "w_dasuan"
       ],
-      "text_en": "I'm planning to [ACTION]."
+      "text_en": "I'm planning to [ACTION].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "p2_pln_3",
@@ -486,7 +775,16 @@
       "option_tokens": [
         "w_shenmeshihou"
       ],
-      "text_en": "When shall we meet?"
+      "text_en": "When shall we meet?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "ANSWER",
+        "CLOSE"
+      ],
+      "move_type": "RECIPROCITY"
     },
     {
       "id": "p2_pln_4",
@@ -503,7 +801,15 @@
       "option_tokens": [
         "w_yiqi"
       ],
-      "text_en": "Let's go to [PLACE] together!"
+      "text_en": "Let's go to [PLACE] together!",
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [
+        "ANSWER",
+        "CLOSE"
+      ],
+      "move_type": "EXTEND"
     },
     {
       "id": "p2_pln_5",
@@ -520,7 +826,12 @@
       "option_tokens": [
         "w_jian"
       ],
-      "text_en": "See you [TIME] then."
+      "text_en": "See you [TIME] then.",
+      "allowed_response_roles": [
+        "SAFE"
+      ],
+      "default_next_move_types": [],
+      "move_type": "CLOSE"
     },
     {
       "id": "p2_op_1",
@@ -532,7 +843,16 @@
       "option_tokens": [
         "w_zenmeyang"
       ],
-      "text_en": "What do you think of this?"
+      "text_en": "What do you think of this?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "p2_op_3",
@@ -544,7 +864,16 @@
       "option_tokens": [
         "w_juede"
       ],
-      "text_en": "I think it's pretty good."
+      "text_en": "I think it's pretty good.",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "RECIPROCITY"
+      ],
+      "move_type": "ANSWER"
     },
     {
       "id": "p2_op_4",
@@ -561,7 +890,16 @@
       "option_tokens": [
         "w_suoyi"
       ],
-      "text_en": "Because [REASON_POS], I like it a lot."
+      "text_en": "Because [REASON_POS], I like it a lot.",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "EXTEND"
     },
     {
       "id": "p2_st_1",
@@ -578,7 +916,16 @@
       "option_tokens": [
         "w_zuotian"
       ],
-      "text_en": "Yesterday I [ACTION]."
+      "text_en": "Yesterday I [ACTION].",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "EXTEND"
     },
     {
       "id": "p2_st_2",
@@ -595,7 +942,17 @@
       "option_tokens": [
         "w_houlai"
       ],
-      "text_en": "Later we went to [PLACE] again."
+      "text_en": "Later we went to [PLACE] again.",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP",
+        "BRIDGE"
+      ],
+      "move_type": "EXTEND"
     }
   ]
 }

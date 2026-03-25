@@ -1,0 +1,185 @@
+
+MANDARINOS — PHASE 10.7 / PHASE 11 STRATEGIST BRIEFING
+Purpose: Transition from heuristic behaviour to explicit conversation grammar and adaptive system
+
+Date: 2026-03-20
+
+---------------------------------------------------------------------
+SECTION 1 — STRATEGIC POSITION
+---------------------------------------------------------------------
+
+Current system has:
+- Behaviour layer (reaction, curiosity, loop control)
+- Selector (heuristic gating + probabilities)
+- Stable ASR layer
+
+Primary issue:
+Conversations feel “almost natural but not fully natural”
+
+Root cause:
+Missing explicit CONVERSATION MOVE GRAMMAR
+
+Goal of Phase 10.7:
+Introduce explicit move types and response roles before Phase 11 adaptivity
+
+Goal of Phase 11:
+Build adaptive selector using capability + energy + move types
+
+---------------------------------------------------------------------
+SECTION 2 — CORE DESIGN PRINCIPLE
+---------------------------------------------------------------------
+
+STOP adding heuristics.
+
+START making conversation structure explicit.
+
+All behaviour must be driven by:
+1. move_type
+2. response_role
+3. capability fit
+4. energy fit
+
+---------------------------------------------------------------------
+SECTION 3 — MOVE TYPE TAXONOMY (MANDATORY)
+---------------------------------------------------------------------
+
+Every frame MUST be tagged with move_type.
+
+Allowed values:
+
+ASK          — question initiating new info
+ANSWER       — response to ASK
+REACTION     — acknowledgement (e.g. “哦这样啊”)
+EXTENSION    — adds detail or continues topic
+LOOP         — curiosity follow-up (why/how/deeper)
+REPAIR       — handles uncertainty (“我不太会说…”)
+RECIPROCITY  — “你呢？” type return question
+BRIDGE       — topic shift
+CLOSE        — conversation closure
+
+---------------------------------------------------------------------
+SECTION 4 — RESPONSE ROLE TAXONOMY (MANDATORY)
+---------------------------------------------------------------------
+
+Every response option MUST be tagged with role:
+
+SAFE         — minimal correct answer
+EXPAND       — friendly extension
+REPAIR       — uncertainty / fallback
+RECIPROCITY  — returns question to partner
+
+---------------------------------------------------------------------
+SECTION 5 — FRAME TAGGING RULE
+---------------------------------------------------------------------
+
+Each frame JSON must include:
+
+{
+  "id": "...",
+  "text": "...",
+  "move_type": "ASK",
+  "allowed_response_roles": ["SAFE","EXPAND","REPAIR","RECIPROCITY"]
+}
+
+---------------------------------------------------------------------
+SECTION 6 — SELECTOR REFACTOR (PHASE 10.7)
+---------------------------------------------------------------------
+
+Replace heuristic gating with move-based logic:
+
+Flow:
+
+ASK → ANSWER → REACTION → (LOOP optional) → RECIPROCITY → NEXT ASK
+
+Steps:
+1. Identify current move_type
+2. Determine valid next move_types
+3. Filter candidate frames by move_type
+4. Filter options by response_role
+5. Apply light scoring (pre-Phase 11)
+
+---------------------------------------------------------------------
+SECTION 7 — CAPABILITY MODEL (PHASE 11)
+---------------------------------------------------------------------
+
+Track:
+- vocabulary coverage
+- sentence length tolerance
+- production confidence
+
+Use to filter:
+- option complexity
+- loop depth
+- extension frequency
+
+---------------------------------------------------------------------
+SECTION 8 — ENERGY MODEL (PHASE 11)
+---------------------------------------------------------------------
+
+Track:
+- fatigue
+- engagement
+- cognitive load
+
+Use to control:
+- loop frequency
+- reaction length
+- topic switching
+
+---------------------------------------------------------------------
+SECTION 9 — ADAPTIVE SELECTOR (PHASE 11)
+---------------------------------------------------------------------
+
+Move from rules → scoring
+
+Score factors:
+- move_type fit
+- response_role fit
+- capability fit
+- energy fit
+- coherence
+- novelty vs reuse
+
+---------------------------------------------------------------------
+SECTION 10 — LOW-RISK NATURALNESS (ALLOWED NOW)
+---------------------------------------------------------------------
+
+Allowed:
+1. Add reaction variants
+2. Reduce poor options
+3. Reduce excessive loops
+4. Minor phrasing tweaks
+
+Not allowed:
+- hard-coded conversation paths
+- special-case logic per frame
+
+---------------------------------------------------------------------
+SECTION 11 — SUCCESS METRICS
+---------------------------------------------------------------------
+
+Track:
+1. Option selection rate
+2. Repair trigger rate
+3. Loop response rate
+4. Conversation depth
+5. Turn appropriateness
+
+---------------------------------------------------------------------
+SECTION 12 — INSTRUCTION TO CURSOR
+---------------------------------------------------------------------
+
+Implement in order:
+
+1. Add move_type to all frames
+2. Add response_role to all options
+3. Refactor selector to use move transitions
+4. Remove redundant heuristics
+5. Prepare scoring hooks
+
+Do NOT:
+- rewrite content yet
+- add new heuristics
+
+---------------------------------------------------------------------
+END OF BRIEFING
