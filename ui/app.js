@@ -61,6 +61,13 @@ if (typeof window._learnerId === "undefined") window._learnerId = "default_learn
 if (typeof window._lastAnswer === "undefined") window._lastAnswer = null;
 // Phase 10 Step 6: persona_id for persona-consistent stubs (e.g. probe responses); default first persona
 if (typeof window._personaId === "undefined") window._personaId = "zhang_wei";
+// Phase 11C: active conversation partner (distinct from learner persona_id above)
+if (typeof window._partnerId === "undefined") window._partnerId = null;
+// Phase 12B: tracks how many consecutive probe follow-ups have been asked; resets on real answer
+if (typeof window._probeDepth === "undefined") window._probeDepth = 0;
+// Phase 11C: per-engine reveal tracking — reset when partner changes or session resets
+if (typeof window._revealedVoiceLines === "undefined") window._revealedVoiceLines = {};
+if (typeof window._revealedPartnerFacts === "undefined") window._revealedPartnerFacts = {};
 // Phase 10.5 behaviour state (client-side, lightweight)
 if (typeof window._exchangeCount === "undefined") window._exchangeCount = 0;
 if (typeof window._curiosityDepth === "undefined") window._curiosityDepth = 0;
@@ -1353,6 +1360,15 @@ function getRecoveryPhraseForNotUnderstood(avoidPhraseId = null) {
   const consecutive = (window._consecutiveNotUnderstood || 0) + 1;
   window._consecutiveNotUnderstood = consecutive;
 
+  // Phase 12B: first failure → soft pool (curious, not corrective). Falls back if pool empty.
+  if (consecutive === 1) {
+    const softPool = (data.phrases || []).filter((p) => (p.recovery_action || "") === "soft");
+    if (softPool.length > 0) {
+      const chosen = softPool[Math.floor(Math.random() * softPool.length)];
+      return { id: chosen.id, hanzi: chosen.hanzi, pinyin: chosen.pinyin || "", text_en: chosen.text_en || "", etymology: chosen.etymology || "", recovery_action: "soft" };
+    }
+  }
+
   if (consecutive >= NOT_UNDERSTOOD_MOVE_ON_AFTER) {
     const moveOnPool = (data.phrases || []).filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION);
     if (moveOnPool.length > 0) {
@@ -2466,6 +2482,87 @@ async function resolveCard(cardId, cards_path) {
   }
 }
 
+// ── Phase 11C: Persona layer ──────────────────────────────────────────────────
+async function loadPersonas() {
+  try {
+    const res = await fetch("/api/personas");
+    if (!res.ok) return;
+    const data = await res.json();
+    const personas = data.personas || [];
+    const btns = document.getElementById("personaBtns");
+    if (!btns) return;
+    btns.innerHTML = "";
+
+    const noneBtn = document.createElement("button");
+    noneBtn.className = "persona-btn-none" + (!window._partnerId ? " active" : "");
+    noneBtn.textContent = "No partner";
+    noneBtn.addEventListener("click", () => {
+      window._partnerId = null;
+      window._revealedVoiceLines = {};
+      window._revealedPartnerFacts = {};
+      _updatePersonaBtnState();
+      _updatePartnerHeader("", "", "");
+    });
+    btns.appendChild(noneBtn);
+
+    personas.forEach((p) => {
+      const btn = document.createElement("button");
+      btn.className = "persona-btn" + (window._partnerId === p.id ? " active" : "");
+      btn.textContent = p.display_name;
+      btn.title = [p.name_pinyin, p.description].filter(Boolean).join(" — ");
+      btn.dataset.personaId = p.id;
+      btn.addEventListener("click", () => {
+        if (window._partnerId !== p.id) {
+          // Switching to a different partner resets per-engine reveal history
+          window._revealedVoiceLines = {};
+          window._revealedPartnerFacts = {};
+          _updatePartnerHeader("", "", "");
+        }
+        window._partnerId = p.id;
+        _updatePersonaBtnState();
+      });
+      btns.appendChild(btn);
+    });
+  } catch (e) {
+    console.warn("[app] loadPersonas failed:", e);
+  }
+}
+
+function _updatePersonaBtnState() {
+  const btns = document.getElementById("personaBtns");
+  if (!btns) return;
+  btns.querySelectorAll(".persona-btn-none").forEach((b) =>
+    b.classList.toggle("active", !window._partnerId)
+  );
+  btns.querySelectorAll(".persona-btn[data-persona-id]").forEach((b) =>
+    b.classList.toggle("active", b.dataset.personaId === window._partnerId)
+  );
+}
+
+function _updatePartnerHeader(partnerName, partnerPrefix, partnerFact) {
+  const header = document.getElementById("partnerHeader");
+  const nameLabel = document.getElementById("partnerNameLabel");
+  const prefixLine = document.getElementById("partnerPrefixLine");
+  const factLine = document.getElementById("partnerFactLine");
+  if (!header || !nameLabel || !prefixLine) return;
+  if (partnerName) {
+    nameLabel.textContent = `${partnerName}:`;
+    prefixLine.textContent = partnerPrefix || "";
+    header.style.display = "flex";
+  } else {
+    header.style.display = "none";
+  }
+  if (factLine) {
+    if (partnerFact) {
+      factLine.textContent = partnerFact;
+      factLine.style.display = "";
+    } else {
+      factLine.style.display = "none";
+    }
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function loadPackFramesIntoDropdown() {
   emitUITrace({ type: "UI_INFO", timestamp: new Date().toISOString(), payload: { message: "loadPackFramesIntoDropdown start" } });
 
@@ -3120,7 +3217,9 @@ async function runProbeTurn(probe) {
   ttsSpeak({ text: hanzi, lang: "zh-CN" });
 
   const currentEngine = window._currentEngineId ?? "identity";
-    const payload = {
+  // Phase 12B: increment probe depth so the server can suppress chained probes
+  window._probeDepth = (window._probeDepth || 0) + 1;
+  const payload = {
     env: "dev",
     turn_uid: "ui_probe_" + Date.now(),
     probe_id: probe.id || "",
@@ -3129,7 +3228,8 @@ async function runProbeTurn(probe) {
       session_id: window._sessionId,
       current_engine: currentEngine,
       last_partner_frame_id: window._lastPartnerFrameId ?? null,
-      recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : []
+      recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : [],
+      probe_depth: window._probeDepth
     }
   };
   if (window._personaId) payload.persona_id = window._personaId;
@@ -3203,6 +3303,14 @@ async function runTurn(isNext = false, opts = {}) {
     };
     if (window._learnerId) conversation_state.learner_id = window._learnerId;
     if (window._personaId) conversation_state.persona_id = window._personaId;
+    if (window._partnerId) {
+      conversation_state.partner_id = window._partnerId;
+      conversation_state.revealed_voice_lines = window._revealedVoiceLines || {};
+      conversation_state.revealed_partner_facts = window._revealedPartnerFacts || {};
+    }
+    // Phase 12B: reset probe depth on real (non-probe) answer; pass current depth to server
+    if (opts.last_turn_was_answer === true) window._probeDepth = 0;
+    conversation_state.probe_depth = window._probeDepth || 0;
     if (opts.prefer_bridge === true) conversation_state.prefer_bridge = true;
     if (opts.force_bridge === true) conversation_state.force_bridge = true;
     if (opts.last_turn_was_answer === true) {
@@ -3400,6 +3508,11 @@ async function runTurn(isNext = false, opts = {}) {
     supports_why: data.supports_why === true
   };
   renderDirectionButtons();
+  // Phase 11C: show partner name, voice_line prefix, and discoverable fact
+  _updatePartnerHeader(data.partner_name || "", data.partner_prefix || "", data.partner_fact || "");
+  // Record which reveals have fired so the server gates correctly on the next turn
+  if (data.partner_prefix && engineId) window._revealedVoiceLines[engineId] = true;
+  if (data.partner_fact  && engineId) window._revealedPartnerFacts[engineId] = true;
   renderHintAffordance(hintAffordance, turnUid, "tap");
   
   // Wire hint button click: use current turn so recovery (and 你呢？) hint isn't reset to frame
@@ -3481,6 +3594,7 @@ window.addEventListener("load", async () => {
     loadCharacters1200Core(),
     loadFrameTokens(),
     loadRecoveryPhrases(),
+    loadPersonas(),
   ]);
   const displayModeEl = document.getElementById("transcriptDisplayMode");
   if (displayModeEl) {

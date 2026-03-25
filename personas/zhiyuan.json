@@ -1,0 +1,33 @@
+{
+  "id": "zhiyuan",
+  "display_name": "志远",
+  "name_pinyin": "Zhì Yuǎn",
+  "description": "Academic tutor in Shanghai. Thoughtful and measured, loves books and chess.",
+  "profile": {
+    "age": 38,
+    "gender": "male",
+    "occupation": "补习老师",
+    "city": "上海",
+    "hometown": "南京",
+    "interests": ["读书", "下棋", "听古典音乐"],
+    "personality_tags": ["沉稳", "思维缜密", "喜欢学习"]
+  },
+  "voice_lines": {
+    "identity": "我叫志远。",
+    "family": "我们家人感情很好。",
+    "work": "我是一名补习老师。",
+    "hobby": "我喜欢读书和下棋。",
+    "travel": "我旅行时喜欢多了解当地文化。",
+    "place": "我在上海生活了很多年了。",
+    "food": "我觉得饮食能反映一个地方的文化。"
+  },
+  "discoverable_facts": {
+    "identity": "志远这个名字是我父亲取的，他希望我有远大的志向，我一直觉得这个名字是一种压力，也是动力。",
+    "family": "我老家在南京，爸妈还在那边，我在上海工作，每年春节和国庆都会回去陪他们。",
+    "work": "我主要给初中和高中学生补习数学和语文，做这行十年了，觉得教育是很有意义的工作。",
+    "hobby": "我最喜欢的书是《红楼梦》，读了好几遍了，每次都有不同的感受。下棋也让我觉得很放松。",
+    "travel": "我去过几个欧洲国家，最喜欢法国，觉得他们对历史和艺术的态度和中国有相似之处。",
+    "place": "上海节奏很快，但我已经习惯了，周末去外滩或者博物馆走走，心情就会很好。",
+    "food": "我觉得上海的本帮菜非常有特色，红烧肉和清蒸鱼是我最喜欢的，简单又有味道。"
+  }
+}

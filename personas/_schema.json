@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "description": "MandarinOS persona schema. Each persona = one JSON file in this directory. Adding a persona = adding one file. No code changes required.",
+
+  "required_fields": {
+    "id": "string — matches filename (e.g. 'xiaoming' for xiaoming.json)",
+    "display_name": "string — Chinese name shown to learner (e.g. '小明')"
+  },
+
+  "optional_fields": {
+    "name_pinyin": "string — pinyin of display_name (e.g. 'Xiǎo Míng')",
+    "description": "string — short English bio for admin/debug display",
+    "profile": {
+      "note": "All profile fields are optional. Partial profiles are valid.",
+      "age": "integer",
+      "gender": "string — 'male' | 'female' | 'non-binary' | omit",
+      "occupation": "string — in Chinese (e.g. '软件工程师')",
+      "city": "string — current city in Chinese (e.g. '北京')",
+      "hometown": "string — hometown in Chinese (e.g. '成都')",
+      "interests": "array of strings — in Chinese (e.g. ['弹吉他', '爬山'])",
+      "personality_tags": "array of strings — in Chinese (e.g. ['外向', '好奇'])"
+    },
+    "voice_lines": {
+      "note": "One short sentence per engine. Prepended to the EXTEND frame text as a persona-specific detail. Missing engines fall back gracefully to the generic frame text alone. All sentences should be 1 sentence, first-person, specific to this persona.",
+      "engines": ["identity", "family", "work", "hobby", "travel", "place", "food"]
+    },
+    "discoverable_facts": {
+      "note": "One longer disclosure per engine. Used to reveal deeper personal details as the conversation deepens (future phase). May reference personal history, preferences, or experiences specific to this persona.",
+      "engines": ["identity", "family", "work", "hobby", "travel", "place", "food"]
+    }
+  },
+
+  "extensibility_note": "To add a persona: create a new .json file in this directory following this schema. The server discovers all *.json files (excluding _*.json) automatically on startup. No code changes are required.",
+
+  "example_minimal_persona": {
+    "id": "example",
+    "display_name": "小芳"
+  },
+
+  "example_full_persona": {
+    "id": "xiaoming",
+    "display_name": "小明",
+    "name_pinyin": "Xiǎo Míng",
+    "description": "Software engineer, Beijing, originally from Chengdu",
+    "profile": {
+      "age": 28,
+      "gender": "male",
+      "occupation": "软件工程师",
+      "city": "北京",
+      "hometown": "成都",
+      "interests": ["弹吉他", "爬山", "看电影"],
+      "personality_tags": ["外向", "好奇心强"]
+    },
+    "voice_lines": {
+      "identity": "我叫小明。",
+      "work": "我是做软件开发的。"
+    },
+    "discoverable_facts": {
+      "work": "我在一家做人工智能的公司工作，主要负责语音识别。"
+    }
+  }
+}

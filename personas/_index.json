@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "description": "Lightweight index of available MandarinOS personas. The server also auto-discovers personas by scanning *.json files in this directory — this index adds display metadata for the UI picker.",
+  "personas": [
+    {
+      "id": "xiaoming",
+      "display_name": "小明",
+      "name_pinyin": "Xiǎo Míng",
+      "description": "Software engineer, Beijing"
+    },
+    {
+      "id": "meiling",
+      "display_name": "美玲",
+      "name_pinyin": "Měi Líng",
+      "description": "Art teacher, Xi'an"
+    },
+    {
+      "id": "jianguo",
+      "display_name": "建国",
+      "name_pinyin": "Jiàn Guó",
+      "description": "Chef, Chongqing"
+    },
+    {
+      "id": "xiaoyun",
+      "display_name": "晓云",
+      "name_pinyin": "Xiǎo Yún",
+      "description": "Travel blogger, Chengdu"
+    },
+    {
+      "id": "zhiyuan",
+      "display_name": "志远",
+      "name_pinyin": "Zhì Yuǎn",
+      "description": "Tutor, Shanghai"
+    }
+  ],
+  "add_persona_instructions": "1. Create a new file in personas/ named <id>.json following _schema.json. 2. Add a summary entry here. 3. Restart the server. No other changes needed."
+}

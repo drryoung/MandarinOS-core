@@ -3,6 +3,33 @@
   "source": "docs/specs/mandarinos_emergency_phrases_p1_p2_v2.md, MandarinOS_support_packs_v1.md",
   "phrases": [
     {
+      "id": "en",
+      "hanzi": "嗯？",
+      "pinyin": "en",
+      "text_en": "Hmm?",
+      "level": "P1",
+      "use": "not_understood",
+      "recovery_action": "soft"
+    },
+    {
+      "id": "ni_shuo",
+      "hanzi": "你说…？",
+      "pinyin": "nǐ shuō…",
+      "text_en": "You said…?",
+      "level": "P1",
+      "use": "not_understood",
+      "recovery_action": "soft"
+    },
+    {
+      "id": "a",
+      "hanzi": "啊？",
+      "pinyin": "à",
+      "text_en": "Huh?",
+      "level": "P1",
+      "use": "not_understood",
+      "recovery_action": "soft"
+    },
+    {
       "id": "shenme",
       "hanzi": "什么？",
       "pinyin": "shénme",

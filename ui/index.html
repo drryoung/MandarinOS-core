@@ -26,6 +26,13 @@
             <button id="nextBtn" type="button" title="Next question (same topic)">Next</button>
             <button id="changeTopicBtn" type="button" title="Switch to another topic (bridge)">Change topic</button>
           </div>
+          <!-- Phase 11C: Persona selector -->
+          <div class="persona-bar" id="personaBar">
+            <span class="persona-bar-label">Partner:</span>
+            <div id="personaBtns" class="persona-btn-row">
+              <!-- populated from /api/personas -->
+            </div>
+          </div>
 
           <!-- Phase 8: Conversation = record of what was said; Active = last statement from MandarinOS -->
           <h2>Conversation</h2>
@@ -55,11 +62,18 @@
             </div>
             <div class="current-turn">
               <div class="current-turn-label">Active conversation — last statement from MandarinOS</div>
+              <!-- Phase 11C: Partner identity + voice line (shown on EXTEND frames) -->
+              <div id="partnerHeader" class="partner-header" style="display:none;">
+                <span id="partnerNameLabel" class="partner-name-label"></span>
+                <span id="partnerPrefixLine" class="partner-prefix-line"></span>
+              </div>
               <div class="frame-sentence-row">
                 <div id="frameSentence" class="frame-sentence"></div>
                 <button id="playQuestionBtn" type="button" class="play-question-speaker" title="Speak the question" aria-label="Play question">🔊</button>
                 <button id="hintBtn" class="play-question-speaker hint-icon-btn" style="display:none;" title="Show hints" aria-label="Hint">?</button>
               </div>
+              <!-- Phase 11C: discoverable fact (shown once per engine after depth threshold) -->
+              <div id="partnerFactLine" class="partner-fact-line" style="display:none;"></div>
               <div id="hintPinyin"  class="hint-row hint-pinyin"  style="display:none;"></div>
               <div id="hintMeaning" class="hint-row hint-meaning"  style="display:none;"></div>
               <div id="hintEtymology" class="hint-row hint-etymology" style="display:none;"></div>
@@ -190,6 +204,57 @@
       /* Phase 7.4: ui_mode visual states */
       .ui-mode-read    .options-area { opacity: 0.45; pointer-events: none; }
       .ui-mode-respond .options-area { opacity: 1;    pointer-events: auto; }
+
+      /* Phase 11C: Persona bar */
+      .persona-bar {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin: 8px 0 4px 0; min-height: 34px;
+      }
+      .persona-bar-label {
+        font: 0.82rem Arial, Helvetica, sans-serif; color: #6b7280; white-space: nowrap;
+      }
+      .persona-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+      .persona-btn {
+        font: 0.88rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        padding: 4px 12px; border-radius: 16px;
+        border: 1.5px solid #d1d5db; background: #f9fafb; color: #374151;
+        cursor: pointer; transition: border-color 0.15s, background 0.15s;
+        white-space: nowrap;
+      }
+      .persona-btn:hover { border-color: #1a56db; background: #e8f0fe; color: #1a56db; }
+      .persona-btn.active { border-color: #1a56db; background: #1a56db; color: #fff; }
+      .persona-btn-none {
+        font: 0.82rem Arial, Helvetica, sans-serif;
+        padding: 4px 10px; border-radius: 16px;
+        border: 1.5px dashed #d1d5db; background: transparent; color: #9ca3af;
+        cursor: pointer;
+      }
+      .persona-btn-none.active { border-color: #9ca3af; background: #f3f4f6; color: #6b7280; }
+
+      /* Phase 11C: Partner header inside active conversation panel */
+      .partner-header {
+        display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+        margin-bottom: 6px; padding-bottom: 6px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .partner-name-label {
+        font: 600 0.88rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        color: #1a56db; white-space: nowrap; flex-shrink: 0;
+      }
+      .partner-prefix-line {
+        font: 1rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        color: #374151; font-style: italic;
+      }
+
+      /* Phase 11C: Discoverable fact — shown below the frame sentence, lighter weight */
+      .partner-fact-line {
+        margin-top: 6px; padding: 6px 10px;
+        font: italic 0.92rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        color: #6b7280;
+        border-left: 3px solid #d1d5db;
+        border-radius: 0 4px 4px 0;
+        background: #f9fafb;
+      }
 
       /* Phase 8: Conversation — history (shaded) vs active (white, bordered focus) */
       .conversation-panel {

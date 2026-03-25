@@ -1,0 +1,33 @@
+{
+  "id": "xiaoyun",
+  "display_name": "晓云",
+  "name_pinyin": "Xiǎo Yún",
+  "description": "Travel blogger based in Chengdu. Photographer, hiker, and food explorer.",
+  "profile": {
+    "age": 26,
+    "gender": "female",
+    "occupation": "旅行博主",
+    "city": "成都",
+    "hometown": "成都",
+    "interests": ["拍照", "爬山", "尝特色小吃"],
+    "personality_tags": ["独立", "好奇心强", "喜欢冒险"]
+  },
+  "voice_lines": {
+    "identity": "我叫晓云。",
+    "family": "我现在离家比较远，但和家人感情很好。",
+    "work": "我是旅行博主，经常出去拍照写文章。",
+    "hobby": "我喜欢拍照和探索新地方。",
+    "travel": "旅行是我的工作，也是我的爱好！",
+    "place": "我老家是成都，那里是我最爱的城市之一。",
+    "food": "我最喜欢尝试各地的特色小吃。"
+  },
+  "discoverable_facts": {
+    "identity": "晓云这个名字有点特别，是我外婆取的，她说云朵代表自由，希望我将来无拘无束。",
+    "family": "我爸妈都在成都，我每隔两三个月回去看他们，每次回去他们都帮我做好多好吃的。",
+    "work": "我做旅行博主已经三年了，现在在小红书上有大概十万粉丝，主要分享云南和西藏的旅行。",
+    "hobby": "我的相机是我最重要的东西，走到哪里都带着，已经拍了大概两万张照片了。",
+    "travel": "我去过西藏、新疆、云南还有几个东南亚国家，最难忘的是在西藏看星星那一晚。",
+    "place": "成都的节奏不算快，大家都很悠闲，茶馆文化特别有趣，我很喜欢在茶馆坐一下午。",
+    "food": "我觉得云南的菜最有特色，过桥米线、汽锅鸡，每次去都要吃个够。"
+  }
+}

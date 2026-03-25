@@ -52,6 +52,8 @@ INTEREST_FORCE_WINDOW_TURNS = 1
 MIN_SAME_ENGINE_CHAIN_BEFORE_BRIDGE = 2
 ENGINE_DEPTH_GUARD_TURNS = 4          # Phase 11.1: block bridge if too few same-engine turns and fresh frames remain
 ENGINE_DEPTH_GUARD_MIN_REMAINING = 3  # Phase 11.1: bridge blocked when ≥ this many unseen frames still available
+FACT_REVEAL_DEPTH = 3                 # Phase 11C: min same_engine_chain_count before discoverable_fact surfaces
+MAX_PROBE_CHAIN = 1                   # Phase 12B: max consecutive probe follow-ups before probe row is suppressed
 
 print("[ui_server] REPO_ROOT =", REPO_ROOT)
 print("[ui_server] UI_DIR    =", UI_DIR)
@@ -126,6 +128,54 @@ try:
         print(f"[ui_server] INFO: move_type_transitions.json not found at {_mt_path} — move_type filter disabled")
 except Exception as _e:
     print(f"[ui_server] WARNING: move_type_transitions load failed: {_e} — move_type filter disabled")
+
+
+# ── Phase 11C: Persona layer ──────────────────────────────────────────────────
+# Architecture: one JSON file per persona in personas/. No code changes needed to add personas.
+# Server discovers all *.json files (excluding _*.json) at startup; loads each on demand.
+PERSONAS_DIR: Path = REPO_ROOT / "personas"
+_personas_index: list = []     # lightweight list for /api/personas (loaded from _index.json)
+_personas_cache: dict = {}     # id -> full persona data (lazy-loaded on first use)
+
+def _load_personas_index() -> None:
+    global _personas_index
+    index_path = PERSONAS_DIR / "_index.json"
+    if index_path.exists():
+        try:
+            raw = json.loads(index_path.read_text(encoding="utf-8"))
+            _personas_index = raw.get("personas", [])
+            print(f"[ui_server] personas index loaded ({len(_personas_index)} entries)")
+        except Exception as _e:
+            print(f"[ui_server] WARNING: personas _index.json load failed: {_e}")
+    # Auto-fill any personas on disk not listed in the index (supports drop-in additions)
+    listed_ids = {p["id"] for p in _personas_index}
+    if PERSONAS_DIR.is_dir():
+        for fp in sorted(PERSONAS_DIR.glob("*.json")):
+            if fp.stem.startswith("_"):
+                continue
+            if fp.stem not in listed_ids:
+                _personas_index.append({"id": fp.stem, "display_name": fp.stem})
+                print(f"[ui_server] personas: auto-discovered unlisted persona '{fp.stem}'")
+
+def _resolve_persona(persona_id: str) -> Optional[dict]:
+    """Lazy-load and cache a persona by id. Returns None if not found."""
+    if not persona_id:
+        return None
+    if persona_id in _personas_cache:
+        return _personas_cache[persona_id]
+    fp = PERSONAS_DIR / f"{persona_id}.json"
+    if not fp.exists():
+        return None
+    try:
+        data = json.loads(fp.read_text(encoding="utf-8"))
+        _personas_cache[persona_id] = data
+        return data
+    except Exception as _e:
+        print(f"[ui_server] WARNING: could not load persona '{persona_id}': {_e}")
+        return None
+
+_load_personas_index()
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 def _engine_frame_ids(engine_norm: str) -> List[str]:
@@ -778,6 +828,9 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
 
 def _should_surface_curiosity(cs: dict, *, meaningful: bool, last_partner_was_loop: bool, last_partner_had_reaction: bool) -> bool:
     """Visibility gating for probe row (curiosity options)."""
+    # Phase 12B: suppress if a probe was already answered this exchange (prevent interrogation chains)
+    if int(cs.get("probe_depth") or 0) >= MAX_PROBE_CHAIN:
+        return False
     # Do not surface on very first greeting-like moment (no history)
     recent = cs.get("recent_frame_ids") or []
     if not recent or len(recent) <= 1:
@@ -1200,6 +1253,30 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path   = parsed.path
         qs     = parse_qs(parsed.query)
+
+        # Phase 11C: Persona endpoints
+        if path == "/api/personas":
+            data = json.dumps({"personas": _personas_index}, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path.startswith("/api/personas/") and path.count("/") == 3:
+            _pid = path.split("/")[-1].strip()
+            _p = _resolve_persona(_pid)
+            if _p:
+                data = json.dumps(_p, ensure_ascii=False).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            else:
+                self._json_error(404, f"persona not found: {_pid}")
+            return
 
         if path == "/api/cards":
             rel = qs.get("path", [None])[0]
@@ -1819,6 +1896,65 @@ class Handler(BaseHTTPRequestHandler):
                         "phase11_scores":                  _mt_filter_debug.get("phase11_scoring", []),
                         "phase11_candidate_count":         len(_mt_filter_debug.get("phase11_scoring", [])),
                     }
+
+            # Phase 11C: Persona enrichment — voice_line, discoverable_fact, cross-session memory
+            # partner_id comes from conversation_state; client tracks which reveals have fired.
+            _cs_for_persona = payload.get("conversation_state") if isinstance(payload.get("conversation_state"), dict) else {}
+            _partner_id = _cs_for_persona.get("partner_id") or payload.get("partner_id") or ""
+            if _partner_id:
+                _persona = _resolve_persona(_partner_id)
+                if _persona:
+                    response["partner_name"] = _persona.get("display_name", "")
+                    response["partner_name_pinyin"] = _persona.get("name_pinyin", "")
+
+                    _frame_mt = _get_frame_move_type(frame_id) or ""
+                    if _frame_mt == "EXTEND":
+                        _engine_key = (engine_id or "").strip().lower()
+
+                        # ── Voice line: first EXTEND per engine per session only ──────────────
+                        _revealed_vl = _cs_for_persona.get("revealed_voice_lines") or {}
+                        _voice_shown = bool(_revealed_vl.get(_engine_key))
+                        if not _voice_shown:
+                            _prefix = (_persona.get("voice_lines") or {}).get(_engine_key, "")
+                            if _prefix:
+                                response["partner_prefix"] = _prefix
+
+                        # ── Discoverable fact: once per engine (session + cross-session gated) ─
+                        # Anti-stack: voice_line must have fired first (on a prior EXTEND visit).
+                        # Depth gate: partner only discloses deeper facts after enough turns.
+                        _revealed_facts = _cs_for_persona.get("revealed_partner_facts") or {}
+                        _fact_shown_session = bool(_revealed_facts.get(_engine_key))
+
+                        # Cross-session gate: check learner_memory if not already blocked by session gate
+                        _p11c_learner_id = (_cs_for_persona.get("learner_id") or "").strip() or None
+                        _fact_shown_cross = False
+                        if not _fact_shown_session and _lm_load and _p11c_learner_id:
+                            try:
+                                _cross_mem = _lm_load(_p11c_learner_id) or {}
+                                _fact_shown_cross = bool(
+                                    _cross_mem.get("partner_facts_seen", {})
+                                    .get(_partner_id, {})
+                                    .get(_engine_key)
+                                )
+                            except Exception:
+                                pass
+
+                        _fact_blocked = _fact_shown_session or _fact_shown_cross
+                        _engine_depth = int(_cs_for_persona.get("same_engine_chain_count") or 0)
+
+                        if not _fact_blocked and _voice_shown and _engine_depth >= FACT_REVEAL_DEPTH:
+                            _disc_fact = (_persona.get("discoverable_facts") or {}).get(_engine_key, "")
+                            if _disc_fact:
+                                response["partner_fact"] = _disc_fact
+                                # Persist to learner_memory for cross-session suppression
+                                if _lm_load and _lm_save and _p11c_learner_id:
+                                    try:
+                                        _pmem = _lm_load(_p11c_learner_id) or {}
+                                        _pmem.setdefault("partner_facts_seen", {}) \
+                                             .setdefault(_partner_id, {})[_engine_key] = True
+                                        _lm_save(_p11c_learner_id, _pmem)
+                                    except Exception:
+                                        pass
 
             data = json.dumps(response, ensure_ascii=False).encode("utf-8")
             self.send_response(200)

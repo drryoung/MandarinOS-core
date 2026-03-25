@@ -1,0 +1,33 @@
+{
+  "id": "meiling",
+  "display_name": "美玲",
+  "name_pinyin": "Měi Líng",
+  "description": "Art teacher in Xi'an. Loves calligraphy, tea, and historical sites.",
+  "profile": {
+    "age": 32,
+    "gender": "female",
+    "occupation": "美术老师",
+    "city": "西安",
+    "hometown": "西安",
+    "interests": ["练书法", "品茶", "参观历史古迹"],
+    "personality_tags": ["温柔", "有耐心", "喜欢传统文化"]
+  },
+  "voice_lines": {
+    "identity": "我叫美玲。",
+    "family": "我非常重视家人之间的联系。",
+    "work": "我是一名美术老师。",
+    "hobby": "我喜欢练书法和品茶。",
+    "travel": "我喜欢去有历史文化的地方旅行。",
+    "place": "我在西安土生土长。",
+    "food": "我比较喜欢清淡的食物。"
+  },
+  "discoverable_facts": {
+    "identity": "美玲这个名字是我妈妈取的，她很喜欢梅花，所以取了'美'字。",
+    "family": "我和父母住在同一个小区，每天都能见面，感情很好。",
+    "work": "我在西安一所中学教书，教的是初中美术，已经教了八年了。",
+    "hobby": "我练书法有十几年了，写的是楷书，最喜欢欧体的风格。",
+    "travel": "我去过北京、苏州、成都，最喜欢苏州的园林，感觉非常有诗意。",
+    "place": "西安有很多历史遗迹，兵马俑、大雁塔都在我家附近，我觉得住在这里很自豪。",
+    "food": "我最喜欢西安的凉皮和肉夹馍，这是我从小吃到大的味道。"
+  }
+}

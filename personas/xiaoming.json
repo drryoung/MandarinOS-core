@@ -1,0 +1,33 @@
+{
+  "id": "xiaoming",
+  "display_name": "小明",
+  "name_pinyin": "Xiǎo Míng",
+  "description": "Software engineer in Beijing, originally from Chengdu. Guitar player and hiker.",
+  "profile": {
+    "age": 28,
+    "gender": "male",
+    "occupation": "软件工程师",
+    "city": "北京",
+    "hometown": "成都",
+    "interests": ["弹吉他", "爬山", "看电影"],
+    "personality_tags": ["外向", "好奇心强"]
+  },
+  "voice_lines": {
+    "identity": "我叫小明。",
+    "family": "我家里只有三口人。",
+    "work": "我是做软件开发的。",
+    "hobby": "我平时喜欢弹吉他和爬山。",
+    "travel": "我去过几个亚洲国家。",
+    "place": "我在北京住了五年了。",
+    "food": "我特别喜欢吃饺子。"
+  },
+  "discoverable_facts": {
+    "identity": "我的名字是我奶奶给我取的，因为她希望我将来聪明能干。",
+    "family": "我有一个姐姐，她住在成都，我们每个月视频聊天。",
+    "work": "我在一家做人工智能的公司工作，主要负责语音识别项目。",
+    "hobby": "我从高中开始学吉他，断断续续学了差不多十年了。",
+    "travel": "我去过日本、泰国和韩国，最喜欢日本的拉面和温泉。",
+    "place": "我老家是成都，但毕业后来北京工作，住在中关村附近。",
+    "food": "我妈妈做的回锅肉是我最喜欢的，每次回成都都要吃。"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "jianguo",
+  "display_name": "建国",
+  "name_pinyin": "Jiàn Guó",
+  "description": "Chef in Chongqing. Passionate about food, badminton, and hotpot. Energetic.",
+  "profile": {
+    "age": 35,
+    "gender": "male",
+    "occupation": "厨师",
+    "city": "重庆",
+    "hometown": "重庆",
+    "interests": ["研究食材", "打羽毛球", "吃火锅"],
+    "personality_tags": ["热情", "爽快", "幽默"]
+  },
+  "voice_lines": {
+    "identity": "大家都叫我建国。",
+    "family": "我家里人很多，每次聚在一起都很热闹。",
+    "work": "我是一名厨师，在餐厅工作。",
+    "hobby": "我喜欢打羽毛球，下班后常常去打。",
+    "travel": "我旅行的时候最喜欢找当地的好馆子。",
+    "place": "我是土生土长的重庆人。",
+    "food": "我是厨师，对食物当然特别有研究！"
+  },
+  "discoverable_facts": {
+    "identity": "建国这个名字听起来很老派，但其实我爸爸就是因为喜欢这个名字才给我取的。",
+    "family": "我家里有四个兄弟姐妹，我是老二，我妈妈做菜一绝，我学厨师也是受她影响。",
+    "work": "我在重庆一家川菜馆做主厨，已经做了七年了，最擅长的是麻婆豆腐和红烧肉。",
+    "hobby": "我打羽毛球打了快二十年了，以前代表学校参加过比赛，现在每周至少打两次。",
+    "travel": "我去过成都、西安和上海，每次旅行都要去当地最有名的餐厅吃饭，这是我的旅行习惯。",
+    "place": "重庆是山城，到处都是坡路，走来走去很累，但火锅一吃就什么都忘了。",
+    "food": "我觉得重庆火锅是世界上最好吃的东西，没有之一，每周必吃。"
+  }
+}
