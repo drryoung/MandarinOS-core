@@ -1,0 +1,67 @@
+---
+description: MandarinOS architectural rules and extensibility strategy — must be followed for all work on this project
+alwaysApply: true
+---
+
+# MandarinOS — Standing Architectural Rules
+
+Full directives: `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`
+Strategy doc: `docs/specs/MandarinOS_Extensibility_Strategy.md`
+
+---
+
+## Core rule
+
+The MandarinOS architecture is a **stable extensible base**. Future improvements happen by adding better frames, responses, options, and tags — not by rewriting architecture.
+
+---
+
+## Decision priority order
+
+Before proposing any fix, use this order:
+
+1. Can it be solved by **better content** (new/improved frames, responses, options)?
+2. Can it be solved by **ordering or builder refinement**?
+3. Can it be solved by a **minimal selector hygiene rule**?
+4. Only then consider deeper **architecture change**.
+
+If skipping a level, explain clearly why.
+
+---
+
+## Mandatory rules
+
+- **Selector independence**: do not make selector logic depend on specific frame IDs unless there is an explicit strategist-approved hygiene exception (e.g. blocking identity re-entry).
+- **Additive growth**: add new frames/variants; avoid replacing existing ones or restructuring engines without explicit request.
+- **Soft ordering**: `FRAME_ORDER` is guidance, not a rigid script. New frames must be insertable without changing selector logic.
+- **Extensibility test**: adding 20–50 new frames must NOT require changes to selector logic, scoring, or runtime architecture. Flag any proposal that fails this test.
+- **Builder-first mindset**: when output quality is poor, check builder/distractor/tagging quality before selector changes.
+
+---
+
+## How to classify problems
+
+| Category | Examples | Fix at |
+|----------|----------|--------|
+| A — Content value | awkward/boring/repetitive question | add better frame or response |
+| B — Selector/flow | topic changes too early, wrong order | minimal selector hygiene or ordering tweak |
+| C — Builder/options | wrong domain vocabulary, weak distractors | builder improvement |
+| D — Structural discourse | interview feel, no self-disclosure | future grammar phase (Phase 12+) |
+| E — Alpha polish | unresolved slot token, rough gloss | isolated polish fix |
+
+---
+
+## Current system state (as of Phase 11.1.1)
+
+- Phase 10.5 legacy selector is the active baseline
+- move_type grammar calibrated and stable (Phase 10.7 / Phase 11.0)
+- Selector hygiene complete: depth guard, identity re-entry block, FRAME_ORDER priority (Phase 11.1)
+- Phase 12 focus: **EXTEND frame introduction** — add partner self-disclosure frames to break 100% question ratio
+
+---
+
+## What to optimize for
+
+Extensibility · stability · conversational value density · easy future frame addition · minimal architectural churn.
+
+Do NOT optimize for cleverness, special-case logic, or short-term patches that reduce future extensibility.

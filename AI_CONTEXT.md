@@ -302,4 +302,30 @@ If present, read these before making architectural suggestions:
 - Other phase docs: `docs/phases/`
 - Build directives under `integration_kit/` (if relevant to the task)
 
+### Extensibility strategy (mandatory — read before proposing any change)
+
+- **`docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — Standing Cursor directive. Defines the decision priority order (content → ordering → selector hygiene → architecture), problem classification (A–E), architectural rules (selector independence, additive growth, soft ordering, extensibility test, builder-first), and what to optimise for.
+- **`docs/specs/MandarinOS_Extensibility_Strategy.md`** — Strategist-level strategy doc. Core principles: stable backbone, additive growth, competitive coexistence, builder-centric improvement.
+
+These two files define the **mandatory working framework** for all future MandarinOS development. A Cursor rule at `.cursor/rules/mandarinos-architecture.mdc` enforces the key points automatically every session.
+
+---
+
+## 12) Current phase status
+
+Updated: 2026-03-25
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 10.5 | Complete | Legacy selector, curiosity depth, slot followup |
+| Phase 10.6 | Complete | ASR / unmatched handling, UI word insight + character exploration |
+| Phase 10.7 | Complete | move_type tagging (all p1/p2 frames), transition calibration |
+| Phase 11.0.x | Complete | Conservative scoring scaffold; capability/energy diagnostic signals |
+| Phase 11.1 | Complete | Engine depth guard, identity re-entry block, FRAME_ORDER priority, hobby reorder, work options builder fix |
+| Phase 11.1.1 | Complete | Post-fix observation pass; extended identity guard to ladder + coherence gate |
+| **Phase 12** | **Next** | EXTEND frame introduction — add partner self-disclosure frames to break 100% question ratio |
+
+### Phase 12 starting condition
+The single largest remaining structural gap is the 100% question ratio across all engines. No EXTEND (self-disclosure) frames exist. The system currently asks questions only; a natural conversational partner should also volunteer related information before asking. Phase 12 scope: author 1-2 EXTEND frames per engine (partner volunteers a statement, then asks). This is a **content addition** — no selector or architecture changes are required or approved.
+
 END.
