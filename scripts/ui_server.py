@@ -140,15 +140,20 @@ def _engine_frame_ids(engine_norm: str) -> List[str]:
 # Order follows spec: core → treasure (follow-ups) → loop so we use treasure/loop questions, not just core.
 # P2 question frames (大家一般怎么叫你？, 你觉得{CITY}生活怎么样？, etc.) are included so we don't exhaust after 2–3 questions.
 _FRAME_ORDER: dict = {
-    # Identity flow: name → how people call you → meaning → evaluations.
-    "identity": ["f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_4", "p2_id_5"],  # core then treasure/loop
-    "place": ["f_from_where", "f_place_like_there", "frame.location.live_question", "p2_pl_1", "p2_pl_2", "p2_pl_3", "p2_pl_4"],  # core then treasure/loop (生活怎么样, 好吃的, 喜欢去, 方便吗)
-    "family": ["f_have_family", "f_have_siblings", "p2_fa_1", "p2_fa_2", "p2_fa_5"],  # core then treasure/loop (跟家人住, 多久见, 周末做什么)
-    # Work: compact high-interest sequence approved by user.
-    "work": ["f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5"],
-    "hobby": ["f_what_hobby", "f_often_do", "f_difficult_ma", "f_like_do_what", "f_recommend_ma", "f_weekend_do", "f_like_chinese_culture", "f_like_what", "f_collect_what", "p2_hb_1", "p2_hb_2", "p2_hb_4", "p2_hb_5"],  # Phase 11.1: f_like_do_what moved to pos 3 to avoid consecutive duplicate opener
-    "travel": ["f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4"],  # core then treasure/loop (哪些国家, 最喜欢哪里, 好玩的, 旅行怎么样)
-    "food": ["f_food_what_good", "f_food_famous_dish", "f_food_tasty", "f_food_like_spicy", "f_food_expensive"],  # core → treasure
+    # Identity flow: name → how people call you → meaning → EXTEND break → evaluations.
+    "identity": ["f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_ext1", "p2_id_4", "p2_id_5"],
+    # Place flow: origin → like it → live where → EXTEND break → life quality → food → leisure → convenient.
+    "place": ["f_from_where", "f_place_like_there", "frame.location.live_question", "p2_pl_1", "p2_pl_ext1", "p2_pl_2", "p2_pl_3", "p2_pl_4"],
+    # Family flow: have family → siblings → live together → EXTEND break → how often → weekend.
+    "family": ["f_have_family", "f_have_siblings", "p2_fa_1", "p2_fa_ext1", "p2_fa_2", "p2_fa_5"],
+    # Work: compact high-interest sequence with EXTEND break after difficulty questions.
+    "work": ["f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_ext1", "p2_wk_3", "p2_wk_4", "p2_wk_5"],
+    # Hobby: opening → frequency → difficulty → like what → EXTEND break → recommend → weekend → etc.  Phase 11.1: f_like_do_what moved to pos 3 to avoid consecutive duplicate opener.
+    "hobby": ["f_what_hobby", "f_often_do", "f_difficult_ma", "f_like_do_what", "p2_hb_ext1", "f_recommend_ma", "f_weekend_do", "f_like_chinese_culture", "f_like_what", "f_collect_what", "p2_hb_1", "p2_hb_2", "p2_hb_4", "p2_hb_5"],
+    # Travel: been where → want to go → countries → best place → EXTEND break → fun things → how was it.
+    "travel": ["f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_ext1", "p2_tr_3", "p2_tr_4"],
+    # Food: what's good → famous dish → tasty → EXTEND break → spicy → expensive.
+    "food": ["f_food_what_good", "f_food_famous_dish", "f_food_tasty", "p2_fd_ext1", "f_food_like_spicy", "f_food_expensive"],
     "life": [],
 }
 # A frame id may only be chosen if all of its "after" frames are in recent_frame_ids (already asked).
@@ -170,6 +175,8 @@ _FRAME_AFTER_ANY: dict = {
     "p2_pl_2": ["f_from_where", "frame.location.live_question"],
     "p2_pl_3": ["f_from_where", "frame.location.live_question"],
     "p2_pl_4": ["f_from_where", "frame.location.live_question"],
+    # Phase 12: EXTEND frame references "where you live" so needs place context first.
+    "p2_pl_ext1": ["f_from_where", "frame.location.live_question"],
 }
 
 

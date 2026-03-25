@@ -953,6 +953,97 @@
         "BRIDGE"
       ],
       "move_type": "EXTEND"
+    },
+    {
+      "id": "p2_id_ext1",
+      "text": "我觉得名字很有意思。给你取名字的时候有什么故事吗？",
+      "pinyin": "wǒ juéde míngzi hěn yǒu yìsi. gěi nǐ qǔ míngzi de shíhou yǒu shénme gùshi ma?",
+      "engine": "identity",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": ["w_yiyisi"],
+      "text_en": "I think names are really interesting. Was there a story when your name was chosen?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "EXTEND"
+    },
+    {
+      "id": "p2_fa_ext1",
+      "text": "我觉得家人是最重要的。你最喜欢和家人一起做什么？",
+      "pinyin": "wǒ juéde jiārén shì zuì zhòngyào de. nǐ zuì xǐhuan hé jiārén yīqǐ zuò shénme?",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": ["w_yiqi"],
+      "text_en": "I think family is the most important thing. What do you most enjoy doing together with your family?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "EXTEND"
+    },
+    {
+      "id": "p2_wk_ext1",
+      "text": "工作有时候不容易。你工作的时候有没有让你很开心的事？",
+      "pinyin": "gōngzuò yǒushíhou bù róngyì. nǐ gōngzuò de shíhou yǒu méiyǒu ràng nǐ hěn kāixīn de shì?",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": ["w_xiaban"],
+      "text_en": "Work can be challenging sometimes. Is there anything at work that makes you really happy?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "EXTEND"
+    },
+    {
+      "id": "p2_hb_ext1",
+      "text": "我觉得有爱好让生活更有趣。你的爱好是怎么开始的？",
+      "pinyin": "wǒ juéde yǒu àihào ràng shēnghuó gèng yǒuqù. nǐ de àihào shì zěnme kāishǐ de?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": ["w_juede"],
+      "text_en": "I think having hobbies makes life more interesting. How did your hobby start?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "EXTEND"
+    },
+    {
+      "id": "p2_tr_ext1",
+      "text": "旅行真的很有意思。旅行的时候你喜欢做什么？",
+      "pinyin": "lǚxíng zhēn de hěn yǒu yìsi. lǚxíng de shíhou nǐ xǐhuan zuò shénme?",
+      "engine": "travel",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": ["w_xihuan"],
+      "text_en": "Travel is really very interesting. What do you like to do when travelling?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "EXTEND"
+    },
+    {
+      "id": "p2_pl_ext1",
+      "text": "每个地方都有自己的特点。你觉得你住的地方有什么特色？",
+      "pinyin": "měi gè dìfang dōu yǒu zìjǐ de tèdiǎn. nǐ juéde nǐ zhù de dìfang yǒu shénme tèsè?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": ["w_juede"],
+      "text_en": "Every place has its own character. What do you think is special about where you live?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "EXTEND"
+    },
+    {
+      "id": "p2_fd_ext1",
+      "text": "我很喜欢尝试各种食物。你觉得吃东西是一种享受吗？",
+      "pinyin": "wǒ hěn xǐhuan chángshì gèzhǒng shíwù. nǐ juéde chī dōngxi shì yī zhǒng xiǎngshòu ma?",
+      "engine": "food",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": ["w_haochi"],
+      "text_en": "I really like trying all kinds of food. Do you think eating is a kind of enjoyment?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "EXTEND"
     }
   ]
 }

@@ -1,0 +1,12 @@
+{
+    "OPEN":        ["ANSWER", "ASK", "EXTEND", "LOOP", "REACTION", "RECIPROCITY"],
+    "ASK":         ["ANSWER", "ASK", "LOOP", "REPAIR"],
+    "ANSWER":      ["BRIDGE", "CLOSE", "EXTEND", "LOOP", "REACTION", "RECIPROCITY"],
+    "EXTEND":      ["BRIDGE", "CLOSE", "LOOP", "REACTION", "RECIPROCITY"],
+    "REACTION":    ["BRIDGE", "CLOSE", "EXTEND", "LOOP", "RECIPROCITY"],
+    "LOOP":        ["ANSWER", "ASK", "EXTEND", "LOOP", "OPEN", "REPAIR"],
+    "RECIPROCITY": ["ANSWER", "ASK", "REPAIR"],
+    "REPAIR":      ["ANSWER", "ASK", "REACTION"],
+    "BRIDGE":      ["ASK", "OPEN", "REACTION"],
+    "CLOSE":       []
+}

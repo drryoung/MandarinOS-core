@@ -26,21 +26,21 @@ Observations are classified into structural issue types.
          EN: What does your name mean?
          opts: 我的名字意思是光明。你呢？ / 我的名字意思是智慧。 / 我的名字意思是光明。
 
-  T04 [identity] p2_id_4                                  mt=LOOP         tt=loop_question    chain=4 [REACTION]
+  T04 [identity] p2_id_ext1                               mt=LOOP         tt=loop_question    chain=4 [REACTION]
+         EN: I think names are really interesting. Was there a story when your name was chosen?
+         opts: 不客气 / 什么 / 有意思
+
+  T05 [identity] p2_id_4                                  mt=EXTEND       tt=question         chain=5
          EN: What do you think of your name?
          opts: 你 / 有意思 / 怎么样
 
-  T05 [place   ] f_from_where                             mt=LOOP         tt=question         chain=0 [BRIDGE]
+  T06 [place   ] f_from_where                             mt=LOOP         tt=question         chain=0 [BRIDGE]
          EN: Where are you from?
          opts: 我是中国人。 / 我是澳大利亚人。 / 我是新西兰人。
 
-  T06 [place   ] f_place_like_there                       mt=OPEN         tt=question         chain=1 [BRIDGE] [REACTION]
+  T07 [place   ] f_place_like_there                       mt=OPEN         tt=question         chain=1 [BRIDGE] [REACTION]
          EN: Do you like it there?
          opts: 住 / 喜欢 / 哪里
-
-  T07 [place   ] frame.location.live_question             mt=LOOP         tt=question         chain=2 [BRIDGE] [REACTION]
-         EN: Where do you live now?
-         opts: 我现在住在北京。 / 我现在住在上海。 / 我现在住在广州。
 
 ---
 
@@ -62,17 +62,17 @@ Observations are classified into structural issue types.
          EN: you to feel; to think [CITY] life; to live how is it
          opts: 好 / 北京 / 你觉得{CITY}生活怎么样？
 
-  T05 [place   ] p2_pl_2                                  mt=LOOP         tt=loop_question    chain=5
+  T05 [place   ] p2_pl_ext1                               mt=LOOP         tt=loop_question    chain=5
+         EN: Every place has its own character. What do you think is special about where you live?
+         opts: 觉得 / 上海 / 住
+
+  T06 [place   ] p2_pl_2                                  mt=EXTEND       tt=question         chain=6 [REACTION]
          EN: [CITY] to have what tasty possessive/attribute particle
          opts: 喜欢 / 哪里 / {CITY}有什么好吃的？
 
-  T06 [food    ] f_food_tasty                             mt=LOOP         tt=loop_question    chain=6 [BRIDGE]
+  T07 [food    ] f_food_tasty                             mt=LOOP         tt=loop_question    chain=7 [BRIDGE]
          EN: Is it tasty?
          opts: 什么 / 好 / 好吃
-
-  T07 [travel  ] f_travel_where                           mt=LOOP         tt=question         chain=0 [BRIDGE]
-         EN: Where have you been?
-         opts: 我去过上海。 / 我去过北京。 / 我去过成都。
 
 ---
 
@@ -90,21 +90,21 @@ Observations are classified into structural issue types.
          EN: Do you live with your family?
          opts: 住在一起你呢？ / 家人 / 住在一起
 
-  T04 [identity] p2_id_4                                  mt=ASK          tt=question         chain=0 [BRIDGE]
+  T04 [family  ] p2_fa_2                                  mt=ASK          tt=question         chain=4
+         EN: How often do you see your family?
+         opts: 哥哥 / 姐姐 / 多久
+
+  T05 [identity] p2_id_ext1                               mt=LOOP         tt=question         chain=0 [BRIDGE]
+         EN: I think names are really interesting. Was there a story when your name was chosen?
+         opts: 不客气 / 什么 / 有意思
+
+  T06 [identity] p2_id_4                                  mt=EXTEND       tt=question         chain=1 [BRIDGE] [REACTION]
          EN: What do you think of your name?
          opts: 你 / 有意思 / 怎么样
 
-  T05 [place   ] f_from_where                             mt=LOOP         tt=question         chain=0 [BRIDGE]
+  T07 [place   ] f_from_where                             mt=LOOP         tt=question         chain=0 [BRIDGE]
          EN: Where are you from?
          opts: 我是中国人。 / 我是澳大利亚人。 / 我是新西兰人。
-
-  T06 [place   ] f_place_like_there                       mt=OPEN         tt=question         chain=1 [BRIDGE] [REACTION]
-         EN: Do you like it there?
-         opts: 住 / 喜欢 / 哪里
-
-  T07 [place   ] frame.location.live_question             mt=LOOP         tt=question         chain=2 [BRIDGE] [REACTION]
-         EN: Where do you live now?
-         opts: 我现在住在北京。 / 我现在住在上海。 / 我现在住在广州。
 
 ---
 
@@ -126,17 +126,17 @@ Observations are classified into structural issue types.
          EN: Is this job hard?
          opts: 下班 / 工作 / 最近
 
-  T05 [work    ] p2_wk_3                                  mt=LOOP         tt=question         chain=5 [REACTION]
+  T05 [work    ] p2_wk_ext1                               mt=LOOP         tt=question         chain=5 [REACTION]
+         EN: Work can be challenging sometimes. Is there anything at work that makes you really happy?
+         opts: 解决 / 最近 / 下班
+
+  T06 [work    ] p2_wk_3                                  mt=EXTEND       tt=question         chain=6
          EN: What is the hardest part of your work?
          opts: 我 / 最近 / 工作
 
-  T06 [work    ] p2_wk_4                                  mt=LOOP         tt=loop_question    chain=6
+  T07 [work    ] p2_wk_4                                  mt=LOOP         tt=loop_question    chain=7 [REACTION]
          EN: Is this job well paid?
          opts: 解决 / 工作 / 安排
-
-  T07 [work    ] p2_wk_5                                  mt=LOOP         tt=loop_question    chain=7 [REACTION]
-         EN: Do you recommend this job for young people? Why?
-         opts: 解决 / 喜欢 / 最近
 
 ---
 
@@ -158,17 +158,17 @@ Observations are classified into structural issue types.
          EN: What do you like to do?
          opts: 我喜欢听音乐。 / 我喜欢运动。 / 我喜欢看书。
 
-  T05 [identity] p2_id_4                                  mt=ASK          tt=question         chain=0 [BRIDGE]
+  T05 [hobby   ] f_recommend_ma                           mt=ASK          tt=question         chain=5
+         EN: Do you recommend it?
+         opts: 什么 / 好 / 喜欢
+
+  T06 [identity] p2_id_ext1                               mt=LOOP         tt=question         chain=0 [BRIDGE]
+         EN: I think names are really interesting. Was there a story when your name was chosen?
+         opts: 不客气 / 什么 / 有意思
+
+  T07 [identity] p2_id_4                                  mt=EXTEND       tt=question         chain=1 [BRIDGE]
          EN: What do you think of your name?
          opts: 你 / 有意思 / 怎么样
-
-  T06 [place   ] f_from_where                             mt=LOOP         tt=question         chain=0 [BRIDGE]
-         EN: Where are you from?
-         opts: 我是中国人。 / 我是澳大利亚人。 / 我是新西兰人。
-
-  T07 [place   ] f_place_like_there                       mt=OPEN         tt=question         chain=1 [BRIDGE] [REACTION]
-         EN: Do you like it there?
-         opts: 住 / 喜欢 / 哪里
 
 ---
 
@@ -190,17 +190,17 @@ Observations are classified into structural issue types.
          EN: Where do you like best?
          opts: 喜欢 / 哪里 / 想
 
-  T05 [travel  ] p2_tr_3                                  mt=LOOP         tt=question         chain=5 [REACTION]
+  T05 [travel  ] p2_tr_ext1                               mt=LOOP         tt=question         chain=5 [REACTION]
+         EN: Travel is really very interesting. What do you like to do when travelling?
+         opts: 哪里 / 喜欢 / 怎么样
+
+  T06 [travel  ] p2_tr_3                                  mt=EXTEND       tt=question         chain=6 [REACTION]
          EN: What's fun to do there?
          opts: 喜欢 / 好玩 / 哪里
 
-  T06 [travel  ] p2_tr_4                                  mt=LOOP         tt=loop_question    chain=6 [REACTION]
+  T07 [travel  ] p2_tr_4                                  mt=LOOP         tt=loop_question    chain=7 [REACTION]
          EN: you to feel; to think then; that how is it
          opts: 想 / 去过 / 怎么样
-
-  T07 [place   ] f_from_where                             mt=LOOP         tt=question         chain=0 [BRIDGE]
-         EN: Where are you from?
-         opts: 我是中国人。 / 我是澳大利亚人。 / 我是新西兰人。
 
 ---
 
@@ -218,21 +218,21 @@ Observations are classified into structural issue types.
          EN: Is it tasty?
          opts: 好吃你呢？ / 什么 / 好
 
-  T04 [food    ] f_food_like_spicy                        mt=LOOP         tt=loop_question    chain=4 [REACTION]
-         EN: Do you like spicy food?
-         opts: 什么 / 喜欢 / 好吃
+  T04 [food    ] p2_fd_ext1                               mt=LOOP         tt=loop_question    chain=4 [REACTION]
+         EN: I really like trying all kinds of food. Do you think eating is a kind of enjoyment?
+         opts: 喜欢 / 好吃 / 什么
 
-  T05 [food    ] f_food_expensive                         mt=ASK          tt=question         chain=5 [REACTION]
+  T05 [food    ] f_food_expensive                         mt=EXTEND       tt=question         chain=5 [REACTION]
          EN: Is it expensive?
          opts: 什么 / 好 / 好吃
 
-  T06 [place   ] f_from_where                             mt=LOOP         tt=question         chain=0 [BRIDGE]
+  T06 [food    ] f_food_like_spicy                        mt=LOOP         tt=loop_question    chain=6
+         EN: Do you like spicy food?
+         opts: 什么 / 喜欢 / 好吃
+
+  T07 [place   ] f_from_where                             mt=ASK          tt=question         chain=0 [BRIDGE]
          EN: Where are you from?
          opts: 我是中国人。 / 我是澳大利亚人。 / 我是新西兰人。
-
-  T07 [place   ] f_place_like_there                       mt=OPEN         tt=question         chain=1 [BRIDGE] [REACTION]
-         EN: Do you like it there?
-         opts: 住 / 喜欢 / 哪里
 
 ---
 
