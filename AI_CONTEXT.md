@@ -311,9 +311,82 @@ These two files define the **mandatory working framework** for all future Mandar
 
 ---
 
-## 12) Current phase status
+## 12) Hybrid AI vision (concept-level — not yet implemented)
 
-Updated: 2026-03-25
+**Source:** `docs/design/MANDARINOS_PHASE_12_HYBRID_AI_CONCEPT_BRIEFING.txt`
+**Status:** Architectural north-star only. Do NOT implement AI execution layer yet.
+
+### Core principle (non-negotiable)
+
+> MandarinOS is "a structured conversation training system with controlled moments of AI improvisation."
+
+AI is a **conditional extension layer**, not the main engine. Every conversation architecture decision must be compatible with this future layer being bolted on without rewriting the structured engine.
+
+### How the hybrid layer will eventually work
+
+```
+User Input
+  → Structured Engine (default path — always tried first)
+  → AI Eligibility Check (only if structured path is weak/absent)
+      ├─ Structured Path (no AI needed) → continue normally
+      └─ Bounded AI Path (max 1–2 turns) → return to structured engine
+```
+
+### AI eligibility conditions (all must be met)
+
+1. Input is meaningful and relevant to current topic
+2. Structured continuation is weak or absent (no good next frame)
+3. Input is interesting enough to reward
+4. A safe return path to the structured engine exists
+
+AI must NOT trigger for: ASR mismatch, unclear input, or already-supported responses.
+
+### AI output contract (when eventually triggered)
+
+AI must return structured output only — never free-form text:
+```json
+{
+  "acknowledgement": "...",
+  "follow_up": "...",
+  "move_type": "LOOP",
+  "difficulty_band": "beginner_mid",
+  "return_target_engine": "food",
+  "return_target_move_type": "ASK"
+}
+```
+
+### What AI is NOT allowed to do
+
+- Run multi-turn free conversation
+- Control topic direction fully
+- Bypass the hint/repair system
+- Escalate vocabulary complexity beyond difficulty_band
+- Replace repair logic
+
+### Implementation roadmap (future — in order)
+
+- Stage 1: Log-only (record AI-eligible moments, no execution)
+- Stage 2: Single-turn AI pilot
+- Stage 3: Bridge integration
+- Stage 4: Expanded hybrid
+
+### How current work prepares for this
+
+Every improvement to the structured engine (curiosity loops, repair ladder, difficulty ramp, frame mutual exclusion, engine depth guard) makes the "structured path" more robust. This directly reduces the frequency AI would need to trigger, and ensures the structured engine is strong enough to be the default. **Do not shortcut the structured engine to make room for AI.** Build the structured engine first; AI fills the remaining gaps.
+
+### State model to add (Stage 1, future)
+
+When implementing Stage 1, add to `conversation_state`:
+- `ai_mode_active` (bool)
+- `ai_turn_count` (int)
+- `ai_trigger_reason` (str)
+- `ai_return_target` (engine id)
+
+---
+
+## 13) Current phase status
+
+Updated: 2026-03-25 (conversation quality tuning pass)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
@@ -323,9 +396,21 @@ Updated: 2026-03-25
 | Phase 11.0.x | Complete | Conservative scoring scaffold; capability/energy diagnostic signals |
 | Phase 11.1 | Complete | Engine depth guard, identity re-entry block, FRAME_ORDER priority, hobby reorder, work options builder fix |
 | Phase 11.1.1 | Complete | Post-fix observation pass; extended identity guard to ladder + coherence gate |
-| **Phase 12** | **Next** | EXTEND frame introduction — add partner self-disclosure frames to break 100% question ratio |
+| Phase 12 | Complete | EXTEND frames, persona layer, discoverability (voice_line + partner_fact), Phase 12B curiosity chain limit + soft repair ladder |
+| **Alpha tuning** | **Active** | Conversation quality: mutual exclusions, difficulty ramp, user-question chain (allow multi-turn interrogation), double-turn guard, bridge prefix cleanup |
 
-### Phase 12 starting condition
-The single largest remaining structural gap is the 100% question ratio across all engines. No EXTEND (self-disclosure) frames exist. The system currently asks questions only; a natural conversational partner should also volunteer related information before asking. Phase 12 scope: author 1-2 EXTEND frames per engine (partner volunteers a statement, then asks). This is a **content addition** — no selector or architecture changes are required or approved.
+### Active alpha tuning — what has been implemented
+
+- **Mutual exclusion frames:** `f_ask_you_name` ↔ `p2_id_2`, `f_travel_where` ↔ `p2_tr_1`, food frames — prevents semantic duplicate questions
+- **Difficulty ramp:** within each engine, difficulty-1 frames appear before difficulty-2, which appear before difficulty-3 (stable sort preserving FRAME_ORDER within tier); "life" engine blocked until `exchange_count ≥ 16`
+- **User-question chain:** after a probe/direction answer, probe row re-shows so user can ask 1–3 consecutive follow-up questions before partner reclaims lead (`MAX_USER_QUESTION_CHAIN = 3`)
+- **Double-turn guard:** `_runTurnInFlight` flag prevents concurrent `runTurn` calls that caused duplicate partner questions
+- **Bridge prefix:** only `顺便问一下，` remains; `对了，` removed (caused awkward "对了，好吃吗？" transitions)
+- **Probe row frequency:** `MAX_PROBE_CHAIN` raised 1 → 2
+
+### Parked future work (not yet approved for implementation)
+
+- **Phase 12C:** deeper curiosity grammar (WHEN, HOW, WHO probes as partner moves — not just user-initiated)
+- **Hybrid AI layer:** see Section 12 above; prerequisite is a fully robust structured engine
 
 END.

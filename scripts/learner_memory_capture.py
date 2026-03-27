@@ -75,16 +75,20 @@ def _extract_origin_from_hanzi(hanzi: str) -> Optional[str]:
 
 
 def _extract_city_from_hanzi(hanzi: str) -> Optional[str]:
-    """Extract city from '我现在住在XXX。' → XXX."""
+    """Extract city from '我现在住在XXX。' or '我现在住XXX。' → XXX."""
     if not hanzi or not isinstance(hanzi, str):
         return None
     s = hanzi.strip()
     first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
-    m = re.match(r"(?:我现在)?住在\s*(.+?)\s*$", first)
+    # Match 住在XXX and 住XXX (with or without 在, with or without 我/现在 prefix)
+    m = re.match(r"(?:我)?(?:现在)?住(?:在)?\s*(.+?)\s*$", first)
     if m:
         return m.group(1).strip() or None
     if "住在" in first:
         idx = first.find("住在") + 2
+        return first[idx:].strip() or None
+    if "住" in first:
+        idx = first.find("住") + 1
         return first[idx:].strip() or None
     return None
 

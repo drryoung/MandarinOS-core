@@ -65,6 +65,10 @@ if (typeof window._personaId === "undefined") window._personaId = "zhang_wei";
 if (typeof window._partnerId === "undefined") window._partnerId = null;
 // Phase 12B: tracks how many consecutive probe follow-ups have been asked; resets on real answer
 if (typeof window._probeDepth === "undefined") window._probeDepth = 0;
+// Tracks consecutive user-led questions (probes + direction turns) so partner can reclaim after a natural run
+if (typeof window._userQuestionChain === "undefined") window._userQuestionChain = 0;
+if (typeof window._lastProbeOptions === "undefined") window._lastProbeOptions = [];
+const MAX_USER_QUESTION_CHAIN = 3;  // after this many consecutive user questions the partner reclaims the lead
 // Phase 11C: per-engine reveal tracking — reset when partner changes or session resets
 if (typeof window._revealedVoiceLines === "undefined") window._revealedVoiceLines = {};
 if (typeof window._revealedPartnerFacts === "undefined") window._revealedPartnerFacts = {};
@@ -1408,18 +1412,36 @@ function matchTranscriptToOption(transcript, options) {
   if (!transcript || !Array.isArray(options) || options.length === 0) return null;
   const n = normalizeForMatch(transcript);
   if (!n) return null;
+  // Two passes: exact match first, then best partial match.
+  // Partial match requires the option to be at least 2 characters so that single-character
+  // vocabulary tiles (e.g. "你") don't absorb a longer utterance (e.g. "你好").
+  let bestPartial = null;
+  let bestPartialLen = 0;
   for (const opt of options) {
     const hanzi = (opt.hanzi || "").trim();
     if (!hanzi) continue;
     const optNorm = normalizeForMatch(hanzi);
-    if (optNorm && (n === optNorm || n.includes(optNorm) || optNorm.includes(n))) return opt;
+    if (optNorm) {
+      if (n === optNorm) return opt;                               // exact match wins immediately
+      if (optNorm.length >= 2 && n.includes(optNorm) && optNorm.length > bestPartialLen) {
+        bestPartial = opt; bestPartialLen = optNorm.length;        // transcript contains option
+      }
+      if (optNorm.length >= 2 && optNorm.includes(n) && optNorm.length > bestPartialLen) {
+        bestPartial = opt; bestPartialLen = optNorm.length;        // option contains transcript
+      }
+    }
     const pinyin = (opt.pinyin || "").trim();
     if (pinyin) {
       const pyNorm = normalizeForMatch(pinyin);
-      if (pyNorm && (n === pyNorm || n.includes(pyNorm) || pyNorm.includes(n))) return opt;
+      if (pyNorm) {
+        if (n === pyNorm) return opt;
+        if (pyNorm.length >= 2 && n.includes(pyNorm) && pyNorm.length > bestPartialLen) {
+          bestPartial = opt; bestPartialLen = pyNorm.length;
+        }
+      }
     }
   }
-  return null;
+  return bestPartial;
 }
 
 function isOpenEndedFrame(frameId) {
@@ -1507,9 +1529,12 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
   const openEnded = isOpenEndedFrame(frameId);
   const understandable = isLikelyUnderstandableFreeAnswer(transcript, frameId);
   const semantic = semanticSoftMatch(transcript, frameId);
+  // Learner skip signal: "我不懂" / "不明白" → advance gracefully without repair loop
+  if (/不懂|不明白/.test(transcript || "")) return { accept: true, reason: "learner_skip_signal" };
   if (opts.length === 0) return { accept: true, reason: "no_options" };
   if (semantic) return { accept: true, reason: "semantic_soft_match" };
-  if ((unmatchedCount || 0) >= 2 && understandable) return { accept: true, reason: "two_strike_substantive_fallback" };
+  // One-strike fallback: after one repair attempt, accept any substantive Chinese answer
+  if ((unmatchedCount || 0) >= 1 && understandable) return { accept: true, reason: "one_strike_substantive_fallback" };
   if (openEnded && understandable) return { accept: true, reason: "open_ended_understandable" };
   if (hasStructuredSlots && understandable) return { accept: true, reason: "slot_frame_understandable" };
   if (openEnded && !understandable) return { accept: false, reason: "open_ended_low_confidence" };
@@ -2708,6 +2733,46 @@ function validateOptionsArray(options, frameId, targetItem) {
 /** Recovery phrases in one scrollable panel (P1 first, then P2). */
 const RECOVERY_PHRASES_MAX = 12;
 
+/**
+ * Graceful topic-change acknowledgements the partner says before moving on.
+ * Models real conversation: normalise the difficulty, then signal the pivot.
+ * Each entry: { zh, en }. Multiple variants rotate by time for variety.
+ * Keyed by recovery phrase ID.
+ */
+const _RECOVERY_TOPIC_TRANSITIONS = {
+  wo_bu_dong: [
+    { zh: "没关系！我们换个话题吧。",   en: "No worries! Let's change the subject." },
+    { zh: "没事！那我们聊点别的。",       en: "It's fine! Let's talk about something else." },
+  ],
+  ting_bu_dong: [
+    { zh: "没事，换个话题吧。",           en: "No worries, let's change topics." },
+    { zh: "没关系，我们换一个。",         en: "No worries, let's try something else." },
+  ],
+  bu_haoyisi_mei_tingdong: [
+    { zh: "没关系！那我们换个话题。",     en: "No problem! Let's change the subject." },
+    { zh: "没问题，换一个！",             en: "No problem, let's try another one!" },
+  ],
+  bu_zhidao: [
+    { zh: "不知道没关系！",               en: "That's OK — no need to know!" },
+    { zh: "不知道没问题！",               en: "No worries at all!" },
+  ],
+  women_liao_dian_jiandan_ba: [
+    { zh: "好的，没问题！",               en: "Sure, no problem!" },
+    { zh: "当然！",                       en: "Of course!" },
+  ],
+  women_keyi_liao_bie_de_ma: [
+    { zh: "当然可以！",                   en: "Of course we can!" },
+    { zh: "好的！",                       en: "Sure!" },
+  ],
+};
+
+/** Pick a transition object { zh, en } for a recovery phrase ID, or null if none defined. */
+function getTopicChangeTransition(phraseId) {
+  const pool = _RECOVERY_TOPIC_TRANSITIONS[phraseId];
+  if (!pool || !pool.length) return null;
+  return pool[Math.floor(Date.now() / 1000) % pool.length];
+}
+
 /** Resolve recovery_action so we respond correctly to each phrase (not always "repeat"). */
 const RECOVERY_ACTION_NEXT_TURN_IDS = new Set([
   "wo_bu_dong", "ting_bu_dong", "bu_haoyisi_mei_tingdong",
@@ -2747,15 +2812,131 @@ function getRecoveryPanelOption() {
   };
 }
 
+/**
+ * Render the "Need help?" recovery phrase panel into any container element.
+ * Used by renderSentenceOptions so recovery phrases remain visible even when
+ * optionsContainer is hidden.
+ */
+function renderRecoveryPanelInto(targetContainer, frameId) {
+  const opt = getRecoveryPanelOption();
+  if (!opt) return;
+
+  const panel = document.createElement("div");
+  panel.className = "option-panel";
+  panel.setAttribute("data-recovery", "true");
+  panel.setAttribute("data-card-id", opt.card_id || "");
+
+  const label = document.createElement("div");
+  label.className = "recovery-panel-label";
+  label.textContent = "Need help?";
+  panel.appendChild(label);
+
+  const listWrap = document.createElement("div");
+  listWrap.className = "recovery-phrases-list";
+
+  (opt.recoveryPhrases || []).forEach((phrase) => {
+    const row = document.createElement("div");
+    row.className = "recovery-phrase-row";
+
+    const textBtn = document.createElement("button");
+    textBtn.type = "button";
+    textBtn.className = "recovery-phrase-text";
+    textBtn.textContent = phrase.hanzi || "";
+    const tooltipParts = [];
+    if (phrase.pinyin) tooltipParts.push(phrase.pinyin);
+    if (phrase.meaning) tooltipParts.push(phrase.meaning);
+    textBtn.setAttribute("title", tooltipParts.join(" — ") || "");
+
+    textBtn.addEventListener("click", async () => {
+      emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
+        payload: { frame_id: frameId, card_id: "recovery:" + (phrase.id || ""), kind: "RECOVERY" } });
+      targetContainer.querySelectorAll(".option-panel").forEach((p) => p.classList.remove("selected"));
+      panel.classList.add("selected");
+      const userText = (phrase.hanzi || "").trim();
+      addTranscriptEntry("user", userText, { text_en: phrase.meaning || "" });
+      const action = getRecoveryAction(phrase);
+      const currentQuestion = (window._currentFrameText || "").trim();
+
+      if (action === "next_turn") {
+        renderTranscript();
+        const _transition = getTopicChangeTransition(phrase.id);
+        ttsSpeak({
+          text: userText, lang: "zh-CN",
+          onEvent: (e) => {
+            if (!e?.payload?.completed) return;
+            if (_transition) {
+              // Partner acknowledges and signals the pivot before the next question
+              addTranscriptEntry("partner", _transition.zh, { text_en: _transition.en });
+              renderTranscript();
+              ttsSpeak({
+                text: _transition.zh, lang: "zh-CN",
+                onEvent: (e2) => { if (e2?.payload?.completed) runTurn(true, { prefer_bridge: true }); },
+              });
+            } else {
+              runTurn(true, { prefer_bridge: true });
+            }
+          },
+        });
+        return;
+      }
+
+      let partnerLine, segments;
+      const rawTokens = (frameTokens || window._frameTokens)?.frames?.[frameId];
+      const hasNewSchema = rawTokens && rawTokens.length > 0 && "kind" in rawTokens[0];
+      if (action === "slower") {
+        partnerLine = currentQuestion ? "好的，慢一点：" + currentQuestion : "好的，慢一点。";
+        segments = [{ t: currentQuestion ? "好的，慢一点：" : "好的，慢一点。" }];
+        if (hasNewSchema && rawTokens.length) segments = segments.concat(rawTokens.map((t) => ({ t: t.t, word_id: t.word_id || undefined })));
+        else if (currentQuestion) segments = segments.concat(currentQuestion.split("").map((c) => ({ t: c })));
+      } else {
+        partnerLine = currentQuestion || "好。";
+        if (hasNewSchema && rawTokens.length) segments = rawTokens.map((t) => ({ t: t.t, word_id: t.word_id || undefined }));
+        else segments = (currentQuestion || "").split("").map((c) => ({ t: c }));
+      }
+      addTranscriptEntry("partner", partnerLine);
+      renderTranscript();
+      setActivePartnerStatement(partnerLine, "recovery_repeat", segments);
+      ttsSpeak({
+        text: userText, lang: "zh-CN",
+        onEvent: (e) => {
+          if (e?.payload?.completed)
+            ttsSpeak({ text: partnerLine, lang: "zh-CN", rate: action === "slower" ? 0.82 : undefined, queue: true });
+        },
+      });
+      lastClickedWordId = null;
+      window.lastClickedWordId = null;
+      hint_cascade_state = { level: 0, turn_uid: "recovery_repeat" };
+      renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, "recovery_repeat", "tap");
+      setUiMode("READ");
+    });
+
+    const speakerBtn = document.createElement("button");
+    speakerBtn.type = "button";
+    speakerBtn.className = "recovery-speaker-btn";
+    speakerBtn.setAttribute("title", "Speak this phrase");
+    speakerBtn.setAttribute("aria-label", "Speak this phrase");
+    speakerBtn.textContent = "\uD83D\uDD0A";
+    speakerBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      ttsSpeak({ text: phrase.hanzi || "", lang: "zh-CN" });
+    });
+
+    row.appendChild(textBtn);
+    row.appendChild(speakerBtn);
+    listWrap.appendChild(row);
+  });
+
+  panel.appendChild(listWrap);
+  targetContainer.appendChild(panel);
+}
+
 function renderOptions(options, frameId) {
   // Normalize kind so validation and ? button behave consistently (default WORD when missing)
   options = (options || []).map(opt => ({
     ...opt,
     kind: (opt.kind && String(opt.kind).toUpperCase()) || "WORD",
   }));
-  // Phase 9.4: append one recovery panel (scrollable list of phrases)
-  const recoveryPanel = getRecoveryPanelOption();
-  if (recoveryPanel) options.push(recoveryPanel);
+  // Recovery panel is now rendered in sentenceOptionsContainer via renderRecoveryPanelInto().
   // §3.1 + §5 — validate before render
   const targetItem = options && options.find(o => o.is_gold) || null;
   const validation = validateOptionsArray(options, frameId, targetItem);
@@ -3109,52 +3290,193 @@ function renderOptions(options, frameId) {
 // ── end Phase 6 ────────────────────────────────────────────────────────────
 
 /** Oxygen loop: "Ask back" row — show probe options (为什么？, 谁？, 哪里？, etc.) when server set probe_offer. */
-function renderProbeRow(probeOptions) {
-  let parent = document.getElementById("optionsContainerParent");
-  if (!parent) return;
-  let row = document.getElementById("probeRowContainer");
-  if (!row) {
-    row = document.createElement("div");
-    row.id = "probeRowContainer";
-    row.className = "probe-row-container";
-    parent.appendChild(row);
-  }
-  row.style.display = "block";
-  row.textContent = "";
-  const label = document.createElement("div");
-  label.className = "probe-row-label";
-  label.textContent = "你也可以问：";
-  row.appendChild(label);
-  const wrap = document.createElement("div");
-  wrap.className = "probe-row-buttons";
-  (probeOptions || []).forEach((probe) => {
+// ---------------------------------------------------------------------------
+// Sentence-level response options  (replaces probe buttons + direction buttons)
+// ---------------------------------------------------------------------------
+
+function renderSentenceOptions(sentenceOptions, frameId) {
+  const container = document.getElementById("sentenceOptionsContainer");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const answers = (sentenceOptions || []).filter(o => o.kind === "SENTENCE" || !o.kind);
+  if (!answers.length) { container.style.display = "none"; return; }
+
+  // Build each answer as a standard option-panel so speaker, ?, and word-exploration all work
+  answers.forEach((opt, idx) => {
+    const hanziStr = (opt.zh || "").trim();
+    const pinyin   = (opt.py || "").trim();
+    const meaning  = (opt.en || "").trim();
+    const cardId   = "__sentence_" + idx;
+
+    const panel = document.createElement("div");
+    panel.className = "option-panel";
+    panel.setAttribute("data-option-index", String(idx));
+
+    // Main button — tokenised hanzi + action icons
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "probe-btn";
-    btn.setAttribute("data-probe-id", probe.id || "");
-    btn.setAttribute("data-probe-hanzi", probe.hanzi || "");
-    btn.textContent = probe.hanzi || "";
-    btn.title = (probe.pinyin || "") + (probe.meaning ? " — " + probe.meaning : "");
-    btn.addEventListener("click", () => runProbeTurn(probe));
-    wrap.appendChild(btn);
+    btn.className = "option-btn";
+
+    const optionContent = document.createElement("div");
+    optionContent.className = "option-content";
+
+    const hanziWrap = document.createElement("span");
+    hanziWrap.className = "option-hanzi option-hanzi-tokens";
+    const pseudoOpt = { card_id: cardId, pinyin, meaning, hanzi: hanziStr };
+    tokenizeHanziForOption(hanziStr, pseudoOpt).forEach((seg) => {
+      const wid     = seg.word_id;
+      const surface = seg.t;
+      const span    = document.createElement("span");
+      span.textContent = surface;
+      span.className    = wid ? "tok tok-word word-insight-token" : "tok tok-word-unknown word-insight-token";
+      span.dataset.kind = "word";
+      if (wid) span.dataset.wordId = wid;
+      span.dataset.insightSource = `sentence:${idx}`;
+      const tip = wid ? getInsightTitleForWordId(wid) : "";
+      if (tip) span.title = tip;
+      span.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        if (!wid) { _openWordInsightPopover(span, null, surface, `sentence:${idx}`); return; }
+        lastClickedWordId = wid;
+        window.lastClickedWordId = wid;
+        _openWordInsightPopover(span, wid, surface, `sentence:${idx}`);
+        if (_shouldAlsoOpenCardPanel()) await _openCardForWordId(wid);
+      });
+      hanziWrap.appendChild(span);
+    });
+    optionContent.appendChild(hanziWrap);
+    btn.appendChild(optionContent);
+
+    // 🔊 speaker + ? hint buttons
+    const optionActions = document.createElement("div");
+    optionActions.className = "option-actions";
+
+    if (hanziStr) {
+      const speakerBtn = document.createElement("button");
+      speakerBtn.type = "button";
+      speakerBtn.className = "option-speaker-btn";
+      speakerBtn.setAttribute("title", "Speak this option");
+      speakerBtn.setAttribute("aria-label", "Speak this option");
+      speakerBtn.textContent = "\uD83D\uDD0A";
+      speakerBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        ttsSpeak({ text: hanziStr, lang: "zh-CN" });
+      });
+      optionActions.appendChild(speakerBtn);
+    }
+
+    if (pinyin || meaning) {
+      const hintBtn = document.createElement("button");
+      hintBtn.type = "button";
+      hintBtn.className = "option-hint-btn";
+      hintBtn.setAttribute("title", "Show pinyin / meaning");
+      hintBtn.setAttribute("aria-label", "Hint for this option");
+      hintBtn.textContent = "?";
+      hintBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const hintBlock = panel.querySelector(".option-hint-block");
+        if (!hintBlock) return;
+        const isVisible = hintBlock.style.display !== "none";
+        hintBlock.style.display = isVisible ? "none" : "block";
+        if (!isVisible) {
+          const pyEl = hintBlock.querySelector(".option-hint-pinyin");
+          const enEl = hintBlock.querySelector(".option-hint-meaning");
+          if (pyEl) pyEl.textContent = pinyin;
+          if (enEl) enEl.textContent = meaning;
+        }
+      });
+      optionActions.appendChild(hintBtn);
+    }
+
+    if (optionActions.childNodes.length) btn.appendChild(optionActions);
+    panel.appendChild(btn);
+
+    // Hint block (hidden until ? clicked)
+    const hintBlock = document.createElement("div");
+    hintBlock.className = "option-hint-block";
+    hintBlock.setAttribute("data-option-index", String(idx));
+    hintBlock.style.display = "none";
+    hintBlock.appendChild(Object.assign(document.createElement("div"), { className: "option-hint-row option-hint-pinyin" }));
+    hintBlock.appendChild(Object.assign(document.createElement("div"), { className: "option-hint-row option-hint-meaning" }));
+    panel.appendChild(hintBlock);
+
+    // Click: mirror questions ask the persona; regular sentences are submitted as user answers
+    btn.addEventListener("click", async (ev) => {
+      if (ev.target.closest(".word-insight-token")) return;
+      emitUITrace({ type: "SENTENCE_OPTION_SELECTED", timestamp: new Date().toISOString(),
+        payload: { frame_id: frameId, text: hanziStr, topic: opt.topic || null } });
+      container.querySelectorAll(".option-panel").forEach(p => p.classList.remove("selected"));
+      panel.classList.add("selected");
+      if (opt.topic) {
+        // Mirror question — ask the persona, not submit as own answer
+        runMirrorTurn(hanziStr, meaning, opt.topic);
+      } else {
+        window._consecutiveNotUnderstood = 0;
+        addTranscriptEntry("user", hanziStr, { text_en: meaning });
+        renderTranscript();
+        container.style.display = "none";
+        const optC = document.getElementById("optionsContainer");
+        if (optC) optC.style.display = "none";
+        window._lastAnswer = { frame_id: frameId || "", submitted_text: hanziStr };
+        // Keep legacy UX: play chosen response first, then advance turn.
+        ttsSpeak({
+          text: hanziStr,
+          lang: "zh-CN",
+          onEvent: (e) => {
+            if (e?.payload?.completed) {
+              runTurn(true, { last_turn_was_answer: true, submitted_text: hanziStr });
+            }
+          },
+        });
+      }
+    });
+
+    container.appendChild(panel);
   });
-  row.appendChild(wrap);
+
+  // --- Reverse / oxygen buttons — placed inline with the speaker in frame-sentence-row ---
+  const makeReverseBtn = (label, onClick) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "sentence-reverse-btn";
+    b.textContent = label;
+    b.addEventListener("click", onClick);
+    return b;
+  };
+  const reverseActionsRow = document.getElementById("reverseActionsRow");
+  if (reverseActionsRow) {
+    reverseActionsRow.innerHTML = "";
+    reverseActionsRow.appendChild(makeReverseBtn("And you? 你呢？", () => runDirectionTurn("reverse")));
+    reverseActionsRow.appendChild(makeReverseBtn("Why? 为什么？",   () => runDirectionTurn("why")));
+  }
+
+  // Recovery phrases ("Need help?") always live in the same container as sentence options
+  renderRecoveryPanelInto(container, frameId);
+
+  container.style.display = "flex";
 }
 
-function hideProbeRow() {
-  const row = document.getElementById("probeRowContainer");
-  if (row) row.style.display = "none";
+function hideSentenceOptions() {
+  const container = document.getElementById("sentenceOptionsContainer");
+  if (container) { container.innerHTML = ""; container.style.display = "none"; }
+  // Clear the inline reverse buttons alongside the speaker
+  const reverseActionsRow = document.getElementById("reverseActionsRow");
+  if (reverseActionsRow) reverseActionsRow.innerHTML = "";
+  // Legacy cleanup: remove any stale probe-ladder buttons
+  const ladder = document.getElementById("actionLadder");
+  if (ladder) ladder.querySelectorAll(".probe-ladder-btn").forEach((b) => b.remove());
 }
 
-function renderDirectionButtons() {
-  const reverseBtn = document.getElementById("reverseBtn");
-  const whyBtn = document.getElementById("whyBtn");
-  if (!reverseBtn || !whyBtn) return;
-  reverseBtn.style.display = _directionCaps.supports_reverse ? "" : "none";
-  whyBtn.style.display = _directionCaps.supports_why ? "" : "none";
-}
+// Keep these as no-ops so existing call-sites don't break
+function renderProbeRow() {}
+function hideProbeRow() { hideSentenceOptions(); }
+function renderDirectionButtons() {}
 
 async function runDirectionTurn(intent) {
+  _cancelProbeAutoAdvance();
+  hideSentenceOptions();
   const map = { reverse: "你呢？", why: "为什么？" };
   const userText = map[intent] || "";
   if (!userText) return;
@@ -3175,7 +3497,8 @@ async function runDirectionTurn(intent) {
       recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : []
     }
   };
-  if (window._personaId) payload.persona_id = window._personaId;
+  const _dirPersonaId = window._partnerId || window._personaId;
+  if (_dirPersonaId) payload.persona_id = _dirPersonaId;
 
   let res;
   try {
@@ -3193,16 +3516,93 @@ async function runDirectionTurn(intent) {
   try { data = await res.json(); } catch (_) { return; }
 
   const stub = (data.frame_text || "").trim();
+  window._userQuestionChain = (window._userQuestionChain || 0) + 1;
   if (stub) {
     addTranscriptEntry("partner", stub);
     renderTranscript();
-    ttsSpeak({
-      text: stub,
-      lang: "zh-CN",
-      onEvent: (e) => {
-        if (e?.payload?.completed) runTurn(true);
-      },
+    if (window._userQuestionChain >= MAX_USER_QUESTION_CHAIN) {
+      // User has asked enough — partner reclaims the lead after speaking
+      ttsSpeak({
+        text: stub, lang: "zh-CN",
+        onEvent: (e) => {
+          if (e?.payload?.completed) { window._userQuestionChain = 0; runTurn(true); }
+        },
+      });
+    } else {
+      ttsSpeak({ text: stub, lang: "zh-CN" });
+      // Show mirror questions (engine-specific) so the learner can interrogate the persona
+      renderSentenceOptions(data.mirror_options || [], null);
+      _startProbeAutoAdvance();
+    }
+  } else {
+    runTurn(true);
+  }
+}
+
+/**
+ * Learner asked a specific mirror question about the persona (e.g. "你的名字是什么意思？").
+ * Sends the question to the server, shows the persona's answer, then offers further mirror questions.
+ */
+async function runMirrorTurn(zh, en, topic) {
+  _cancelProbeAutoAdvance();
+  hideSentenceOptions();
+  const userText = (zh || "").trim();
+  if (!userText) return;
+  addTranscriptEntry("user", userText, { text_en: en || "" });
+  renderTranscript();
+  ttsSpeak({ text: userText, lang: "zh-CN" });
+
+  const currentEngine = window._currentEngineId ?? "identity";
+  const payload = {
+    env: "dev",
+    turn_uid: "ui_mirror_" + Date.now(),
+    direction_intent: "mirror",
+    direction_question_zh:    userText,
+    direction_question_topic: topic || "",
+    conversation_state: {
+      session_id:            window._sessionId,
+      current_engine:        currentEngine,
+      last_partner_frame_id: window._lastPartnerFrameId ?? null,
+      recent_frame_ids:      Array.isArray(window._recentFrameIds) ? window._recentFrameIds : [],
+    },
+  };
+  const _mirrorPersonaId = window._partnerId || window._personaId;
+  if (_mirrorPersonaId) payload.persona_id = _mirrorPersonaId;
+
+  let res;
+  try {
+    res = await fetch("/api/run_turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
+  } catch (e) {
+    console.warn("[app] runMirrorTurn fetch failed", e);
+    return;
+  }
+  if (!res.ok) return;
+  let data = {};
+  try { data = await res.json(); } catch (_) { return; }
+
+  const stub = (data.frame_text || "").trim();
+  window._userQuestionChain = (window._userQuestionChain || 0) + 1;
+  if (stub) {
+    addTranscriptEntry("partner", stub);
+    renderTranscript();
+    if (window._userQuestionChain >= MAX_USER_QUESTION_CHAIN) {
+      ttsSpeak({
+        text: stub, lang: "zh-CN",
+        onEvent: (e) => {
+          if (e?.payload?.completed) { window._userQuestionChain = 0; runTurn(true); }
+        },
+      });
+    } else {
+      ttsSpeak({ text: stub, lang: "zh-CN" });
+      // Offer remaining mirror questions (excluding the one just asked)
+      const remaining = (data.mirror_options || []).filter(m => m.zh !== userText);
+      renderSentenceOptions(remaining, null);
+      _startProbeAutoAdvance();
+    }
   } else {
     runTurn(true);
   }
@@ -3232,7 +3632,8 @@ async function runProbeTurn(probe) {
       probe_depth: window._probeDepth
     }
   };
-  if (window._personaId) payload.persona_id = window._personaId;
+  const _probePersonaId = window._partnerId || window._personaId;
+  if (_probePersonaId) payload.persona_id = _probePersonaId;
   let res;
   try {
     res = await fetch("/api/run_turn", {
@@ -3252,20 +3653,104 @@ async function runProbeTurn(probe) {
     return;
   }
   const stub = (data.frame_text || "").trim();
+  window._userQuestionChain = (window._userQuestionChain || 0) + 1;
   if (stub) {
     addTranscriptEntry("partner", stub);
     renderTranscript();
-    ttsSpeak({
-      text: stub,
-      lang: "zh-CN",
-      onEvent: (e) => {
-        if (e?.payload?.completed) runTurn(true);
-      },
-    });
+    if (window._userQuestionChain >= MAX_USER_QUESTION_CHAIN) {
+      ttsSpeak({
+        text: stub, lang: "zh-CN",
+        onEvent: (e) => {
+          if (e?.payload?.completed) { window._userQuestionChain = 0; runTurn(true); }
+        },
+      });
+    } else {
+      ttsSpeak({ text: stub, lang: "zh-CN" });
+      renderSentenceOptions([], null);
+      _startProbeAutoAdvance();
+    }
   } else {
     runTurn(true);
   }
-  hideProbeRow();
+}
+
+/**
+ * Start a countdown that auto-advances the partner's turn if the user doesn't
+ * click a probe button within PROBE_IDLE_MS milliseconds.
+ * Any new probe click or runTurn call cancels this timer first.
+ */
+const PROBE_IDLE_MS = 8000;
+function _startProbeAutoAdvance() {
+  _cancelProbeAutoAdvance();
+  window._probeAutoAdvanceTimer = setTimeout(() => {
+    window._probeAutoAdvanceTimer = null;
+    hideProbeRow();
+    window._userQuestionChain = 0;
+    runTurn(true);
+  }, PROBE_IDLE_MS);
+}
+function _cancelProbeAutoAdvance() {
+  if (window._probeAutoAdvanceTimer) {
+    clearTimeout(window._probeAutoAdvanceTimer);
+    window._probeAutoAdvanceTimer = null;
+  }
+}
+
+/**
+ * Reset all session state and clear learner memory on the server, then restart from the greeting.
+ * Called by the "Start Fresh" button so the app treats the user as a first-time learner.
+ */
+async function startFreshLearner() {
+  // Switch to a new learner ID so the server starts with empty memory automatically —
+  // no API call required.  The old data remains in the file but is never used again.
+  window._learnerId = "learner_" + Date.now();
+
+  // Also ask the server to clear the old ID in the background (best-effort cleanup).
+  // This may fail silently if the server is not available — that is fine.
+  try {
+    await fetch("/api/reset_memory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ learner_id: "default_learner" })
+    });
+  } catch (_) {}
+
+  // Reset all client-side session state
+  _cancelProbeAutoAdvance();
+  hideSentenceOptions();
+  window._runTurnInFlight        = false;   // clear any stale in-flight guard
+  window._sessionId              = "session_" + Date.now();
+  window._recentFrameIds         = [];
+  window._lastAnswer             = null;
+  window._probeDepth             = 0;
+  window._userQuestionChain      = 0;
+  window._lastProbeOptions       = [];
+  window._revealedVoiceLines     = {};
+  window._revealedPartnerFacts   = {};
+  window._exchangeCount          = 0;
+  window._curiosityDepth         = 0;
+  window._askChainCount          = 0;
+  window._lastPartnerTurnType    = "question";
+  window._sameEngineChainCount   = 0;
+  window._sameSlotChainCount     = 0;
+  window._lastFocusSlot          = "";
+  window._pendingListeningMove   = false;
+  window._listeningWaitTurns     = 0;
+  window._lastInterestLevel      = "low";
+  window._lastUserText           = "";
+  window._unmatchedByFrame       = {};
+  window._consecutiveNotUnderstood = 0;
+  window._currentEngineId        = "identity";
+
+  // Clear the "Remembered:" facts banner
+  const rememberedEl = document.getElementById("rememberedFacts");
+  if (rememberedEl) {
+    rememberedEl.textContent = "";
+    rememberedEl.style.display = "none";
+  }
+
+  // Restart from the greeting (new session, no prior memory)
+  runTurn(true);
 }
 
 /**
@@ -3274,6 +3759,16 @@ async function runProbeTurn(probe) {
  * @param {{ prefer_bridge?: boolean, force_bridge?: boolean, last_turn_was_answer?: boolean }} [opts] When isNext: prefer_bridge tries bridge first (e.g. after interesting answer or recovery); force_bridge only bridge; last_turn_was_answer triggers probe_offer.
  */
 async function runTurn(isNext = false, opts = {}) {
+  // Cancel any pending idle auto-advance so it doesn't conflict with this turn.
+  _cancelProbeAutoAdvance();
+  hideSentenceOptions();
+  // Guard: prevent two runTurn calls from firing simultaneously (e.g. double ASR fire).
+  if (window._runTurnInFlight) return;
+  window._runTurnInFlight = true;
+  try { await _runTurnInner(isNext, opts); } finally { window._runTurnInFlight = false; }
+}
+
+async function _runTurnInner(isNext = false, opts = {}) {
   const selected = frameSelect.value;
   const selectedOption = frameSelect.options[frameSelect.selectedIndex];
   const engineIdFromDropdown = selectedOption?.dataset?.engineId || null;
@@ -3302,14 +3797,20 @@ async function runTurn(isNext = false, opts = {}) {
       last_user_text: window._lastUserText || ""
     };
     if (window._learnerId) conversation_state.learner_id = window._learnerId;
-    if (window._personaId) conversation_state.persona_id = window._personaId;
+    // Use the UI-selected partner (Phase 11C) as the persona_id for name/stub resolution.
+    // Fall back to the legacy _personaId only if no partner is selected.
+    const _effectivePersonaId = window._partnerId || window._personaId;
+    if (_effectivePersonaId) conversation_state.persona_id = _effectivePersonaId;
     if (window._partnerId) {
       conversation_state.partner_id = window._partnerId;
       conversation_state.revealed_voice_lines = window._revealedVoiceLines || {};
       conversation_state.revealed_partner_facts = window._revealedPartnerFacts || {};
     }
     // Phase 12B: reset probe depth on real (non-probe) answer; pass current depth to server
-    if (opts.last_turn_was_answer === true) window._probeDepth = 0;
+    if (opts.last_turn_was_answer === true) {
+      window._probeDepth = 0;
+      window._userQuestionChain = 0;  // user gave a real answer — partner leads again
+    }
     conversation_state.probe_depth = window._probeDepth || 0;
     if (opts.prefer_bridge === true) conversation_state.prefer_bridge = true;
     if (opts.force_bridge === true) conversation_state.force_bridge = true;
@@ -3447,6 +3948,7 @@ async function runTurn(isNext = false, opts = {}) {
   renderFrameSentence({ id: frameId, text: fallbackText });
   setUiMode("READ");
   window._currentFrameText = (fallbackText && fallbackText.trim()) ? fallbackText.trim() : "";
+  window._lastAcceptedAsrKey = "";  // reset dedup so fresh answers on new questions are accepted
   // Phase 8: append partner question to transcript when we show a new question
   if (window._currentFrameText) {
     addTranscriptEntry("partner", window._currentFrameText, {
@@ -3466,7 +3968,8 @@ async function runTurn(isNext = false, opts = {}) {
   const tapOptions     = (payload.next_question && Array.isArray(data.options) && data.options.length > 0)
     ? data.options
     : (_frameData.options || data.options || []);
-  const hintAffordance = _frameData.hint_affordance || { visible: false };
+  // Default to visible:true so the ? button always shows for frames not yet in the runtime JSON.
+  const hintAffordance = _frameData.hint_affordance || { visible: true };
   const turnUid        = frameId;
 
   // Sentence-level hints (pinyin → English); used when no word is selected
@@ -3496,18 +3999,19 @@ async function runTurn(isNext = false, opts = {}) {
     rememberedEl.style.display = "none";
   }
 
-  // Oxygen loop: show "Ask back" probe options when user just gave an interesting answer
-  if (data.probe_offer === true && Array.isArray(data.probe_options) && data.probe_options.length > 0) {
-    renderProbeRow(data.probe_options);
-  } else {
-    hideProbeRow();
+  // Sentence-level response options (answers + always-on reverse/oxygen row)
+  // These replace the word-hint panels as the primary response UI when present.
+  renderSentenceOptions(data.sentence_options || [], frameId);
+  // Hide the word-hint panels when sentence options are showing — they are redundant.
+  const hasSentenceOptions = (data.sentence_options || []).some(o => o.kind === "SENTENCE" || !o.kind);
+  if (hasSentenceOptions) {
+    const optC = document.getElementById("optionsContainer");
+    if (optC) optC.style.display = "none";
   }
-  // Direction actions for question reversal/why
-  _directionCaps = {
-    supports_reverse: data.supports_reverse === true,
-    supports_why: data.supports_why === true
-  };
-  renderDirectionButtons();
+  // Legacy probe state: store for runProbeTurn compatibility but don't render separately
+  if (data.probe_offer === true && Array.isArray(data.probe_options) && data.probe_options.length > 0) {
+    window._lastProbeOptions = data.probe_options;
+  }
   // Phase 11C: show partner name, voice_line prefix, and discoverable fact
   _updatePartnerHeader(data.partner_name || "", data.partner_prefix || "", data.partner_fact || "");
   // Record which reveals have fired so the server gates correctly on the next turn
@@ -3541,7 +4045,11 @@ async function runTurn(isNext = false, opts = {}) {
   }
 
   // Tripwire 3.1: turn option invariant (section 3.1 of copilot-instructions.md)
-  if (data.option_count === 0 || data.gold_option_present === false) {
+  // Suppress for intentional stubs (direction/probe responses have option_count:0 by design)
+  // and for frames that provide sentence_options (the primary UI since Phase 10.7)
+  const _hasSentenceOptions = Array.isArray(data.sentence_options) && data.sentence_options.length > 0;
+  const _isStubResponse = data.is_direction_response || data.is_probe_response;
+  if (!_isStubResponse && !_hasSentenceOptions && (data.option_count === 0 || data.gold_option_present === false)) {
     emitUITrace({
       type: "turn_option_invariant_failed",
       timestamp: new Date().toISOString(),
@@ -3633,9 +4141,6 @@ window.addEventListener("load", async () => {
   updateReplaySelectedButton();
   // Phase 7.4: Speak-first — actually listen (Web Speech API), then either advance turn or show recovery
   const LISTEN_BEFORE_RECOVERY_MS = 7000;
-  document.getElementById("showOptionsBtn")?.addEventListener("click", () => {
-    setUiMode("RESPOND");
-  });
   document.getElementById("tryRespondingBtn")?.addEventListener("click", async () => {
     const btn = document.getElementById("tryRespondingBtn");
     const frameId = window._lastPartnerFrameId || null;
@@ -3688,10 +4193,24 @@ window.addEventListener("load", async () => {
     }
     // No option match but user said something substantial — accept and advance to sustain conversation (no "correct answer" required)
     const saidTrimmed = (transcript && typeof transcript === "string") ? transcript.trim() : "";
+
+    // ASR dedup guard: Edge sometimes fires the same recognition result twice within a few
+    // seconds (once as interim, once as final). Suppress if the same text was already accepted
+    // for the same frame in the last 6 seconds so we don't get duplicate partner turns.
+    const _asrDedupKey = saidTrimmed + "|" + frameId;
+    const _now = Date.now();
+    if (window._lastAcceptedAsrKey === _asrDedupKey &&
+        (_now - (window._lastAcceptedAsrTime || 0)) < 6000) {
+      console.warn("[app] ASR duplicate suppressed:", saidTrimmed);
+      return;
+    }
+
     const unmatchedCount = frameId ? (window._unmatchedByFrame?.[frameId] || 0) : 0;
     const unmatchedDecision = classifyUnmatchedFreeAnswerDecision(saidTrimmed, options, frameId, unmatchedCount);
     const substantialAnswer = unmatchedDecision.accept;
     if (substantialAnswer) {
+      window._lastAcceptedAsrKey  = _asrDedupKey;
+      window._lastAcceptedAsrTime = _now;
       if (frameId) window._unmatchedByFrame[frameId] = 0;
       window._consecutiveNotUnderstood = 0;
       emitUITrace({
@@ -3699,6 +4218,16 @@ window.addEventListener("load", async () => {
         timestamp: new Date().toISOString(),
         payload: { transcript: saidTrimmed, matched: false, unmatched_decision_reason: unmatchedDecision.reason, frame_id: frameId }
       });
+      // Learner skip signal ("我不懂"): advance without saving as scored answer
+      if (unmatchedDecision.reason === "learner_skip_signal") {
+        addTranscriptEntry("user", saidTrimmed);
+        renderTranscript();
+        lastClickedWordId = null;
+        window.lastClickedWordId = null;
+        setUiMode("READ");
+        runTurn(true);
+        return;
+      }
       addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
       window._lastAnswer = { frame_id: frameId, submitted_text: saidTrimmed };
@@ -3786,6 +4315,105 @@ const whyBtn = document.getElementById("whyBtn");
 if (whyBtn) whyBtn.addEventListener("click", () => runDirectionTurn("why"));
 const changeTopicBtn = document.getElementById("changeTopicBtn");
 if (changeTopicBtn) changeTopicBtn.addEventListener("click", () => runTurn(true, { prefer_bridge: true }));
+const showOptionsBtn = document.getElementById("showOptionsBtn");
+if (showOptionsBtn) showOptionsBtn.addEventListener("click", () => {
+  const sentenceContainer = document.getElementById("sentenceOptionsContainer");
+  const legacyContainer = document.getElementById("optionsContainer");
+  const hasSentence = !!(sentenceContainer && sentenceContainer.children.length > 0);
+  const hasLegacy = !!(legacyContainer && legacyContainer.children.length > 0);
+
+  if (hasSentence && sentenceContainer) {
+    const isVisible = sentenceContainer.style.display !== "none";
+    sentenceContainer.style.display = isVisible ? "none" : "flex";
+    setUiMode("RESPOND");
+    if (!isVisible) sentenceContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+  if (hasLegacy && legacyContainer) {
+    const isVisible = legacyContainer.style.display !== "none";
+    legacyContainer.style.display = isVisible ? "none" : "flex";
+    setUiMode("RESPOND");
+    if (!isVisible) legacyContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+  console.info("[app] showOptionsBtn: no suggested responses available for this turn");
+});
+const startFreshBtn = document.getElementById("startFreshBtn");
+if (startFreshBtn) startFreshBtn.addEventListener("click", () => {
+  if (confirm("This will clear all memory of you and restart the conversation from the beginning. Continue?")) {
+    startFreshLearner();
+  }
+});
+// ── English → Chinese translation panel ─────────────────────────────────────
+(function setupEngTranslationPanel() {
+  const engInput       = document.getElementById("engInput");
+  const translateBtn   = document.getElementById("translateBtn");
+  const engResult      = document.getElementById("engTranslateResult");
+  const engTranslated  = document.getElementById("engTranslatedZh");
+  const speakBtn       = document.getElementById("speakTranslationBtn");
+  const useBtn         = document.getElementById("useTranslationBtn");
+  if (!engInput || !translateBtn || !engResult || !engTranslated || !useBtn) return;
+
+  async function doTranslate() {
+    const text = engInput.value.trim();
+    if (!text) return;
+    translateBtn.disabled = true;
+    translateBtn.textContent = "…";
+    engResult.style.display = "none";
+    try {
+      const url = "https://api.mymemory.translated.net/get?q=" +
+                  encodeURIComponent(text) + "&langpair=en%7Czh";
+      const res = await fetch(url);
+      const data = await res.json();
+      const zh = (data?.responseData?.translatedText || "").trim();
+      if (zh && zh !== text) {
+        engTranslated.textContent = zh;
+        engResult.style.display = "flex";
+        // Auto-play so the user hears pronunciation immediately
+        ttsSpeak({ text: zh, lang: "zh-CN" });
+      } else {
+        engTranslated.textContent = "（翻译失败，请再试）";
+        engResult.style.display = "flex";
+      }
+    } catch (_) {
+      engTranslated.textContent = "（无法连接翻译服务）";
+      engResult.style.display = "flex";
+    } finally {
+      translateBtn.disabled = false;
+      translateBtn.textContent = "Translate";
+    }
+  }
+
+  translateBtn.addEventListener("click", doTranslate);
+  engInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); doTranslate(); }
+  });
+
+  // Speaker button: play the translated Chinese without submitting
+  if (speakBtn) {
+    speakBtn.addEventListener("click", () => {
+      const zh = (engTranslated.textContent || "").trim();
+      if (zh && !zh.startsWith("（")) ttsSpeak({ text: zh, lang: "zh-CN" });
+    });
+  }
+
+  useBtn.addEventListener("click", () => {
+    const zh = (engTranslated.textContent || "").trim();
+    if (!zh || zh.startsWith("（")) return;
+    const enOrig = engInput.value.trim();
+    // Add to transcript and speak
+    addTranscriptEntry("user", zh, { text_en: enOrig });
+    renderTranscript();
+    ttsSpeak({ text: zh, lang: "zh-CN" });
+    engInput.value = "";
+    engResult.style.display = "none";
+    // Store as last answer so the server can use it for slot inference and interest scoring
+    window._lastAnswer = { frame_id: window._lastPartnerFrameId || "", submitted_text: zh };
+    // Advance the conversation as if the user gave a free-text spoken answer
+    runTurn(true, { last_turn_was_answer: true });
+  });
+})();
+
 // ── Phase 6 — expose to window for console access + external callers ────────
 window.SystemFaultLog          = SystemFaultLog;
 window.buildDiagnosticCompleted = buildDiagnosticCompleted;

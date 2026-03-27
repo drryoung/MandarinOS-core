@@ -46,14 +46,15 @@ INTEREST_HIGH_THRESHOLD = 3
 P_CURIOUS_WHEN_INTEREST_MED = 0.60
 P_CURIOUS_WHEN_INTEREST_HIGH = 0.80
 P_BRIDGE_WHEN_INTEREST_HIGH = 0.70
-MAX_SAME_ENGINE_AFTER_INTEREST = 1
-MAX_SAME_SLOT_CHAIN_AFTER_INTEREST = 1
+MAX_SAME_ENGINE_AFTER_INTEREST = 4    # stay in same engine for up to 4 turns after an interesting answer
+MAX_SAME_SLOT_CHAIN_AFTER_INTEREST = 2
 INTEREST_FORCE_WINDOW_TURNS = 1
-MIN_SAME_ENGINE_CHAIN_BEFORE_BRIDGE = 2
-ENGINE_DEPTH_GUARD_TURNS = 4          # Phase 11.1: block bridge if too few same-engine turns and fresh frames remain
-ENGINE_DEPTH_GUARD_MIN_REMAINING = 3  # Phase 11.1: bridge blocked when ≥ this many unseen frames still available
+MIN_SAME_ENGINE_CHAIN_BEFORE_BRIDGE = 4  # require at least 4 turns in an engine before allowing a bridge
+ENGINE_DEPTH_GUARD_TURNS = 5          # Phase 11.1: block bridge if too few same-engine turns and fresh frames remain
+ENGINE_DEPTH_GUARD_MIN_REMAINING = 2  # Phase 11.1: bridge blocked when ≥ this many unseen frames still available
 FACT_REVEAL_DEPTH = 3                 # Phase 11C: min same_engine_chain_count before discoverable_fact surfaces
-MAX_PROBE_CHAIN = 1                   # Phase 12B: max consecutive probe follow-ups before probe row is suppressed
+MAX_PROBE_CHAIN = 2                   # Phase 12B: max consecutive probe follow-ups before probe row is suppressed
+MIN_TURNS_FOR_LIFE_ENGINE = 16        # Difficulty ramp: "life" engine is all difficulty-3; block it early in session
 
 print("[ui_server] REPO_ROOT =", REPO_ROOT)
 print("[ui_server] UI_DIR    =", UI_DIR)
@@ -191,7 +192,7 @@ def _engine_frame_ids(engine_norm: str) -> List[str]:
 # P2 question frames (大家一般怎么叫你？, 你觉得{CITY}生活怎么样？, etc.) are included so we don't exhaust after 2–3 questions.
 _FRAME_ORDER: dict = {
     # Identity flow: name → how people call you → meaning → EXTEND break → evaluations.
-    "identity": ["f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_ext1", "p2_id_4", "p2_id_5"],
+    "identity": ["f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_ext1", "f_name_story_elicit", "p2_id_4", "p2_id_5"],
     # Place flow: origin → like it → live where → EXTEND break → life quality → food → leisure → convenient.
     "place": ["f_from_where", "f_place_like_there", "frame.location.live_question", "p2_pl_1", "p2_pl_ext1", "p2_pl_2", "p2_pl_3", "p2_pl_4"],
     # Family flow: have family → siblings → live together → EXTEND break → how often → weekend.
@@ -211,6 +212,8 @@ _FRAME_AFTER: dict = {
     "f_ask_name_meaning": ["f_ask_you_name"],  # don't ask name meaning before asking name
     # Identity follow-up assumes a name exists
     "p2_id_2": ["f_ask_you_name"],
+    # Story elicitation only makes sense after the story question was asked
+    "f_name_story_elicit": ["p2_id_ext1"],
 }
 
 # Phase 11.1: OPEN frames that must not be re-entered once the session is established (exchange_count ≥ 2).
@@ -227,6 +230,8 @@ _FRAME_AFTER_ANY: dict = {
     "p2_pl_4": ["f_from_where", "frame.location.live_question"],
     # Phase 12: EXTEND frame references "where you live" so needs place context first.
     "p2_pl_ext1": ["f_from_where", "frame.location.live_question"],
+    # "Why do you like it there?" presupposes "do you like it there?" was already asked.
+    "f_place_why_like": ["f_place_like_there"],
 }
 
 
@@ -237,6 +242,8 @@ def _deictic_context_fresh(fid: str, recent_frame_ids: list, window: int = 4) ->
     """
     anchors = {
         "f_place_like_there": ["f_from_where", "frame.location.live_question", "p2_pl_4", "p2_pl_2"],
+        # "Why do you like it there?" also uses "那儿" — needs a recent place anchor AND like question
+        "f_place_why_like":   ["f_place_like_there"],
     }.get(fid)
     if not anchors:
         return True
@@ -539,7 +546,20 @@ _BRIDGE_TARGETS: dict = {
 
 # When prefer_bridge (recovery / change topic): try engines in this order so the next question feels like a natural switch (place/identity/family first), not a jump to food/travel.
 _RECOVERY_BRIDGE_ENGINE_ORDER: list = ["place", "identity", "family", "work", "hobby", "travel", "food", "life"]
-_BRIDGE_PREFIXES: list = ["对了，", "顺便问一下，", "说到这个，"]
+_BRIDGE_PREFIXES: list = ["顺便问一下，"]
+
+# Frames that ask essentially the same question in different engines.
+# If any frame in a set has been shown, all others in that set are skipped.
+_MUTUAL_EXCLUSION_FRAMES: dict = {
+    "f_food_what_good": {"p2_pl_2"},   # "那儿有什么好吃的？" ↔ "{CITY}有什么好吃的？"
+    "p2_pl_2": {"f_food_what_good"},
+    "f_travel_where": {"p2_tr_1"},     # "你去过哪里？" ↔ "你去过哪些国家？"
+    "p2_tr_1": {"f_travel_where"},
+    "f_ask_you_name": {"p2_id_2"},     # "你叫什么名字？" ↔ "大家一般怎么叫你？" (both ask for name)
+    "p2_id_2": {"f_ask_you_name"},
+    "p2_id_4": {"p2_id_5"},           # "你觉得你的名字怎么样？" ↔ "这个名字对你有什么意义？" (both ask about name significance)
+    "p2_id_5": {"p2_id_4"},
+}
 
 # Oxygen loop questions (canonical list from MandarinOS_conversation_ladders_full_draft_v2.md) — offered as "Ask back" when user gave an interesting answer.
 _OXYGEN_LOOP_PROBES: list = [
@@ -585,6 +605,19 @@ _REACTION_FALLBACKS_BY_ENGINE: dict = {
 }
 _REACTION_FALLBACKS_GENERIC: list = ["哦。", "是吗。", "不错。", "很好。"]
 
+# High-interest curiosity reactions: used INSTEAD of plain acknowledgments when interest == "high".
+# These are short question-style reactions that invite the user to explain further.
+_CURIOSITY_REACTIONS_BY_ENGINE: dict = {
+    "food":   ["为什么好吃？", "怎么好吃？", "哦？最喜欢哪个？"],
+    "travel": ["为什么想去那里？", "哪个地方最有意思？", "真的吗？"],
+    "place":  ["为什么喜欢那儿？", "怎么样？", "是吗？"],
+    "work":   ["为什么喜欢这份工作？", "怎么难？", "是吗？"],
+    "hobby":  ["为什么喜欢？", "怎么开始的？", "是吗？"],
+    "family": ["怎么说？", "是吗？", "真的吗？"],
+    "identity": ["为什么呢？", "是吗？", "怎么说？"],
+}
+_CURIOSITY_REACTIONS_GENERIC: list = ["为什么呢？", "真的吗？", "怎么说？", "是吗？"]
+
 # Oxygen selection by context (engine or slot). Only surface 1–2 when gating conditions fire.
 _OXYGEN_IDS_BY_ENGINE: dict = {
     "place": ["zenmeyang", "nali"],
@@ -600,16 +633,17 @@ _OXYGEN_IDS_BY_SLOT: dict = {
 
 # Slot/topic-specific follow-up preferences (attempt before generic engine ladder).
 _SLOT_FOLLOWUP_PREFERENCES: dict = {
-    # CITY: prefer convenience before “life怎么样” because p2_pl_1 is weak
-    # Also keep p2_pl_3 out of the slot path (known weak).
-    "CITY": ["p2_pl_4", "p2_pl_2", "f_place_like_there", "p2_pl_1"],
+    # CITY: ask "do you like it there?" before "why do you like it there?" — avoid presupposition failure.
+    "CITY": ["f_place_like_there", "f_place_why_like", "p2_pl_4", "p2_pl_2", "p2_pl_1"],
     # JOB: compact high-interest sequence approved by user.
     "JOB":  ["f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5"],
-    # DISH: prefer taste/spicy before generic “famous dish”
-    "DISH": ["f_food_tasty", "f_food_like_spicy", "f_food_famous_dish"],
-    "NAME": ["p2_id_4", "p2_id_5"],
-    # TRAVEL: follow FRAME_ORDER so p2_tr_1 (countries visited) isn't deferred until after deeper follow-ups.
-    "TRAVEL": ["f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4"],
+    # DISH: ask WHY first, then variety questions.
+    "DISH": ["f_food_why_good", "f_food_like_spicy", "f_food_famous_dish", "f_food_expensive"],
+    "NAME": ["f_name_who_named", "p2_id_4"],
+    # STORY: after user answers a story-elicitation frame — probe with "why" or "tell me more"
+    "STORY": ["f_generic_why"],
+    # TRAVEL: which is best? then why, then continuation.
+    "TRAVEL": ["f_travel_which_best", "f_travel_why_interesting", "f_want_go_where", "p2_tr_2", "p2_tr_3", "p2_tr_4"],
 }
 
 
@@ -684,14 +718,25 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
         slots.append("TRAVEL")
     if fid in ("f_from_where", "frame.location.live_question", "p2_pl_1", "p2_pl_2", "p2_pl_3", "p2_pl_4", "f_place_like_there"):
         slots.append("CITY")
+    # Story context: user answered a story-elicitation frame — probe for more
+    if fid == "f_name_story_elicit":
+        slots.append("STORY")
 
     # Soft-chaining: if user answer itself names food while in place thread, prioritize DISH.
-    if _looks_food_related_answer(txt) and "DISH" not in slots:
+    # Guard: do NOT soft-chain food/travel when the answer came from an identity/greeting frame —
+    # ASR often garbles name answers into words that superficially look food-related (e.g. "好吃").
+    _identity_frame_ids = frozenset({
+        "f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_ext1",
+        "p2_id_4", "p2_id_5", "f_name_who_named", "f_name_story_elicit",
+        "frame.greeting.hello", "frame.greeting.hello_reply", "f_nice_to_meet",
+    })
+    _is_identity_frame = fid in _identity_frame_ids
+    if _looks_food_related_answer(txt) and "DISH" not in slots and not _is_identity_frame:
         slots.insert(0, "DISH")
     elif fid == "p2_pl_2" and "DISH" not in slots:
         # p2_pl_2 asks about food in {CITY}; treat answers as dish/topic-bearing by default.
         slots.insert(0, "DISH")
-    if _looks_travel_related_answer(txt) and "TRAVEL" not in slots:
+    if _looks_travel_related_answer(txt) and "TRAVEL" not in slots and not _is_identity_frame:
         slots.insert(0, "TRAVEL")
 
     # Deduplicate preserving order.
@@ -737,8 +782,25 @@ def _score_answer_interest(
         score += 1
     if len(text) >= 4:
         score += 1
+    # Reasoning / depth words
     if any(k in text for k in ("因为", "所以", "觉得", "但是", "最", "其实")):
         score += 1
+    # Evaluative / expressive words — short but semantically rich
+    _EVALUATIVE = (
+        "有意思", "有趣", "好玩", "不错", "很棒", "真的", "当然", "喜欢",
+        "好吃", "好看", "好听", "很好", "太好", "太有", "有故事",
+    )
+    if any(k in text for k in _EVALUATIVE):
+        score += 1
+    # Short affirmatives after a yes/no question suggest the user has more to say.
+    # Detect by looking up the last partner frame from recent_frame_ids.
+    _SHORT_AFFIRM = {"有", "是", "要", "对", "有的", "是的", "是啊", "当然", "有啊"}
+    if text in _SHORT_AFFIRM:
+        recent = cs.get("recent_frame_ids") or []
+        last_fid = recent[-1] if recent else ""
+        last_frame_text = (_frames_by_id.get(last_fid) or {}).get("text", "").strip()
+        if "吗" in last_frame_text:
+            score += 1  # "yes" to a yes/no question — probe for more
     prev = _norm_text(cs.get("last_user_text") if isinstance(cs, dict) else "")
     if text and prev and text == prev:
         score -= 1
@@ -801,9 +863,16 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
 
 
 def _assistant_name_from_persona(persona: Optional[dict]) -> str:
-    # Keep deterministic and short; don't rely on extra schema.
+    """Return the persona's display name, checking all known key variants across both
+    the new personas/*.json format (display_name) and the legacy persona_data.py format (persona_name)."""
     if persona and isinstance(persona, dict):
-        n = (persona.get("name") or persona.get("assistant_name") or "").strip()
+        n = (
+            persona.get("display_name")
+            or persona.get("persona_name")
+            or persona.get("name")
+            or persona.get("assistant_name")
+            or ""
+        ).strip()
         if n:
             return n
     return "MandarinOS"
@@ -826,23 +895,297 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     return None
 
 
-def _should_surface_curiosity(cs: dict, *, meaningful: bool, last_partner_was_loop: bool, last_partner_had_reaction: bool) -> bool:
-    """Visibility gating for probe row (curiosity options)."""
-    # Phase 12B: suppress if a probe was already answered this exchange (prevent interrogation chains)
+# ---------------------------------------------------------------------------
+# Sentence-level response options
+# ---------------------------------------------------------------------------
+# Ordered list of (pattern_substring, [{"zh", "py", "en"}, ...])
+# First matching pattern wins. Options are trimmed to 3 max.
+_SENTENCE_OPTION_PATTERNS: list = [
+    # — Identity —
+    ("叫什么名字",   [
+        {"zh": "我叫___。",        "py": "Wǒ jiào ___.",          "en": "My name is ___."},
+        {"zh": "大家叫我___。",    "py": "Dàjiā jiào wǒ ___.",    "en": "People call me ___."},
+        {"zh": "我的名字是___。",  "py": "Wǒ de míngzì shì ___.", "en": "My name is ___."},
+    ]),
+    ("怎么叫",       [
+        {"zh": "大家叫我___。",    "py": "Dàjiā jiào wǒ ___.",    "en": "People call me ___."},
+        {"zh": "叫我___就好了。",  "py": "Jiào wǒ ___ jiù hǎo le.", "en": "Just call me ___."},
+    ]),
+    ("名字是什么意思", [
+        {"zh": "有一点复杂。",     "py": "Yǒu yīdiǎn fùzá.",     "en": "It's a bit complicated."},
+        {"zh": "有好的意思。",     "py": "Yǒu hǎo de yìsi.",      "en": "It has a good meaning."},
+        {"zh": "我不太清楚。",     "py": "Wǒ bù tài qīngchǔ.",   "en": "I'm not quite sure."},
+    ]),
+    ("觉得你的名字怎么样", [
+        {"zh": "我觉得还不错。",   "py": "Wǒ juéde hái búcuò.",   "en": "I think it's pretty good."},
+        {"zh": "我很喜欢。",       "py": "Wǒ hěn xǐhuān.",        "en": "I really like it."},
+        {"zh": "有一点特别。",     "py": "Yǒu yīdiǎn tèbié.",     "en": "It's a bit special."},
+    ]),
+    ("谁给你取",     [
+        {"zh": "是我妈妈取的。",   "py": "Shì wǒ māma qǔ de.",    "en": "My mum chose it."},
+        {"zh": "是我爸爸取的。",   "py": "Shì wǒ bàba qǔ de.",    "en": "My dad chose it."},
+        {"zh": "家人给我取的。",   "py": "Jiārén gěi wǒ qǔ de.",  "en": "My family chose it."},
+    ]),
+    ("有什么故事",   [
+        {"zh": "有！",             "py": "Yǒu!",                   "en": "Yes there is!"},
+        {"zh": "有一个小故事。",   "py": "Yǒu yīgè xiǎo gùshi.",  "en": "There's a little story."},
+        {"zh": "没有特别的故事。", "py": "Méiyǒu tèbié de gùshi.", "en": "Nothing special."},
+    ]),
+    ("是什么故事",   [
+        {"zh": "是关于家人的。",   "py": "Shì guānyú jiārén de.", "en": "It's about my family."},
+        {"zh": "是个有意思的故事。","py": "Shì gè yǒuyìsi de gùshi.", "en": "It's an interesting story."},
+        {"zh": "说来话长。",       "py": "Shuō lái huà cháng.",   "en": "It's a long story."},
+    ]),
+    # — Place / Origin —
+    ("哪里人",       [
+        {"zh": "我是新西兰人。",   "py": "Wǒ shì Xīnxīlán rén.",  "en": "I'm from New Zealand."},
+        {"zh": "我是外国人。",     "py": "Wǒ shì wàiguórén.",      "en": "I'm a foreigner."},
+        {"zh": "我从英国来。",     "py": "Wǒ cóng Yīngguó lái.",   "en": "I'm from the UK."},
+    ]),
+    ("住哪里",       [
+        {"zh": "我住在___。",      "py": "Wǒ zhù zài ___.",        "en": "I live in ___."},
+        {"zh": "我现在住___。",    "py": "Wǒ xiànzài zhù ___.",    "en": "I currently live in ___."},
+        {"zh": "我一个人住。",     "py": "Wǒ yīgè rén zhù.",       "en": "I live alone."},
+    ]),
+    ("现在住",       [
+        {"zh": "我住在___。",      "py": "Wǒ zhù zài ___.",        "en": "I live in ___."},
+        {"zh": "我现在住___。",    "py": "Wǒ xiànzài zhù ___.",    "en": "I currently live in ___."},
+    ]),
+    ("生活怎么样",   [
+        {"zh": "生活不错。",       "py": "Shēnghuó búcuò.",        "en": "Life is pretty good."},
+        {"zh": "生活很好。",       "py": "Shēnghuó hěn hǎo.",      "en": "Life is great."},
+        {"zh": "还可以。",         "py": "Hái kěyǐ.",              "en": "It's alright."},
+    ]),
+    ("住的地方有什么特色", [
+        {"zh": "风景很好看。",     "py": "Fēngjǐng hěn hǎokàn.",  "en": "The scenery is beautiful."},
+        {"zh": "天气不错。",       "py": "Tiānqì búcuò.",          "en": "The weather is nice."},
+        {"zh": "有很多好吃的。",   "py": "Yǒu hěn duō hǎochī de.", "en": "There's lots of great food."},
+    ]),
+    ("喜欢那儿吗",   [
+        {"zh": "喜欢！很好。",     "py": "Xǐhuān! Hěn hǎo.",      "en": "Yes! It's great."},
+        {"zh": "还不错。",         "py": "Hái búcuò.",             "en": "It's pretty good."},
+        {"zh": "一般般。",         "py": "Yībān bān.",             "en": "Just so-so."},
+    ]),
+    # — Food —
+    ("好吃吗",       [
+        {"zh": "很好吃！",         "py": "Hěn hǎochī!",           "en": "Very delicious!"},
+        {"zh": "还可以。",         "py": "Hái kěyǐ.",             "en": "It's alright."},
+        {"zh": "一般般。",         "py": "Yībān bān.",            "en": "So-so."},
+    ]),
+    ("好吃的",       [
+        {"zh": "___很好吃。",      "py": "___ hěn hǎochī.",        "en": "___ is very good."},
+        {"zh": "有很多好吃的！",   "py": "Yǒu hěn duō hǎochī de!", "en": "There's lots of good food!"},
+        {"zh": "我喜欢___。",      "py": "Wǒ xǐhuān ___.",         "en": "I like ___."},
+    ]),
+    ("最有名的菜",   [
+        {"zh": "___最有名。",      "py": "___ zuì yǒumíng.",       "en": "___ is most famous."},
+        {"zh": "很难说。",         "py": "Hěn nán shuō.",          "en": "It's hard to say."},
+        {"zh": "有很多有名的菜。", "py": "Yǒu hěn duō yǒumíng de cài.", "en": "There are many famous dishes."},
+    ]),
+    ("吃东西是一种享受", [
+        {"zh": "当然是！",         "py": "Dāngrán shì!",           "en": "Of course it is!"},
+        {"zh": "我觉得是。",       "py": "Wǒ juéde shì.",          "en": "I think so."},
+        {"zh": "有时候是。",       "py": "Yǒushíhou shì.",         "en": "Sometimes yes."},
+    ]),
+    ("贵不贵",       [
+        {"zh": "不贵。",           "py": "Bù guì.",                "en": "Not expensive."},
+        {"zh": "有一点贵。",       "py": "Yǒu yīdiǎn guì.",        "en": "A little expensive."},
+        {"zh": "还可以。",         "py": "Hái kěyǐ.",              "en": "Reasonable."},
+    ]),
+    ("喜欢吃什么",   [
+        {"zh": "我最喜欢吃___。",  "py": "Wǒ zuì xǐhuān chī ___.", "en": "I like eating ___ most."},
+        {"zh": "我喜欢很多东西。", "py": "Wǒ xǐhuān hěn duō dōngxi.", "en": "I like lots of things."},
+        {"zh": "不太确定。",       "py": "Bù tài quèdìng.",        "en": "Not sure."},
+    ]),
+    # — Travel —
+    ("去过哪",       [
+        {"zh": "我去过很多地方。", "py": "Wǒ qùguò hěn duō dìfāng.", "en": "I've been to many places."},
+        {"zh": "我去过___。",      "py": "Wǒ qùguò ___.",           "en": "I've been to ___."},
+        {"zh": "我没去过太多地方。","py": "Wǒ méi qùguò tài duō dìfāng.", "en": "I haven't been many places."},
+    ]),
+    ("哪些国家",     [
+        {"zh": "我去过法国、英国。","py": "Wǒ qùguò Fǎguó, Yīngguó.", "en": "I've been to France, the UK."},
+        {"zh": "我去过___。",      "py": "Wǒ qùguò ___.",           "en": "I've been to ___."},
+        {"zh": "很多国家。",       "py": "Hěn duō guójiā.",         "en": "Many countries."},
+    ]),
+    ("想去哪",       [
+        {"zh": "我想去中国。",     "py": "Wǒ xiǎng qù Zhōngguó.", "en": "I want to go to China."},
+        {"zh": "我想去日本。",     "py": "Wǒ xiǎng qù Rìběn.",    "en": "I want to go to Japan."},
+        {"zh": "我想去很多地方。", "py": "Wǒ xiǎng qù hěn duō dìfāng.", "en": "I want to go many places."},
+    ]),
+    ("最喜欢哪里",   [
+        {"zh": "我最喜欢___。",    "py": "Wǒ zuì xǐhuān ___.",     "en": "I like ___ best."},
+        {"zh": "都很有意思。",     "py": "Dōu hěn yǒuyìsi.",       "en": "All interesting."},
+        {"zh": "很难说。",         "py": "Hěn nán shuō.",          "en": "Hard to say."},
+    ]),
+    ("旅行的时候",   [
+        {"zh": "我喜欢看风景。",   "py": "Wǒ xǐhuān kàn fēngjǐng.", "en": "I like sightseeing."},
+        {"zh": "我喜欢吃东西。",   "py": "Wǒ xǐhuān chī dōngxi.",   "en": "I like trying the food."},
+        {"zh": "我喜欢走路。",     "py": "Wǒ xǐhuān zǒulù.",        "en": "I like walking around."},
+    ]),
+    ("好玩的",       [
+        {"zh": "有很多好玩的地方。","py": "Yǒu hěn duō hǎowán de dìfāng.", "en": "There are many fun places."},
+        {"zh": "文化很丰富。",     "py": "Wénhuà hěn fēngfù.",     "en": "The culture is very rich."},
+        {"zh": "风景很美。",       "py": "Fēngjǐng hěn měi.",      "en": "The scenery is beautiful."},
+    ]),
+    # — Family —
+    ("跟家人住在一起", [
+        {"zh": "是的，住在一起。", "py": "Shì de, zhù zài yīqǐ.",  "en": "Yes, we live together."},
+        {"zh": "不，我一个人住。", "py": "Bù, wǒ yīgè rén zhù.",   "en": "No, I live alone."},
+        {"zh": "有时候住在一起。", "py": "Yǒushíhou zhù zài yīqǐ.", "en": "Sometimes together."},
+    ]),
+    ("多久见一次家人", [
+        {"zh": "每天都见。",       "py": "Měitiān dōu jiàn.",      "en": "Every day."},
+        {"zh": "每周见一次。",     "py": "Měi zhōu jiàn yīcì.",    "en": "Once a week."},
+        {"zh": "不太常见。",       "py": "Bù tài cháng jiàn.",     "en": "Not very often."},
+    ]),
+    ("和家人一起做",  [
+        {"zh": "一起吃饭。",       "py": "Yīqǐ chīfàn.",           "en": "Eat together."},
+        {"zh": "一起看电影。",     "py": "Yīqǐ kàn diànyǐng.",     "en": "Watch movies together."},
+        {"zh": "一起出去玩。",     "py": "Yīqǐ chūqù wán.",        "en": "Go out together."},
+    ]),
+    # — Work / Study —
+    ("喜欢你的工作",  [
+        {"zh": "很喜欢！",         "py": "Hěn xǐhuān!",            "en": "I love it!"},
+        {"zh": "还可以。",         "py": "Hái kěyǐ.",              "en": "It's alright."},
+        {"zh": "有时候不太喜欢。", "py": "Yǒushíhou bù tài xǐhuān.", "en": "Sometimes not so much."},
+    ]),
+    ("为什么喜欢这份工作", [
+        {"zh": "因为很有意思。",   "py": "Yīnwèi hěn yǒuyìsi.",    "en": "Because it's interesting."},
+        {"zh": "因为可以帮助别人。","py": "Yīnwèi kěyǐ bāngzhù biérén.", "en": "Because I help people."},
+        {"zh": "说不太清楚。",     "py": "Shuō bù tài qīngchǔ.",  "en": "Hard to explain."},
+    ]),
+    ("工作难吗",      [
+        {"zh": "有一点难。",       "py": "Yǒu yīdiǎn nán.",        "en": "A little difficult."},
+        {"zh": "还好，不太难。",   "py": "Hái hǎo, bù tài nán.",   "en": "OK, not too hard."},
+        {"zh": "很难！",           "py": "Hěn nán!",               "en": "Very hard!"},
+    ]),
+    ("做什么工作",    [
+        {"zh": "我是老师。",       "py": "Wǒ shì lǎoshī.",         "en": "I'm a teacher."},
+        {"zh": "我在公司工作。",   "py": "Wǒ zài gōngsī gōngzuò.", "en": "I work for a company."},
+        {"zh": "我还在学习。",     "py": "Wǒ hái zài xuéxí.",      "en": "I'm still studying."},
+    ]),
+    ("工作的时候",    [
+        {"zh": "跟同事合作很开心。","py": "Gēn tóngshì hézuò hěn kāixīn.", "en": "Working with colleagues is fun."},
+        {"zh": "完成工作很有成就感。","py": "Wánchéng gōngzuò hěn yǒu chéngjiùgǎn.", "en": "Finishing tasks feels rewarding."},
+        {"zh": "没有特别的事。",   "py": "Méiyǒu tèbié de shì.",   "en": "Nothing special."},
+    ]),
+    # — Hobbies —
+    ("什么爱好",      [
+        {"zh": "我喜欢喝茶。",     "py": "Wǒ xǐhuān hē chá.",      "en": "I like drinking tea."},
+        {"zh": "我喜欢看书。",     "py": "Wǒ xǐhuān kàn shū.",     "en": "I like reading."},
+        {"zh": "我喜欢运动。",     "py": "Wǒ xǐhuān yùndòng.",     "en": "I like sport."},
+    ]),
+    ("喜欢做什么",    [
+        {"zh": "我喜欢喝茶。",     "py": "Wǒ xǐhuān hē chá.",      "en": "I like drinking tea."},
+        {"zh": "我喜欢看书。",     "py": "Wǒ xǐhuān kàn shū.",     "en": "I like reading."},
+        {"zh": "我喜欢和朋友出去。","py": "Wǒ xǐhuān hé péngyǒu chūqù.", "en": "I like going out with friends."},
+    ]),
+    # — Generic patterns (must be LAST) —
+    ("吗",            [
+        {"zh": "是的！",           "py": "Shì de!",                "en": "Yes!"},
+        {"zh": "对。",             "py": "Duì.",                   "en": "That's right."},
+        {"zh": "不太。",           "py": "Bù tài.",                "en": "Not really."},
+    ]),
+    ("怎么样",        [
+        {"zh": "很好！",           "py": "Hěn hǎo!",              "en": "Very good!"},
+        {"zh": "还不错。",         "py": "Hái búcuò.",             "en": "Pretty good."},
+        {"zh": "一般般。",         "py": "Yībān bān.",             "en": "So-so."},
+    ]),
+    ("为什么",        [
+        {"zh": "因为很有意思。",   "py": "Yīnwèi hěn yǒuyìsi.",   "en": "Because it's interesting."},
+        {"zh": "因为我喜欢。",     "py": "Yīnwèi wǒ xǐhuān.",     "en": "Because I like it."},
+        {"zh": "说不太清楚。",     "py": "Shuō bù tài qīngchǔ.",  "en": "Hard to explain."},
+    ]),
+    ("什么",          [
+        {"zh": "有很多。",         "py": "Yǒu hěn duō.",           "en": "There are many."},
+        {"zh": "不太确定。",       "py": "Bù tài quèdìng.",        "en": "Not sure."},
+        {"zh": "有意思。",         "py": "Yǒuyìsi.",               "en": "Interesting."},
+    ]),
+]
+
+# Generic fallback options for any unmatched question
+_SENTENCE_OPTIONS_GENERIC = [
+    {"zh": "是的！",     "py": "Shì de!",      "en": "Yes!"},
+    {"zh": "不太。",     "py": "Bù tài.",      "en": "Not really."},
+    {"zh": "还不错。",   "py": "Hái búcuò.",   "en": "Pretty good."},
+]
+
+
+def _build_sentence_options(frame_rec: dict, memory: Optional[dict]) -> list:
+    """
+    Generate 2-3 full sentence options appropriate for the given frame question.
+    Returns list of {"zh", "py", "en", "id"} dicts with kind="SENTENCE".
+    """
+    text = (frame_rec.get("text") or "").strip()
+    if not text:
+        return []
+
+    # Memory slots for filling in known facts
+    mem = memory or {}
+    city = (mem.get("lives_in") or mem.get("from_city") or "").strip()
+    name = (mem.get("learner_name") or "").strip()
+    food = (mem.get("favourite_food") or "").strip()
+
+    # Find matching template pool
+    chosen = None
+    for pattern, templates in _SENTENCE_OPTION_PATTERNS:
+        if pattern in text:
+            chosen = templates
+            break
+    if chosen is None:
+        chosen = _SENTENCE_OPTIONS_GENERIC
+
+    result = []
+    for i, t in enumerate(chosen[:3]):
+        zh = t["zh"]
+        # Fill known memory facts into placeholders
+        if "___" in zh:
+            if name and ("叫" in zh or "名字" in zh):
+                zh = zh.replace("___", name)
+            elif city and ("住" in zh or "人" in zh):
+                zh = zh.replace("___", city)
+            elif food and "吃" in zh:
+                zh = zh.replace("___", food)
+            # else leave ___ as visual hint that user should fill in their own detail
+        result.append({
+            "id":   f"__sent_{i}",
+            "zh":   zh,
+            "py":   t["py"],
+            "en":   t["en"],
+            "kind": "SENTENCE",
+        })
+    return result
+
+
+def _should_surface_curiosity(
+    cs: dict,
+    *,
+    meaningful: bool,
+    last_partner_was_loop: bool,
+    last_partner_had_reaction: bool,
+    interest_level: str = "low",
+) -> bool:
+    """Visibility gating for probe row (curiosity options).
+    interest_level is now the primary trigger: medium/high always surfaces probes.
+    """
+    # Phase 12B: suppress if probe depth limit reached
     if int(cs.get("probe_depth") or 0) >= MAX_PROBE_CHAIN:
         return False
-    # Do not surface on very first greeting-like moment (no history)
+    # Only suppress on the very first exchange (no conversation history yet)
     recent = cs.get("recent_frame_ids") or []
-    if not recent or len(recent) <= 1:
+    if not recent:
         return False
     if cs.get("prefer_bridge") is True or cs.get("force_bridge") is True:
-        # keep recovery/bridge simple
         return False
+    # Primary trigger: medium or high interest always earns probe buttons
+    if interest_level in ("medium", "high"):
+        return True
     if last_partner_was_loop:
         return True
     if meaningful:
         return True
-    # Interview drift: 2 consecutive asks without loop or reaction micro-layer (tracked by counters)
+    # Interview drift: 2 consecutive asks without loop or reaction
     drift = int(cs.get("ask_chain_count") or 0)
     if drift >= 2 and not last_partner_had_reaction:
         return True
@@ -871,9 +1214,16 @@ def _select_probe_options(engine_id: str, slot_names: List[str]) -> list:
     return [by_id[i] for i in desired if i in by_id]
 
 
-def _pick_reaction_text(engine_id: str, seed: str) -> str:
+def _pick_reaction_text(engine_id: str, seed: str, *, interest_level: str = "low", exchange_count: int = 0) -> str:
+    """Return a short reaction phrase. When interest is high AND we're past the opening
+    exchanges, use curiosity questions so the partner sounds genuinely engaged."""
     engine_norm = (engine_id or "").strip().lower()
-    seq = _REACTION_FALLBACKS_BY_ENGINE.get(engine_norm) or _REACTION_FALLBACKS_GENERIC
+    # Only swap to curiosity reactions after the conversation is established (exchange ≥ 3)
+    # so the greeting / name exchange doesn't trigger "为什么呢？"
+    if interest_level == "high" and exchange_count >= 3:
+        seq = _CURIOSITY_REACTIONS_BY_ENGINE.get(engine_norm) or _CURIOSITY_REACTIONS_GENERIC
+    else:
+        seq = _REACTION_FALLBACKS_BY_ENGINE.get(engine_norm) or _REACTION_FALLBACKS_GENERIC
     return _stable_pick(seq, seed) or "嗯。"
 
 
@@ -888,15 +1238,29 @@ def _pick_reaction_frame_id(engine_id: str) -> Optional[str]:
     return None
 
 
-def _pick_slot_followup_frame_id(engine_id: str, slot_names: List[str], recent_frame_ids: list, memory: Optional[dict]) -> Optional[str]:
+def _pick_slot_followup_frame_id(
+    engine_id: str,
+    slot_names: List[str],
+    recent_frame_ids: list,
+    memory: Optional[dict],
+    exchange_count: int = 0,
+) -> Optional[str]:
     """Try slot/topic follow-up frames before generic ladder; avoid weak loop frames if possible."""
     recent = set(recent_frame_ids or [])
+    # NAME deep-followups (who named you, meaning, etc.) need a few exchanges of context first
+    # so they don't land as the very first reply to the user introducing themselves.
+    _NAME_DEEP_FOLLOWUP_MIN_EXCHANGES = 3
+    _name_deep_followups = frozenset({"f_name_who_named", "p2_id_4", "p2_id_5", "f_name_story_elicit"})
+
     for s in slot_names or []:
         prefs = _SLOT_FOLLOWUP_PREFERENCES.get(s) or []
         # Prefer non-weak frames first
         ordered = [f for f in prefs if f not in _WEAK_LOOP_FRAME_IDS] + [f for f in prefs if f in _WEAK_LOOP_FRAME_IDS]
         for fid in ordered:
             if fid in recent:
+                continue
+            # Guard: name deep-followups only after conversation is established
+            if fid in _name_deep_followups and exchange_count < _NAME_DEEP_FOLLOWUP_MIN_EXCHANGES:
                 continue
             if memory is not None and _should_suppress_ask_frame(fid, memory, recent_frame_ids or [], RECALL_INTERVAL_TURNS):
                 continue
@@ -933,6 +1297,103 @@ def _probe_stub_for_persona(probe_id: str, persona: Optional[dict]) -> str:
     if probe_id == "zenmeyang" and occupation:
         return f"挺好的，我是{occupation}。"
     return base
+
+
+# Mirror questions the learner can ask the persona after a direction turn — keyed by engine.
+_MIRROR_QUESTIONS_BY_ENGINE: dict = {
+    "identity": [
+        {"zh": "你的名字是什么意思？", "py": "nǐ de míngzi shì shénme yìsi?",    "en": "What does your name mean?",           "kind": "SENTENCE", "topic": "name_meaning"},
+        {"zh": "谁给你取的名字？",     "py": "shéi gěi nǐ qǔ de míngzi?",         "en": "Who gave you your name?",             "kind": "SENTENCE", "topic": "name_story"},
+        {"zh": "你的名字有什么故事吗？","py": "nǐ de míngzi yǒu shénme gùshi ma?", "en": "Is there a story behind your name?",  "kind": "SENTENCE", "topic": "name_story"},
+    ],
+    "food": [
+        {"zh": "你最喜欢吃什么？",     "py": "nǐ zuì xǐhuān chī shénme?",          "en": "What do you like to eat most?",       "kind": "SENTENCE", "topic": "food_fav"},
+        {"zh": "你喜欢吃辣吗？",       "py": "nǐ xǐhuān chī là ma?",               "en": "Do you like spicy food?",             "kind": "SENTENCE", "topic": "food_spicy"},
+    ],
+    "place": [
+        {"zh": "你是哪里人？",         "py": "nǐ shì nǎlǐ rén?",                   "en": "Where are you from?",                 "kind": "SENTENCE", "topic": "place_from"},
+        {"zh": "你喜欢那里吗？",       "py": "nǐ xǐhuān nàlǐ ma?",                 "en": "Do you like it there?",               "kind": "SENTENCE", "topic": "place_like"},
+    ],
+    "travel": [
+        {"zh": "你去过哪里？",         "py": "nǐ qùguò nǎlǐ?",                     "en": "Where have you been?",                "kind": "SENTENCE", "topic": "travel_where"},
+        {"zh": "你最喜欢哪个地方？",   "py": "nǐ zuì xǐhuān nǎ ge dìfāng?",        "en": "Which place do you like most?",       "kind": "SENTENCE", "topic": "travel_fav"},
+    ],
+    "work": [
+        {"zh": "你做什么工作？",       "py": "nǐ zuò shénme gōngzuò?",             "en": "What do you do for work?",            "kind": "SENTENCE", "topic": "work_what"},
+        {"zh": "你喜欢你的工作吗？",   "py": "nǐ xǐhuān nǐ de gōngzuò ma?",        "en": "Do you like your work?",              "kind": "SENTENCE", "topic": "work_like"},
+    ],
+    "family": [
+        {"zh": "你家里有几个人？",     "py": "nǐ jiālǐ yǒu jǐ gè rén?",            "en": "How many people are in your family?", "kind": "SENTENCE", "topic": "family_size"},
+        {"zh": "你有兄弟姐妹吗？",     "py": "nǐ yǒu xiōngdì jiěmèi ma?",          "en": "Do you have siblings?",               "kind": "SENTENCE", "topic": "family_siblings"},
+    ],
+    "hobby": [
+        {"zh": "你喜欢做什么？",       "py": "nǐ xǐhuān zuò shénme?",              "en": "What do you like to do?",             "kind": "SENTENCE", "topic": "hobby_what"},
+    ],
+}
+
+
+def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) -> str:
+    """Persona's answer to a learner's mirror question about the persona."""
+    if not persona:
+        return "我觉得都挺有意思的。"
+    facts   = persona.get("discoverable_facts") or {}
+    profile = persona.get("profile") or {}
+    name    = _assistant_name_from_persona(persona)
+
+    # Identity / name questions — use discoverable identity fact if available
+    if topic in ("name_meaning", "name_story", "name_giver"):
+        fact = (facts.get("identity") or "").strip()
+        if fact:
+            return fact
+        if topic == "name_meaning":
+            return f"我叫{name}，这个名字是家人给取的，我觉得挺好的。"
+        if topic == "name_story":
+            return "我的名字有一点意思，是家里人取的，有机会再跟你说。"
+        return "是我父母给我取的名字。"
+
+    if topic in ("food_fav", "food_spicy"):
+        fact = (facts.get("food") or "").strip()
+        if fact:
+            return fact
+        fav = profile.get("favourite_food") or ""
+        return f"我最喜欢吃{fav}。" if fav else "我喜欢吃各种东西，很难只选一个。"
+
+    if topic in ("place_from", "place_like"):
+        fact = (facts.get("place") or "").strip()
+        if fact:
+            return fact
+        city = profile.get("city") or profile.get("hometown") or ""
+        return f"我是{city}人，从小在那里长大。" if city else "我觉得我住的地方挺好的。"
+
+    if topic in ("travel_where", "travel_fav"):
+        fact = (facts.get("travel") or "").strip()
+        if fact:
+            return fact
+        return "我去过几个城市，最喜欢有美食的地方。"
+
+    if topic in ("work_what", "work_like"):
+        fact = (facts.get("work") or "").strip()
+        if fact:
+            return fact
+        job = profile.get("occupation") or ""
+        return f"我做{job}，还挺有意思的。" if job else "我的工作挺有意思，可以学很多东西。"
+
+    if topic in ("family_size", "family_siblings"):
+        fact = (facts.get("family") or "").strip()
+        if fact:
+            return fact
+        return "我家里有几口人，大家关系都挺好的。"
+
+    if topic == "hobby_what":
+        fact = (facts.get("hobby") or "").strip()
+        if fact:
+            return fact
+        interests = profile.get("interests") or []
+        if interests:
+            return f"我喜欢{interests[0]}，有空就去。"
+        return "我有几个爱好，平时很忙，但一有时间就会去做。"
+
+    return "我觉得都挺有意思的。"
 
 
 def _direction_stub(intent: str, engine_id: str, last_partner_frame_id: str, persona: Optional[dict]) -> str:
@@ -1008,6 +1469,9 @@ def _is_greeting_text(text: str) -> bool:
 def _is_greeting_answer(last_answer: Optional[dict]) -> bool:
     if not last_answer or not isinstance(last_answer, dict):
         return False
+    # Any answer to the opening greeting frame counts as a greeting exchange
+    if (last_answer.get("frame_id") or "").strip() == "frame.greeting.hello":
+        return True
     text = (last_answer.get("submitted_text") or "").strip()
     if not text:
         text = (last_answer.get("selected_option_hanzi") or "").strip()
@@ -1051,10 +1515,18 @@ def _select_next_frame_bridge(
         target_norm = (target_engine or "").strip().lower()
         if target_norm == engine_norm:
             continue
+        # "life" engine is all difficulty-3; keep it off-limits until the session is established
+        if target_norm == "life" and exchange_count < MIN_TURNS_FOR_LIFE_ENGINE:
+            continue
         # Prefer partner questions, then any frame in target engine
         candidates = _engine_partner_question_frame_ids(target_norm)
         if not candidates:
             candidates = _engine_frame_ids(target_norm)
+        # Sort candidates by difficulty so the first unseen frame in this engine is also the simplest
+        candidates = sorted(
+            candidates,
+            key=lambda fid: int((_frames_by_id.get(fid) or {}).get("difficulty") or 2)
+        )
         for fid in candidates:
             if fid not in recent:
                 if not _frame_deps_satisfied(fid, recent, recent_list):
@@ -1063,6 +1535,10 @@ def _select_next_frame_bridge(
                     continue
                 # Phase 11.1: don't re-open with identity OPEN gambits once conversation is established
                 if exchange_count >= 2 and fid in _IDENTITY_OPEN_FRAMES:
+                    continue
+                # Skip frames whose semantic equivalent was already shown in another engine
+                _excl = _MUTUAL_EXCLUSION_FRAMES.get(fid) or set()
+                if _excl & recent:
                     continue
                 return fid
     return None
@@ -1099,14 +1575,24 @@ def _select_next_frame_ladder(
 
     # Phase 11.1: exclude OPEN gambits (e.g. f_ask_you_name) once session is established
     _open_excl = _IDENTITY_OPEN_FRAMES if exchange_count >= 2 else frozenset()
+    def _not_mutually_excluded(fid: str) -> bool:
+        excluded_if_seen = _MUTUAL_EXCLUSION_FRAMES.get(fid) or set()
+        return not (excluded_if_seen & recent)
     unseen_same = [
         fid for fid in same_engine
         if fid not in recent
         and fid not in _open_excl
         and _deps_satisfied(fid)
         and _not_suppressed(fid)
+        and _not_mutually_excluded(fid)
     ]
     if unseen_same:
+        # Prefer lower-difficulty frames so the conversation starts simple and naturally escalates.
+        # Stable sort preserves _FRAME_ORDER ordering within the same difficulty tier.
+        unseen_same = sorted(
+            unseen_same,
+            key=lambda fid: int((_frames_by_id.get(fid) or {}).get("difficulty") or 2)
+        )
         return unseen_same[0]
 
     # Tier 2: all frames in this engine were already used — bridge to a new topic instead of repeating
@@ -1166,16 +1652,24 @@ def _select_next_frame_ladder_avoiding(
 
     # Phase 11.1: exclude OPEN gambits (e.g. f_ask_you_name) once session is established
     _open_excluded = _IDENTITY_OPEN_FRAMES if exchange_count >= 2 else frozenset()
+    def _not_mutually_excluded_av(fid: str) -> bool:
+        excl = _MUTUAL_EXCLUSION_FRAMES.get(fid) or set()
+        return not (excl & recent)
     unseen = [
         fid for fid in same_engine
         if fid not in recent
         and fid not in _open_excluded
         and _deps_satisfied(fid)
         and _not_suppressed(fid)
+        and _not_mutually_excluded_av(fid)
     ]
     if not unseen:
         return _select_next_frame_ladder(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count)
 
+    # Prefer lower-difficulty frames (stable sort preserves FRAME_ORDER within same tier)
+    def _diff(fid: str) -> int:
+        return int((_frames_by_id.get(fid) or {}).get("difficulty") or 2)
+    unseen = sorted(unseen, key=_diff)
     non_avoided = [fid for fid in unseen if fid not in avoid]
     if non_avoided:
         return non_avoided[0]
@@ -1310,6 +1804,30 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path   = parsed.path
 
+        if path == "/api/reset_memory":
+            length = int(self.headers.get("Content-Length", 0))
+            body   = self.rfile.read(length)
+            try:
+                payload = json.loads(body)
+            except Exception:
+                payload = {}
+            learner_id = (payload.get("learner_id") or "").strip()
+            if learner_id and _lm_save:
+                empty = {"learner_name": None, "hometown": None, "lives_in": None,
+                         "job_or_study": None, "family": None, "favourite_food": None}
+                _lm_save(learner_id, empty)
+                print(f"[ui_server] /api/reset_memory: cleared memory for '{learner_id}'")
+                result = {"ok": True, "learner_id": learner_id}
+            else:
+                result = {"ok": False, "error": "missing learner_id or memory module unavailable"}
+            data = json.dumps(result).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
         if path == "/api/run_turn":
             length = int(self.headers.get("Content-Length", 0))
             body   = self.rfile.read(length)
@@ -1323,13 +1841,27 @@ class Handler(BaseHTTPRequestHandler):
 
             # Direction actions: learner asks back/why, partner gives short stub, then UI resumes thread.
             direction_intent = (payload.get("direction_intent") or "").strip().lower()
-            if direction_intent in ("reverse", "why"):
+            if direction_intent in ("reverse", "why", "mirror"):
                 cs = payload.get("conversation_state") or {}
                 persona_id = (payload.get("persona_id") or cs.get("persona_id") or "").strip() or None
-                persona = _get_persona(persona_id) if _get_persona else None
+                persona = _resolve_persona(persona_id) or (_get_persona(persona_id) if _get_persona else None)
                 engine_id = (cs.get("current_engine") or "unknown").strip()
                 last_partner_frame_id = (cs.get("last_partner_frame_id") or "").strip()
-                stub = _direction_stub(direction_intent, engine_id, last_partner_frame_id, persona)
+
+                if direction_intent == "mirror":
+                    # Learner asked a specific mirror question about the persona
+                    topic = (payload.get("direction_question_topic") or "").strip()
+                    stub  = _mirror_persona_stub(topic, engine_id, persona)
+                else:
+                    stub = _direction_stub(direction_intent, engine_id, last_partner_frame_id, persona)
+
+                # Build mirror questions the learner can ask next (engine-specific)
+                mirror_opts = list(_MIRROR_QUESTIONS_BY_ENGINE.get(engine_id, []))
+                # Remove the one just asked (if any) to avoid immediate repetition
+                asked_zh = (payload.get("direction_question_zh") or "").strip()
+                if asked_zh:
+                    mirror_opts = [m for m in mirror_opts if m.get("zh") != asked_zh]
+
                 response = {
                     "turn_uid": payload.get("turn_uid", ""),
                     "engine_id": engine_id,
@@ -1342,6 +1874,7 @@ class Handler(BaseHTTPRequestHandler):
                     "option_count": 0,
                     "is_direction_response": True,
                     "thread_return": "resume_question",
+                    "mirror_options": mirror_opts,
                 }
                 data = json.dumps(response, ensure_ascii=False).encode("utf-8")
                 self.send_response(200)
@@ -1356,7 +1889,7 @@ class Handler(BaseHTTPRequestHandler):
             if probe_id:
                 cs = payload.get("conversation_state") or {}
                 persona_id = (payload.get("persona_id") or cs.get("persona_id") or "").strip() or None
-                persona = _get_persona(persona_id) if _get_persona else None
+                persona = _resolve_persona(persona_id) or (_get_persona(persona_id) if _get_persona else None)
                 stub = _probe_stub_for_persona(probe_id, persona)
                 probe_hanzi = payload.get("probe_hanzi") or stub
                 response = {
@@ -1394,6 +1927,7 @@ class Handler(BaseHTTPRequestHandler):
             loop_attempted = False
             chosen_turn_type = "question"
             new_memory_written = False
+            memory = None  # loaded in next_question path; used for slot substitution
             interest_score = 0
             interest_level = "low"
             pending_listening_move = False
@@ -1494,18 +2028,18 @@ class Handler(BaseHTTPRequestHandler):
                             if rid:
                                 # Avoid repeating "nice to meet you" beyond the very start; it feels interrogative.
                                 if (current_engine or "").strip().lower() == "identity" and exchange_count >= 1 and rid == "f_nice_to_meet":
-                                    reaction_prefix_text = _pick_reaction_text(current_engine, seed)
+                                    reaction_prefix_text = _pick_reaction_text(current_engine, seed, interest_level=interest_level, exchange_count=exchange_count)
                                     reaction_used_fallback = True
                                 else:
                                     reaction_prefix_text = (_frames_by_id.get(rid) or {}).get("text") or ""
                             else:
-                                reaction_prefix_text = _pick_reaction_text(current_engine, seed)
+                                reaction_prefix_text = _pick_reaction_text(current_engine, seed, interest_level=interest_level, exchange_count=exchange_count)
                                 reaction_used_fallback = True
 
                 # User-question override (spec-friendly, no schema changes):
                 # if the user asked a question (counter-question), answer it via a short prefix first.
                 persona_id = (payload.get("persona_id") or cs.get("persona_id") or "").strip() or None
-                persona = _get_persona(persona_id) if _get_persona else None
+                persona = _resolve_persona(persona_id) or (_get_persona(persona_id) if _get_persona else None)
                 uq_prefix = _answer_user_question_prefix(last_answer, persona) if last_turn_was_answer else None
                 if uq_prefix:
                     # Put the answer before any reaction so it reads naturally.
@@ -1518,7 +2052,7 @@ class Handler(BaseHTTPRequestHandler):
                 listening_move_selected = "none"
                 listening_move_reason = ""
                 if force_food_followup:
-                    chosen = _pick_slot_followup_frame_id(current_engine, ["DISH"], recent, memory)
+                    chosen = _pick_slot_followup_frame_id(current_engine, ["DISH"], recent, memory, exchange_count=exchange_count)
                     if chosen:
                         chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
                         chosen_turn_type = "loop_question" if _is_loop_candidate(chosen) else "question"
@@ -1571,7 +2105,7 @@ class Handler(BaseHTTPRequestHandler):
                         # attempt a same-topic probe BEFORE considering bridge.
                         has_curiosity_signal = bool(slot_names) or bool(unscripted_probe_first) or bool(meaningful)
                         if curiosity_depth < MAX_CURIOSITY_DEPTH and has_curiosity_signal:
-                            chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
+                            chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory, exchange_count=exchange_count)
                             if chosen is not None:
                                 chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
                             if chosen is None:
@@ -1610,7 +2144,7 @@ class Handler(BaseHTTPRequestHandler):
                     if gate < int(P_LOOP_WHEN_TRIGGERED * 1000):
                         loop_attempted = True
                         # Prefer slot/topic follow-up first (often loop-like), then fall back to engine ladder
-                        chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
+                        chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory, exchange_count=exchange_count)
                         if chosen is not None:
                             chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
                         if chosen is None:
@@ -1639,7 +2173,7 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         # Soft chaining: slot/topic preference first, then existing bridge/ladder order
                         if last_turn_was_answer and (not user_asked_question) and meaningful:
-                            chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory)
+                            chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory, exchange_count=exchange_count)
                             if chosen is not None:
                                 chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
                             if chosen and _is_loop_candidate(chosen):
@@ -1676,13 +2210,21 @@ class Handler(BaseHTTPRequestHandler):
                 # This prevents post-greeting jumps like “你觉得你的名字怎么样？” with no context.
                 engine_norm = (current_engine or "").strip().lower()
                 if engine_norm == "identity":
-                    # Greeting reset: regardless of remembered name, don't jump into "name evaluation" immediately.
-                    # First ask for/confirm the name in-session so the dialogue doesn't feel like an interrogation.
+                    # Greeting reset: after greeting exchange, establish name context before deeper questions.
                     if last_turn_was_answer and _is_greeting_answer(last_answer):
-                        chosen = "f_ask_you_name"
-                        chosen_turn_type = "question"
+                        if not _has_learner_name(memory):
+                            # First-time learner: ask name first
+                            chosen = "f_ask_you_name"
+                            chosen_turn_type = "question"
+                        elif chosen in {"p2_id_ext1", "p2_id_4", "p2_id_5", "f_ask_name_meaning"}:
+                            # Returning learner: name known but jumped too deep — use gentler p2_id_2 opener
+                            _grt_recent_eff = set(recent or []) | {"f_ask_you_name"}
+                            _grt_candidate = "p2_id_2"
+                            if _grt_candidate not in set(recent or []) and _frame_deps_satisfied(_grt_candidate, _grt_recent_eff, list(recent or [])):
+                                chosen = _grt_candidate
+                                chosen_turn_type = "question"
                     else:
-                        name_meta_frames = {"p2_id_4", "p2_id_5", "f_ask_name_meaning", "p2_id_2"}
+                        name_meta_frames = {"p2_id_4", "p2_id_5", "f_ask_name_meaning", "p2_id_2", "p2_id_ext1", "f_name_story_elicit"}
                         # In-session name context: user just answered a name-related question
                         has_name_context_now = ("NAME" in (slot_names or []))
                         has_name_in_memory = _has_learner_name(memory)
@@ -1729,7 +2271,10 @@ class Handler(BaseHTTPRequestHandler):
 
                 frame_id = chosen
                 frame_rec_chosen = _frames_by_id.get(frame_id, {})
-                engine_id = (frame_rec_chosen.get("engine") or current_engine or "unknown").strip()
+                _chosen_engine_raw = (frame_rec_chosen.get("engine") or current_engine or "unknown").strip()
+                # slot_followup is an internal routing tag — don't let it overwrite current_engine
+                # in the client state, or the next turn will bridge away from the topic immediately.
+                engine_id = current_engine if _chosen_engine_raw == "slot_followup" else _chosen_engine_raw
                 # Bridge micro-layer: if selector switched engines, prepend a short transition phrase.
                 current_engine_norm = (current_engine or "").strip().lower()
                 chosen_engine_norm = (engine_id or "").strip().lower()
@@ -1741,7 +2286,7 @@ class Handler(BaseHTTPRequestHandler):
                     and exchange_count >= 1
                 ):
                     bridge_seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine_norm}->{chosen_engine_norm}"
-                    bridge_prefix_text = _stable_pick(_BRIDGE_PREFIXES, bridge_seed) or "对了，"
+                    bridge_prefix_text = _stable_pick(_BRIDGE_PREFIXES, bridge_seed) or "顺便问一下，"
                     # Avoid awkward double prefix like "顺便问一下，哦。"
                     reaction_prefix_text = ""
                 # Step 7: include learner_memory and persona in response so client can show continuity
@@ -1767,6 +2312,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 frame_id  = payload.get("frame_id", "unknown")
                 engine_id = payload.get("engine_id", "unknown")
+                memory    = None   # not loaded in non-next_question path
             fo        = _frame_options.get(frame_id, {})
             options   = fo.get("options", []) if isinstance(fo, dict) else []
             card_id   = _stub_card_id(frame_id)
@@ -1785,8 +2331,26 @@ class Handler(BaseHTTPRequestHandler):
                 "option_count":        len(options),
                 "gold_option_present": gold is not None,
                 "card_id":             gold["card_id"] if gold else card_id,
-                "system_note":         "phase7.4 static options"
+                "system_note":         "phase7.4 static options",
+                "sentence_options":    _build_sentence_options(frame_rec, memory),
             }
+            # Phase 13A: slot substitution — fill {CITY} / [CITY] from learner memory
+            if "{CITY}" in (response.get("frame_text") or "") or "{CITY}" in (response.get("frame_pinyin") or ""):
+                _slot_mem = memory if isinstance(memory, dict) else None
+                if _slot_mem is None and _lm_load:
+                    _cs_sl = payload.get("conversation_state") if isinstance(payload.get("conversation_state"), dict) else {}
+                    _sl_lid = (_cs_sl.get("learner_id") or "").strip()
+                    if _sl_lid:
+                        _slot_mem = _lm_load(_sl_lid)
+                if isinstance(_slot_mem, dict):
+                    _city = (_slot_mem.get("lives_in") or _slot_mem.get("hometown") or "").strip()
+                    if _city:
+                        if "{CITY}" in (response.get("frame_text") or ""):
+                            response["frame_text"] = response["frame_text"].replace("{CITY}", _city)
+                        if "{CITY}" in (response.get("frame_pinyin") or ""):
+                            response["frame_pinyin"] = response["frame_pinyin"].replace("{CITY}", _city)
+                        if "[CITY]" in (response.get("frame_text_en") or ""):
+                            response["frame_text_en"] = response["frame_text_en"].replace("[CITY]", _city)
             # Frame-level direction metadata (for UI action buttons)
             supports_reverse = False
             supports_why = False
@@ -1849,7 +2413,13 @@ class Handler(BaseHTTPRequestHandler):
                 if last_turn_was_answer:
                     slot_names = _infer_slot_names_from_answer(cs.get("last_answer") if isinstance(cs.get("last_answer"), dict) else None)
                     meaningful = bool(slot_names) or bool(new_memory_written)
-                    should = _should_surface_curiosity(cs, meaningful=meaningful, last_partner_was_loop=(chosen_turn_type == "loop_question"), last_partner_had_reaction=bool(reaction_prefix_text))
+                    should = _should_surface_curiosity(
+                        cs,
+                        meaningful=meaningful,
+                        last_partner_was_loop=(chosen_turn_type == "loop_question"),
+                        last_partner_had_reaction=bool(reaction_prefix_text),
+                        interest_level=interest_level,
+                    )
                     if should:
                         response["probe_offer"] = True
                         response["probe_options"] = _select_probe_options(engine_id, slot_names)

@@ -1,0 +1,156 @@
+MANDARINOS — PHASE 12 CONCEPT BRIEFING
+HYBRID AI + STRUCTURED CONVERSATION ARCHITECTURE
+
+Purpose:
+Define how AI can be integrated into MandarinOS WITHOUT undermining its core value as a structured conversation training system.
+
+Status:
+Concept-level briefing (NOT for immediate implementation)
+
+---------------------------------------------------------------------
+SECTION 1 — CORE PRINCIPLE
+---------------------------------------------------------------------
+
+MandarinOS must remain:
+
+"A structured conversation training system with controlled moments of AI improvisation."
+
+AI is NOT the main engine.
+AI is a conditional extension layer.
+
+---------------------------------------------------------------------
+SECTION 2 — ARCHITECTURE OVERVIEW
+---------------------------------------------------------------------
+
+Flow:
+
+User Input
+  ↓
+[1] Input Interpretation Layer
+  ↓
+[2] Structured Conversation Engine (default)
+  ↓
+[3] AI Eligibility Check
+  ↓
+   ┌──────────────────────┬────────────────────────┐
+   │ Structured Path       │ Bounded AI Path        │
+   └──────────────────────┴────────────────────────┘
+  ↓
+[4] Response Generation
+  ↓
+[5] Hint / Repair Layer
+  ↓
+[6] Progress + Memory
+  ↓
+Return to Structured Engine
+
+---------------------------------------------------------------------
+SECTION 3 — AI ELIGIBILITY RULE
+---------------------------------------------------------------------
+
+AI should only trigger when ALL conditions are met:
+
+- Input is meaningful
+- Input is relevant to current topic
+- Structured continuation is weak or absent
+- Input is interesting enough to reward
+- Safe return path exists
+
+Do NOT trigger AI for:
+- simple ASR mismatch
+- unclear or low-confidence input
+- already-supported responses
+
+---------------------------------------------------------------------
+SECTION 4 — AI ROLE (STRICTLY LIMITED)
+---------------------------------------------------------------------
+
+AI is allowed to:
+
+1. Acknowledge naturally
+2. Ask ONE follow-up question
+3. Paraphrase / confirm meaning
+4. Suggest a bridge back to structured content
+
+AI is NOT allowed to:
+
+- run multi-turn free conversation
+- control topic direction fully
+- bypass hint system
+- escalate vocabulary complexity
+- replace repair logic
+
+---------------------------------------------------------------------
+SECTION 5 — AI OUTPUT CONTRACT
+---------------------------------------------------------------------
+
+AI must return structured output:
+
+{
+  "acknowledgement": "...",
+  "follow_up": "...",
+  "move_type": "LOOP",
+  "difficulty_band": "beginner_mid",
+  "return_target_engine": "food",
+  "return_target_move_type": "ASK"
+}
+
+---------------------------------------------------------------------
+SECTION 6 — CONTROL RETURN RULE
+---------------------------------------------------------------------
+
+After AI executes:
+
+- MAX 1–2 AI turns
+- MUST return to structured engine
+
+---------------------------------------------------------------------
+SECTION 7 — STATE MODEL EXTENSION
+---------------------------------------------------------------------
+
+Add AI state tracking:
+
+- ai_mode_active
+- ai_turn_count
+- ai_trigger_reason
+- ai_return_target
+
+---------------------------------------------------------------------
+SECTION 8 — TRIGGER HIERARCHY
+---------------------------------------------------------------------
+
+1. Structured continuation exists → use it
+2. Repair can recover → use it
+3. Input meaningful + interesting + unsupported → AI
+4. AI executes bounded extension
+5. Return to structured system
+
+---------------------------------------------------------------------
+SECTION 9 — RISKS AND CONTROLS
+---------------------------------------------------------------------
+
+Risk: AI overuse → strict eligibility + cap  
+Risk: vocabulary drift → constrain output  
+Risk: topic drift → enforce return target  
+Risk: pedagogy loss → AI never replaces structured loop  
+
+---------------------------------------------------------------------
+SECTION 10 — IMPLEMENTATION ROADMAP
+---------------------------------------------------------------------
+
+Stage 1 — log-only (no AI execution)  
+Stage 2 — single-turn AI pilot  
+Stage 3 — bridge integration  
+Stage 4 — expanded hybrid  
+
+---------------------------------------------------------------------
+SECTION 11 — SUCCESS CRITERIA
+---------------------------------------------------------------------
+
+- naturalness improves at edge cases  
+- structure remains dominant  
+- no drift or confusion  
+- engagement increases  
+
+---------------------------------------------------------------------
+END OF BRIEFING

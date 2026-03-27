@@ -1,0 +1,64 @@
+---
+description: MandarinOS UI standard objects — response panels must always use the canonical option-panel structure. Never invent parallel rendering paths.
+globs: ui/*.js, ui/*.html, ui/*.css
+alwaysApply: true
+---
+
+# MandarinOS — UI Standard Objects Rule
+
+**All response/option panels the learner can interact with MUST be rendered using the canonical `.option-panel` structure.** No exceptions. Inventing a parallel rendering path wastes time rebuilding features that already exist.
+
+---
+
+## The canonical option-panel structure
+
+Every learner-facing response card is a `div.option-panel` containing:
+
+| Element | Purpose |
+|---------|---------|
+| `button.option-btn` | Main tap target — contains tokenised hanzi (clickable words) |
+| `.option-hanzi-tokens` spans | Each character/word is clickable → word insight popover |
+| 🔊 speaker button | Calls `ttsSpeak()` for that sentence |
+| `?` hint button | Toggles inline pinyin + English meaning |
+| `.option-pinyin` / `.option-meaning` | Revealed by the `?` button |
+
+The existing builders that produce this structure are:
+
+- **`renderOptions(options, frameId)`** — word-level options from server  
+- **`renderSentenceOptions(sentenceOptions, frameId)`** — full-sentence options from server  
+- **`renderRecoveryPanelInto(container, frameId)`** — "Need help?" recovery panel  
+
+---
+
+## Hard rules
+
+1. **Never create a new render function** that produces interactive response UI without using `div.option-panel` as its container.
+2. **Never hide `#optionsContainer` or `#sentenceOptionsContainer`** and replace their content with custom-styled elements outside these containers.
+3. **Never strip speaker (🔊) or hint (?) buttons** from option panels — they are always required.
+4. **Never bypass `tokenizeHanziForOption()`** when rendering Chinese text in a response — clickable words are always required.
+5. **Before introducing any new response UI**, first check whether extending `renderSentenceOptions` or `renderOptions` covers the need.
+
+---
+
+## Correct pattern — extending, not replacing
+
+```javascript
+// ✅ CORRECT: add a new option type inside the existing render function
+// In renderSentenceOptions(), add the new kind to the existing loop.
+// The panel, speaker btn, hint btn, and token clicks are inherited automatically.
+
+// ❌ WRONG: create a standalone render function with custom divs/buttons
+function renderMirrorOptions(options) {
+  options.forEach(opt => {
+    const div = document.createElement("div"); // ← not an option-panel!
+    div.textContent = opt.zh;                  // ← no speaker, no ?, no tokens
+    container.appendChild(div);
+  });
+}
+```
+
+---
+
+## Recovery panel
+
+The "Need help?" panel (`renderRecoveryPanelInto`) must always be appended **inside whichever container is currently active** (sentence options container or options container). It must never be moved to a separate DOM location.

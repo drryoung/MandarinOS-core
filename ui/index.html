@@ -25,6 +25,7 @@
             <button id="runBtn">Run Turn</button>
             <button id="nextBtn" type="button" title="Next question (same topic)">Next</button>
             <button id="changeTopicBtn" type="button" title="Switch to another topic (bridge)">Change topic</button>
+            <button id="startFreshBtn" type="button" title="Clear all memory and start as a new learner" style="margin-left:1em;color:#c0392b;border-color:#c0392b;">↺ Start Fresh</button>
           </div>
           <!-- Phase 11C: Persona selector -->
           <div class="persona-bar" id="personaBar">
@@ -79,10 +80,23 @@
               <div id="hintEtymology" class="hint-row hint-etymology" style="display:none;"></div>
               <div id="actionLadder" class="action-ladder">
                 <button id="tryRespondingBtn" class="action-ladder-btn mic-only" title="Speak your answer" aria-label="Speak your answer">🎤</button>
-                <button id="showOptionsBtn" class="action-ladder-btn action-ladder-help" title="Show response options (when stuck)">Show options</button>
-                <button id="reverseBtn" class="action-ladder-btn" style="display:none;" title="Ask back: and you?">Ask back</button>
-                <button id="whyBtn" class="action-ladder-btn" style="display:none;" title="Ask why">Ask why</button>
+                <button id="showOptionsBtn" class="action-ladder-btn" type="button" title="Toggle suggested responses" aria-label="Toggle suggested responses">Suggested responses</button>
+                <div id="reverseActionsRow" class="reverse-actions-row"></div>
               </div>
+              <!-- English input panel: type English, get a Chinese translation suggestion -->
+              <div id="engInputPanel" class="eng-input-panel">
+                <div class="eng-input-row">
+                  <input id="engInput" type="text" class="eng-input-field" placeholder="Type in English…" autocomplete="off" />
+                  <button id="translateBtn" type="button" class="eng-translate-btn">Translate</button>
+                </div>
+                <div id="engTranslateResult" class="eng-translate-result" style="display:none;">
+                  <button id="speakTranslationBtn" type="button" class="eng-speak-btn" title="Hear pronunciation">🔊</button>
+                  <span id="engTranslatedZh" class="eng-translated-zh"></span>
+                  <button id="useTranslationBtn" type="button" class="eng-use-btn">Use this ↑</button>
+                </div>
+              </div>
+              <!-- Sentence-level response options: 2-3 answers + recovery panel -->
+              <div id="sentenceOptionsContainer" class="sentence-options-container" style="display:none;"></div>
               <div id="optionsContainerParent"></div>
             </div>
           </div>
@@ -112,7 +126,7 @@
     <style>
       section.left { overflow: visible; }
       .frame-sentence-row {
-        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
         margin-bottom: 0.5rem; min-height: 2.5rem;
       }
       .frame-sentence-row .frame-sentence { flex: 1 1 200px; min-width: 0; }
@@ -185,21 +199,73 @@
         font-size: 1.1rem;
         line-height: 1;
       }
-      .ui-mode-read #showOptionsBtn { display: inline-flex; }
-      .ui-mode-respond #showOptionsBtn { display: none; }
+      /* showOptionsBtn removed — sentence options now always visible */
       .hint-btn-inline { margin: 0; }
       .hint-row { margin-top: 6px; }
       #optionsContainerParent { margin-top: 10px; }
-      /* Oxygen loop: "Ask back" probe row */
-      .probe-row-container { margin-top: 10px; padding: 8px 0; border-top: 1px solid #e5e7eb; }
-      .probe-row-label { font-size: 0.9rem; color: #6b7280; margin-bottom: 6px; }
-      .probe-row-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
-      .probe-btn {
-        padding: 6px 10px; font-size: 0.95rem; border: 1px solid #9ca3af; border-radius: 6px;
-        background: #f9fafb; color: #374151; cursor: pointer;
-        font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+      /* Sentence-level response options — use standard .option-panel structure */
+      .sentence-options-container {
+        margin-top: 6px; display: flex; flex-direction: column; gap: 0;
       }
-      .probe-btn:hover { background: #e5e7eb; border-color: #6b7280; }
+      /* #reverseActionsRow lives inside frame-sentence-row, inline with 🔊 and ? */
+      .reverse-actions-row {
+        display: inline-flex; gap: 6px; flex-wrap: nowrap; align-items: center;
+        flex-shrink: 0;
+      }
+      .sentence-reverse-row {
+        display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;
+      }
+      .sentence-reverse-btn {
+        padding: 6px 10px; border-radius: 8px; font-size: 0.85rem;
+        border: 1.5px solid #0d9488; background: #f0fdf9; color: #0f766e;
+        cursor: pointer; font-weight: 500;
+        white-space: nowrap;
+      }
+      .sentence-reverse-btn:hover { background: #ccfbf1; }
+
+      /* English → Chinese input panel — sits between mic button and response option cards */
+      .eng-input-panel {
+        margin-top: 8px; padding-top: 8px;
+        border-top: 1px solid #e5e7eb;
+      }
+      .eng-input-row {
+        display: flex; gap: 6px; align-items: center;
+      }
+      .eng-input-field {
+        flex: 1; padding: 7px 10px; border-radius: 8px;
+        border: 1.5px solid #d1d5db; font: 0.9rem Arial, Helvetica, sans-serif;
+        outline: none;
+      }
+      .eng-input-field:focus { border-color: #1a56db; }
+      .eng-translate-btn {
+        padding: 7px 14px; border-radius: 8px;
+        border: 1.5px solid #1a56db; background: #fff; color: #1a56db;
+        font: 0.9rem Arial, Helvetica, sans-serif; cursor: pointer; white-space: nowrap;
+      }
+      .eng-translate-btn:hover { background: #e8f0fe; }
+      .eng-translate-btn:disabled { opacity: 0.5; cursor: default; }
+      .eng-translate-result {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        margin-top: 8px; padding: 8px 10px;
+        background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px;
+      }
+      .eng-translated-zh {
+        flex: 1; font: 1.15rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        color: #166534; min-width: 0;
+      }
+      .eng-speak-btn {
+        flex-shrink: 0; width: 34px; height: 34px; padding: 0;
+        border: 1.5px solid #0d9488; border-radius: 50%;
+        background: #fff; color: #0d9488; font-size: 1rem; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .eng-speak-btn:hover { background: #ccfbf1; }
+      .eng-use-btn {
+        padding: 5px 12px; border-radius: 7px;
+        border: 1.5px solid #16a34a; background: #16a34a; color: #fff;
+        font: 0.85rem Arial, Helvetica, sans-serif; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      }
+      .eng-use-btn:hover { background: #15803d; border-color: #15803d; }
 
       /* Phase 7.4: ui_mode visual states */
       .ui-mode-read    .options-area { opacity: 0.45; pointer-events: none; }
