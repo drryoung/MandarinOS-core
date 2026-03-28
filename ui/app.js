@@ -85,6 +85,10 @@ if (typeof window._listeningWaitTurns === "undefined") window._listeningWaitTurn
 if (typeof window._lastInterestLevel === "undefined") window._lastInterestLevel = "low";
 if (typeof window._lastUserText === "undefined") window._lastUserText = "";
 if (typeof window._unmatchedByFrame === "undefined") window._unmatchedByFrame = {};
+// Phase 12C: session arc state
+if (typeof window._loopCountInEngine    === "undefined") window._loopCountInEngine    = 0;
+if (typeof window._enginesVisited       === "undefined") window._enginesVisited        = ["identity"];
+if (typeof window._recentConfusionCount === "undefined") window._recentConfusionCount  = 0;
 // In-card progressive hints (no need to use ? after opening card)
 let _cardRevealCardId = null;
 /** How many optional blocks are visible after headword: 0 = hanzi only, then +pinyin, +meaning, +composition, +etymology in order. */
@@ -1363,6 +1367,8 @@ function getRecoveryPhraseForNotUnderstood(avoidPhraseId = null) {
   }
   const consecutive = (window._consecutiveNotUnderstood || 0) + 1;
   window._consecutiveNotUnderstood = consecutive;
+  // Phase 12C: overload signal — server uses this to reduce LOOP and prefer bridge
+  window._recentConfusionCount = (window._recentConfusionCount || 0) + 1;
 
   // Phase 12B: first failure → soft pool (curious, not corrective). Falls back if pool empty.
   if (consecutive === 1) {
@@ -3194,7 +3200,10 @@ function renderOptions(options, frameId) {
       container.querySelectorAll(".option-panel").forEach(p => p.classList.remove("selected"));
       panel.classList.add("selected");
       const userText = (opt.hanzi || "").trim();
-      if (opt.kind !== "RECOVERY" && opt.kind !== "RECOVERY_PANEL") window._consecutiveNotUnderstood = 0;
+      if (opt.kind !== "RECOVERY" && opt.kind !== "RECOVERY_PANEL") {
+        window._consecutiveNotUnderstood = 0;
+        window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
+      }
 
       if (opt.kind === "RECOVERY") {
         const action = getRecoveryAction(opt);
@@ -3741,6 +3750,10 @@ async function startFreshLearner() {
   window._unmatchedByFrame       = {};
   window._consecutiveNotUnderstood = 0;
   window._currentEngineId        = "identity";
+  // Phase 12C: session arc state
+  window._loopCountInEngine      = 0;
+  window._enginesVisited         = ["identity"];
+  window._recentConfusionCount   = 0;
 
   // Clear the "Remembered:" facts banner
   const rememberedEl = document.getElementById("rememberedFacts");
@@ -3794,7 +3807,11 @@ async function _runTurnInner(isNext = false, opts = {}) {
       pending_listening_move: window._pendingListeningMove === true,
       listening_wait_turns: window._listeningWaitTurns || 0,
       last_interest_level: window._lastInterestLevel || "low",
-      last_user_text: window._lastUserText || ""
+      last_user_text: window._lastUserText || "",
+      // Phase 12C: session arc state
+      loop_count_in_current_engine: window._loopCountInEngine || 0,
+      engines_visited: Array.isArray(window._enginesVisited) ? window._enginesVisited : ["identity"],
+      recent_confusion_count: window._recentConfusionCount || 0,
     };
     if (window._learnerId) conversation_state.learner_id = window._learnerId;
     // Use the UI-selected partner (Phase 11C) as the persona_id for name/stub resolution.
@@ -3914,6 +3931,17 @@ async function _runTurnInner(isNext = false, opts = {}) {
   if (typeof data.listening_wait_turns === "number") window._listeningWaitTurns = data.listening_wait_turns;
   if (typeof data.last_interest_level === "string") window._lastInterestLevel = data.last_interest_level;
   if (typeof data.last_user_text === "string") window._lastUserText = data.last_user_text;
+  // Phase 12C: update session arc state from server response
+  if (data.arc_state) {
+    if (typeof data.arc_state.loop_count === "number")
+      window._loopCountInEngine = data.arc_state.loop_count;
+    if (Array.isArray(data.arc_state.engines_visited))
+      window._enginesVisited = data.arc_state.engines_visited;
+  }
+  // Track engine visits locally too (client knows engine_id before arc_state arrives)
+  const _arcEngineId = (data.engine_id || "").toLowerCase();
+  if (_arcEngineId && !window._enginesVisited.includes(_arcEngineId))
+    window._enginesVisited = [...window._enginesVisited, _arcEngineId];
 
   const frameId = data.frame_id || selected;
   const engineId = data.engine_id ?? (payload.engine_id || engineIdFromDropdown);
@@ -4163,6 +4191,7 @@ window.addEventListener("load", async () => {
     if (matchedOption) {
       if (frameId) window._unmatchedByFrame[frameId] = 0;
       window._consecutiveNotUnderstood = 0;
+      window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
       // Understood: update conversation and move to next turn (same as selecting that option)
       emitUITrace({ type: "SPEECH_UNDERSTOOD", timestamp: new Date().toISOString(), payload: { transcript, matched_hanzi: matchedOption.hanzi } });
       if (matchedOption.card_id && matchedOption.kind !== "FRAME_WITH_SLOTS") {
@@ -4213,6 +4242,7 @@ window.addEventListener("load", async () => {
       window._lastAcceptedAsrTime = _now;
       if (frameId) window._unmatchedByFrame[frameId] = 0;
       window._consecutiveNotUnderstood = 0;
+      window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
       emitUITrace({
         type: "SPEECH_ACCEPTED_AS_ANSWER",
         timestamp: new Date().toISOString(),

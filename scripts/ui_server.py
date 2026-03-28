@@ -55,6 +55,11 @@ ENGINE_DEPTH_GUARD_MIN_REMAINING = 2  # Phase 11.1: bridge blocked when ≥ this
 FACT_REVEAL_DEPTH = 3                 # Phase 11C: min same_engine_chain_count before discoverable_fact surfaces
 MAX_PROBE_CHAIN = 2                   # Phase 12B: max consecutive probe follow-ups before probe row is suppressed
 MIN_TURNS_FOR_LIFE_ENGINE = 16        # Difficulty ramp: "life" engine is all difficulty-3; block it early in session
+# Phase 12C: session arc tuning
+LOOP_COUNT_IN_ENGINE_SOFT_CAP = 2    # reduce LOOP when partner has asked ≥ this many LOOPs in current engine
+OVERLOAD_CONFUSION_THRESHOLD  = 2    # recent_confusion_count ≥ this → overload: prefer bridge / simpler frames
+CLOSURE_EXCHANGE_THRESHOLD    = 12   # after this many total exchanges push toward bridge / close
+CLOSURE_BRIDGE_GATE           = 600  # out of 1000: hash-gate probability for bridge push in closure zone
 
 print("[ui_server] REPO_ROOT =", REPO_ROOT)
 print("[ui_server] UI_DIR    =", UI_DIR)
@@ -534,14 +539,14 @@ def _engine_partner_question_frame_ids(engine_norm: str) -> List[str]:
 
 # Phase 9.2: which engines we can bridge to from each engine (deterministic order; from conversation specs)
 _BRIDGE_TARGETS: dict = {
-    "identity": ["place", "family", "work"],
-    "place": ["food", "family", "work", "travel", "identity"],
-    "family": ["identity", "place", "work"],
-    "work": ["identity", "place", "family"],
-    "hobby": ["identity", "travel", "food"],
-    "travel": ["place", "hobby", "food"],
-    "food": ["place", "travel", "hobby", "life"],
-    "life": ["identity", "place", "family"],
+    "identity": ["place", "family", "work", "hobby"],
+    "place":    ["food", "family", "work", "travel", "hobby", "identity"],
+    "family":   ["identity", "work", "hobby", "place"],
+    "work":     ["family", "identity", "hobby", "place"],
+    "hobby":    ["family", "work", "identity", "travel", "food"],   # family/work first: most natural after hobbies
+    "travel":   ["family", "work", "identity", "place", "hobby", "food"],
+    "food":     ["family", "work", "place", "travel", "hobby", "life"],
+    "life":     ["identity", "family", "work", "place"],
 }
 
 # When prefer_bridge (recovery / change topic): try engines in this order so the next question feels like a natural switch (place/identity/family first), not a jump to food/travel.
@@ -551,8 +556,13 @@ _BRIDGE_PREFIXES: list = ["顺便问一下，"]
 # Frames that ask essentially the same question in different engines.
 # If any frame in a set has been shown, all others in that set are skipped.
 _MUTUAL_EXCLUSION_FRAMES: dict = {
-    "f_food_what_good": {"p2_pl_2"},   # "那儿有什么好吃的？" ↔ "{CITY}有什么好吃的？"
-    "p2_pl_2": {"f_food_what_good"},
+    # Food-place cluster: all ask "what food is there / what's famous / is it tasty?"
+    # They all require the same place-food context. If any place-food frame was shown, skip
+    # the others so the bridge doesn't return to food territory after it was already covered.
+    "f_food_what_good":   {"p2_pl_2", "f_food_famous_dish", "f_food_tasty"},
+    "f_food_famous_dish": {"p2_pl_2", "f_food_what_good",   "f_food_tasty"},
+    "f_food_tasty":       {"p2_pl_2", "f_food_what_good",   "f_food_famous_dish"},
+    "p2_pl_2":            {"f_food_what_good", "f_food_famous_dish", "f_food_tasty"},
     "f_travel_where": {"p2_tr_1"},     # "你去过哪里？" ↔ "你去过哪些国家？"
     "p2_tr_1": {"f_travel_where"},
     "f_ask_you_name": {"p2_id_2"},     # "你叫什么名字？" ↔ "大家一般怎么叫你？" (both ask for name)
@@ -1484,6 +1494,7 @@ def _select_next_frame_bridge(
     use_recovery_order: bool = False,
     memory: Optional[dict] = None,
     exchange_count: int = 0,
+    engines_visited: Optional[list] = None,
 ) -> Optional[str]:
     """
     Phase 9.2: bridge to another engine. Only used after MIN_TURNS_BEFORE_BRIDGE turns in current engine.
@@ -1491,6 +1502,7 @@ def _select_next_frame_bridge(
     When use_recovery_order is True (e.g. after 我不懂 or Change topic), try engines in _RECOVERY_BRIDGE_ENGINE_ORDER
     so the next question is a more natural switch (place/identity/family) rather than jumping to food/travel.
     Phase 11.1: skips identity OPEN frames (e.g. f_ask_you_name) once session is established (exchange_count ≥ 2).
+    Phase 12C: engines_visited (session-level list) — unvisited engines are tried before already-visited ones.
     """
     recent = set(recent_frame_ids or [])
     engine_norm = (current_engine or "").strip().lower()
@@ -1511,6 +1523,15 @@ def _select_next_frame_bridge(
         def _recent_rank(e):
             return last_index_by_engine.get((e or "").strip().lower(), -1)
         targets = sorted(targets, key=_recent_rank)  # least recently used first
+    # Phase 12C: prefer engines not yet visited in this session (avoids returning to exhausted topics).
+    # Split targets into unvisited-first, then already-visited, preserving LRU order within each group.
+    if engines_visited:
+        _visited_set = {(e or "").strip().lower() for e in engines_visited}
+        _visited_set.discard(engine_norm)  # current engine is already excluded from targets
+        targets = (
+            [t for t in targets if (t or "").strip().lower() not in _visited_set]
+            + [t for t in targets if (t or "").strip().lower() in _visited_set]
+        )
     for target_engine in targets:
         target_norm = (target_engine or "").strip().lower()
         if target_norm == engine_norm:
@@ -1549,6 +1570,7 @@ def _select_next_frame_ladder(
     recent_frame_ids: list,
     memory: Optional[dict] = None,
     exchange_count: int = 0,
+    engines_visited: Optional[list] = None,
 ) -> Optional[str]:
     """
     Phase 9.1/9.2: deterministic next-frame ladder.
@@ -1557,6 +1579,7 @@ def _select_next_frame_ladder(
     3. Same-engine repeat only if bridge failed (e.g. no other engines).
     4. Safe fallback so we never dead-end.
     Phase 11.1: exchange_count forwarded to bridge to enforce identity OPEN frame guard.
+    Phase 12C: engines_visited forwarded to bridge so unvisited engines are preferred.
     """
     recent = set(recent_frame_ids or [])
     engine_norm = (current_engine or "").strip().lower()
@@ -1596,7 +1619,7 @@ def _select_next_frame_ladder(
         return unseen_same[0]
 
     # Tier 2: all frames in this engine were already used — bridge to a new topic instead of repeating
-    chosen = _select_next_frame_bridge(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count)
+    chosen = _select_next_frame_bridge(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
     if chosen:
         return chosen
 
@@ -1629,12 +1652,14 @@ def _select_next_frame_ladder_avoiding(
     avoid_frame_ids: set,
     memory: Optional[dict] = None,
     exchange_count: int = 0,
+    engines_visited: Optional[list] = None,
 ) -> Optional[str]:
     """
     Like _select_next_frame_ladder, but will skip avoid_frame_ids when there is any non-avoided candidate available
     in the same engine. This is used to deprioritize known weak loop frames (e.g. p2_pl_1, p2_pl_3) without
     changing the overall selector order.
     Phase 11.1: exchange_count forwarded to bridge/ladder for identity OPEN frame guard.
+    Phase 12C: engines_visited forwarded so bridge prefers unvisited engines.
     """
     avoid = avoid_frame_ids or set()
     recent = set(recent_frame_ids or [])
@@ -1664,7 +1689,7 @@ def _select_next_frame_ladder_avoiding(
         and _not_mutually_excluded_av(fid)
     ]
     if not unseen:
-        return _select_next_frame_ladder(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count)
+        return _select_next_frame_ladder(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
 
     # Prefer lower-difficulty frames (stable sort preserves FRAME_ORDER within same tier)
     def _diff(fid: str) -> int:
@@ -1677,7 +1702,7 @@ def _select_next_frame_ladder_avoiding(
     # Only avoided candidates remain. For the highest-impact weak loop frames, prefer to bridge away
     # rather than forcing a low-quality loop.
     if engine_norm == "place" and avoid.issuperset({"p2_pl_1", "p2_pl_3"}):
-        bridged = _select_next_frame_bridge(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count)
+        bridged = _select_next_frame_bridge(current_engine, recent_frame_ids, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
         if bridged and bridged not in recent:
             return bridged
     return unseen[0]
@@ -1957,6 +1982,15 @@ class Handler(BaseHTTPRequestHandler):
                 pending_listening_move = cs.get("pending_listening_move") is True
                 listening_wait_turns = int(cs.get("listening_wait_turns") or 0)
                 last_interest_level = (cs.get("last_interest_level") or "low").strip()
+                # Phase 12C: session arc state (additive — falls back to 0/[] when absent)
+                loop_count_in_engine   = int(cs.get("loop_count_in_current_engine") or 0)
+                engines_visited        = list(cs.get("engines_visited") or [])
+                recent_confusion_count = int(cs.get("recent_confusion_count") or 0)
+                # Arc flags — computed once, reused in soft bias pass
+                _12c_loop_capped = loop_count_in_engine >= LOOP_COUNT_IN_ENGINE_SOFT_CAP
+                _12c_overload    = recent_confusion_count >= OVERLOAD_CONFUSION_THRESHOLD
+                _12c_closing     = exchange_count >= CLOSURE_EXCHANGE_THRESHOLD
+                _transition_reason = "normal"
 
                 # Phase 10: after a response turn, capture facts and persist by learner_id
                 learner_id = (cs.get("learner_id") or "").strip() or None
@@ -2069,6 +2103,7 @@ class Handler(BaseHTTPRequestHandler):
                         avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
                         memory=memory,
                         exchange_count=exchange_count,
+                        engines_visited=engines_visited,
                     )
                     if chosen:
                         chosen_turn_type = "loop_question" if _is_loop_candidate(chosen) else "question"
@@ -2115,6 +2150,7 @@ class Handler(BaseHTTPRequestHandler):
                                     avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
                                     memory=memory,
                                     exchange_count=exchange_count,
+                                    engines_visited=engines_visited,
                                 )
                             if chosen and _is_loop_candidate(chosen):
                                 chosen_turn_type = "loop_question"
@@ -2125,7 +2161,7 @@ class Handler(BaseHTTPRequestHandler):
                                 listening_wait_turns = 0
                         # Only default to bridge when curiosity had no viable frame.
                         if chosen is None and bridge_allowed and (force_listening or chain_exceeded or gate_br < int(p_br * 1000)):
-                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count)
+                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
                             if chosen:
                                 chosen_turn_type = "question"
                                 listening_move_selected = "bridge"
@@ -2155,6 +2191,7 @@ class Handler(BaseHTTPRequestHandler):
                                 avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
                                 memory=memory,
                                 exchange_count=exchange_count,
+                                engines_visited=engines_visited,
                             )
                         if chosen and _is_loop_candidate(chosen):
                             chosen_turn_type = "loop_question"
@@ -2165,9 +2202,9 @@ class Handler(BaseHTTPRequestHandler):
                     if curiosity_depth >= MAX_CURIOSITY_DEPTH:
                         # Force ask/bridge; reset depth
                         if prefer_bridge or force_bridge:
-                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count)
+                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
                         if chosen is None and not force_bridge:
-                            chosen = _select_next_frame_ladder(current_engine, recent, memory=memory, exchange_count=exchange_count)
+                            chosen = _select_next_frame_ladder(current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
                         curiosity_depth = 0
                         chosen_turn_type = "question"
                     else:
@@ -2183,7 +2220,7 @@ class Handler(BaseHTTPRequestHandler):
                                 listening_wait_turns = 0
                         if chosen is None:
                             if prefer_bridge or force_bridge:
-                                chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count)
+                                chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
                                 if chosen:
                                     pending_listening_move = False
                                     listening_wait_turns = 0
@@ -2194,6 +2231,7 @@ class Handler(BaseHTTPRequestHandler):
                                     avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
                                     memory=memory,
                                     exchange_count=exchange_count,
+                                    engines_visited=engines_visited,
                                 )
 
                 if not chosen:
@@ -2232,7 +2270,7 @@ class Handler(BaseHTTPRequestHandler):
                             # Phase 11.1: once session is established, don't re-ask the opening name question.
                             # For early turns (exchange < 2) we still force f_ask_you_name; for established sessions bridge away.
                             if exchange_count >= 2:
-                                bridged = _select_next_frame_bridge(current_engine, recent, use_recovery_order=True, memory=memory, exchange_count=exchange_count)
+                                bridged = _select_next_frame_bridge(current_engine, recent, use_recovery_order=True, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
                                 if bridged:
                                     chosen = bridged
                                     chosen_turn_type = "question"
@@ -2244,7 +2282,7 @@ class Handler(BaseHTTPRequestHandler):
                                     chosen_turn_type = "question"
                                 else:
                                     # If we can't ask name, switch topic to avoid awkward interrogation
-                                    bridged = _select_next_frame_bridge(current_engine, recent, use_recovery_order=True, memory=memory, exchange_count=exchange_count)
+                                    bridged = _select_next_frame_bridge(current_engine, recent, use_recovery_order=True, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
                                     if bridged:
                                         chosen = bridged
                                         chosen_turn_type = "question"
@@ -2268,6 +2306,66 @@ class Handler(BaseHTTPRequestHandler):
                     if _fc and _fc != chosen:
                         chosen = _fc
                         # Note: chosen_turn_type intentionally kept from 10.5 logic; filter is structural only.
+
+                # ── Phase 12C: soft session arc bias pass ─────────────────────────────
+                # Runs AFTER all Phase 10.5 / 10.7 selection. Adjusts candidate only
+                # when a safe alternative is available; always falls back gracefully.
+                if chosen:
+                    _chosen_is_loop = _is_loop_candidate(chosen) or chosen_turn_type == "loop_question"
+
+                    # 1. Loop cap — partner asked ≥ LOOP_COUNT_IN_ENGINE_SOFT_CAP LOOPs
+                    #    in this engine; try a non-LOOP frame or bridge.
+                    if _chosen_is_loop and _12c_loop_capped:
+                        _arc_alt = _select_next_frame_ladder_avoiding(
+                            current_engine, recent,
+                            avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
+                            memory=memory, exchange_count=exchange_count,
+                            engines_visited=engines_visited,
+                        )
+                        if _arc_alt and not _is_loop_candidate(_arc_alt):
+                            chosen = _arc_alt
+                            chosen_turn_type = "question"
+                            _transition_reason = "loop_limit"
+                        else:
+                            _arc_br = _select_next_frame_bridge(
+                                current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited
+                            )
+                            if _arc_br:
+                                chosen = _arc_br
+                                chosen_turn_type = "question"
+                                _transition_reason = "loop_limit_bridge"
+
+                    # 2. Overload — user confused ≥ OVERLOAD_CONFUSION_THRESHOLD times;
+                    #    don't loop further, prefer bridge to lighter material.
+                    if _12c_overload and _is_loop_candidate(chosen):
+                        _arc_br = _select_next_frame_bridge(
+                            current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited
+                        )
+                        if _arc_br:
+                            chosen = _arc_br
+                            chosen_turn_type = "question"
+                            _transition_reason = "overload"
+
+                    # 3. Closure — session is long (≥ CLOSURE_EXCHANGE_THRESHOLD);
+                    #    probabilistically push toward a new engine if still in same engine.
+                    if _12c_closing and _transition_reason == "normal":
+                        _closure_frame_engine = (_frames_by_id.get(chosen) or {}).get("engine") or current_engine
+                        _still_in_engine = (
+                            (_closure_frame_engine or "").strip().lower()
+                            == (current_engine or "").strip().lower()
+                        )
+                        if _still_in_engine:
+                            _close_seed = f"{cs.get('session_id','')}/close/{len(recent)}"
+                            _close_gate = sum(ord(c) for c in _close_seed) % 1000
+                            if _close_gate < CLOSURE_BRIDGE_GATE:
+                                _arc_br = _select_next_frame_bridge(
+                                    current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited
+                                )
+                                if _arc_br:
+                                    chosen = _arc_br
+                                    chosen_turn_type = "question"
+                                    _transition_reason = "closure"
+                # ── End Phase 12C ─────────────────────────────────────────────────────
 
                 frame_id = chosen
                 frame_rec_chosen = _frames_by_id.get(frame_id, {})
@@ -2295,6 +2393,7 @@ class Handler(BaseHTTPRequestHandler):
                 _phase10_persona_id = (cs.get("persona_id") or payload.get("persona_id") or "").strip() or None
                 if chosen_turn_type == "loop_question":
                     same_engine_chain_count += 1
+                    loop_count_in_engine    += 1      # Phase 12C: track LOOP turns per engine
                     if slot_names:
                         focus = slot_names[0]
                         same_slot_chain_count = same_slot_chain_count + 1 if focus == last_focus_slot else 1
@@ -2307,6 +2406,16 @@ class Handler(BaseHTTPRequestHandler):
                         same_engine_chain_count = 0
                         same_slot_chain_count = 0
                         last_focus_slot = ""
+                        loop_count_in_engine = 0       # Phase 12C: reset LOOP count on engine change
+                # Phase 12C: track engine visit list (client maintains primary; server adds current turn's engine)
+                _visited_engine = (engine_id or "").strip().lower()
+                if _visited_engine and _visited_engine not in engines_visited:
+                    engines_visited = engines_visited + [_visited_engine]
+                # Soft-visit: if a place-food frame was shown, mark the "food" engine as covered
+                # so the bridge won't pick food-engine openers when food territory was already visited.
+                _FOOD_COVERING_FRAMES = frozenset({"p2_pl_2", "f_food_what_good"})
+                if frame_id in _FOOD_COVERING_FRAMES and "food" not in engines_visited:
+                    engines_visited = engines_visited + ["food"]
                 last_user_text = _answer_text_from_last_answer(last_answer) if last_turn_was_answer else _norm_text(cs.get("last_user_text"))
                 _phase10_turn_type = chosen_turn_type
             else:
@@ -2449,6 +2558,14 @@ class Handler(BaseHTTPRequestHandler):
                 response["same_slot_chain_count"] = int(same_slot_chain_count)
                 response["last_focus_slot"] = last_focus_slot
                 response["last_user_text"] = last_user_text
+                # Phase 12C: session arc trace
+                response["loop_count_in_current_engine"] = int(loop_count_in_engine)
+                response["arc_state"] = {
+                    "turns_in_current_engine": int(same_engine_chain_count),
+                    "loop_count":              int(loop_count_in_engine),
+                    "engines_visited":         list(engines_visited),
+                    "transition_reason":       _transition_reason,
+                }
                 # Phase 10.7-C: move_type filter trace — always emitted when selector ran.
                 if _mt_filter_debug:
                     response["move_type_filter"] = {
