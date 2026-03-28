@@ -1,0 +1,14 @@
+﻿f_have_family [OPEN] spk=partner has?=True text=Σ╜áµ£ëσ«╢Σ║║σÉù∩╝ƒ
+f_have_siblings [ASK] spk=partner has?=True text=Σ╜áµ£ëσàäσ╝ƒσºÉσª╣σÉù∩╝ƒ
+p2_fa_1 [ASK] spk= has?=True text=Σ╜áΦ╖ƒσ«╢Σ║║Σ╜Åσ£¿Σ╕ÇΦ╡╖σÉù∩╝ƒ
+p2_fa_2 [LOOP] spk= has?=True text=Σ╜áσñÜΣ╣àΦºüΣ╕Çµ¼íσ«╢Σ║║∩╝ƒ
+p2_fa_3 [EXTEND] spk= has?=False text=µêæΦ╖ƒ{FAMILY_ROLE}σà│τ│╗σ╛êσÑ╜πÇé
+p2_fa_4 [EXTEND] spk= has?=False text={FAMILY_ROLE}µ£ÇΦ┐æσ╛êσ┐ÖπÇé
+p2_fa_5 [LOOP] spk= has?=True text=σæ¿µ£½Σ╕ÇΦê¼Φ╖ƒσ«╢Σ║║Σ╕ÇΦ╡╖σüÜΣ╗ÇΣ╣ê∩╝ƒ
+f_what_hobby [OPEN] spk=partner has?=True text=Σ╜áµ£ëΣ╗ÇΣ╣êτê▒σÑ╜∩╝ƒ
+f_often_do [LOOP] spk=partner has?=True text=Σ╜áσ╕╕σüÜσÉù∩╝ƒ
+p2_hb_1 [LOOP] spk= has?=True text=Σ╜áΣ╗ÇΣ╣êµù╢σÇÖσ╝Çσºï{HOBBY}τÜä∩╝ƒ
+p2_hb_2 [LOOP] spk= has?=True text=Σ╜áΣ╕║Σ╗ÇΣ╣êσû£µ¼ó{HOBBY}∩╝ƒ
+f_what_work [OPEN] spk=partner has?=True text=Σ╜áσüÜΣ╗ÇΣ╣êσ╖ÑΣ╜£∩╝ƒ
+p2_wk_1 [LOOP] spk= has?=True text=Σ╜áΣ╕║Σ╗ÇΣ╣êσû£µ¼óΦ┐ÖΣ╗╜σ╖ÑΣ╜£∩╝ƒ
+p2_wk_2 [LOOP] spk= has?=True text=Φ┐ÖΣ╗╜σ╖ÑΣ╜£ΘÜ╛σÉù∩╝ƒ

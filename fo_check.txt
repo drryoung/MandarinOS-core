@@ -1,0 +1,12 @@
+﻿python : Traceback (most recent call last):
+At C:\Users\Surface Pro7\AppData\Local\Temp\ps-script-1ffd39ce-129e-4783-9b2c-a9f8200c1954.ps1:83 char:1
++ python -c "
++ ~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "<string>", line 14, in <module>
+    for o in opts[:3]:
+             ~~~~^^^^
+KeyError: slice(None, 3, None)
+f_have_family: 4 options

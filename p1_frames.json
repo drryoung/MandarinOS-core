@@ -282,7 +282,7 @@
       "pinyin": "nǐ shì nǎlǐ rén?",
       "engine": "place",
       "difficulty": 2,
-      "slots": [],
+      "slots": [{"name": "CITY"}],
       "speaker": "partner",
       "distractor_tokens": [
         "w_beijing",

@@ -1453,17 +1453,20 @@ function matchTranscriptToOption(transcript, options) {
 function isOpenEndedFrame(frameId) {
   const fid = (frameId || "").trim();
   return new Set([
-    "f_ask_you_name",
-    "p2_id_2",
-    "p2_id_4",
-    "p2_id_5",
-    "f_ask_name_meaning",
-    "f_from_where",
-    "frame.location.live_question",
-    "f_what_work",
-    "f_food_what_good",
-    "f_travel_where",
-    "f_want_go_where",
+    // Identity
+    "f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning",
+    // Place — life-quality, local character, and leisure questions are all open
+    "f_from_where", "frame.location.live_question",
+    "p2_pl_1", "p2_pl_ext1", "p2_pl_3", "p2_pl_4",
+    // Family — open questions that invite any free answer
+    "f_have_family", "f_have_siblings", "p2_fa_1", "p2_fa_2", "p2_fa_5",
+    // Work — retirement / job description can be anything
+    "f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2",
+    // Hobby — "what are your hobbies" is inherently open
+    "f_what_hobby", "f_often_do", "f_like_do_what", "f_weekend_do",
+    "f_difficult_ma", "f_recommend_ma", "p2_hb_1", "p2_hb_2",
+    // Food & travel
+    "f_food_what_good", "f_travel_where", "f_want_go_where",
   ]).has(fid);
 }
 
@@ -1492,6 +1495,14 @@ function semanticSoftMatch(transcript, frameId) {
   const t = (transcript || "").trim();
   const fid = (frameId || "").trim();
   if (!t) return false;
+  // Turn-around / reciprocity phrases — always accept regardless of the current frame.
+  // ASR rarely captures the trailing "？" so match without it.
+  // Matches: standalone "你呢", leading "你呢…", AND trailing "[answer]，你呢" compound answers.
+  if (/^(那?你呢|你怎么想|为什么这么问|为什么这样问|换我问|那你|你来问)/.test(t) || t === "你呢") return true;
+  if (/[，。！]?(那?你呢|你怎么想|为什么这么问)[？?]?$/.test(t)) return true;
+  // Direct questions aimed at the partner — user turns the conversation around by
+  // asking the app about its origin, city, job, hobbies, or family.
+  if (/你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(t)) return true;
   // Identity nickname question: allow "大家叫我Raymond" style free answers.
   if (fid === "p2_id_2") {
     if (t.includes("叫我") || t.includes("大家叫")) return true;
@@ -3203,6 +3214,7 @@ function renderOptions(options, frameId) {
       if (opt.kind !== "RECOVERY" && opt.kind !== "RECOVERY_PANEL") {
         window._consecutiveNotUnderstood = 0;
         window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
+        hideDiscoveryPanel();  // user answered partner's question — exit discovery mode
       }
 
       if (opt.kind === "RECOVERY") {
@@ -3840,8 +3852,27 @@ async function startFreshLearner() {
     rememberedEl.style.display = "none";
   }
 
-  // Restart from the greeting (new session, no prior memory)
-  runTurn(true);
+  // Clear the transcript so the slate looks visually fresh
+  const transcriptEl = document.getElementById("transcript");
+  if (transcriptEl) transcriptEl.innerHTML = "";
+
+  // Clear the active partner question area
+  const frameSentenceEl = document.getElementById("frameSentence");
+  if (frameSentenceEl) frameSentenceEl.textContent = "";
+
+  hideSentenceOptions();
+
+  // Show a brief status message — do NOT auto-start a turn.
+  // The user can now select any frame from the dropdown and press Run Turn,
+  // or press the mic to speak the first greeting themselves.
+  const statusEl = document.getElementById("statusMsg") || document.createElement("div");
+  statusEl.textContent = "Memory cleared — ready for a new conversation.";
+  statusEl.style.cssText = "color:#0891b2;font-size:0.85rem;padding:6px 14px;";
+  if (!document.getElementById("statusMsg")) {
+    statusEl.id = "statusMsg";
+    document.getElementById("actionLadder")?.prepend(statusEl);
+  }
+  setTimeout(() => { statusEl.textContent = ""; }, 4000);
 }
 
 /**
@@ -4055,6 +4086,13 @@ async function _runTurnInner(isNext = false, opts = {}) {
   setUiMode("READ");
   window._currentFrameText = (fallbackText && fallbackText.trim()) ? fallbackText.trim() : "";
   window._lastAcceptedAsrKey = "";  // reset dedup so fresh answers on new questions are accepted
+  // Counter-reply: persona's answer to a user counter-question (你呢？ 你是哪里人？ etc.)
+  // Must appear in transcript BEFORE the next question and be spoken first.
+  console.log("[DBG counter_reply]", { counter_reply: data.counter_reply, user_led: data.user_led, disc_q_count: (data.discovery_questions || []).length });
+  const _counterReply = (data.counter_reply || "").trim();
+  if (_counterReply) {
+    addTranscriptEntry("partner", _counterReply);
+  }
   // Phase 8: append partner question to transcript when we show a new question
   if (window._currentFrameText) {
     addTranscriptEntry("partner", window._currentFrameText, {
@@ -4063,11 +4101,30 @@ async function _runTurnInner(isNext = false, opts = {}) {
       frame_id: frameId,
       turn_uid: payload.turn_uid,
     });
-    renderTranscript();
   }
-  // Auto-play active sentence (most people better at hearing than reading)
+  // Always render — ensures counter_reply entry is visible even if _currentFrameText is absent
+  renderTranscript();
+
+  // Discovery mode: persona answered the user's question — show "Ask them more" cards
+  if (data.user_led && Array.isArray(data.discovery_questions) && data.discovery_questions.length > 0) {
+    renderDiscoveryPanel(data.discovery_questions);
+  } else {
+    hideDiscoveryPanel();
+  }
+  // Auto-play: if a counter_reply exists, speak it first, then the frame question.
   if (fallbackText && fallbackText.trim()) {
-    ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
+    if (_counterReply) {
+      ttsSpeak({
+        text: _counterReply, lang: "zh-CN",
+        onEvent: (e) => {
+          if (e?.payload?.completed) ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
+        },
+      });
+    } else {
+      ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
+    }
+  } else if (_counterReply) {
+    ttsSpeak({ text: _counterReply, lang: "zh-CN" });
   }
   // Phase 6 — options: prefer server-sent options when server chose the frame (next_question) so options always match the displayed question after bridge
   const _frameData     = window._frameOptionsRuntime?.frames?.[frameId] || {};
@@ -4290,7 +4347,25 @@ window.addEventListener("load", async () => {
       addTranscriptEntry("user", (matchedOption.hanzi || "").trim(), { text_en: matchedOption.meaning || "" });
       renderTranscript();
       const saidText = (matchedOption.hanzi || "").trim();
-      window._lastAnswer = { frame_id: frameId, selected_option_hanzi: saidText, selected_option_meaning: matchedOption.meaning || undefined };
+      // If the SPOKEN text (not the matched card) contained a turn-around phrase, preserve it
+      // as submitted_text so the server can detect the counter-question.  Without this, the
+      // "你呢" part of "我喜欢工作，你呢？" is swallowed when an option card matched the first part.
+      const _spokenRaw = (transcript || "").trim();
+      const _spokenHasTurnAround = _spokenRaw && (
+        /^(那?你呢|你怎么想|为什么这么问|为什么这样问|换我问|那你|你来问)/.test(_spokenRaw)
+        || _spokenRaw === "你呢"
+        || /[，。！]?(那?你呢|你怎么想|为什么这么问)[？?]?$/.test(_spokenRaw)
+        || /你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(_spokenRaw)
+      );
+      const _spokenSubmitted = _spokenHasTurnAround
+        ? (_spokenRaw.endsWith("？") || _spokenRaw.endsWith("?") ? _spokenRaw : _spokenRaw + "？")
+        : undefined;
+      window._lastAnswer = {
+        frame_id: frameId,
+        selected_option_hanzi: saidText,
+        selected_option_meaning: matchedOption.meaning || undefined,
+        ...(_spokenSubmitted ? { submitted_text: _spokenSubmitted } : {}),
+      };
       ttsSpeak({
         text: saidText,
         lang: "zh-CN",
@@ -4341,9 +4416,17 @@ window.addEventListener("load", async () => {
         runTurn(true);
         return;
       }
+      // Normalise turn-around phrases: ensure trailing "？" so the server reliably
+      // detects them as counter-questions (ASR often strips punctuation).
+      const _isTurnAround = /^(那?你呢|你怎么想|为什么这么问|为什么这样问|换我问|那你|你来问)/.test(saidTrimmed)
+        || saidTrimmed === "你呢"
+        || /[，。！]?(那?你呢|你怎么想|为什么这么问)[？?]?$/.test(saidTrimmed)
+        || /你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(saidTrimmed);
+      // Ensure trailing "？" so server _is_user_question reliably fires
+      const submittedForServer = _isTurnAround && !/[？?]$/.test(saidTrimmed) ? saidTrimmed + "？" : saidTrimmed;
       addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
-      window._lastAnswer = { frame_id: frameId, submitted_text: saidTrimmed };
+      window._lastAnswer = { frame_id: frameId, submitted_text: submittedForServer };
       ttsSpeak({
         text: saidTrimmed,
         lang: "zh-CN",
@@ -4457,10 +4540,97 @@ if (startFreshBtn) startFreshBtn.addEventListener("click", () => {
     startFreshLearner();
   }
 });
+// ── Discovery panel: "You interview the persona" mode ───────────────────────
+/**
+ * Render clickable "Ask them:" cards so the learner can interview the persona
+ * instead of being relentlessly asked questions themselves.
+ * questions: array of { zh, py, en, topic }
+ */
+function renderDiscoveryPanel(questions) {
+  let panel = document.getElementById("discoveryPanel");
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "discoveryPanel";
+    // Insert between the action ladder and the sentence options
+    const anchor = document.getElementById("sentenceOptionsContainer")
+                || document.getElementById("optionsContainerParent")
+                || document.getElementById("engInputPanel");
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(panel, anchor);
+    } else {
+      document.body.appendChild(panel);
+    }
+  }
+  panel.style.display = "block";
+  panel.innerHTML = `<div class="discovery-header">你还想了解什么？ <span class="discovery-sub">Ask them:</span></div>`;
+
+  (questions || []).forEach((q) => {
+    const card = document.createElement("div");
+    card.className = "option-panel discovery-question";
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+
+    const zhSpan = document.createElement("span");
+    zhSpan.className = "op-zh";
+    zhSpan.textContent = q.zh || "";
+    card.appendChild(zhSpan);
+
+    if (q.py) {
+      const pySpan = document.createElement("span");
+      pySpan.className = "op-py";
+      pySpan.textContent = q.py;
+      card.appendChild(pySpan);
+    }
+    if (q.en) {
+      const enSpan = document.createElement("span");
+      enSpan.className = "op-en";
+      enSpan.textContent = q.en;
+      card.appendChild(enSpan);
+    }
+
+    const speakBtn = document.createElement("button");
+    speakBtn.className = "op-icon-btn";
+    speakBtn.title = "Hear pronunciation";
+    speakBtn.textContent = "🔊";
+    speakBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (q.zh) ttsSpeak({ text: q.zh, lang: "zh-CN" });
+    });
+    card.appendChild(speakBtn);
+
+    card.addEventListener("click", () => submitDiscoveryQuestion(q));
+    card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") submitDiscoveryQuestion(q); });
+    panel.appendChild(card);
+  });
+}
+
+function hideDiscoveryPanel() {
+  const panel = document.getElementById("discoveryPanel");
+  if (panel) panel.style.display = "none";
+}
+
+function submitDiscoveryQuestion(q) {
+  const zh = (q.zh || "").trim();
+  if (!zh) return;
+  hideDiscoveryPanel();
+  addTranscriptEntry("user", zh, { text_en: q.en || "", pinyin: q.py || "" });
+  renderTranscript();
+  // Ensure trailing "？" so the server reliably detects this as a counter-question
+  const submitted = zh.endsWith("？") ? zh : zh + "？";
+  window._lastAnswer = { frame_id: window._lastPartnerFrameId || "", submitted_text: submitted };
+  ttsSpeak({
+    text: zh, lang: "zh-CN",
+    onEvent: (e) => {
+      if (e?.payload?.completed) runTurn(true, { last_turn_was_answer: true });
+    },
+  });
+}
+
 // ── English → Chinese translation panel ─────────────────────────────────────
 (function setupEngTranslationPanel() {
   const engInput       = document.getElementById("engInput");
   const translateBtn   = document.getElementById("translateBtn");
+  const engMicBtn      = document.getElementById("engMicBtn");
   const engResult      = document.getElementById("engTranslateResult");
   const engTranslated  = document.getElementById("engTranslatedZh");
   const speakBtn       = document.getElementById("speakTranslationBtn");
@@ -4501,6 +4671,57 @@ if (startFreshBtn) startFreshBtn.addEventListener("click", () => {
   engInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); doTranslate(); }
   });
+
+  // ── English microphone: speak English → auto-fill field → translate ───────
+  if (engMicBtn) {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      engMicBtn.title = "Speech recognition not supported in this browser";
+      engMicBtn.style.opacity = "0.4";
+      engMicBtn.disabled = true;
+    } else {
+      let _engRec = null;
+      let _engRecording = false;
+
+      engMicBtn.addEventListener("click", () => {
+        if (_engRecording && _engRec) {
+          _engRec.stop();
+          return;
+        }
+        _engRec = new SpeechRec();
+        _engRec.lang = "en-US";
+        _engRec.interimResults = false;
+        _engRec.maxAlternatives = 1;
+        _engRec.continuous = false;
+
+        _engRec.onstart = () => {
+          _engRecording = true;
+          engMicBtn.classList.add("recording");
+          engMicBtn.title = "Listening… (click to stop)";
+        };
+        _engRec.onend = () => {
+          _engRecording = false;
+          engMicBtn.classList.remove("recording");
+          engMicBtn.title = "Speak in English";
+          _engRec = null;
+        };
+        _engRec.onerror = () => {
+          _engRecording = false;
+          engMicBtn.classList.remove("recording");
+          engMicBtn.title = "Speak in English";
+          _engRec = null;
+        };
+        _engRec.onresult = (ev) => {
+          const transcript = (ev.results[0]?.[0]?.transcript || "").trim();
+          if (transcript) {
+            engInput.value = transcript;
+            doTranslate();
+          }
+        };
+        _engRec.start();
+      });
+    }
+  }
 
   // Speaker button: play the translated Chinese without submitting
   if (speakBtn) {

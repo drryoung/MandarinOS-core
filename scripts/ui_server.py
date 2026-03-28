@@ -196,12 +196,13 @@ def _engine_frame_ids(engine_norm: str) -> List[str]:
 # Order follows spec: core → treasure (follow-ups) → loop so we use treasure/loop questions, not just core.
 # P2 question frames (大家一般怎么叫你？, 你觉得{CITY}生活怎么样？, etc.) are included so we don't exhaust after 2–3 questions.
 _FRAME_ORDER: dict = {
-    # Identity flow: name → how people call you → meaning → EXTEND break → evaluations.
-    "identity": ["f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_ext1", "f_name_story_elicit", "p2_id_4", "p2_id_5"],
+    # Identity flow: name → how people call you → meaning → EXTEND break → evaluations → age.
+    "identity": ["f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_ext1", "f_name_story_elicit", "p2_id_4", "p2_id_5", "f_how_old"],
     # Place flow: origin → like it → live where → EXTEND break → life quality → food → leisure → convenient.
     "place": ["f_from_where", "f_place_like_there", "frame.location.live_question", "p2_pl_1", "p2_pl_ext1", "p2_pl_2", "p2_pl_3", "p2_pl_4"],
-    # Family flow: have family → siblings → live together → EXTEND break → how often → weekend.
-    "family": ["f_have_family", "f_have_siblings", "p2_fa_1", "p2_fa_ext1", "p2_fa_2", "p2_fa_5"],
+    # Family flow: have family → live together → siblings → married → children → EXTEND break → how often → weekend.
+    # p2_fa_1 ("你跟家人住在一起吗？") is more natural after the user reveals family members.
+    "family": ["f_have_family", "p2_fa_1", "f_have_siblings", "f_married", "f_have_children", "p2_fa_ext1", "p2_fa_2", "p2_fa_5"],
     # Work: compact high-interest sequence with EXTEND break after difficulty questions.
     "work": ["f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_ext1", "p2_wk_3", "p2_wk_4", "p2_wk_5"],
     # Hobby: opening → frequency → difficulty → like what → EXTEND break → recommend → weekend → etc.  Phase 11.1: f_like_do_what moved to pos 3 to avoid consecutive duplicate opener.
@@ -650,6 +651,8 @@ _SLOT_FOLLOWUP_PREFERENCES: dict = {
     # DISH: ask WHY first, then variety questions.
     "DISH": ["f_food_why_good", "f_food_like_spicy", "f_food_famous_dish", "f_food_expensive"],
     "NAME": ["f_name_who_named", "p2_id_4"],
+    # FAMILY: after user reveals family info, probe deeper — live together? siblings? married? children? how often?
+    "FAMILY": ["p2_fa_1", "f_have_siblings", "f_married", "f_have_children", "p2_fa_2", "p2_fa_5", "p2_fa_ext1"],
     # STORY: after user answers a story-elicitation frame — probe with "why" or "tell me more"
     "STORY": ["f_generic_why"],
     # TRAVEL: which is best? then why, then continuation.
@@ -728,6 +731,9 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
         slots.append("TRAVEL")
     if fid in ("f_from_where", "frame.location.live_question", "p2_pl_1", "p2_pl_2", "p2_pl_3", "p2_pl_4", "f_place_like_there"):
         slots.append("CITY")
+    # Family: answered a family opener, siblings, marriage or children question — probe deeper
+    if fid in ("f_have_family", "f_have_siblings", "f_married", "f_have_children", "p2_fa_1", "p2_fa_2", "p2_fa_5", "p2_fa_ext1"):
+        slots.append("FAMILY")
     # Story context: user answered a story-elicitation frame — probe for more
     if fid == "f_name_story_elicit":
         slots.append("STORY")
@@ -869,6 +875,19 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
         return True
     if text.endswith("吗") or ("吗" in text and len(text) <= 8):
         return True
+    # Turn-around / reciprocity phrases — ASR often omits trailing "？"
+    _turn_around = {"你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "那你", "你来问"}
+    if text in _turn_around or any(text.startswith(p) for p in _turn_around):
+        return True
+    # Also catch e.g. "我推荐了你呢" / "喜欢你呢" — turn-around at the END without explicit "？"
+    if any(text.endswith(p) for p in _turn_around):
+        return True
+    # Direct questions about the persona without explicit "？" (ASR often drops punctuation)
+    _persona_qs = ("你是哪里人", "你从哪里来", "你老家在哪", "你住在哪", "你住哪里",
+                   "你做什么工作", "你的工作是什么", "你是做什么的", "你喜欢什么",
+                   "你有什么爱好", "你有家人", "你有没有家人", "你结婚了吗", "你有孩子")
+    if any(text.startswith(p) or text == p for p in _persona_qs):
+        return True
     return False
 
 
@@ -888,21 +907,193 @@ def _assistant_name_from_persona(persona: Optional[dict]) -> str:
     return "MandarinOS"
 
 
+def _persona_reply_for_ni_ne(frame_id: str, persona: Optional[dict]) -> Optional[str]:
+    """
+    Generate a short, natural first-person answer from the persona when the user says 你呢？
+    after answering a particular frame. Uses voice_lines first, then profile fields.
+    """
+    if not persona:
+        return None
+    fid = (frame_id or "").strip()
+    profile     = persona.get("profile") or {}
+    voice_lines = persona.get("voice_lines") or {}
+    name = _assistant_name_from_persona(persona)
+
+    # Name questions
+    if fid in ("f_ask_you_name", "p2_id_2"):
+        return voice_lines.get("identity") or (f"我叫{name}。" if name else None)
+
+    # Name meaning / name significance
+    if fid in ("f_ask_name_meaning", "p2_id_ext1", "p2_id_4", "p2_id_5"):
+        return voice_lines.get("identity") or "我的名字也有一个特别的意思。"
+
+    # Where from
+    if fid in ("f_from_where",):
+        hometown = (profile.get("hometown") or "").strip()
+        return f"我是{hometown}人。" if hometown else "我是中国人。"
+
+    # Current location / where living
+    if fid in ("frame.location.live_question", "p2_pl_ext1", "p2_pl_1"):
+        city = (profile.get("city") or "").strip()
+        if city:
+            return f"我现在住在{city}。"
+        return voice_lines.get("place") or "我现在住在中国。"
+
+    # Work / job
+    if fid in ("f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2"):
+        occ = (profile.get("occupation") or "").strip()
+        return voice_lines.get("work") or (f"我是{occ}。" if occ else "我也有工作。")
+
+    # Hobbies
+    if fid in ("f_what_hobby", "f_often_do", "f_like_do_what", "f_weekend_do",
+               "f_difficult_ma", "f_recommend_ma", "p2_hb_1", "p2_hb_2"):
+        interests = profile.get("interests") or []
+        if voice_lines.get("hobby"):
+            return voice_lines["hobby"]
+        if interests:
+            return f"我喜欢{interests[0]}。"
+        return "我也有爱好。"
+
+    # Travel
+    if fid in ("f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2"):
+        return voice_lines.get("travel") or "我也喜欢旅行。"
+
+    # Food
+    if fid in ("f_food_what_good", "f_food_famous_dish", "f_food_tasty",
+               "p2_pl_2", "f_food_like_spicy", "f_food_expensive"):
+        return voice_lines.get("food") or "我觉得好吃的食物很重要。"
+
+    # Family
+    if fid in ("f_have_family", "f_have_siblings", "f_married", "f_have_children", "p2_fa_1", "p2_fa_2", "p2_fa_5"):
+        return voice_lines.get("family") or "我也有家人。"
+
+    # Place / life quality fallbacks
+    if fid in ("f_place_like_there", "f_place_why_like", "p2_pl_3", "p2_pl_4"):
+        return voice_lines.get("place") or "我觉得住的地方很重要。"
+
+    # Engine-level fallback: use voice_line for the frame's engine
+    frame_rec = _frames_by_id.get(fid) or {}
+    engine = (frame_rec.get("engine") or "").strip().lower()
+    if engine and engine in voice_lines:
+        return voice_lines[engine]
+
+    return None
+
+
+def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
+    """
+    Detect direct questions aimed at the partner persona (你是哪里人？ 你住哪里？ etc.)
+    and return a short first-person answer from persona profile/voice_lines.
+    Returns None when no pattern matches.
+    """
+    profile     = (persona or {}).get("profile") or {}
+    voice_lines = (persona or {}).get("voice_lines") or {}
+    name        = _assistant_name_from_persona(persona)
+
+    # Origin / hometown
+    if any(p in t for p in ("你是哪里人", "你从哪里来", "你老家", "你哪里人")):
+        hometown = (profile.get("hometown") or "").strip()
+        if hometown:
+            return f"我是{hometown}人。"
+        return voice_lines.get("place") or "我是中国人。"
+
+    # Current city / where partner lives
+    if any(p in t for p in ("你住在哪", "你住哪", "你现在住", "你住的地方")):
+        city = (profile.get("city") or "").strip()
+        if city:
+            return f"我住在{city}。"
+        hometown = (profile.get("hometown") or "").strip()
+        return voice_lines.get("place") or (f"我住在{hometown}附近。" if hometown else "我在中国住。")
+
+    # Name / how to address
+    if any(p in t for p in ("你叫什么", "你叫啥", "怎么叫你", "你的名字")):
+        return (f"你可以叫我{name}。" if name else None)
+
+    # Job / work
+    if any(p in t for p in ("你做什么工作", "你的工作", "你是做什么", "你工作")):
+        occ = (profile.get("occupation") or "").strip()
+        return voice_lines.get("work") or (f"我是{occ}。" if occ else "我也有工作。")
+
+    # Hobbies / interests
+    if any(p in t for p in ("你喜欢什么", "你有什么爱好", "你喜欢做什么", "你的爱好")):
+        interests = profile.get("interests") or []
+        return voice_lines.get("hobby") or (f"我喜欢{interests[0]}。" if interests else "我也有很多爱好。")
+
+    # Family — has family / siblings
+    if any(p in t for p in ("你有家人", "你有没有家人", "你的家人")):
+        return voice_lines.get("family") or "我也有家人。"
+
+    # Married / partner status
+    if any(p in t for p in ("你结婚", "你有没有结婚", "你有对象", "你有伴侣",
+                             "你有男朋友", "你有女朋友", "你成家了")):
+        return voice_lines.get("family") or "这个嘛……不好说！"
+
+    # Children
+    if any(p in t for p in ("你有孩子", "你有小孩", "你有儿子", "你有女儿", "你有宝宝")):
+        return voice_lines.get("family") or "这个……还没有！"
+
+    # Age
+    if any(p in t for p in ("你多大", "你几岁", "你的年龄", "你今年多大")):
+        return "我嘛……不太好说年龄！"
+
+    return None
+
+
 def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[dict]) -> Optional[str]:
     """
     Return a short prefix that answers common counter-questions without adding new API turns.
-    We only handle the high-value early case: user asks what to call the app.
+    Handles: direct persona questions (你是哪里人？ 你住哪里？ etc.),
+             generic 你呢 (alone or at end of a compound answer),
+             and direct name questions.
     """
     if not _is_user_question(last_answer):
         return None
     t = (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
     if not t:
         return None
-    # If user asked how to address the app, answer with app name.
-    if ("叫你" in t) or ("怎么叫" in t) or ("你叫什么" in t) or ("你叫啥" in t):
+
+    # Mirror questions (richest answers — use discoverable_facts / profile via _mirror_persona_stub)
+    _mirror = _find_mirror_answer(t, "", persona)
+    if _mirror:
+        return _mirror
+
+    # Direct questions aimed at the partner (你是哪里人？ 你住哪里？ etc.)
+    _direct = _direct_persona_answer(t, persona)
+    if _direct:
+        return f"我呢，{_direct}" if not _direct.startswith("我") else _direct
+
+    # Generic 你呢 — whether standalone or at end of a compound answer
+    _ni_ne_markers = ("你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "你来问")
+    _has_ni_ne = any(m in t for m in _ni_ne_markers)
+    if _has_ni_ne:
+        fid = (last_answer.get("frame_id") or "").strip()
+        reply = _persona_reply_for_ni_ne(fid, persona)
+        if reply:
+            return f"我呢，{reply}" if not reply.startswith("我呢") else reply
+        # No persona or no frame-specific reply — prefer engine-specific generic over the name
+        _frame_eng = (_frames_by_id.get(fid) or {}).get("engine") or ""
+        _generics: dict = {
+            "identity": None,           # handled by name below
+            "place":    "我也住在中国，挺喜欢的。",
+            "work":     "我也有工作，还挺有意思的。",
+            "hobby":    "我也有几个爱好，有空会聊。",
+            "family":   "我也有家人，关系挺好的。",
+            "food":     "我也很喜欢吃东西，尤其是家乡菜。",
+            "travel":   "我也旅行过几个地方，很有意思。",
+        }
+        _gen = _generics.get(_frame_eng.lower())
+        if _gen:
+            return f"我呢，{_gen}"
+        # Identity / unknown engine: use name as a natural reply
         an = _assistant_name_from_persona(persona)
-        return f"你可以叫我{an}。"
-    return None
+        if an and an != "MandarinOS":
+            return f"我呢，你可以叫我{an}。"
+        return "我呢，这是个好问题。"
+
+    # Catch-all: user asked a question we don't have a specific answer for —
+    # return a graceful acknowledgment so the conversation doesn't silently skip it.
+    _graceful = ["哎，好问题！", "这个嘛……", "嗯，我想想……", "嗯，有意思！"]
+    return _stable_pick(_graceful, t) or "哎，好问题！"
 
 
 # ---------------------------------------------------------------------------
@@ -1404,6 +1595,25 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         return "我有几个爱好，平时很忙，但一有时间就会去做。"
 
     return "我觉得都挺有意思的。"
+
+
+def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> Optional[str]:
+    """
+    Check if the user's submitted text closely matches one of the mirror discovery questions.
+    If so, return a rich persona-specific answer via _mirror_persona_stub.
+    Falls through to None so callers can chain with _direct_persona_answer.
+    """
+    t_norm = (text or "").strip().rstrip("？?！!。，, ")
+    for eng, questions in _MIRROR_QUESTIONS_BY_ENGINE.items():
+        for q in questions:
+            zh_norm = (q.get("zh") or "").rstrip("？?！!。，, ")
+            if not zh_norm:
+                continue
+            # Match if submitted text contains or equals the canonical question
+            if zh_norm in t_norm or t_norm == zh_norm:
+                topic = q.get("topic") or ""
+                return _mirror_persona_stub(topic, eng or engine_id, persona)
+    return None
 
 
 def _direction_stub(intent: str, engine_id: str, last_partner_frame_id: str, persona: Optional[dict]) -> str:
@@ -2072,14 +2282,33 @@ class Handler(BaseHTTPRequestHandler):
 
                 # Phase 12C: echo / mirror — when we know the slot value, replace the generic
                 # reaction with a short echo so the app sounds like it truly heard the answer.
-                # Only fires when the reaction would otherwise be a bland generic fallback.
-                # Never echoes on identity frames or very short text (avoids "嗯。" → "嗯。哦。").
-                if last_turn_was_answer and reaction_used_fallback and reaction_prefix_text:
+                # Fires when: (a) the reaction is generic fallback text, OR (b) the reaction
+                # text is short/generic (≤4 Chinese chars like "很好！" "哦。") — those are
+                # bland acknowledgements that benefit from being replaced by a named echo.
+                _zh_chars_in_reaction = len([c for c in (reaction_prefix_text or "") if "\u4e00" <= c <= "\u9fff"])
+                _reaction_is_generic = reaction_used_fallback or _zh_chars_in_reaction <= 4
+                if last_turn_was_answer and _reaction_is_generic and reaction_prefix_text:
                     _echo_candidate = ""
-                    _submitted = (last_answer.get("submitted_text") or "").strip() if isinstance(last_answer, dict) else ""
+                    _submitted_raw = (last_answer.get("submitted_text") or "").strip() if isinstance(last_answer, dict) else ""
+                    # Strip ALL trailing punctuation (fullwidth and ASCII) so echo never ends with "。！" or "，！"
+                    _submitted = _submitted_raw.rstrip("。，！？、…·\u3002\uff0c\uff01\uff1f.!?, ")
                     _mem = memory or {}
                     if "CITY" in slot_names:
                         _city = (_mem.get("lives_in") or _mem.get("hometown") or "").strip()
+                        if not _city and _submitted:
+                            # Extract city from "我是X人" / "来自X" / "住在X" patterns
+                            for _patt_start, _patt_end in [("是", "人"), ("来自", ""), ("住在", "")]:
+                                _ps = _submitted.find(_patt_start)
+                                if _ps >= 0:
+                                    _frag = _submitted[_ps + len(_patt_start):]
+                                    if _patt_end:
+                                        _pe = _frag.find(_patt_end)
+                                        if 0 < _pe <= 6:
+                                            _city = _frag[:_pe]
+                                            break
+                                    elif _frag and len(_frag) <= 6:
+                                        _city = _frag.rstrip("。，！？")
+                                        break
                         if _city:
                             _echo_candidate = f"哦，{_city}！"
                     elif "NAME" in slot_names and exchange_count <= 3:
@@ -2095,17 +2324,26 @@ class Handler(BaseHTTPRequestHandler):
                         if _job and len(_job) <= 6:
                             _echo_candidate = f"哦，{_job}！"
                     # Apply echo only when we have a clean value (not too long, not already prefixed)
-                    if _echo_candidate and len(_echo_candidate) <= 12:
+                    # Final guard: strip any punct that crept into the candidate from slot values
+                    if _echo_candidate:
+                        _echo_candidate = _echo_candidate.rstrip("。，！？.!?,\u3002\uff0c\uff01\uff1f") + "！"
+                    if _echo_candidate and len(_echo_candidate) <= 14:
                         reaction_prefix_text = _echo_candidate
 
                 # User-question override (spec-friendly, no schema changes):
-                # if the user asked a question (counter-question), answer it via a short prefix first.
+                # if the user asked a question (counter-question), return the persona's answer
+                # as a dedicated `counter_reply` field so the client can display/TTS it
+                # separately — much more reliable than concatenating into reaction_prefix_text
+                # where bridge resets or ordering issues can silently drop it.
                 persona_id = (payload.get("persona_id") or cs.get("persona_id") or "").strip() or None
                 persona = _resolve_persona(persona_id) or (_get_persona(persona_id) if _get_persona else None)
-                uq_prefix = _answer_user_question_prefix(last_answer, persona) if last_turn_was_answer else None
-                if uq_prefix:
-                    # Put the answer before any reaction so it reads naturally.
-                    reaction_prefix_text = f"{uq_prefix}{reaction_prefix_text}"
+                _counter_reply = _answer_user_question_prefix(last_answer, persona) if last_turn_was_answer else None
+                # DEBUG — remove after diagnosis
+                _dbg_la = last_answer or {}
+                print(f"[DBG counter_reply] lta={last_turn_was_answer} is_q={_is_user_question(last_answer)} "
+                      f"submitted={_dbg_la.get('submitted_text','')!r} "
+                      f"hanzi={_dbg_la.get('selected_option_hanzi','')!r} "
+                      f"-> counter_reply={_counter_reply!r}")
 
                 # Partner curiosity: prefer loop when triggered and depth allows, but avoid weak loop frames if possible
                 chosen = None
@@ -2262,6 +2500,12 @@ class Handler(BaseHTTPRequestHandler):
                                     engines_visited=engines_visited,
                                 )
 
+                # [DEBUG] trace the selection result for rapid-bridge diagnosis
+                _dbg_submitted = (last_answer.get("submitted_text") or "") if isinstance(last_answer, dict) else ""
+                print(f"[SEL] engine={current_engine} chain={same_engine_chain_count} chosen={chosen} "
+                      f"ex={exchange_count} pref_br={prefer_bridge} unscripted={unscripted_probe_first} "
+                      f"meaningful={meaningful} submitted={repr(_dbg_submitted[:20])}", flush=True)
+
                 if not chosen:
                     self._json_error(400, "no frame available for next question")
                     return
@@ -2332,7 +2576,19 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     _fc = _mt_filter_debug.get("filtered_chosen")
                     if _fc and _fc != chosen:
-                        chosen = _fc
+                        # Guard: if unscripted_probe_first selected a same-engine follow-up,
+                        # don't let the move_type filter pull us into a different engine.
+                        # The probe intent must be respected — cross-engine override defeats it.
+                        _fc_engine = (_frames_by_id.get(_fc) or {}).get("engine") or ""
+                        _orig_engine = (_frames_by_id.get(chosen) or {}).get("engine") or current_engine
+                        _cross_engine = bool(
+                            _fc_engine and _orig_engine
+                            and _fc_engine.strip().lower() != _orig_engine.strip().lower()
+                        )
+                        if unscripted_probe_first and _cross_engine:
+                            pass  # keep the same-engine probe — filter cannot override a probe intent
+                        else:
+                            chosen = _fc
                         # Note: chosen_turn_type intentionally kept from 10.5 logic; filter is structural only.
 
                 # ── Phase 12C: soft session arc bias pass ─────────────────────────────
@@ -2343,7 +2599,7 @@ class Handler(BaseHTTPRequestHandler):
 
                     # 1. Loop cap — partner asked ≥ LOOP_COUNT_IN_ENGINE_SOFT_CAP LOOPs
                     #    in this engine; try a non-LOOP frame or bridge.
-                    if _chosen_is_loop and _12c_loop_capped:
+                    if _chosen_is_loop and _12c_loop_capped and not user_asked_question:
                         _arc_alt = _select_next_frame_ladder_avoiding(
                             current_engine, recent,
                             avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
@@ -2365,7 +2621,7 @@ class Handler(BaseHTTPRequestHandler):
 
                     # 2. Overload — user confused ≥ OVERLOAD_CONFUSION_THRESHOLD times;
                     #    don't loop further, prefer bridge to lighter material.
-                    if _12c_overload and _is_loop_candidate(chosen):
+                    if _12c_overload and _is_loop_candidate(chosen) and not user_asked_question:
                         _arc_br = _select_next_frame_bridge(
                             current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited
                         )
@@ -2375,14 +2631,26 @@ class Handler(BaseHTTPRequestHandler):
                             _transition_reason = "overload"
 
                     # 3. Closure — session is long (≥ CLOSURE_EXCHANGE_THRESHOLD);
-                    #    probabilistically push toward a new engine if still in same engine.
-                    if _12c_closing and _transition_reason == "normal":
+                    #    probabilistically push toward a new engine ONLY when the current engine
+                    #    is sufficiently explored (depth guard) or nearly exhausted.
+                    #    Guard: never force a bridge mid-turn when the user just asked us a question —
+                    #    the persona should answer first, then continue naturally.
+                    if _12c_closing and _transition_reason == "normal" and not user_asked_question:
                         _closure_frame_engine = (_frames_by_id.get(chosen) or {}).get("engine") or current_engine
                         _still_in_engine = (
                             (_closure_frame_engine or "").strip().lower()
                             == (current_engine or "").strip().lower()
                         )
-                        if _still_in_engine:
+                        _remaining_now = _count_remaining_engine_frames(current_engine, list(recent), memory)
+                        # Only push out if we've had enough turns in this engine OR it's nearly empty
+                        _close_ready = (
+                            _still_in_engine
+                            and (
+                                same_engine_chain_count >= ENGINE_DEPTH_GUARD_TURNS
+                                or _remaining_now < ENGINE_DEPTH_GUARD_MIN_REMAINING
+                            )
+                        )
+                        if _close_ready:
                             _close_seed = f"{cs.get('session_id','')}/close/{len(recent)}"
                             _close_gate = sum(ord(c) for c in _close_seed) % 1000
                             if _close_gate < CLOSURE_BRIDGE_GATE:
@@ -2471,8 +2739,12 @@ class Handler(BaseHTTPRequestHandler):
                 "system_note":         "phase7.4 static options",
                 "sentence_options":    _build_sentence_options(frame_rec, memory),
             }
-            # Phase 13A: slot substitution — fill {CITY} / [CITY] from learner memory
-            if "{CITY}" in (response.get("frame_text") or "") or "{CITY}" in (response.get("frame_pinyin") or ""):
+            # Phase 13A: slot substitution — fill {CITY}/{PLACE}/[CITY] from learner memory
+            _needs_city_slot = (
+                any(tok in (response.get("frame_text") or "") for tok in ("{CITY}", "{PLACE}"))
+                or "{CITY}" in (response.get("frame_pinyin") or "")
+            )
+            if _needs_city_slot:
                 _slot_mem = memory if isinstance(memory, dict) else None
                 if _slot_mem is None and _lm_load:
                     _cs_sl = payload.get("conversation_state") if isinstance(payload.get("conversation_state"), dict) else {}
@@ -2484,10 +2756,19 @@ class Handler(BaseHTTPRequestHandler):
                     if _city:
                         if "{CITY}" in (response.get("frame_text") or ""):
                             response["frame_text"] = response["frame_text"].replace("{CITY}", _city)
+                        if "{PLACE}" in (response.get("frame_text") or ""):
+                            response["frame_text"] = response["frame_text"].replace("{PLACE}", _city)
                         if "{CITY}" in (response.get("frame_pinyin") or ""):
                             response["frame_pinyin"] = response["frame_pinyin"].replace("{CITY}", _city)
                         if "[CITY]" in (response.get("frame_text_en") or ""):
                             response["frame_text_en"] = response["frame_text_en"].replace("[CITY]", _city)
+                    else:
+                        # No city in memory — fill generic so placeholder never reaches the user
+                        _frame_text_raw = response.get("frame_text") or ""
+                        if "{PLACE}" in _frame_text_raw:
+                            response["frame_text"] = _frame_text_raw.replace("{PLACE}", "那儿")
+                        if "{CITY}" in (response.get("frame_text") or ""):
+                            response["frame_text"] = response["frame_text"].replace("{CITY}", "那儿")
             # Frame-level direction metadata (for UI action buttons)
             supports_reverse = False
             supports_why = False
@@ -2512,6 +2793,25 @@ class Handler(BaseHTTPRequestHandler):
                 if bridge_prefix_text and "？" in (frame_rec.get("text") or ""):
                     response["frame_text"] = f"{bridge_prefix_text}{response['frame_text']}"
                     response["bridge_prefix_applied"] = True
+                # Counter-reply: separate field so client TTS/displays it before the next question.
+                if _counter_reply:
+                    response["counter_reply"] = _counter_reply
+
+                # Discovery mode: when user asked a question, offer follow-up questions THEY can
+                # ask the persona — surfacing the mirror question bank so the learner can
+                # interview the persona instead of being relentlessly interrogated.
+                if user_asked_question and _counter_reply:
+                    _disc_eng = (current_engine or engine_id or "").strip().lower()
+                    _disc_pool: list = list(_MIRROR_QUESTIONS_BY_ENGINE.get(_disc_eng) or [])
+                    # Supplement with up to 1 question from adjacent engines so there's always variety
+                    for _adj in ("place", "work", "family", "hobby", "food", "travel", "identity"):
+                        if _adj != _disc_eng and len(_disc_pool) < 3:
+                            _adj_qs = _MIRROR_QUESTIONS_BY_ENGINE.get(_adj) or []
+                            if _adj_qs:
+                                _disc_pool.append(_adj_qs[0])
+                    if _disc_pool:
+                        response["discovery_questions"] = _disc_pool[:3]
+                        response["user_led"] = True
 
             # Phase 10.5: blended reciprocity injection early (prefer answer + 你呢？)
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):

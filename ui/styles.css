@@ -442,6 +442,34 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
 /* Recovery phrases: distinct border so they read as "help" not answer options */
 .option-panel[data-recovery="true"] { border-color: #d97706; background: #fffbeb; }
 .option-panel[data-recovery="true"] .option-hanzi { color: #b45309; }
+/* Discovery panel: "You interview the persona" mode ──────────────────────── */
+#discoveryPanel {
+  display: none;
+  margin: 10px 0;
+  padding: 10px 12px 12px;
+  background: #f0f9ff;
+  border: 2px solid #7dd3fc;
+  border-radius: 12px;
+}
+.discovery-header {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0369a1;
+  margin-bottom: 8px;
+  letter-spacing: 0.03em;
+}
+.discovery-sub { font-weight: 400; color: #0284c7; }
+.option-panel.discovery-question {
+  background: #fff;
+  border-color: #7dd3fc;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.option-panel.discovery-question:hover { background: #e0f2fe; border-color: #0284c7; }
+.option-panel.discovery-question .op-zh { font-size: 1.1rem; font-weight: 600; color: #0c4a6e; }
+.option-panel.discovery-question .op-py { font-size: 0.8rem; color: #0369a1; margin-left: 6px; }
+.option-panel.discovery-question .op-en { font-size: 0.8rem; color: #555; margin-left: 6px; font-style: italic; }
+
 /* Steering cards: "turn it around" — you ask back / redirect the conversation */
 .option-panel[data-steer="true"] { border-color: #0891b2; background: #ecfeff; }
 .option-panel[data-steer="true"] .option-hanzi { color: #0e7490; }

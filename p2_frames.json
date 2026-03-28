@@ -121,6 +121,28 @@
       "move_type": "LOOP"
     },
     {
+      "id": "f_how_old",
+      "text": "你多大了？",
+      "pinyin": "nǐ duō dà le?",
+      "engine": "identity",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": [
+        "w_duo"
+      ],
+      "text_en": "How old are you?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ASK"
+    },
+    {
       "id": "p2_pl_1",
       "text": "你觉得{CITY}生活怎么样？",
       "pinyin": "nǐ juéde {CITY} shēnghuó zěnmeyàng?",
@@ -259,7 +281,7 @@
       "text": "你跟家人住在一起吗？",
       "pinyin": "nǐ gēn jiārén zhù zài yīqǐ ma?",
       "engine": "family",
-      "difficulty": 3,
+      "difficulty": 2,
       "slots": [],
       "option_tokens": [
         "w_zhuyiqi"
@@ -367,6 +389,50 @@
         "ANSWER"
       ],
       "move_type": "LOOP"
+    },
+    {
+      "id": "f_have_children",
+      "text": "你有孩子吗？",
+      "pinyin": "nǐ yǒu háizi ma?",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": [
+        "w_you"
+      ],
+      "text_en": "Do you have children?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ASK"
+    },
+    {
+      "id": "f_married",
+      "text": "你结婚了吗？",
+      "pinyin": "nǐ jiéhūn le ma?",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "option_tokens": [
+        "w_jiehun"
+      ],
+      "text_en": "Are you married?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ASK"
     },
     {
       "id": "p2_wk_1",
