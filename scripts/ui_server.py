@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import re
+import subprocess
 import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -9,6 +11,13 @@ from typing import List, Optional
 from urllib.parse import urlparse, parse_qs
 import mimetypes
 import os
+
+# Ensure stdout can handle non-ASCII (Chinese) characters on Windows cp1252 terminals.
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 REPO_ROOT   = Path(__file__).resolve().parents[1]
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -867,26 +876,27 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
         text = (last_answer.get("selected_option_hanzi") or "").strip()
     if not text:
         return False
-    if "？" in text or "?" in text:
+    # Check for any question mark (fullwidth U+FF1F or ASCII U+003F)
+    if any(ord(c) in (0xFF1F, 0x003F) for c in text):
+        return True
+    # Turn-around markers AS SUBSTRINGS — catches "我叫X，你呢" / "喜欢你呢" etc.
+    _turn_around_markers = ("你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "你来问")
+    if any(m in text for m in _turn_around_markers):
+        return True
+    # Direct questions about the persona (no explicit "？" needed)
+    _direct_starts = (
+        "你叫什么", "你的名字", "你是哪里人", "你从哪里来", "你老家在哪",
+        "你住在哪", "你住哪里", "你做什么工作", "你的工作", "你是做什么",
+        "你喜欢什么", "你有什么爱好", "你有家人", "你有没有家人",
+        "你结婚了吗", "你有孩子", "你多大", "你几岁",
+    )
+    if any(text.startswith(p) for p in _direct_starts):
         return True
     # Common interrogative markers without explicit punctuation
     starters = ("怎么", "为什么", "哪里", "谁", "什么时候", "多少", "几", "哪儿", "哪裡")
     if text.startswith(starters):
         return True
     if text.endswith("吗") or ("吗" in text and len(text) <= 8):
-        return True
-    # Turn-around / reciprocity phrases — ASR often omits trailing "？"
-    _turn_around = {"你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "那你", "你来问"}
-    if text in _turn_around or any(text.startswith(p) for p in _turn_around):
-        return True
-    # Also catch e.g. "我推荐了你呢" / "喜欢你呢" — turn-around at the END without explicit "？"
-    if any(text.endswith(p) for p in _turn_around):
-        return True
-    # Direct questions about the persona without explicit "？" (ASR often drops punctuation)
-    _persona_qs = ("你是哪里人", "你从哪里来", "你老家在哪", "你住在哪", "你住哪里",
-                   "你做什么工作", "你的工作是什么", "你是做什么的", "你喜欢什么",
-                   "你有什么爱好", "你有家人", "你有没有家人", "你结婚了吗", "你有孩子")
-    if any(text.startswith(p) or text == p for p in _persona_qs):
         return True
     return False
 
@@ -1005,8 +1015,20 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
         hometown = (profile.get("hometown") or "").strip()
         return voice_lines.get("place") or (f"我住在{hometown}附近。" if hometown else "我在中国住。")
 
-    # Name / how to address
-    if any(p in t for p in ("你叫什么", "你叫啥", "怎么叫你", "你的名字")):
+    # Name meaning / story — must be checked BEFORE the generic name pattern
+    # because "你的名字有什么意思" ALSO contains "你的名字".
+    _facts = (persona or {}).get("discoverable_facts") or {}
+    if any(p in t for p in ("你的名字是什么意思", "你的名字有什么意思", "名字什么意思",
+                             "名字的意思", "名字有什么意思", "名字是什么意思")):
+        fact = (_facts.get("identity") or "").strip()
+        return fact if fact else f"我叫{name}，这个名字有一点特别的意思，是家人给取的。"
+    if any(p in t for p in ("名字有什么故事", "名字的故事", "名字怎么来", "名字怎么取")):
+        fact = (_facts.get("identity") or "").strip()
+        return fact if fact else "我的名字有一个小故事，家里人取的，有机会再说给你听。"
+
+    # Name / how to address (who-are-you / what-should-I-call-you)
+    if any(p in t for p in ("你叫什么", "你叫啥", "怎么叫你", "你叫什么名字",
+                             "你的名字叫", "你名字叫")):
         return (f"你可以叫我{name}。" if name else None)
 
     # Job / work
@@ -1034,7 +1056,7 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
 
     # Age
     if any(p in t for p in ("你多大", "你几岁", "你的年龄", "你今年多大")):
-        return "我嘛……不太好说年龄！"
+        return "哈，年龄这种事……说多少都不准！反正我不老就是了。"
 
     return None
 
@@ -1090,10 +1112,17 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
             return f"我呢，你可以叫我{an}。"
         return "我呢，这是个好问题。"
 
-    # Catch-all: user asked a question we don't have a specific answer for —
-    # return a graceful acknowledgment so the conversation doesn't silently skip it.
-    _graceful = ["哎，好问题！", "这个嘛……", "嗯，我想想……", "嗯，有意思！"]
-    return _stable_pick(_graceful, t) or "哎，好问题！"
+    # Catch-all: user asked a question we don't have a specific answer for.
+    # Phrases should complete the thought — not trail off — so the persona sounds natural,
+    # not evasive. The conversation pauses client-side so the user stays in control.
+    _graceful = [
+        "哎，这个嘛……说来话长，有空再聊！",   # That's a long story — let's talk another time!
+        "嗯，好问题！我得好好想想。",            # Good question — I need to really think about it.
+        "这个……我不太好说，不好意思！",         # That's hard to say, sorry!
+        "哈，你问到点子上了！我还没想好怎么回答。",  # You've hit the nail on the head — I haven't figured out how to answer yet.
+        "嗯，有意思的问题！下次一定好好说。",    # Interesting question — I'll definitely tell you next time.
+    ]
+    return _stable_pick(_graceful, t) or "这个嘛……说来话长，有空再聊！"
 
 
 # ---------------------------------------------------------------------------
@@ -1503,34 +1532,64 @@ def _probe_stub_for_persona(probe_id: str, persona: Optional[dict]) -> str:
 # Mirror questions the learner can ask the persona after a direction turn — keyed by engine.
 _MIRROR_QUESTIONS_BY_ENGINE: dict = {
     "identity": [
-        {"zh": "你的名字是什么意思？", "py": "nǐ de míngzi shì shénme yìsi?",    "en": "What does your name mean?",           "kind": "SENTENCE", "topic": "name_meaning"},
-        {"zh": "谁给你取的名字？",     "py": "shéi gěi nǐ qǔ de míngzi?",         "en": "Who gave you your name?",             "kind": "SENTENCE", "topic": "name_story"},
-        {"zh": "你的名字有什么故事吗？","py": "nǐ de míngzi yǒu shénme gùshi ma?", "en": "Is there a story behind your name?",  "kind": "SENTENCE", "topic": "name_story"},
+        {"zh": "你的名字是什么意思？", "py": "nǐ de míngzi shì shénme yìsi?",     "en": "What does your name mean?",              "kind": "SENTENCE", "topic": "name_meaning"},
+        {"zh": "谁给你取的名字？",     "py": "shéi gěi nǐ qǔ de míngzi?",          "en": "Who gave you your name?",                "kind": "SENTENCE", "topic": "name_giver"},
+        {"zh": "名字背后有什么故事吗？","py": "míngzi bèihòu yǒu shénme gùshi ma?", "en": "Is there a story behind your name?",     "kind": "SENTENCE", "topic": "name_story"},
     ],
     "food": [
-        {"zh": "你最喜欢吃什么？",     "py": "nǐ zuì xǐhuān chī shénme?",          "en": "What do you like to eat most?",       "kind": "SENTENCE", "topic": "food_fav"},
-        {"zh": "你喜欢吃辣吗？",       "py": "nǐ xǐhuān chī là ma?",               "en": "Do you like spicy food?",             "kind": "SENTENCE", "topic": "food_spicy"},
+        {"zh": "你最喜欢吃什么？",     "py": "nǐ zuì xǐhuān chī shénme?",           "en": "What do you like to eat most?",          "kind": "SENTENCE", "topic": "food_fav"},
+        {"zh": "你家乡有什么好吃的？", "py": "nǐ jiāxiāng yǒu shénme hǎochī de?",   "en": "What good food does your hometown have?", "kind": "SENTENCE", "topic": "food_local"},
+        {"zh": "你喜欢吃辣吗？",       "py": "nǐ xǐhuān chī là ma?",                "en": "Do you like spicy food?",                "kind": "SENTENCE", "topic": "food_spicy"},
     ],
     "place": [
-        {"zh": "你是哪里人？",         "py": "nǐ shì nǎlǐ rén?",                   "en": "Where are you from?",                 "kind": "SENTENCE", "topic": "place_from"},
-        {"zh": "你喜欢那里吗？",       "py": "nǐ xǐhuān nàlǐ ma?",                 "en": "Do you like it there?",               "kind": "SENTENCE", "topic": "place_like"},
+        {"zh": "你是哪里人？",         "py": "nǐ shì nǎlǐ rén?",                    "en": "Where are you from?",                    "kind": "SENTENCE", "topic": "place_from"},
+        {"zh": "那里有什么特别的？",   "py": "nàlǐ yǒu shénme tèbié de?",           "en": "What's special about that place?",       "kind": "SENTENCE", "topic": "place_special"},
+        {"zh": "你喜欢在那里生活吗？", "py": "nǐ xǐhuān zài nàlǐ shēnghuó ma?",    "en": "Do you enjoy living there?",             "kind": "SENTENCE", "topic": "place_like"},
     ],
     "travel": [
-        {"zh": "你去过哪里？",         "py": "nǐ qùguò nǎlǐ?",                     "en": "Where have you been?",                "kind": "SENTENCE", "topic": "travel_where"},
-        {"zh": "你最喜欢哪个地方？",   "py": "nǐ zuì xǐhuān nǎ ge dìfāng?",        "en": "Which place do you like most?",       "kind": "SENTENCE", "topic": "travel_fav"},
+        {"zh": "你去过哪里？",         "py": "nǐ qùguò nǎlǐ?",                      "en": "Where have you been?",                   "kind": "SENTENCE", "topic": "travel_where"},
+        {"zh": "最难忘的旅行是哪次？", "py": "zuì nánwàng de lǚxíng shì nǎ cì?",   "en": "What's your most memorable trip?",       "kind": "SENTENCE", "topic": "travel_memorable"},
+        {"zh": "你最喜欢哪个地方？",   "py": "nǐ zuì xǐhuān nǎ ge dìfāng?",         "en": "Which place do you like most?",          "kind": "SENTENCE", "topic": "travel_fav"},
     ],
     "work": [
-        {"zh": "你做什么工作？",       "py": "nǐ zuò shénme gōngzuò?",             "en": "What do you do for work?",            "kind": "SENTENCE", "topic": "work_what"},
-        {"zh": "你喜欢你的工作吗？",   "py": "nǐ xǐhuān nǐ de gōngzuò ma?",        "en": "Do you like your work?",              "kind": "SENTENCE", "topic": "work_like"},
+        {"zh": "你做什么工作？",       "py": "nǐ zuò shénme gōngzuò?",              "en": "What do you do for work?",               "kind": "SENTENCE", "topic": "work_what"},
+        {"zh": "你做这份工作多久了？", "py": "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",   "en": "How long have you been doing this?",     "kind": "SENTENCE", "topic": "work_duration"},
+        {"zh": "你在哪里分享你的作品？","py": "nǐ zài nǎlǐ fēnxiǎng nǐ de zuòpǐn?", "en": "Where do you share your work?",         "kind": "SENTENCE", "topic": "work_platform"},
+        {"zh": "你喜欢你的工作吗？",   "py": "nǐ xǐhuān nǐ de gōngzuò ma?",         "en": "Do you like your work?",                 "kind": "SENTENCE", "topic": "work_like"},
     ],
     "family": [
-        {"zh": "你家里有几个人？",     "py": "nǐ jiālǐ yǒu jǐ gè rén?",            "en": "How many people are in your family?", "kind": "SENTENCE", "topic": "family_size"},
-        {"zh": "你有兄弟姐妹吗？",     "py": "nǐ yǒu xiōngdì jiěmèi ma?",          "en": "Do you have siblings?",               "kind": "SENTENCE", "topic": "family_siblings"},
+        {"zh": "你家里有几个人？",     "py": "nǐ jiālǐ yǒu jǐ gè rén?",             "en": "How many people are in your family?",    "kind": "SENTENCE", "topic": "family_size"},
+        {"zh": "你有兄弟姐妹吗？",     "py": "nǐ yǒu xiōngdì jiěmèi ma?",           "en": "Do you have siblings?",                  "kind": "SENTENCE", "topic": "family_siblings"},
+        {"zh": "你们住在一起吗？",     "py": "nǐmen zhù zài yīqǐ ma?",              "en": "Do you all live together?",              "kind": "SENTENCE", "topic": "family_live"},
     ],
     "hobby": [
-        {"zh": "你喜欢做什么？",       "py": "nǐ xǐhuān zuò shénme?",              "en": "What do you like to do?",             "kind": "SENTENCE", "topic": "hobby_what"},
+        {"zh": "你喜欢做什么？",       "py": "nǐ xǐhuān zuò shénme?",               "en": "What do you like to do?",                "kind": "SENTENCE", "topic": "hobby_what"},
+        {"zh": "你玩这个多久了？",     "py": "nǐ wán zhège duōjiǔ le?",              "en": "How long have you been doing that?",     "kind": "SENTENCE", "topic": "hobby_duration"},
     ],
 }
+
+
+def _first_clause(text: str) -> str:
+    """Return the first natural clause of a Chinese sentence (up to the first 、，or ,).
+    Appends 。 so the fragment sounds complete. Used for progressive disclosure: the learner
+    gets a teaser on first ask, then pulls depth with follow-up questions."""
+    if not text:
+        return text
+    m = re.search(r'[，、,]', text)
+    if m and m.start() >= 4:          # at least 4 chars before the comma — avoid trivial splits
+        return text[:m.start()].rstrip() + "。"
+    return text  # already short, or no natural split — return as-is
+
+
+def _nth_clause(text: str, n: int) -> str:
+    """Return the n-th clause (0-indexed) of a Chinese sentence split on commas.
+    Used to reveal depth on follow-up questions."""
+    parts = re.split(r'[，、,]', text)
+    parts = [p.strip().rstrip("。.") for p in parts if p.strip()]
+    if n < len(parts):
+        tail = parts[n]
+        return tail + ("。" if not tail.endswith("。") else "")
+    return ""
 
 
 def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) -> str:
@@ -1541,54 +1600,86 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
     profile = persona.get("profile") or {}
     name    = _assistant_name_from_persona(persona)
 
-    # Identity / name questions — use discoverable identity fact if available
+    # ── Identity / name ─────────────────────────────────────────────────────────
     if topic in ("name_meaning", "name_story", "name_giver"):
         fact = (facts.get("identity") or "").strip()
-        if fact:
-            return fact
-        if topic == "name_meaning":
-            return f"我叫{name}，这个名字是家人给取的，我觉得挺好的。"
+        if topic == "name_giver":
+            # Depth: who gave the name — second clause usually names the person
+            depth = _nth_clause(fact, 1) if fact else ""
+            return depth or "是我父母给我取的名字。"
         if topic == "name_story":
-            return "我的名字有一点意思，是家里人取的，有机会再跟你说。"
-        return "是我父母给我取的名字。"
+            # Depth: story/meaning behind the name — third clause usually explains symbolism
+            depth = _nth_clause(fact, 2) if fact else ""
+            return depth or "我的名字有一点意思，是家里人取的，有机会再跟你说。"
+        # name_meaning: first clause (teaser)
+        return _first_clause(fact) if fact else f"我叫{name}，这个名字是家人给取的，我觉得挺好的。"
 
-    if topic in ("food_fav", "food_spicy"):
+    # ── Food ────────────────────────────────────────────────────────────────────
+    if topic in ("food_fav", "food_local", "food_spicy"):
         fact = (facts.get("food") or "").strip()
+        if topic == "food_local":
+            depth = _nth_clause(fact, 1) if fact else ""
+            return depth or "我家乡的菜也很有特色，有机会试试。"
         if fact:
-            return fact
+            return _first_clause(fact)
         fav = profile.get("favourite_food") or ""
         return f"我最喜欢吃{fav}。" if fav else "我喜欢吃各种东西，很难只选一个。"
 
-    if topic in ("place_from", "place_like"):
+    # ── Place ────────────────────────────────────────────────────────────────────
+    if topic in ("place_from", "place_like", "place_special"):
         fact = (facts.get("place") or "").strip()
+        if topic == "place_special":
+            depth = _nth_clause(fact, 1) if fact else ""
+            return depth or "那里有一些很有意思的地方，有机会去看看。"
         if fact:
-            return fact
+            return _first_clause(fact)
         city = profile.get("city") or profile.get("hometown") or ""
         return f"我是{city}人，从小在那里长大。" if city else "我觉得我住的地方挺好的。"
 
-    if topic in ("travel_where", "travel_fav"):
+    # ── Travel ───────────────────────────────────────────────────────────────────
+    if topic in ("travel_where", "travel_fav", "travel_memorable"):
         fact = (facts.get("travel") or "").strip()
+        if topic == "travel_memorable":
+            # Last clause often contains the memorable detail
+            parts = re.split(r'[，、,]', fact)
+            depth = parts[-1].strip().rstrip("。.") + "。" if parts and len(parts) > 1 else ""
+            return depth or "最难忘的是在一个很偏远的地方看星星那一晚。"
         if fact:
-            return fact
+            return _first_clause(fact)
         return "我去过几个城市，最喜欢有美食的地方。"
 
-    if topic in ("work_what", "work_like"):
+    # ── Work ─────────────────────────────────────────────────────────────────────
+    if topic in ("work_what", "work_like", "work_duration", "work_platform"):
         fact = (facts.get("work") or "").strip()
+        if topic == "work_duration":
+            depth = _nth_clause(fact, 0) if fact else ""   # first clause often has duration
+            return depth or "已经做了几年了，越做越有意思。"
+        if topic == "work_platform":
+            depth = _nth_clause(fact, 1) if fact else ""   # second clause often has platform
+            return depth or "我在网上分享，有一些人关注。"
         if fact:
-            return fact
+            return _first_clause(fact)
         job = profile.get("occupation") or ""
         return f"我做{job}，还挺有意思的。" if job else "我的工作挺有意思，可以学很多东西。"
 
-    if topic in ("family_size", "family_siblings"):
+    # ── Family ───────────────────────────────────────────────────────────────────
+    if topic in ("family_size", "family_siblings", "family_live"):
         fact = (facts.get("family") or "").strip()
+        if topic == "family_live":
+            depth = _nth_clause(fact, 1) if fact else ""
+            return depth or "我们不住在一起，但经常联系。"
         if fact:
-            return fact
+            return _first_clause(fact)
         return "我家里有几口人，大家关系都挺好的。"
 
-    if topic == "hobby_what":
+    # ── Hobby ────────────────────────────────────────────────────────────────────
+    if topic in ("hobby_what", "hobby_duration"):
         fact = (facts.get("hobby") or "").strip()
+        if topic == "hobby_duration":
+            depth = _nth_clause(fact, 1) if fact else ""
+            return depth or "已经玩了好几年了，越来越喜欢。"
         if fact:
-            return fact
+            return _first_clause(fact)
         interests = profile.get("interests") or []
         if interests:
             return f"我喜欢{interests[0]}，有空就去。"
@@ -1613,6 +1704,52 @@ def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> O
             if zh_norm in t_norm or t_norm == zh_norm:
                 topic = q.get("topic") or ""
                 return _mirror_persona_stub(topic, eng or engine_id, persona)
+
+    # Fuzzy-match common paraphrase variants that canonical substring check misses
+    _fuzzy: list = [
+        # name meaning variants: 是什么意思 vs 有什么意思 vs 啥意思
+        (("你的名字", "意思"), "name_meaning", "identity"),
+        (("名字", "意思"),     "name_meaning", "identity"),
+        # name story variants
+        (("名字", "故事"),     "name_story",   "identity"),
+        (("名字", "来历"),     "name_story",   "identity"),
+        (("名字", "怎么取"),   "name_story",   "identity"),
+        # food
+        (("你", "吃", "什么"), "food_fav",     "food"),
+        (("你", "喜欢吃"),     "food_fav",     "food"),
+        # place
+        (("你", "哪里人"),     "place_from",   "place"),
+        (("你", "从哪"),       "place_from",   "place"),
+        # work
+        (("你", "工作"),         "work_what",        "work"),
+        (("做", "多久"),         "work_duration",    "work"),
+        (("做了多久"),           "work_duration",    "work"),
+        (("多久了"),             "work_duration",    "work"),
+        (("哪里", "分享"),       "work_platform",    "work"),
+        (("哪个", "平台"),       "work_platform",    "work"),
+        # travel depth
+        (("最难忘",),            "travel_memorable", "travel"),
+        (("难忘", "旅行"),       "travel_memorable", "travel"),
+        # place depth
+        (("那里", "特别"),       "place_special",    "place"),
+        (("有什么特色"),         "place_special",    "place"),
+        # food local
+        (("家乡", "好吃"),       "food_local",       "food"),
+        (("家乡", "吃"),         "food_local",       "food"),
+        # family together
+        (("住在一起"),           "family_live",      "family"),
+        (("一起住"),             "family_live",      "family"),
+        # hobby duration
+        (("多久", "爱好"),       "hobby_duration",   "hobby"),
+        (("玩", "多久"),         "hobby_duration",   "hobby"),
+        # hobby
+        (("你", "爱好"),         "hobby_what",       "hobby"),
+        (("你", "喜欢做"),       "hobby_what",       "hobby"),
+    ]
+    for keywords, topic, eng in _fuzzy:
+        if all(kw in t_norm for kw in keywords):
+            return _mirror_persona_stub(topic, eng, persona)
+
     return None
 
 
@@ -2072,7 +2209,7 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"[ui_server] bad request body: {e}")
                 payload = {}
 
-            print(f"[ui_server] /api/run_turn: {payload}")
+            print(f"[ui_server] /api/run_turn payload keys={list(payload.keys())}", flush=True)
 
             # Direction actions: learner asks back/why, partner gives short stub, then UI resumes thread.
             direction_intent = (payload.get("direction_intent") or "").strip().lower()
@@ -2343,7 +2480,7 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"[DBG counter_reply] lta={last_turn_was_answer} is_q={_is_user_question(last_answer)} "
                       f"submitted={_dbg_la.get('submitted_text','')!r} "
                       f"hanzi={_dbg_la.get('selected_option_hanzi','')!r} "
-                      f"-> counter_reply={_counter_reply!r}")
+                      f"-> counter_reply={_counter_reply!r}", flush=True)
 
                 # Partner curiosity: prefer loop when triggered and depth allows, but avoid weak loop frames if possible
                 chosen = None
@@ -3018,7 +3155,51 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
 
+def _kill_stale_server_processes(port: int) -> None:
+    """Kill any OTHER Python processes already listening on *port* (Windows + Unix)."""
+    my_pid = os.getpid()
+    try:
+        if sys.platform == "win32":
+            result = subprocess.run(
+                ["netstat", "-ano", "-p", "tcp"],
+                capture_output=True, text=True, timeout=5,
+            )
+            pids_seen: set = set()
+            for line in result.stdout.splitlines():
+                if f":{port}" in line and "LISTENING" in line:
+                    parts = line.split()
+                    if parts:
+                        try:
+                            pid = int(parts[-1])
+                        except ValueError:
+                            continue
+                        if pid != my_pid and pid not in pids_seen:
+                            pids_seen.add(pid)
+                            subprocess.run(
+                                ["taskkill", "/F", "/PID", str(pid)],
+                                capture_output=True, timeout=5,
+                            )
+                            print(f"[ui_server] Killed stale server PID={pid} on port {port}", flush=True)
+        else:
+            # Unix: use lsof or ss
+            result = subprocess.run(
+                ["lsof", "-ti", f"tcp:{port}"],
+                capture_output=True, text=True, timeout=5,
+            )
+            for pid_str in result.stdout.strip().splitlines():
+                try:
+                    pid = int(pid_str.strip())
+                except ValueError:
+                    continue
+                if pid != my_pid:
+                    os.kill(pid, 9)
+                    print(f"[ui_server] Killed stale server PID={pid} on port {port}", flush=True)
+    except Exception as exc:
+        print(f"[ui_server] Warning: could not clean stale processes on port {port}: {exc}", flush=True)
+
+
 if __name__ == "__main__":
     port = 8765
-    print(f"[ui_server] Listening on http://localhost:{port}")
+    _kill_stale_server_processes(port)
+    print(f"[ui_server] Listening on http://localhost:{port}", flush=True)
     ThreadedHTTPServer(("", port), Handler).serve_forever()

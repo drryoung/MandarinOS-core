@@ -1173,7 +1173,8 @@ function renderTranscript() {
       detail.className = "transcript-line-detail";
       const chunks = [];
       if (shouldShowPy) chunks.push(textPy ? textPy : "Pinyin not available");
-      if (shouldShowEn) chunks.push(textEn ? textEn : "No translation available yet");
+      // For partner entries without a translation (dynamic persona answers), show nothing rather than a confusing placeholder.
+      if (shouldShowEn && (textEn || role === "user")) chunks.push(textEn || "No translation available yet");
       detail.textContent = chunks.join("  |  ");
       container.appendChild(detail);
     }
@@ -2872,7 +2873,9 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
       const userText = (phrase.hanzi || "").trim();
       addTranscriptEntry("user", userText, { text_en: phrase.meaning || "" });
       const action = getRecoveryAction(phrase);
-      const currentQuestion = (window._currentFrameText || "").trim();
+      // Use the most recently spoken partner text — in discovery mode this may be a persona stub answer
+      // rather than _currentFrameText (which holds the pending queued question).
+      const currentQuestion = (window._lastPartnerSpokenText || window._currentFrameText || "").trim();
 
       if (action === "next_turn") {
         renderTranscript();
@@ -3005,7 +3008,7 @@ function renderOptions(options, frameId) {
           const userText = (phrase.hanzi || "").trim();
           addTranscriptEntry("user", userText, { text_en: phrase.meaning || "" });
           const action = getRecoveryAction(phrase);
-          const currentQuestion = (window._currentFrameText || "").trim();
+          const currentQuestion = (window._lastPartnerSpokenText || window._currentFrameText || "").trim();
 
           if (action === "next_turn") {
             renderTranscript();
@@ -3215,11 +3218,12 @@ function renderOptions(options, frameId) {
         window._consecutiveNotUnderstood = 0;
         window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
         hideDiscoveryPanel();  // user answered partner's question — exit discovery mode
+        window._pendingFrameText = null;
       }
 
       if (opt.kind === "RECOVERY") {
         const action = getRecoveryAction(opt);
-        const currentQuestion = (window._currentFrameText || "").trim();
+        const currentQuestion = (window._lastPartnerSpokenText || window._currentFrameText || "").trim();
 
         if (action === "next_turn") {
           addTranscriptEntry("user", userText, { text_en: opt.meaning || "" });
@@ -3444,11 +3448,13 @@ function renderSentenceOptions(sentenceOptions, frameId) {
         if (optC) optC.style.display = "none";
         window._lastAnswer = { frame_id: frameId || "", submitted_text: hanziStr };
         // Keep legacy UX: play chosen response first, then advance turn.
+        let _soFired = false;
         ttsSpeak({
           text: hanziStr,
           lang: "zh-CN",
           onEvent: (e) => {
-            if (e?.payload?.completed) {
+            if (!_soFired && e?.payload?.completed) {
+              _soFired = true;
               runTurn(true, { last_turn_was_answer: true, submitted_text: hanziStr });
             }
           },
@@ -3942,7 +3948,10 @@ async function _runTurnInner(isNext = false, opts = {}) {
     if (opts.force_bridge === true) conversation_state.force_bridge = true;
     if (opts.last_turn_was_answer === true) {
       conversation_state.last_turn_was_answer = true;
-      if (window._lastAnswer && window._lastAnswer.frame_id) {
+      // Send last_answer as long as it exists and has some content — even if frame_id is
+      // null/empty (e.g. speech before first partner turn) so the server can detect
+      // counter-questions via submitted_text.
+      if (window._lastAnswer && (window._lastAnswer.submitted_text || window._lastAnswer.selected_option_hanzi)) {
         conversation_state.last_answer = window._lastAnswer;
         window._lastAnswer = null; // send once only
       }
@@ -4092,9 +4101,20 @@ async function _runTurnInner(isNext = false, opts = {}) {
   const _counterReply = (data.counter_reply || "").trim();
   if (_counterReply) {
     addTranscriptEntry("partner", _counterReply);
+    // Track for repeat/slower recovery so "慢一点" repeats the persona's reply, not the pending frame question.
+    window._lastPartnerSpokenText = _counterReply;
   }
-  // Phase 8: append partner question to transcript when we show a new question
-  if (window._currentFrameText) {
+  // Phase 8: append partner question to transcript — but only when NOT in discovery mode.
+  // When user_led:true the frame question is held as a pending question; adding it now would
+  // make it look like the app has already asked, giving the learner no chance to interview first.
+  //
+  // IMPORTANT: pause whenever the persona replied to the user's question (counter_reply set),
+  // even if there are no discovery_questions (e.g. graceful deflections like "不太好说年龄！").
+  // This prevents the conversation from abruptly jumping to the next topic.
+  const _hasDiscovery = data.user_led && Array.isArray(data.discovery_questions) && data.discovery_questions.length > 0;
+  const _isUserLed = !!_counterReply || _hasDiscovery;
+  if (window._currentFrameText && !_isUserLed) {
+    window._lastPartnerSpokenText = window._currentFrameText; // for repeat/slower recovery
     addTranscriptEntry("partner", window._currentFrameText, {
       text_en: data.frame_text_en || "",
       pinyin: data.frame_pinyin || "",
@@ -4105,26 +4125,45 @@ async function _runTurnInner(isNext = false, opts = {}) {
   // Always render — ensures counter_reply entry is visible even if _currentFrameText is absent
   renderTranscript();
 
-  // Discovery mode: persona answered the user's question — show "Ask them more" cards
-  if (data.user_led && Array.isArray(data.discovery_questions) && data.discovery_questions.length > 0) {
-    renderDiscoveryPanel(data.discovery_questions);
+  // Discovery mode: persona answered the user's question — show "Ask them more" cards.
+  // Also store frame metadata so it can be added to the transcript when "Continue" fires.
+  if (_isUserLed) {
+    window._pendingFrameMeta = {
+      text: fallbackText.trim(),
+      text_en: data.frame_text_en || "",
+      pinyin: data.frame_pinyin || "",
+      frame_id: frameId,
+    };
+    renderDiscoveryPanel(data.discovery_questions, fallbackText);
   } else {
     hideDiscoveryPanel();
+    window._pendingFrameText = null;
+    window._pendingFrameMeta = null;
   }
-  // Auto-play: if a counter_reply exists, speak it first, then the frame question.
+  // Auto-play: if a counter_reply exists, speak it first.
+  // When user_led=true we PAUSE after the counter_reply so the learner can keep
+  // interviewing the persona.  The frame question is queued in _pendingFrameText
+  // and only spoken when they tap "Continue →" in the discovery panel.
+  // IMPORTANT: use queue:true on the counter_reply TTS to avoid speechSynthesis.cancel()
+  // triggering a spurious second onend on the previous utterance (Windows/Chrome bug).
   if (fallbackText && fallbackText.trim()) {
     if (_counterReply) {
-      ttsSpeak({
-        text: _counterReply, lang: "zh-CN",
-        onEvent: (e) => {
-          if (e?.payload?.completed) ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
-        },
-      });
+      if (_isUserLed) {
+        // Pause: speak persona answer only, using queue so cancel() isn't called.
+        ttsSpeak({ text: _counterReply, lang: "zh-CN", queue: true });
+      } else {
+        ttsSpeak({
+          text: _counterReply, lang: "zh-CN",
+          onEvent: (e) => {
+            if (e?.payload?.completed) ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
+          },
+        });
+      }
     } else {
       ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
     }
   } else if (_counterReply) {
-    ttsSpeak({ text: _counterReply, lang: "zh-CN" });
+    ttsSpeak({ text: _counterReply, lang: "zh-CN", queue: true });
   }
   // Phase 6 — options: prefer server-sent options when server chose the frame (next_question) so options always match the displayed question after bridge
   const _frameData     = window._frameOptionsRuntime?.frames?.[frameId] || {};
@@ -4427,11 +4466,19 @@ window.addEventListener("load", async () => {
       addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
       window._lastAnswer = { frame_id: frameId, submitted_text: submittedForServer };
+      console.log("[DBG lastAnswer set]", JSON.stringify(window._lastAnswer));
+      // One-shot guard: browser onend can fire twice (Windows/Chrome speechSynthesis bug).
+      // Without this, a second call reaches runTurn after _runTurnInFlight is already false.
+      let _turnFired = false;
       ttsSpeak({
         text: saidTrimmed,
         lang: "zh-CN",
         onEvent: (e) => {
-          if (e?.payload?.completed) runTurn(true, { last_turn_was_answer: true });
+          if (!_turnFired && e?.payload?.completed) {
+            _turnFired = true;
+            console.log("[DBG runTurn fire] lastAnswer=", JSON.stringify(window._lastAnswer));
+            runTurn(true, { last_turn_was_answer: true });
+          }
         },
       });
       lastClickedWordId = null;
@@ -4546,7 +4593,10 @@ if (startFreshBtn) startFreshBtn.addEventListener("click", () => {
  * instead of being relentlessly asked questions themselves.
  * questions: array of { zh, py, en, topic }
  */
-function renderDiscoveryPanel(questions) {
+function renderDiscoveryPanel(questions, pendingFrameText) {
+  // Store the queued frame question so "Continue" can speak it later.
+  if (pendingFrameText) window._pendingFrameText = pendingFrameText.trim();
+
   let panel = document.getElementById("discoveryPanel");
   if (!panel) {
     panel = document.createElement("div");
@@ -4562,7 +4612,15 @@ function renderDiscoveryPanel(questions) {
     }
   }
   panel.style.display = "block";
-  panel.innerHTML = `<div class="discovery-header">你还想了解什么？ <span class="discovery-sub">Ask them:</span></div>`;
+  const _hasCards = Array.isArray(questions) && questions.length > 0;
+
+  // In deflect mode, pull acknowledgment phrases from the recovery vocabulary.
+  const _recovData = window._recoveryPhrases || {};
+  const _ackPhrases = (_recovData.phrases || []).filter(p => p.use === "deflection_ack");
+
+  panel.innerHTML = _hasCards
+    ? `<div class="discovery-header">你想了解什么？ <span class="discovery-sub">Tap to ask the persona:</span></div>`
+    : `<div class="discovery-header discovery-header--deflect">怎么回应？ <span class="discovery-sub">Tap a phrase to acknowledge and continue:</span></div>`;
 
   (questions || []).forEach((q) => {
     const card = document.createElement("div");
@@ -4602,6 +4660,94 @@ function renderDiscoveryPanel(questions) {
     card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") submitDiscoveryQuestion(q); });
     panel.appendChild(card);
   });
+
+  // Deflect mode: render acknowledgment phrases so the learner can respond gracefully
+  // and continue rather than being left with only a "Continue" button.
+  if (!_hasCards && _ackPhrases.length > 0) {
+    _ackPhrases.forEach((p) => {
+      const card = document.createElement("div");
+      card.className = "option-panel discovery-ack";
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+
+      const zhSpan = document.createElement("span");
+      zhSpan.className = "op-zh";
+      zhSpan.textContent = p.hanzi || "";
+      card.appendChild(zhSpan);
+
+      if (p.pinyin) {
+        const pySpan = document.createElement("span");
+        pySpan.className = "op-py";
+        pySpan.textContent = p.pinyin;
+        card.appendChild(pySpan);
+      }
+      if (p.text_en) {
+        const enSpan = document.createElement("span");
+        enSpan.className = "op-en";
+        enSpan.textContent = p.text_en;
+        card.appendChild(enSpan);
+      }
+
+      const _handleAck = () => {
+        const hanzi = (p.hanzi || "").trim();
+        if (!hanzi) return;
+        hideDiscoveryPanel();
+        addTranscriptEntry("user", hanzi, { text_en: p.text_en || "", pinyin: p.pinyin || "" });
+        renderTranscript();
+        // Speak the ack phrase, then continue with the pending frame question
+        const pending = window._pendingFrameText;
+        const meta    = window._pendingFrameMeta || {};
+        window._pendingFrameText = null;
+        window._pendingFrameMeta = null;
+        ttsSpeak({
+          text: hanzi, lang: "zh-CN",
+          onEvent: (e) => {
+            if (!e?.payload?.completed) return;
+            if (pending) {
+              window._lastPartnerSpokenText = pending;
+              addTranscriptEntry("partner", pending, {
+                text_en:  meta.text_en  || "",
+                pinyin:   meta.pinyin   || "",
+                frame_id: meta.frame_id || "",
+              });
+              renderTranscript();
+              ttsSpeak({ text: pending, lang: "zh-CN" });
+            }
+          },
+        });
+      };
+      card.addEventListener("click", _handleAck);
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") _handleAck(); });
+      panel.appendChild(card);
+    });
+  }
+
+  // "Continue →" footer: dismisses discovery mode and speaks the pending frame question.
+  const footer = document.createElement("div");
+  footer.className = "discovery-footer";
+  const continueBtn = document.createElement("button");
+  continueBtn.className = "discovery-continue-btn";
+  continueBtn.textContent = "Continue conversation →";
+  continueBtn.addEventListener("click", () => {
+    hideDiscoveryPanel();
+    const pending = window._pendingFrameText;
+    const meta    = window._pendingFrameMeta || {};
+    window._pendingFrameText = null;
+    window._pendingFrameMeta = null;
+    if (pending) {
+      // Now the question is actually being asked — add it to the transcript
+      window._lastPartnerSpokenText = pending; // for repeat/slower recovery
+      addTranscriptEntry("partner", pending, {
+        text_en:  meta.text_en  || "",
+        pinyin:   meta.pinyin   || "",
+        frame_id: meta.frame_id || "",
+      });
+      renderTranscript();
+      ttsSpeak({ text: pending, lang: "zh-CN" });
+    }
+  });
+  footer.appendChild(continueBtn);
+  panel.appendChild(footer);
 }
 
 function hideDiscoveryPanel() {
@@ -4609,21 +4755,59 @@ function hideDiscoveryPanel() {
   if (panel) panel.style.display = "none";
 }
 
-function submitDiscoveryQuestion(q) {
+async function submitDiscoveryQuestion(q) {
   const zh = (q.zh || "").trim();
   if (!zh) return;
   hideDiscoveryPanel();
+  // NOTE: do NOT clear _pendingFrameText/_pendingFrameMeta here.
+  // The queued frame question stays until the learner taps "Continue →".
+
   addTranscriptEntry("user", zh, { text_en: q.en || "", pinyin: q.py || "" });
   renderTranscript();
-  // Ensure trailing "？" so the server reliably detects this as a counter-question
-  const submitted = zh.endsWith("？") ? zh : zh + "？";
-  window._lastAnswer = { frame_id: window._lastPartnerFrameId || "", submitted_text: submitted };
-  ttsSpeak({
-    text: zh, lang: "zh-CN",
-    onEvent: (e) => {
-      if (e?.payload?.completed) runTurn(true, { last_turn_was_answer: true });
+  // queue:true avoids speechSynthesis.cancel() spurious double-onend on Windows
+  ttsSpeak({ text: zh, lang: "zh-CN", queue: true });
+
+  const currentEngine = window._currentEngineId ?? "identity";
+  const payload = {
+    env: "dev",
+    turn_uid: "ui_disc_" + Date.now(),
+    direction_intent: "mirror",
+    direction_question_zh: zh,
+    direction_question_topic: q.topic || "",
+    conversation_state: {
+      session_id: window._sessionId,
+      current_engine: currentEngine,
+      last_partner_frame_id: window._lastPartnerFrameId ?? null,
+      recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : [],
     },
-  });
+  };
+  const _pid = window._partnerId || window._personaId;
+  if (_pid) payload.persona_id = _pid;
+
+  let data = {};
+  try {
+    const res = await fetch("/api/run_turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) data = await res.json();
+  } catch (e) {
+    console.warn("[app] submitDiscoveryQuestion fetch failed", e);
+  }
+
+  const stub = (data.frame_text || "").trim();
+  if (stub) {
+    window._lastPartnerSpokenText = stub; // for repeat/slower recovery
+    addTranscriptEntry("partner", stub);
+    renderTranscript();
+    ttsSpeak({ text: stub, lang: "zh-CN", queue: true });
+  }
+
+  // Re-render discovery panel with remaining questions (server already excluded the asked one).
+  // Pass null so _pendingFrameText is preserved (Continue button still works).
+  const remaining = (data.mirror_options || []).filter(m => (m.zh || "") !== zh);
+  renderDiscoveryPanel(remaining, null);
 }
 
 // ── English → Chinese translation panel ─────────────────────────────────────

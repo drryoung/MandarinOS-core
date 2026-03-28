@@ -158,6 +158,51 @@
       "text_en": "Can we talk about something else?",
       "level": "P2",
       "recovery_action": "next_turn"
+    },
+    {
+      "id": "mei_guanxi",
+      "hanzi": "没关系！",
+      "pinyin": "méi guānxi",
+      "text_en": "That's okay!",
+      "level": "P1",
+      "use": "deflection_ack",
+      "recovery_action": "next_turn"
+    },
+    {
+      "id": "hao_de",
+      "hanzi": "哦，好的！",
+      "pinyin": "ò, hǎo de",
+      "text_en": "Oh, alright!",
+      "level": "P1",
+      "use": "deflection_ack",
+      "recovery_action": "next_turn"
+    },
+    {
+      "id": "xing_ba",
+      "hanzi": "行吧！",
+      "pinyin": "xíng ba",
+      "text_en": "Okay then!",
+      "level": "P1",
+      "use": "deflection_ack",
+      "recovery_action": "next_turn"
+    },
+    {
+      "id": "you_kong_zai_shuo",
+      "hanzi": "有空再说吧！",
+      "pinyin": "yǒu kòng zài shuō ba",
+      "text_en": "Let's talk about it another time!",
+      "level": "P1",
+      "use": "deflection_ack",
+      "recovery_action": "next_turn"
+    },
+    {
+      "id": "wo_mingbai_le",
+      "hanzi": "我明白了！",
+      "pinyin": "wǒ míngbái le",
+      "text_en": "Got it!",
+      "level": "P1",
+      "use": "deflection_ack",
+      "recovery_action": "next_turn"
     }
   ],
   "default_for_not_understood": "shenme"

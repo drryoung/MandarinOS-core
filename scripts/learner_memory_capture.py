@@ -43,11 +43,10 @@ def _extract_name_from_hanzi(hanzi: str) -> Optional[str]:
     if not hanzi or not isinstance(hanzi, str):
         return None
     s = hanzi.strip()
-    # Allow blended reciprocity suffix like “你呢？” after the answer.
-    # Example: 我叫小明。你呢？
-    # We prefer extracting from the first sentence-like segment.
-    # (Do not require strict punctuation since many options omit it.)
-    first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
+    # Strip trailing turn-around phrases before extracting (e.g. "我叫杨利明，你呢？" -> "我叫杨利明")
+    s = re.sub(r"[，,]?\s*(那?你呢|你怎么想|为什么这么问)[？?！!。]?\s*$", "", s).strip()
+    # Split on period OR Chinese comma so compound answers are trimmed correctly
+    first = re.split(r"[。.,，]", s, maxsplit=1)[0].strip()
     # 我叫小明 / 我叫丽丽
     m = re.match(r"我叫\s*(.+?)\s*$", first)
     if m:
