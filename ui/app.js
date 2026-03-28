@@ -3309,7 +3309,9 @@ function renderSentenceOptions(sentenceOptions, frameId) {
   container.innerHTML = "";
 
   const answers = (sentenceOptions || []).filter(o => o.kind === "SENTENCE" || !o.kind);
-  if (!answers.length) { container.style.display = "none"; return; }
+  const hasSteerReverse = _directionCaps.supports_reverse;
+  const hasSteerWhy     = _directionCaps.supports_why;
+  if (!answers.length && !hasSteerReverse && !hasSteerWhy) { container.style.display = "none"; return; }
 
   // Build each answer as a standard option-panel so speaker, ?, and word-exploration all work
   answers.forEach((opt, idx) => {
@@ -3445,21 +3447,97 @@ function renderSentenceOptions(sentenceOptions, frameId) {
     container.appendChild(panel);
   });
 
-  // --- Reverse / oxygen buttons — placed inline with the speaker in frame-sentence-row ---
-  const makeReverseBtn = (label, onClick) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "sentence-reverse-btn";
-    b.textContent = label;
-    b.addEventListener("click", onClick);
-    return b;
-  };
-  const reverseActionsRow = document.getElementById("reverseActionsRow");
-  if (reverseActionsRow) {
-    reverseActionsRow.innerHTML = "";
-    reverseActionsRow.appendChild(makeReverseBtn("And you? 你呢？", () => runDirectionTurn("reverse")));
-    reverseActionsRow.appendChild(makeReverseBtn("Why? 为什么？",   () => runDirectionTurn("why")));
+  // --- Steer cards: "Turn it around" options — rendered as full option-panel cards --------
+  // These give the learner a clearly-signposted way to redirect the conversation.
+  const _steerDefs = [
+    hasSteerReverse && { zh: "你呢？", py: "nǐ ne?", en: "And you? What about you?", intent: "reverse" },
+    hasSteerWhy     && { zh: "为什么这么问？", py: "wèishéme zhème wèn?", en: "Why do you ask?", intent: "why" },
+  ].filter(Boolean);
+
+  if (_steerDefs.length) {
+    const steerLabel = document.createElement("div");
+    steerLabel.className = "steer-panel-label";
+    steerLabel.textContent = "↩ Turn it around";
+    container.appendChild(steerLabel);
+
+    _steerDefs.forEach((def) => {
+      const panel = document.createElement("div");
+      panel.className = "option-panel";
+      panel.setAttribute("data-steer", "true");
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "option-btn";
+
+      const optionContent = document.createElement("div");
+      optionContent.className = "option-content";
+      const hanziWrap = document.createElement("span");
+      hanziWrap.className = "option-hanzi option-hanzi-tokens";
+      tokenizeHanziForOption(def.zh, { card_id: "__steer_" + def.intent, pinyin: def.py, meaning: def.en, hanzi: def.zh })
+        .forEach((seg) => {
+          const span = document.createElement("span");
+          span.textContent = seg.t;
+          span.className = "tok tok-word";
+          hanziWrap.appendChild(span);
+        });
+      optionContent.appendChild(hanziWrap);
+      btn.appendChild(optionContent);
+
+      // 🔊 + ? inline
+      const optionActions = document.createElement("div");
+      optionActions.className = "option-actions";
+
+      const speakerBtn = document.createElement("button");
+      speakerBtn.type = "button";
+      speakerBtn.className = "option-speaker-btn";
+      speakerBtn.setAttribute("title", "Hear pronunciation");
+      speakerBtn.textContent = "\uD83D\uDD0A";
+      speakerBtn.addEventListener("click", (e) => { e.stopPropagation(); ttsSpeak({ text: def.zh, lang: "zh-CN" }); });
+      optionActions.appendChild(speakerBtn);
+
+      const hintBtn2 = document.createElement("button");
+      hintBtn2.type = "button";
+      hintBtn2.className = "option-hint-btn";
+      hintBtn2.setAttribute("title", "Show pinyin / meaning");
+      hintBtn2.textContent = "?";
+      hintBtn2.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const hb = panel.querySelector(".option-hint-block");
+        if (!hb) return;
+        hb.style.display = hb.style.display !== "none" ? "none" : "block";
+        const pyEl = hb.querySelector(".option-hint-pinyin");
+        const enEl = hb.querySelector(".option-hint-meaning");
+        if (pyEl) pyEl.textContent = def.py;
+        if (enEl) enEl.textContent = def.en;
+      });
+      optionActions.appendChild(hintBtn2);
+      btn.appendChild(optionActions);
+      panel.appendChild(btn);
+
+      const hintBlock = document.createElement("div");
+      hintBlock.className = "option-hint-block";
+      hintBlock.style.display = "none";
+      hintBlock.appendChild(Object.assign(document.createElement("div"), { className: "option-hint-row option-hint-pinyin" }));
+      hintBlock.appendChild(Object.assign(document.createElement("div"), { className: "option-hint-row option-hint-meaning" }));
+      panel.appendChild(hintBlock);
+
+      btn.addEventListener("click", (ev) => {
+        if (ev.target.closest(".word-insight-token")) return;
+        container.querySelectorAll(".option-panel").forEach(p => p.classList.remove("selected"));
+        panel.classList.add("selected");
+        ttsSpeak({
+          text: def.zh, lang: "zh-CN",
+          onEvent: (e) => { if (e?.payload?.completed) runDirectionTurn(def.intent); },
+        });
+      });
+
+      container.appendChild(panel);
+    });
   }
+
+  // Keep the reverseActionsRow clear — steer cards in the panel are the primary affordance
+  const reverseActionsRow = document.getElementById("reverseActionsRow");
+  if (reverseActionsRow) reverseActionsRow.innerHTML = "";
 
   // Recovery phrases ("Need help?") always live in the same container as sentence options
   renderRecoveryPanelInto(container, frameId);
@@ -4027,6 +4105,11 @@ async function _runTurnInner(isNext = false, opts = {}) {
     rememberedEl.style.display = "none";
   }
 
+  // Phase 12C: update direction caps from server so steer cards show correctly
+  _directionCaps = {
+    supports_reverse: data.supports_reverse !== false,
+    supports_why:     data.supports_why !== false,
+  };
   // Sentence-level response options (answers + always-on reverse/oxygen row)
   // These replace the word-hint panels as the primary response UI when present.
   renderSentenceOptions(data.sentence_options || [], frameId);

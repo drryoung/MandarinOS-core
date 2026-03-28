@@ -2070,6 +2070,34 @@ class Handler(BaseHTTPRequestHandler):
                                 reaction_prefix_text = _pick_reaction_text(current_engine, seed, interest_level=interest_level, exchange_count=exchange_count)
                                 reaction_used_fallback = True
 
+                # Phase 12C: echo / mirror — when we know the slot value, replace the generic
+                # reaction with a short echo so the app sounds like it truly heard the answer.
+                # Only fires when the reaction would otherwise be a bland generic fallback.
+                # Never echoes on identity frames or very short text (avoids "嗯。" → "嗯。哦。").
+                if last_turn_was_answer and reaction_used_fallback and reaction_prefix_text:
+                    _echo_candidate = ""
+                    _submitted = (last_answer.get("submitted_text") or "").strip() if isinstance(last_answer, dict) else ""
+                    _mem = memory or {}
+                    if "CITY" in slot_names:
+                        _city = (_mem.get("lives_in") or _mem.get("hometown") or "").strip()
+                        if _city:
+                            _echo_candidate = f"哦，{_city}！"
+                    elif "NAME" in slot_names and exchange_count <= 3:
+                        _name = (_mem.get("learner_name") or "").strip()
+                        if _name and len(_name) <= 6:
+                            _echo_candidate = f"{_name}！"
+                    elif "DISH" in slot_names and _submitted and len(_submitted) <= 8:
+                        _echo_candidate = f"哦，{_submitted}！"
+                    elif "TRAVEL" in slot_names and _submitted and len(_submitted) <= 8:
+                        _echo_candidate = f"哦，{_submitted}！"
+                    elif "JOB" in slot_names:
+                        _job = (_mem.get("job") or _mem.get("occupation") or "").strip()
+                        if _job and len(_job) <= 6:
+                            _echo_candidate = f"哦，{_job}！"
+                    # Apply echo only when we have a clean value (not too long, not already prefixed)
+                    if _echo_candidate and len(_echo_candidate) <= 12:
+                        reaction_prefix_text = _echo_candidate
+
                 # User-question override (spec-friendly, no schema changes):
                 # if the user asked a question (counter-question), answer it via a short prefix first.
                 persona_id = (payload.get("persona_id") or cs.get("persona_id") or "").strip() or None

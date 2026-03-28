@@ -442,6 +442,17 @@ main { flex: 1; display: grid; grid-template-columns: 1fr var(--panel-width); ga
 /* Recovery phrases: distinct border so they read as "help" not answer options */
 .option-panel[data-recovery="true"] { border-color: #d97706; background: #fffbeb; }
 .option-panel[data-recovery="true"] .option-hanzi { color: #b45309; }
+/* Steering cards: "turn it around" — you ask back / redirect the conversation */
+.option-panel[data-steer="true"] { border-color: #0891b2; background: #ecfeff; }
+.option-panel[data-steer="true"] .option-hanzi { color: #0e7490; }
+.steer-panel-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0891b2;
+  letter-spacing: 0.04em;
+  padding: 6px 14px 0;
+  text-transform: uppercase;
+}
 .recovery-panel-label {
   font: 0.9rem Arial, Helvetica, sans-serif;
   font-weight: 600;
