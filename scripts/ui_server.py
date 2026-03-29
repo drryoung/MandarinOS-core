@@ -145,6 +145,52 @@ except Exception as _e:
     print(f"[ui_server] WARNING: move_type_transitions load failed: {_e} — move_type filter disabled")
 
 
+# ── Content: mirror questions + persona deflect phrases (data-driven, no hardcoding) ────────────
+CONTENT_DIR: Path = REPO_ROOT / "content"
+
+# Mirror questions: loaded from content/mirror_questions.json.
+# Adding a new question only requires editing that file — no server code change.
+_mirror_questions_raw: dict = {}
+_mq_path = CONTENT_DIR / "mirror_questions.json"
+try:
+    if _mq_path.is_file():
+        _mq_data = json.loads(_mq_path.read_text(encoding="utf-8"))
+        _mirror_questions_raw = _mq_data.get("by_engine") or {}
+        print(f"[ui_server] mirror_questions loaded ({sum(len(v) for v in _mirror_questions_raw.values())} questions across {len(_mirror_questions_raw)} engines)")
+    else:
+        print(f"[ui_server] WARNING: mirror_questions.json not found at {_mq_path}")
+except Exception as _e:
+    print(f"[ui_server] WARNING: mirror_questions load failed: {_e}")
+
+# Persona deflect phrases: loaded from content/recovery_phrases.json (use=persona_deflect).
+# Adding/editing a phrase only requires editing that file — no server code change.
+_persona_deflect_phrases: dict = {}   # topic -> [hanzi, ...]
+_rp_path = CONTENT_DIR / "recovery_phrases.json"
+try:
+    if _rp_path.is_file():
+        _rp_data = json.loads(_rp_path.read_text(encoding="utf-8"))
+        for _p in (_rp_data.get("phrases") or []):
+            if _p.get("use") == "persona_deflect":
+                _topic = _p.get("topic") or "generic"
+                _persona_deflect_phrases.setdefault(_topic, []).append(_p.get("hanzi") or "")
+        _nd = len(_persona_deflect_phrases)
+        _np = sum(len(v) for v in _persona_deflect_phrases.values())
+        print(f"[ui_server] persona_deflect phrases loaded ({_np} phrases across {_nd} topics)")
+    else:
+        print(f"[ui_server] WARNING: recovery_phrases.json not found at {_rp_path}")
+except Exception as _e:
+    print(f"[ui_server] WARNING: persona_deflect phrases load failed: {_e}")
+
+
+def _persona_deflect(topic: str, seed: str = "") -> str:
+    """Return a persona deflection phrase for the given topic, loaded from recovery_phrases.json.
+    Falls back to 'generic' topic, then a hardcoded last-resort string."""
+    pool = _persona_deflect_phrases.get(topic) or _persona_deflect_phrases.get("generic") or []
+    if pool:
+        return _stable_pick(pool, seed or topic) or pool[0]
+    return "这个嘛……说来话长，有空再聊！"   # absolute last resort only
+
+
 # ── Phase 11C: Persona layer ──────────────────────────────────────────────────
 # Architecture: one JSON file per persona in personas/. No code changes needed to add personas.
 # Server discovers all *.json files (excluding _*.json) at startup; loads each on demand.
@@ -1046,18 +1092,18 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
     if any(p in t for p in ("你有家人", "你有没有家人", "你的家人")):
         return voice_lines.get("family") or "我也有家人。"
 
-    # Married / partner status — dedicated response, not the generic family voice_line
+    # Married / partner status — phrase from recovery_phrases.json (use=persona_deflect, topic=marriage)
     if any(p in t for p in ("你结婚", "你有没有结婚", "你有对象", "你有伴侣",
                              "你有男朋友", "你有女朋友", "你成家了")):
-        return "哈，这个嘛……还是个秘密！"
+        return _persona_deflect("marriage", t)
 
-    # Children
+    # Children — phrase from recovery_phrases.json (use=persona_deflect, topic=children)
     if any(p in t for p in ("你有孩子", "你有小孩", "你有儿子", "你有女儿", "你有宝宝")):
-        return "这个……还没有，不急！"
+        return _persona_deflect("children", t)
 
-    # Age
+    # Age — phrase from recovery_phrases.json (use=persona_deflect, topic=age)
     if any(p in t for p in ("你多大", "你几岁", "你的年龄", "你今年多大")):
-        return "哈，年龄这种事……说多少都不准！反正我不老就是了。"
+        return _persona_deflect("age", t)
 
     return None
 
@@ -1114,16 +1160,9 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
         return "我呢，这是个好问题。"
 
     # Catch-all: user asked a question we don't have a specific answer for.
-    # Phrases should complete the thought — not trail off — so the persona sounds natural,
-    # not evasive. The conversation pauses client-side so the user stays in control.
-    _graceful = [
-        "哎，这个嘛……说来话长，有空再聊！",   # That's a long story — let's talk another time!
-        "嗯，好问题！我得好好想想。",            # Good question — I need to really think about it.
-        "这个……我不太好说，不好意思！",         # That's hard to say, sorry!
-        "哈，你问到点子上了！我还没想好怎么回答。",  # You've hit the nail on the head — I haven't figured out how to answer yet.
-        "嗯，有意思的问题！下次一定好好说。",    # Interesting question — I'll definitely tell you next time.
-    ]
-    return _stable_pick(_graceful, t) or "这个嘛……说来话长，有空再聊！"
+    # Phrases come from recovery_phrases.json (use=persona_deflect, topic=generic) —
+    # edit the JSON to add/change phrases, no server code change needed.
+    return _persona_deflect("generic", t)
 
 
 # ---------------------------------------------------------------------------
@@ -1530,44 +1569,9 @@ def _probe_stub_for_persona(probe_id: str, persona: Optional[dict]) -> str:
     return base
 
 
-# Mirror questions the learner can ask the persona after a direction turn — keyed by engine.
-_MIRROR_QUESTIONS_BY_ENGINE: dict = {
-    "identity": [
-        {"zh": "你的名字是什么意思？", "py": "nǐ de míngzi shì shénme yìsi?",     "en": "What does your name mean?",              "kind": "SENTENCE", "topic": "name_meaning"},
-        {"zh": "谁给你取的名字？",     "py": "shéi gěi nǐ qǔ de míngzi?",          "en": "Who gave you your name?",                "kind": "SENTENCE", "topic": "name_giver"},
-        {"zh": "名字背后有什么故事吗？","py": "míngzi bèihòu yǒu shénme gùshi ma?", "en": "Is there a story behind your name?",     "kind": "SENTENCE", "topic": "name_story"},
-    ],
-    "food": [
-        {"zh": "你最喜欢吃什么？",     "py": "nǐ zuì xǐhuān chī shénme?",           "en": "What do you like to eat most?",          "kind": "SENTENCE", "topic": "food_fav"},
-        {"zh": "你家乡有什么好吃的？", "py": "nǐ jiāxiāng yǒu shénme hǎochī de?",   "en": "What good food does your hometown have?", "kind": "SENTENCE", "topic": "food_local"},
-        {"zh": "你喜欢吃辣吗？",       "py": "nǐ xǐhuān chī là ma?",                "en": "Do you like spicy food?",                "kind": "SENTENCE", "topic": "food_spicy"},
-    ],
-    "place": [
-        {"zh": "你是哪里人？",         "py": "nǐ shì nǎlǐ rén?",                    "en": "Where are you from?",                    "kind": "SENTENCE", "topic": "place_from"},
-        {"zh": "那里有什么特别的？",   "py": "nàlǐ yǒu shénme tèbié de?",           "en": "What's special about that place?",       "kind": "SENTENCE", "topic": "place_special"},
-        {"zh": "你喜欢在那里生活吗？", "py": "nǐ xǐhuān zài nàlǐ shēnghuó ma?",    "en": "Do you enjoy living there?",             "kind": "SENTENCE", "topic": "place_like"},
-    ],
-    "travel": [
-        {"zh": "你去过哪里？",         "py": "nǐ qùguò nǎlǐ?",                      "en": "Where have you been?",                   "kind": "SENTENCE", "topic": "travel_where"},
-        {"zh": "最难忘的旅行是哪次？", "py": "zuì nánwàng de lǚxíng shì nǎ cì?",   "en": "What's your most memorable trip?",       "kind": "SENTENCE", "topic": "travel_memorable"},
-        {"zh": "你最喜欢哪个地方？",   "py": "nǐ zuì xǐhuān nǎ ge dìfāng?",         "en": "Which place do you like most?",          "kind": "SENTENCE", "topic": "travel_fav"},
-    ],
-    "work": [
-        {"zh": "你做什么工作？",       "py": "nǐ zuò shénme gōngzuò?",              "en": "What do you do for work?",               "kind": "SENTENCE", "topic": "work_what"},
-        {"zh": "你做这份工作多久了？", "py": "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",   "en": "How long have you been doing this?",     "kind": "SENTENCE", "topic": "work_duration"},
-        {"zh": "你在哪里分享你的作品？","py": "nǐ zài nǎlǐ fēnxiǎng nǐ de zuòpǐn?", "en": "Where do you share your work?",         "kind": "SENTENCE", "topic": "work_platform"},
-        {"zh": "你喜欢你的工作吗？",   "py": "nǐ xǐhuān nǐ de gōngzuò ma?",         "en": "Do you like your work?",                 "kind": "SENTENCE", "topic": "work_like"},
-    ],
-    "family": [
-        {"zh": "你家里有几个人？",     "py": "nǐ jiālǐ yǒu jǐ gè rén?",             "en": "How many people are in your family?",    "kind": "SENTENCE", "topic": "family_size"},
-        {"zh": "你有兄弟姐妹吗？",     "py": "nǐ yǒu xiōngdì jiěmèi ma?",           "en": "Do you have siblings?",                  "kind": "SENTENCE", "topic": "family_siblings"},
-        {"zh": "你们住在一起吗？",     "py": "nǐmen zhù zài yīqǐ ma?",              "en": "Do you all live together?",              "kind": "SENTENCE", "topic": "family_live"},
-    ],
-    "hobby": [
-        {"zh": "你喜欢做什么？",       "py": "nǐ xǐhuān zuò shénme?",               "en": "What do you like to do?",                "kind": "SENTENCE", "topic": "hobby_what"},
-        {"zh": "你玩这个多久了？",     "py": "nǐ wán zhège duōjiǔ le?",              "en": "How long have you been doing that?",     "kind": "SENTENCE", "topic": "hobby_duration"},
-    ],
-}
+# Mirror questions bank — loaded from content/mirror_questions.json at startup.
+# This alias keeps all downstream code unchanged; add/edit questions in the JSON file only.
+_MIRROR_QUESTIONS_BY_ENGINE: dict = _mirror_questions_raw
 
 
 def _first_clause(text: str) -> str:

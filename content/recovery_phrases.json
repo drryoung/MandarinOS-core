@@ -160,6 +160,78 @@
       "recovery_action": "next_turn"
     },
     {
+      "id": "deflect_generic_1",
+      "hanzi": "哎，这个嘛……说来话长，有空再聊！",
+      "pinyin": "āi, zhège ma… shuō lái huà cháng, yǒu kòng zài liáo!",
+      "text_en": "That's a long story — let's talk another time!",
+      "level": "P2",
+      "use": "persona_deflect",
+      "topic": "generic"
+    },
+    {
+      "id": "deflect_generic_2",
+      "hanzi": "嗯，好问题！我得好好想想。",
+      "pinyin": "ń, hǎo wèntí! wǒ děi hǎohǎo xiǎngxiang.",
+      "text_en": "Good question — I need to really think about it.",
+      "level": "P2",
+      "use": "persona_deflect",
+      "topic": "generic"
+    },
+    {
+      "id": "deflect_generic_3",
+      "hanzi": "这个……我不太好说，不好意思！",
+      "pinyin": "zhège… wǒ bù tài hǎo shuō, bù hǎoyìsi!",
+      "text_en": "That's hard to say, sorry!",
+      "level": "P2",
+      "use": "persona_deflect",
+      "topic": "generic"
+    },
+    {
+      "id": "deflect_generic_4",
+      "hanzi": "哈，你问到点子上了！我还没想好怎么回答。",
+      "pinyin": "hā, nǐ wèn dào diǎnzi shàng le! wǒ hái méi xiǎnghǎo zěnme huídá.",
+      "text_en": "You've hit the nail on the head — I haven't figured out how to answer yet.",
+      "level": "P2",
+      "use": "persona_deflect",
+      "topic": "generic"
+    },
+    {
+      "id": "deflect_generic_5",
+      "hanzi": "嗯，有意思的问题！下次一定好好说。",
+      "pinyin": "ń, yǒuyìsi de wèntí! xià cì yīdìng hǎohǎo shuō.",
+      "text_en": "Interesting question — I'll definitely tell you next time.",
+      "level": "P2",
+      "use": "persona_deflect",
+      "topic": "generic"
+    },
+    {
+      "id": "deflect_age",
+      "hanzi": "哈，年龄这种事……说多少都不准！反正我不老就是了。",
+      "pinyin": "hā, niánlíng zhè zhǒng shì… shuō duōshao dōu bù zhǔn! fǎnzhèng wǒ bù lǎo jiù shì le.",
+      "text_en": "Hard to pin down an age — anyway, I'm not old!",
+      "level": "P2",
+      "use": "persona_deflect",
+      "topic": "age"
+    },
+    {
+      "id": "deflect_marriage",
+      "hanzi": "哈，这个嘛……还是个秘密！",
+      "pinyin": "hā, zhège ma… hái shì gè mìmì!",
+      "text_en": "Ha, that's still a secret!",
+      "level": "P2",
+      "use": "persona_deflect",
+      "topic": "marriage"
+    },
+    {
+      "id": "deflect_children",
+      "hanzi": "这个……还没有，不急！",
+      "pinyin": "zhège… hái méiyǒu, bù jí!",
+      "text_en": "Not yet — no rush!",
+      "level": "P2",
+      "use": "persona_deflect",
+      "topic": "children"
+    },
+    {
       "id": "mei_guanxi",
       "hanzi": "没关系！",
       "pinyin": "méi guānxi",
