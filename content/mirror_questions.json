@@ -3,9 +3,10 @@
   "description": "Questions the learner can ask the persona in reverse/mirror mode. Keyed by engine. Adding a new question here is all that is required — no server code change needed.",
   "by_engine": {
     "identity": [
-      {"zh": "你的名字是什么意思？", "py": "nǐ de míngzi shì shénme yìsi?",     "en": "What does your name mean?",              "kind": "SENTENCE", "topic": "name_meaning"},
+      {"zh": "你的名字是什么意思？", "py": "nǐ de míngzi shì shénme yìsi?",     "en": "What does your name mean?",              "kind": "SENTENCE", "topic": "name_meaning", "mirror_frame": "f_ask_name_meaning"},
       {"zh": "谁给你取的名字？",     "py": "shéi gěi nǐ qǔ de míngzi?",          "en": "Who gave you your name?",                "kind": "SENTENCE", "topic": "name_giver"},
-      {"zh": "名字背后有什么故事吗？","py": "míngzi bèihòu yǒu shénme gùshi ma?", "en": "Is there a story behind your name?",     "kind": "SENTENCE", "topic": "name_story"}
+      {"zh": "名字背后有什么故事吗？","py": "míngzi bèihòu yǒu shénme gùshi ma?", "en": "Is there a story behind your name?",     "kind": "SENTENCE", "topic": "name_story"},
+      {"zh": "你多大了？",           "py": "nǐ duō dà le?",                       "en": "How old are you?",                       "kind": "SENTENCE", "topic": "age",          "mirror_frame": "f_how_old"}
     ],
     "food": [
       {"zh": "你最喜欢吃什么？",     "py": "nǐ zuì xǐhuān chī shénme?",           "en": "What do you like to eat most?",          "kind": "SENTENCE", "topic": "food_fav"},
@@ -30,8 +31,10 @@
     ],
     "family": [
       {"zh": "你家里有几个人？",     "py": "nǐ jiālǐ yǒu jǐ gè rén?",             "en": "How many people are in your family?",    "kind": "SENTENCE", "topic": "family_size"},
-      {"zh": "你有兄弟姐妹吗？",     "py": "nǐ yǒu xiōngdì jiěmèi ma?",           "en": "Do you have siblings?",                  "kind": "SENTENCE", "topic": "family_siblings"},
-      {"zh": "你们住在一起吗？",     "py": "nǐmen zhù zài yīqǐ ma?",              "en": "Do you all live together?",              "kind": "SENTENCE", "topic": "family_live"}
+      {"zh": "你有兄弟姐妹吗？",     "py": "nǐ yǒu xiōngdì jiěmèi ma?",           "en": "Do you have siblings?",                  "kind": "SENTENCE", "topic": "family_siblings", "mirror_frame": "f_have_siblings"},
+      {"zh": "你们住在一起吗？",     "py": "nǐmen zhù zài yīqǐ ma?",              "en": "Do you all live together?",              "kind": "SENTENCE", "topic": "family_live"},
+      {"zh": "你结婚了吗？",         "py": "nǐ jiéhūn le ma?",                     "en": "Are you married?",                       "kind": "SENTENCE", "topic": "marriage",      "mirror_frame": "f_married"},
+      {"zh": "你有孩子吗？",         "py": "nǐ yǒu háizi ma?",                     "en": "Do you have children?",                  "kind": "SENTENCE", "topic": "children",      "mirror_frame": "f_have_children"}
     ],
     "hobby": [
       {"zh": "你喜欢做什么？",       "py": "nǐ xǐhuān zuò shénme?",               "en": "What do you like to do?",                "kind": "SENTENCE", "topic": "hobby_what"},

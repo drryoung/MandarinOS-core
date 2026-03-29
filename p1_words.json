@@ -692,6 +692,74 @@
       "frame_ids": [
         "f_want_go_place"
       ]
+    },
+    {
+      "id": "w_duo",
+      "hanzi": "多",
+      "pinyin": "duō",
+      "gloss_en": "how / many / much",
+      "pos": [
+        "adv"
+      ],
+      "tags": [
+        "grammar"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_how_old"
+      ]
+    },
+    {
+      "id": "w_sui",
+      "hanzi": "岁",
+      "pinyin": "suì",
+      "gloss_en": "years old",
+      "pos": [
+        "m"
+      ],
+      "tags": [
+        "identity"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_i_am_age"
+      ]
+    },
+    {
+      "id": "w_jiehun",
+      "hanzi": "结婚",
+      "pinyin": "jiéhūn",
+      "gloss_en": "to get married",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "family"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_married",
+        "f_not_married_yet",
+        "f_am_married"
+      ]
+    },
+    {
+      "id": "w_haizi",
+      "hanzi": "孩子",
+      "pinyin": "háizi",
+      "gloss_en": "child / children",
+      "pos": [
+        "n"
+      ],
+      "tags": [
+        "family"
+      ],
+      "frequency_band": "high",
+      "frame_ids": [
+        "f_have_children",
+        "f_no_children",
+        "f_have_a_child"
+      ]
     }
   ]
 }

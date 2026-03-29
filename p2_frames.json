@@ -124,13 +124,15 @@
       "id": "f_how_old",
       "text": "你多大了？",
       "pinyin": "nǐ duō dà le?",
+      "text_en": "How old are you?",
       "engine": "identity",
       "difficulty": 2,
+      "mirror_topic": "age",
       "slots": [],
+      "speaker": "partner",
       "option_tokens": [
         "w_duo"
       ],
-      "text_en": "How old are you?",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -394,13 +396,15 @@
       "id": "f_have_children",
       "text": "你有孩子吗？",
       "pinyin": "nǐ yǒu háizi ma?",
+      "text_en": "Do you have children?",
       "engine": "family",
       "difficulty": 2,
+      "mirror_topic": "children",
       "slots": [],
+      "speaker": "partner",
       "option_tokens": [
-        "w_you"
+        "w_haizi"
       ],
-      "text_en": "Do you have children?",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -416,13 +420,15 @@
       "id": "f_married",
       "text": "你结婚了吗？",
       "pinyin": "nǐ jiéhūn le ma?",
+      "text_en": "Are you married?",
       "engine": "family",
       "difficulty": 2,
+      "mirror_topic": "marriage",
       "slots": [],
+      "speaker": "partner",
       "option_tokens": [
         "w_jiehun"
       ],
-      "text_en": "Are you married?",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",

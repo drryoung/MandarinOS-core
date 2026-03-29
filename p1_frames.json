@@ -277,6 +277,33 @@
       "move_type": "ANSWER"
     },
     {
+      "id": "f_i_am_age",
+      "text": "我今年{AGE}了。",
+      "pinyin": "wǒ jīnnián {AGE} le.",
+      "text_en": "I'm [AGE] this year.",
+      "engine": "identity",
+      "difficulty": 2,
+      "slots": [
+        {
+          "name": "AGE",
+          "source": "fillers.ages"
+        }
+      ],
+      "speaker": "user",
+      "option_tokens": [
+        "w_sui"
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
+    },
+    {
       "id": "f_from_where",
       "text": "你是哪里人？",
       "pinyin": "nǐ shì nǎlǐ rén?",
@@ -559,6 +586,94 @@
         "w_jiejie"
       ],
       "text_en": "I have an older sister.",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
+    },
+    {
+      "id": "f_not_married_yet",
+      "text": "我还没结婚。",
+      "pinyin": "wǒ hái méi jiéhūn.",
+      "text_en": "I'm not married yet.",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user",
+      "option_tokens": [
+        "w_jiehun"
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
+    },
+    {
+      "id": "f_am_married",
+      "text": "我结婚了。",
+      "pinyin": "wǒ jiéhūn le.",
+      "text_en": "I'm married.",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user",
+      "option_tokens": [
+        "w_jiehun"
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
+    },
+    {
+      "id": "f_no_children",
+      "text": "我没有孩子。",
+      "pinyin": "wǒ méiyǒu háizi.",
+      "text_en": "I don't have children.",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user",
+      "option_tokens": [
+        "w_haizi"
+      ],
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND"
+      ],
+      "default_next_move_types": [
+        "REACTION",
+        "LOOP"
+      ],
+      "move_type": "ANSWER"
+    },
+    {
+      "id": "f_have_a_child",
+      "text": "我有孩子了。",
+      "pinyin": "wǒ yǒu háizi le.",
+      "text_en": "I have a child.",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "user",
+      "option_tokens": [
+        "w_haizi"
+      ],
       "allowed_response_roles": [
         "SAFE",
         "EXPAND"

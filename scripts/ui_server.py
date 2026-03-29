@@ -1701,6 +1701,14 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
             return f"我喜欢{interests[0]}，有空就去。"
         return "我有几个爱好，平时很忙，但一有时间就会去做。"
 
+    # ── Topics that are always graceful deflections (no discoverable fact) ────────
+    if topic == "age":
+        return _persona_deflect("age", engine_id)
+    if topic == "marriage":
+        return _persona_deflect("marriage", engine_id)
+    if topic == "children":
+        return _persona_deflect("children", engine_id)
+
     return "我觉得都挺有意思的。"
 
 
