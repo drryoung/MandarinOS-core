@@ -1036,8 +1036,9 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
         occ = (profile.get("occupation") or "").strip()
         return voice_lines.get("work") or (f"我是{occ}。" if occ else "我也有工作。")
 
-    # Hobbies / interests
-    if any(p in t for p in ("你喜欢什么", "你有什么爱好", "你喜欢做什么", "你的爱好")):
+    # Hobbies / interests — "你喜欢什么" alone is too broad (catches "你喜欢什么颜色？" etc.)
+    # Require either 爱好 / 做什么 / 玩什么 to confirm it's asking about hobbies.
+    if any(p in t for p in ("你有什么爱好", "你喜欢做什么", "你喜欢玩什么", "你的爱好", "你平时喜欢")):
         interests = profile.get("interests") or []
         return voice_lines.get("hobby") or (f"我喜欢{interests[0]}。" if interests else "我也有很多爱好。")
 
@@ -1045,14 +1046,14 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
     if any(p in t for p in ("你有家人", "你有没有家人", "你的家人")):
         return voice_lines.get("family") or "我也有家人。"
 
-    # Married / partner status
+    # Married / partner status — dedicated response, not the generic family voice_line
     if any(p in t for p in ("你结婚", "你有没有结婚", "你有对象", "你有伴侣",
                              "你有男朋友", "你有女朋友", "你成家了")):
-        return voice_lines.get("family") or "这个嘛……不好说！"
+        return "哈，这个嘛……还是个秘密！"
 
     # Children
     if any(p in t for p in ("你有孩子", "你有小孩", "你有儿子", "你有女儿", "你有宝宝")):
-        return voice_lines.get("family") or "这个……还没有！"
+        return "这个……还没有，不急！"
 
     # Age
     if any(p in t for p in ("你多大", "你几岁", "你的年龄", "你今年多大")):
@@ -1628,12 +1629,16 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
     # ── Place ────────────────────────────────────────────────────────────────────
     if topic in ("place_from", "place_like", "place_special"):
         fact = (facts.get("place") or "").strip()
+        city = (profile.get("hometown") or profile.get("city") or "").strip()
         if topic == "place_special":
-            depth = _nth_clause(fact, 1) if fact else ""
-            return depth or "那里有一些很有意思的地方，有机会去看看。"
+            # Depth: character of the place — first_clause of the fact works well here
+            return _first_clause(fact) if fact else "那里有一些很有意思的地方，有机会去看看。"
+        if topic == "place_from":
+            # Introduction: always use hometown, not the character description
+            return f"我是{city}人，从小在那里长大。" if city else (voice_lines.get("place") or "我是中国人。")
+        # place_like: first clause of fact (character description is appropriate here)
         if fact:
             return _first_clause(fact)
-        city = profile.get("city") or profile.get("hometown") or ""
         return f"我是{city}人，从小在那里长大。" if city else "我觉得我住的地方挺好的。"
 
     # ── Travel ───────────────────────────────────────────────────────────────────
@@ -1652,7 +1657,8 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
     if topic in ("work_what", "work_like", "work_duration", "work_platform"):
         fact = (facts.get("work") or "").strip()
         if topic == "work_duration":
-            depth = _nth_clause(fact, 0) if fact else ""   # first clause often has duration
+            # nth(0) is same as first_clause (work_what). Use nth(1) to give extra context.
+            depth = _nth_clause(fact, 1) if fact else ""
             return depth or "已经做了几年了，越做越有意思。"
         if topic == "work_platform":
             depth = _nth_clause(fact, 1) if fact else ""   # second clause often has platform
@@ -1665,9 +1671,15 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
     # ── Family ───────────────────────────────────────────────────────────────────
     if topic in ("family_size", "family_siblings", "family_live"):
         fact = (facts.get("family") or "").strip()
-        if topic == "family_live":
+        if topic == "family_siblings":
+            # Second clause typically has sibling status (e.g. "我是独生女" or "我有一个姐姐")
             depth = _nth_clause(fact, 1) if fact else ""
+            return depth or "我家里就我一个，是独生子女。"
+        if topic == "family_live":
+            # First clause of family fact typically says where family members are located
+            depth = _nth_clause(fact, 0) if fact else ""
             return depth or "我们不住在一起，但经常联系。"
+        # family_size: first clause introduces who's in the family
         if fact:
             return _first_clause(fact)
         return "我家里有几口人，大家关系都挺好的。"
@@ -1722,9 +1734,10 @@ def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> O
         (("你", "从哪"),       "place_from",   "place"),
         # work
         (("你", "工作"),         "work_what",        "work"),
-        (("做", "多久"),         "work_duration",    "work"),
-        (("做了多久"),           "work_duration",    "work"),
-        (("多久了"),             "work_duration",    "work"),
+        # work_duration: require work/job context to avoid matching "你吉他学多久了？" etc.
+        (("工作", "多久"),       "work_duration",    "work"),
+        (("做", "工作", "多久"), "work_duration",    "work"),
+        (("这份工作", "多久"),   "work_duration",    "work"),
         (("哪里", "分享"),       "work_platform",    "work"),
         (("哪个", "平台"),       "work_platform",    "work"),
         # travel depth
@@ -1736,12 +1749,19 @@ def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> O
         # food local
         (("家乡", "好吃"),       "food_local",       "food"),
         (("家乡", "吃"),         "food_local",       "food"),
+        # family location — 你妈妈/爸爸在哪儿 routes to family_live (first clause names location)
+        (("妈妈", "哪"),         "family_live",      "family"),
+        (("爸爸", "哪"),         "family_live",      "family"),
+        (("父母", "哪"),         "family_live",      "family"),
+        (("家人", "哪"),         "family_live",      "family"),
         # family together
         (("住在一起"),           "family_live",      "family"),
         (("一起住"),             "family_live",      "family"),
-        # hobby duration
+        # hobby duration — also catches "你吉他学多久了？" / "你唱歌学多久了？"
         (("多久", "爱好"),       "hobby_duration",   "hobby"),
         (("玩", "多久"),         "hobby_duration",   "hobby"),
+        (("学", "多久"),         "hobby_duration",   "hobby"),
+        (("练", "多久"),         "hobby_duration",   "hobby"),
         # hobby
         (("你", "爱好"),         "hobby_what",       "hobby"),
         (("你", "喜欢做"),       "hobby_what",       "hobby"),
