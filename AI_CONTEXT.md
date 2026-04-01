@@ -202,7 +202,7 @@ All conversation-design decisions (engines, sentence selector, memory, capabilit
 
 - **`docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md`** — Lists every conversation-related spec: 7 engines (Identity, Place, Food, Family, Study/Work, Travel, Interests), Next Question Selector, memory model, capability map, steering engine, ladders, support packs, persona network. Use it when implementing or reviewing conversation logic so no iPhone/ChatGPT design work is missed.
 
-**Strategist handoffs (ChatGPT):** e.g. **`docs/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md`** — Phase 10.5/10.6 delivery summary, alpha notes, defer-naturalness-until-post–Phase‑11 intent, and questions for next-step feedback. Older context: `docs/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md`. Phase 10.7 / move grammar: **`docs/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt`**, **`docs/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt`**. **Minimal implementation plan (preserve 10.5/10.6):** **`docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md`**.
+**Strategist handoffs (ChatGPT):** e.g. **`docs/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md`** — Phase 10.5/10.6 delivery summary, alpha notes, defer-naturalness-until-post–Phase‑11 intent, and questions for next-step feedback. Older context: `docs/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md`. Phase 10.7 / move grammar: **`docs/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt`**, **`docs/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt`**. **Minimal implementation plan (preserve 10.5/10.6):** **`docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md`**. **User-led discovery & next-phase alignment:** **`docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`**, **`docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`**, **`docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`**.
 
 ### 5.1 Runtime (server-side)
 Likely areas:
@@ -301,13 +301,43 @@ If present, read these before making architectural suggestions:
 - `docs/design/TRACE_CONTRACT_v1.md` (trace contract)
 - Other phase docs: `docs/phases/`
 - Build directives under `integration_kit/` (if relevant to the task)
+- **`docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — extensibility directive (mandatory for any change proposal)
+- **`docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`** — 12C / 12C.1 / 12D separation (mandatory for conversation-layer work)
+- **`docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`** — when implementing or scoping Phase 12D overlay
+- **`docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`** — user-led discovery, counter-reply, recovery; architectural debt AD-1–AD-3
 
 ### Extensibility strategy (mandatory — read before proposing any change)
 
-- **`docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — Standing Cursor directive. Defines the decision priority order (content → ordering → selector hygiene → architecture), problem classification (A–E), architectural rules (selector independence, additive growth, soft ordering, extensibility test, builder-first), and what to optimise for.
+- **`docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — Standing Cursor directive (authoritative copy; a parallel copy may exist under `docs/specs/`). Defines: treat the architecture as a **stable extensible base**; decision priority order (**content → ordering/builder → minimal selector hygiene → architecture only with justification**); beta-feedback classification **A–E** (content value, selector/flow, builder/options, structural discourse, alpha polish); rules: **selector independence**, **additive growth**, **soft `FRAME_ORDER`**, **extensibility test** (20–50 new frames must not force selector/scoring/runtime rewrites), **builder-first**; what to optimise for (extensibility, stability, conversational value density, minimal churn); proposals must state intervention level and why it is the **lowest sufficient** level.
 - **`docs/specs/MandarinOS_Extensibility_Strategy.md`** — Strategist-level strategy doc. Core principles: stable backbone, additive growth, competitive coexistence, builder-centric improvement.
 
-These two files define the **mandatory working framework** for all future MandarinOS development. A Cursor rule at `.cursor/rules/mandarinos-architecture.mdc` enforces the key points automatically every session.
+These files define the **mandatory working framework** for all future MandarinOS development. A Cursor rule at `.cursor/rules/mandarinos-architecture.mdc` enforces the key points automatically every session.
+
+### Phase alignment — 12C, 12C.1, 12D (mandatory for near-term work)
+
+- **`docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`** — Canonical separation of three layers:
+  - **Phase 12C — Repair → Comprehension:** user input unclear / ASR mismatch → soft repair → one targeted clarification → then fallback. No cultural explanation or strategic advice in this layer.
+  - **Phase 12C.1 — Reciprocity & exploration:** user questions, direction shifts, 你呢？→ persona responds coherently, progressive depth, no forced return to prior flow. Aligns with **user-led discovery / counter-reply** work.
+  - **Phase 12D — Meaning + Move overlay:** ambiguous **partner** language → show likely meaning + 2–3 safe next moves. Direction: **Persona → User** (interpret + act). **Must not** change Phase 6 runtime, merge layers, or add selector complexity.
+
+**Implementation priority (from alignment brief):** (1) finish/stabilise **12C** (repair), (2) stabilise **12C.1** (reciprocity), (3) then **12D** (overlay). **Optimise for:** conversation survival, interaction continuity, user confidence under uncertainty — not abstract “correctness” or completeness.
+
+- **`docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`** — Detailed build spec for **12D**: thin **content + UI overlay** (`meaning_move_overlay` runtime artifact, ~20–30 high-value items v1), keyed by **`frame_id`**, expandable “Meaning + Move” UI, fail-soft if missing, **no** selector/engine/move_type rewrite. Non-goals: live meeting assistant, ASR rewrite, personalization engine, cultural essays on every turn.
+
+**User-led discovery & recovery (12C.1-related product track):** see **`docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`** — counter-reply, discovery panel, recovery phrases, data-driven mirror/deflection JSON.
+
+---
+
+## 11a) Overall direction — next phases (summary for strategists and implementers)
+
+MandarinOS is in a **refinement phase**: gains should come mainly from **better frames, responses, options, and tagging**, not from repeated architectural rework. The north star for the next stretch is:
+
+1. **Keep the stable backbone** — Phase 6 runtime, selector, and conversation engine stay the default path; changes are **additive** unless explicitly approved.
+2. **Layer conversation support cleanly** — **12C** (repair/clarify before fallback), **12C.1** (reciprocity and user-led exploration — already partially implemented via counter-reply and discovery), **12D** (optional Meaning + Move overlay for ambiguous partner lines). Do not merge these into one system or hide them inside the selector.
+3. **Ship 12D as a small overlay** — separate JSON artifact + UI; improves how alpha testers experience **interpretation and safe next moves** without changing core turn logic.
+4. **Continue systematic content quality** — curiosity probes, persona coverage, mirror/tagged-frame migration (see USER_LED_DISCOVERY strategist brief), phrase banks in JSON, matrix tests — all **content and hygiene**, not selector rewrites.
+
+**Success for this era:** the product feels like a **growing network of conversational moves** plus **survival tooling** (repair, reciprocity, interpretation) — not a brittle script and not a one-off patch stack.
 
 ---
 
@@ -386,7 +416,7 @@ When implementing Stage 1, add to `conversation_state`:
 
 ## 13) Current phase status
 
-Updated: 2026-03-25 (conversation quality tuning pass)
+Updated: 2026-03-29 (extensibility + 12C/12D alignment integrated)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
@@ -397,9 +427,12 @@ Updated: 2026-03-25 (conversation quality tuning pass)
 | Phase 11.1 | Complete | Engine depth guard, identity re-entry block, FRAME_ORDER priority, hobby reorder, work options builder fix |
 | Phase 11.1.1 | Complete | Post-fix observation pass; extended identity guard to ladder + coherence gate |
 | Phase 12 | Complete | EXTEND frames, persona layer, discoverability (voice_line + partner_fact), Phase 12B curiosity chain limit + soft repair ladder |
-| **Alpha tuning** | **Active** | Conversation quality: mutual exclusions, difficulty ramp, user-question chain (allow multi-turn interrogation), double-turn guard, bridge prefix cleanup |
+| **12C — Repair → Comprehension** | **In progress / next** | Clarification before fallback on unclear input; see alignment brief. Does not subsume 12C.1 or 12D. |
+| **12C.1 — Reciprocity & exploration** | **Active / evolving** | User questions, 你呢？, counter-reply, discovery panel, progressive persona answers; strategist brief: `USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`. |
+| **12D — Meaning + Move overlay** | **Planned** | Thin UI + `meaning_move_overlay` artifact; **after** 12C stable; see `MandarinOS_Phase12D_Cursor_Implementation_Brief.md`. |
+| **Alpha tuning** | **Active** | Conversation quality, matrix tests, content/data iteration per extensibility directive |
 
-### Active alpha tuning — what has been implemented
+### Active alpha tuning — what has been implemented (baseline)
 
 - **Mutual exclusion frames:** `f_ask_you_name` ↔ `p2_id_2`, `f_travel_where` ↔ `p2_tr_1`, food frames — prevents semantic duplicate questions
 - **Difficulty ramp:** within each engine, difficulty-1 frames appear before difficulty-2, which appear before difficulty-3 (stable sort preserving FRAME_ORDER within tier); "life" engine blocked until `exchange_count ≥ 16`
@@ -407,10 +440,17 @@ Updated: 2026-03-25 (conversation quality tuning pass)
 - **Double-turn guard:** `_runTurnInFlight` flag prevents concurrent `runTurn` calls that caused duplicate partner questions
 - **Bridge prefix:** only `顺便问一下，` remains; `对了，` removed (caused awkward "对了，好吃吗？" transitions)
 - **Probe row frequency:** `MAX_PROBE_CHAIN` raised 1 → 2
+- **User-led discovery stack:** counter-reply, `_lastPartnerSpokenText` for recovery, `content/mirror_questions.json`, `recovery_phrases.json` (`persona_deflect`, `deflection_ack`), age/marriage/children frames wired; systematic matrix: `scripts/test_counter_reply_matrix.py`
 
-### Parked future work (not yet approved for implementation)
+### Near-term roadmap (aligned with briefings — not optional opinion)
 
-- **Phase 12C:** deeper curiosity grammar (WHEN, HOW, WHO probes as partner moves — not just user-initiated)
-- **Hybrid AI layer:** see Section 12 above; prerequisite is a fully robust structured engine
+1. **Stabilise 12C** — repair ladder behaviour before heavy fallback.
+2. **Stabilise 12C.1** — reciprocity and exploration (incl. curiosity probes where data supports; see strategist brief on “curiosity question gap”).
+3. **Implement 12D** — Meaning + Move overlay per implementation brief (separate artifact, no selector rewrite).
+4. **Ongoing** — extensibility-first content work; avoid selector rewrites unless justified.
+
+### Parked / later (unchanged)
+
+- **Hybrid AI layer:** see Section 12 above; prerequisite is a robust structured engine; not a substitute for 12C–12D layers.
 
 END.
