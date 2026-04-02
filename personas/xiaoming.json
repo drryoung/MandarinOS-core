@@ -29,5 +29,23 @@
     "travel": "我去过日本、泰国和韩国，最喜欢日本的拉面和温泉。",
     "place": "我老家是成都，但毕业后来北京工作，住在中关村附近。",
     "food": "我妈妈做的回锅肉是我最喜欢的，每次回成都都要吃。"
+  },
+  "discoverable_facts_en": {
+    "identity": "My grandmother gave me my name.",
+    "family": "I have one older sister.",
+    "work": "I work at an AI company.",
+    "hobby": "I started learning guitar in high school.",
+    "travel": "I've been to Japan.",
+    "place": "My hometown is Chengdu.",
+    "food": "My mum's twice-cooked pork is my favourite."
+  },
+  "voice_lines_en": {
+    "identity": "My name is Xiaoming.",
+    "family": "There are just three of us in my family.",
+    "work": "I work in software development.",
+    "hobby": "I usually enjoy playing guitar and hiking.",
+    "travel": "I've been to a few Asian countries.",
+    "place": "I've lived in Beijing for five years.",
+    "food": "I really love dumplings."
   }
 }

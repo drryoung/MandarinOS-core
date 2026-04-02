@@ -29,5 +29,23 @@
     "travel": "我去过北京、苏州、成都，最喜欢苏州的园林，感觉非常有诗意。",
     "place": "西安有很多历史遗迹，兵马俑、大雁塔都在我家附近，我觉得住在这里很自豪。",
     "food": "我最喜欢西安的凉皮和肉夹馍，这是我从小吃到大的味道。"
+  },
+  "discoverable_facts_en": {
+    "identity": "My mum chose the name Meiling for me.",
+    "family": "I live in the same compound as my parents.",
+    "work": "I teach at a middle school in Xi'an.",
+    "hobby": "I've been practising calligraphy for over ten years.",
+    "travel": "I've been to Beijing.",
+    "place": "Xi'an has many historical sites.",
+    "food": "My favourites are Xi'an cold noodles and pork burgers."
+  },
+  "voice_lines_en": {
+    "identity": "My name is Meiling.",
+    "family": "I place great importance on staying connected with family.",
+    "work": "I'm an art teacher.",
+    "hobby": "I enjoy practising calligraphy and drinking tea.",
+    "travel": "I love travelling to places with history and culture.",
+    "place": "I grew up in Xi'an.",
+    "food": "I prefer light, simple food."
   }
 }

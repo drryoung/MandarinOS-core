@@ -164,7 +164,8 @@ except Exception as _e:
 
 # Persona deflect phrases: loaded from content/recovery_phrases.json (use=persona_deflect).
 # Adding/editing a phrase only requires editing that file — no server code change.
-_persona_deflect_phrases: dict = {}   # topic -> [hanzi, ...]
+_persona_deflect_phrases: dict = {}     # topic -> [hanzi_str, ...]  (for _persona_deflect picker)
+_persona_deflect_en_map: dict = {}      # hanzi_str -> text_en       (for hint lookup)
 _rp_path = CONTENT_DIR / "recovery_phrases.json"
 try:
     if _rp_path.is_file():
@@ -172,7 +173,10 @@ try:
         for _p in (_rp_data.get("phrases") or []):
             if _p.get("use") == "persona_deflect":
                 _topic = _p.get("topic") or "generic"
-                _persona_deflect_phrases.setdefault(_topic, []).append(_p.get("hanzi") or "")
+                _hz = (_p.get("hanzi") or "").strip()
+                if _hz:
+                    _persona_deflect_phrases.setdefault(_topic, []).append(_hz)
+                    _persona_deflect_en_map[_hz] = (_p.get("text_en") or "").strip()
         _nd = len(_persona_deflect_phrases)
         _np = sum(len(v) for v in _persona_deflect_phrases.values())
         print(f"[ui_server] persona_deflect phrases loaded ({_np} phrases across {_nd} topics)")
@@ -180,6 +184,25 @@ try:
         print(f"[ui_server] WARNING: recovery_phrases.json not found at {_rp_path}")
 except Exception as _e:
     print(f"[ui_server] WARNING: persona_deflect phrases load failed: {_e}")
+
+
+def _persona_deflect_en(zh: str) -> str:
+    """Look up the English translation for a deflection phrase. Returns empty string if not found."""
+    return _persona_deflect_en_map.get((zh or "").strip(), "")
+
+
+def _en_for_counter_reply(zh: str, inner: Optional[str] = None) -> str:
+    """English for counter_reply when zh wraps an inner phrase (e.g. 我呢， + deflection).
+
+    Looks up `inner` in the deflection map first; if zh starts with 我呢， prefix the EN gloss.
+    """
+    if inner:
+        en = _persona_deflect_en(inner.strip())
+        if en:
+            if (zh or "").startswith("我呢，") and not (inner.strip()).startswith("我呢"):
+                return f"As for me — {en}"
+            return en
+    return _persona_deflect_en(zh or "") or ""
 
 
 def _persona_deflect(topic: str, seed: str = "") -> str:
@@ -625,6 +648,9 @@ _MUTUAL_EXCLUSION_FRAMES: dict = {
     "p2_id_2": {"f_ask_you_name"},
     "p2_id_4": {"p2_id_5"},           # "你觉得你的名字怎么样？" ↔ "这个名字对你有什么意义？" (both ask about name significance)
     "p2_id_5": {"p2_id_4"},
+    # Work difficulty cluster: "这份工作难吗？" ↔ "你工作里最难的部分是什么？" — both probe difficulty
+    "p2_wk_2": {"p2_wk_3"},
+    "p2_wk_3": {"p2_wk_2"},
 }
 
 # Oxygen loop questions (canonical list from MandarinOS_conversation_ladders_full_draft_v2.md) — offered as "Ask back" when user gave an interesting answer.
@@ -673,14 +699,15 @@ _REACTION_FALLBACKS_GENERIC: list = ["哦。", "是吗。", "不错。", "很好
 
 # High-interest curiosity reactions: used INSTEAD of plain acknowledgments when interest == "high".
 # These are short question-style reactions that invite the user to explain further.
+# Rule: keep each item semantically distinct — no two should be near-synonyms.
 _CURIOSITY_REACTIONS_BY_ENGINE: dict = {
-    "food":   ["为什么好吃？", "怎么好吃？", "哦？最喜欢哪个？"],
-    "travel": ["为什么想去那里？", "哪个地方最有意思？", "真的吗？"],
-    "place":  ["为什么喜欢那儿？", "怎么样？", "是吗？"],
-    "work":   ["为什么喜欢这份工作？", "怎么难？", "是吗？"],
-    "hobby":  ["为什么喜欢？", "怎么开始的？", "是吗？"],
-    "family": ["怎么说？", "是吗？", "真的吗？"],
-    "identity": ["为什么呢？", "是吗？", "怎么说？"],
+    "food":   ["哦？最喜欢哪种？", "自己会做吗？", "是在哪儿吃到的？"],
+    "travel": ["为什么想去那里？", "哪个地方最有意思？", "一般自己去还是跟人一起？"],
+    "place":  ["住多久了？", "为什么喜欢那儿？", "打算长期住下去吗？"],
+    "work":   ["为什么喜欢这份工作？", "工作里最有意思的是什么？", "是怎么开始做的？"],
+    "hobby":  ["是怎么开始喜欢这个的？", "自己做还是跟朋友一起？", "花不少时间吧？"],
+    "family": ["感情好吗？", "平时大家会一起做什么？", "谁对你影响最大？"],
+    "identity": ["你觉得名字符合你的性格吗？", "有什么故事吗？", "家人怎么叫你？"],
 }
 _CURIOSITY_REACTIONS_GENERIC: list = ["为什么呢？", "真的吗？", "怎么说？", "是吗？"]
 
@@ -713,6 +740,168 @@ _SLOT_FOLLOWUP_PREFERENCES: dict = {
     # TRAVEL: which is best? then why, then continuation.
     "TRAVEL": ["f_travel_which_best", "f_travel_why_interesting", "f_want_go_where", "p2_tr_2", "p2_tr_3", "p2_tr_4"],
 }
+
+# ── Entity Follow-Up Chains (EFC) ──────────────────────────────────────────────
+# When a user mentions a specific family member, the EFC chain asks follow-up
+# questions about that specific person using a {ENTITY} slot filled at runtime.
+# efc_order determines the sequence; efc_gate="prev_answer_affirmative" gates
+# f_efc_family_child so it only fires after a "yes married" answer.
+#
+# Extensible: add hobby/food/place chains here later with no selector changes.
+
+# Family member vocabulary for entity detection — ordered longest-first to avoid
+# "妹" matching before "妹妹".
+_FAMILY_MEMBER_VOCAB: list = [
+    "哥哥", "弟弟", "姐姐", "妹妹",
+    "爸爸", "妈妈", "爷爷", "奶奶", "外公", "外婆",
+    "儿子", "女儿", "丈夫", "老公", "妻子", "老婆",
+    "叔叔", "阿姨", "舅舅", "姑姑",
+    "哥", "弟", "姐", "妹",
+    "爸", "妈",
+]
+
+# Affirmative markers: used to gate f_efc_family_child after f_efc_family_married.
+_AFFIRMATIVE_MARKERS: frozenset = frozenset({
+    "结婚了", "结婚", "有", "是", "对", "是的", "是啊", "有啊", "有的",
+    "当然", "嗯", "已经结婚", "成家了",
+})
+
+# EFC chain for family — ordered by efc_order.
+_FAMILY_EFC_CHAIN: list = [
+    "f_efc_family_work",
+    "f_efc_family_age",
+    "f_efc_family_where",
+    "f_efc_family_married",
+    "f_efc_family_child",   # gated: only after affirmative marriage answer
+]
+# Maximum EFC depth per entity before returning to the normal engine ladder.
+MAX_EFC_DEPTH = 3
+
+
+def _detect_family_entity(text: str) -> Optional[str]:
+    """Return the first family member term found in text, or None.
+
+    Uses _FAMILY_MEMBER_VOCAB ordered longest-first so compound terms
+    (哥哥) are matched before single characters (哥).
+    """
+    if not text:
+        return None
+    for term in _FAMILY_MEMBER_VOCAB:
+        if term in text:
+            return term
+    return None
+
+
+def _pick_efc_frame(
+    entity_type: str,
+    entity_value: str,
+    recent_frame_ids: list,
+    cs: dict,
+) -> Optional[str]:
+    """Select the next unseen EFC frame for the given entity.
+
+    Returns the frame_id only; the caller fills {ENTITY} in the frame text.
+    Returns None when chain is exhausted, depth cap reached, or entity missing.
+    """
+    if not entity_value or entity_type != "family":
+        return None
+    efc_depth = int(cs.get("efc_depth") or 0)
+    if efc_depth >= MAX_EFC_DEPTH:
+        return None
+    recent = set(recent_frame_ids or [])
+    last_answer_text = _norm_text(
+        (cs.get("last_answer") or {}).get("submitted_text")
+        or (cs.get("last_answer") or {}).get("selected_option_hanzi")
+        or ""
+    ) if isinstance(cs.get("last_answer"), dict) else ""
+    last_frame_id = ((cs.get("last_answer") or {}).get("frame_id") or "").strip()
+
+    for fid in _FAMILY_EFC_CHAIN:
+        if fid in recent:
+            continue
+        fr = _frames_by_id.get(fid) or {}
+        # Gate: f_efc_family_child only fires after an affirmative marriage answer.
+        if fr.get("efc_gate") == "prev_answer_affirmative":
+            if last_frame_id != "f_efc_family_married":
+                continue
+            if not any(m in last_answer_text for m in _AFFIRMATIVE_MARKERS):
+                continue
+        return fid
+    return None
+
+
+def _fill_efc_entity(frame_id: str, entity_value: str) -> Optional[str]:
+    """Return the frame text with {ENTITY} replaced by entity_value.
+
+    Returns None if the frame doesn't exist or has no {ENTITY} slot.
+    """
+    fr = _frames_by_id.get(frame_id) or {}
+    text = (fr.get("text") or "").strip()
+    if not text or "{ENTITY}" not in text:
+        return None
+    return text.replace("{ENTITY}", entity_value)
+
+
+# Phase 12E: Curiosity probe frames — selected when interest_level is medium/high and
+# slot followup preferences are exhausted. Ordered medium-interest first, high-interest last.
+# interest_min: "medium" = fires on medium or high; "high" = fires only on high.
+_CURIOSITY_PROBE_FRAMES: dict = {
+    "identity": [
+        {"id": "f_probe_id_like_name",    "interest_min": "medium"},
+        {"id": "f_probe_id_nickname",     "interest_min": "medium"},
+        {"id": "f_probe_id_character",    "interest_min": "high"},
+    ],
+    "place": [
+        {"id": "f_probe_place_moved",     "interest_min": "medium"},
+        {"id": "f_probe_place_why_move",  "interest_min": "medium"},
+        {"id": "f_probe_place_miss",      "interest_min": "medium"},
+        {"id": "f_probe_place_stay",      "interest_min": "high"},
+    ],
+    "work": [
+        {"id": "f_probe_work_origin",     "interest_min": "medium"},
+        {"id": "f_probe_work_dream",      "interest_min": "medium"},
+        {"id": "f_probe_work_best",       "interest_min": "medium"},
+        {"id": "f_probe_work_future",     "interest_min": "high"},
+    ],
+    "food": [
+        {"id": "f_probe_food_make",       "interest_min": "medium"},
+        {"id": "f_probe_food_childhood",  "interest_min": "medium"},
+        {"id": "f_probe_food_teach",      "interest_min": "high"},
+    ],
+    "family": [
+        {"id": "f_probe_family_closest",  "interest_min": "medium"},
+        {"id": "f_probe_family_together", "interest_min": "medium"},
+        {"id": "f_probe_family_influence","interest_min": "high"},
+    ],
+    "hobby": [
+        {"id": "f_probe_hobby_origin",    "interest_min": "medium"},
+        {"id": "f_probe_hobby_social",    "interest_min": "medium"},
+        {"id": "f_probe_hobby_change",    "interest_min": "high"},
+    ],
+    "travel": [
+        {"id": "f_probe_travel_alone",    "interest_min": "medium"},
+        {"id": "f_probe_travel_learn",    "interest_min": "high"},
+    ],
+}
+
+# Phase 12E: keyword → targeted discovery question shown at the top of the discovery panel
+# when the persona's counter_reply contains a recognisable topic keyword.
+# Each entry: (keywords_tuple, zh_question, en_hint)
+_DISCOVERY_KEYWORD_HINTS: list = [
+    (("教书", "老师", "教学"),                       "你最喜欢教什么年级？",        "What grade do you most enjoy teaching?"),
+    (("主厨", "厨师", "烹饪"),                       "你最擅长做什么菜？",          "What dish are you best at making?"),
+    (("书法", "楷书", "毛笔"),                       "你练了多久了？",              "How long have you been practising?"),
+    (("独生", "没有兄弟", "没有姐妹"),               "那你小时候怎么过的？",        "What was childhood like for you?"),
+    (("兄弟", "哥哥", "弟弟", "姐姐", "妹妹"),      "你们感情好吗？",              "Are you close to your siblings?"),
+    (("退休",),                                      "退休以后你最喜欢做什么？",    "What do you enjoy most since retiring?"),
+    (("爬山", "登山"),                               "你经常去爬吗？",              "Do you go hiking often?"),
+    (("羽毛球", "乒乓球", "网球"),                   "你打了多久了？",              "How long have you been playing?"),
+    (("吉他", "钢琴", "小提琴"),                     "你是自学的还是拜师学的？",    "Did you teach yourself or take lessons?"),
+    (("农村", "乡下", "村子"),                       "你怀念农村的生活吗？",        "Do you miss life in the countryside?"),
+    (("外国", "海外", "国外", "出国"),               "你在那边住了多久？",          "How long did you live there?"),
+    (("北京", "上海", "广州", "深圳", "成都", "重庆", "杭州", "西安", "武汉"),
+                                                     "你最喜欢那里的什么？",        "What do you like most about there?"),
+]
 
 
 def _stable_pick(seq: list, seed: str) -> Optional[str]:
@@ -839,12 +1028,29 @@ def _stable_gate(seed: str) -> int:
     return gate
 
 
+# Phase 12E refinement 1: novelty markers — simple rule-based, no AI.
+# These indicate a genuinely new personal detail in the user's answer.
+# Story/context connectors signal the user is sharing something personal, not just naming a fact.
+_NOVELTY_STORY_MARKERS = (
+    "以前", "从小", "记得", "那时候", "有一次", "小时候", "当时", "后来", "长大",
+)
+# Personal ownership + quantity markers: "我有", "我们有", plus any digit character.
+_NOVELTY_OWNERSHIP_MARKERS = ("我有", "我们有", "我没有")
+_DIGITS = set("0123456789零一二三四五六七八九十百千万")
+
+
 def _score_answer_interest(
     last_answer: Optional[dict],
     slot_names: List[str],
     new_memory_written: bool,
     cs: dict,
-) -> int:
+) -> tuple:
+    """Return (score: int, novelty_hit: bool) for interest classification.
+
+    novelty_hit is True when the answer contains first-person story markers,
+    ownership declarations, or specific numbers — signals of new personal detail.
+    Kept as an explicit boolean for trace visibility.
+    """
     text = _answer_text_from_last_answer(last_answer)
     score = 0
     if slot_names:
@@ -867,8 +1073,8 @@ def _score_answer_interest(
     # Detect by looking up the last partner frame from recent_frame_ids.
     _SHORT_AFFIRM = {"有", "是", "要", "对", "有的", "是的", "是啊", "当然", "有啊"}
     if text in _SHORT_AFFIRM:
-        recent = cs.get("recent_frame_ids") or []
-        last_fid = recent[-1] if recent else ""
+        recent_fids = cs.get("recent_frame_ids") or []
+        last_fid = recent_fids[-1] if recent_fids else ""
         last_frame_text = (_frames_by_id.get(last_fid) or {}).get("text", "").strip()
         if "吗" in last_frame_text:
             score += 1  # "yes" to a yes/no question — probe for more
@@ -877,7 +1083,23 @@ def _score_answer_interest(
         score -= 1
     if text in ("好", "嗯", "不知道"):
         score -= 1
-    return max(0, score)
+
+    # Phase 12E refinement 1: novelty signal.
+    # A story/context connector or a specific quantity/ownership claim suggests the user
+    # is sharing new personal information, not just repeating or confirming.
+    # Rule: +1 if any novelty marker is present AND the answer is not identical to last turn.
+    novelty_hit = False
+    if text and text != prev:
+        if any(m in text for m in _NOVELTY_STORY_MARKERS):
+            novelty_hit = True
+        elif any(m in text for m in _NOVELTY_OWNERSHIP_MARKERS):
+            novelty_hit = True
+        elif any(ch in _DIGITS for ch in text):
+            novelty_hit = True
+    if novelty_hit:
+        score += 1
+
+    return max(0, score), novelty_hit
 
 
 def _classify_interest(score: int) -> str:
@@ -885,6 +1107,23 @@ def _classify_interest(score: int) -> str:
         return "high"
     if score >= INTEREST_MEDIUM_THRESHOLD:
         return "medium"
+    return "low"
+
+
+def _decay_interest(interest_level: str, loop_count_in_engine: int) -> str:
+    """Phase 12E refinement 2: decay interest by one level if the conversation has been
+    looping in the same engine for >= LOOP_COUNT_IN_ENGINE_SOFT_CAP turns.
+
+    This creates natural exit pressure without touching the global selector.
+    Only used for curiosity decisions; raw interest_level is still used for
+    listening moves and reaction selection.
+    """
+    if loop_count_in_engine < LOOP_COUNT_IN_ENGINE_SOFT_CAP:
+        return interest_level
+    if interest_level == "high":
+        return "medium"
+    if interest_level == "medium":
+        return "low"
     return "low"
 
 
@@ -974,6 +1213,16 @@ def _persona_reply_for_ni_ne(frame_id: str, persona: Optional[dict]) -> Optional
     profile     = persona.get("profile") or {}
     voice_lines = persona.get("voice_lines") or {}
     name = _assistant_name_from_persona(persona)
+
+    # Age question — deflect gracefully rather than answering with name
+    if fid in ("f_how_old",):
+        return _persona_deflect("age", fid)
+
+    # Marriage / children — always deflect
+    if fid in ("f_married",):
+        return _persona_deflect("marriage", fid)
+    if fid in ("f_have_children",):
+        return _persona_deflect("children", fid)
 
     # Name questions
     if fid in ("f_ask_you_name", "p2_id_2"):
@@ -1092,6 +1341,37 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
     if any(p in t for p in ("你有家人", "你有没有家人", "你的家人")):
         return voice_lines.get("family") or "我也有家人。"
 
+    # Parent / family member location — e.g. "你妈妈在哪儿？" "你父母住哪里？"
+    if any(p in t for p in ("你妈妈", "你爸爸", "你父母", "你爸妈", "你家人住", "你爸", "你妈")):
+        city = (profile.get("city") or "").strip()
+        hometown = (profile.get("hometown") or "").strip()
+        lives_with_family = voice_lines.get("family") or ""
+        if "住在一起" in lives_with_family or "同一" in lives_with_family:
+            loc = city or hometown or "这里"
+            return f"我和父母住在{loc}附近，很近。"
+        if city:
+            return f"我父母住在{city}。"
+        if hometown:
+            return f"我父母在{hometown}。"
+        return "我父母住得不太远。"
+
+    # City/place feature questions — e.g. "重庆有什么特别？" "西安有什么好玩？"
+    # Detected when the user asks what's special/good about a city that matches the persona's city or hometown.
+    _feature_markers = ("有什么特别", "有什么好玩", "有什么有意思", "有什么特色", "有什么好", "怎么样啊", "怎么样呢")
+    if any(m in t for m in _feature_markers):
+        fact_place = (_facts.get("place") or "").strip()
+        if fact_place:
+            return fact_place
+        city = (profile.get("city") or "").strip()
+        hometown = (profile.get("hometown") or "").strip()
+        place_line = voice_lines.get("place") or ""
+        loc = city or hometown
+        if loc and loc in t:
+            return f"哎，{loc}太有特色了，说也说不完！" if not place_line else place_line
+        if place_line:
+            return place_line
+        return "哎，这个嘛……说来话长，有空再聊！"
+
     # Married / partner status — phrase from recovery_phrases.json (use=persona_deflect, topic=marriage)
     if any(p in t for p in ("你结婚", "你有没有结婚", "你有对象", "你有伴侣",
                              "你有男朋友", "你有女朋友", "你成家了")):
@@ -1108,28 +1388,35 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
     return None
 
 
-def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[dict]) -> Optional[str]:
+def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[dict],
+                                 prev_counter_reply: str = "") -> Optional[tuple]:
     """
-    Return a short prefix that answers common counter-questions without adding new API turns.
-    Handles: direct persona questions (你是哪里人？ 你住哪里？ etc.),
-             generic 你呢 (alone or at end of a compound answer),
-             and direct name questions.
+    Return (zh, en) answering common counter-questions without adding new API turns.
+    Handles: mirror questions (richest), direct persona questions, generic 你呢, catch-all deflection.
+    Returns None if last answer was not a question, or if learner is signalling confusion after a
+    deflection (preventing the loop where confusion → deflection → more confusion → same deflection).
     """
     if not _is_user_question(last_answer):
         return None
     t = (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
     if not t:
         return None
+    # Confusion guard: if the learner is expressing confusion/incomprehension AND we already
+    # gave a counter_reply last turn, don't give another one — let the turn move to the next frame.
+    _confusion_markers = ("什么意思", "我不懂", "听不懂", "没听懂", "啊？", "啊！", "不明白", "看不懂")
+    if prev_counter_reply and any(m in t for m in _confusion_markers):
+        return None
 
     # Mirror questions (richest answers — use discoverable_facts / profile via _mirror_persona_stub)
     _mirror = _find_mirror_answer(t, "", persona)
     if _mirror:
-        return _mirror
+        return _mirror   # already (zh, en) tuple
 
     # Direct questions aimed at the partner (你是哪里人？ 你住哪里？ etc.)
     _direct = _direct_persona_answer(t, persona)
     if _direct:
-        return f"我呢，{_direct}" if not _direct.startswith("我") else _direct
+        zh = f"我呢，{_direct}" if not _direct.startswith("我") else _direct
+        return (zh, _en_for_counter_reply(zh, _direct))
 
     # Generic 你呢 — whether standalone or at end of a compound answer
     _ni_ne_markers = ("你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "你来问")
@@ -1138,11 +1425,11 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
         fid = (last_answer.get("frame_id") or "").strip()
         reply = _persona_reply_for_ni_ne(fid, persona)
         if reply:
-            return f"我呢，{reply}" if not reply.startswith("我呢") else reply
-        # No persona or no frame-specific reply — prefer engine-specific generic over the name
+            zh = f"我呢，{reply}" if not reply.startswith("我呢") else reply
+            return (zh, _en_for_counter_reply(zh, reply))
         _frame_eng = (_frames_by_id.get(fid) or {}).get("engine") or ""
         _generics: dict = {
-            "identity": None,           # handled by name below
+            "identity": None,
             "place":    "我也住在中国，挺喜欢的。",
             "work":     "我也有工作，还挺有意思的。",
             "hobby":    "我也有几个爱好，有空会聊。",
@@ -1152,17 +1439,15 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
         }
         _gen = _generics.get(_frame_eng.lower())
         if _gen:
-            return f"我呢，{_gen}"
-        # Identity / unknown engine: use name as a natural reply
+            return (f"我呢，{_gen}", "")
         an = _assistant_name_from_persona(persona)
         if an and an != "MandarinOS":
-            return f"我呢，你可以叫我{an}。"
-        return "我呢，这是个好问题。"
+            return (f"我呢，你可以叫我{an}。", "")
+        return ("我呢，这是个好问题。", "")
 
     # Catch-all: user asked a question we don't have a specific answer for.
-    # Phrases come from recovery_phrases.json (use=persona_deflect, topic=generic) —
-    # edit the JSON to add/change phrases, no server code change needed.
-    return _persona_deflect("generic", t)
+    zh = _persona_deflect("generic", t)
+    return (zh, _persona_deflect_en(zh))
 
 
 # ---------------------------------------------------------------------------
@@ -1438,9 +1723,11 @@ def _should_surface_curiosity(
 ) -> bool:
     """Visibility gating for probe row (curiosity options).
     interest_level is now the primary trigger: medium/high always surfaces probes.
+    Phase 12E: chain cap is now interest-sensitive (high=4, medium=2, low=0).
     """
-    # Phase 12B: suppress if probe depth limit reached
-    if int(cs.get("probe_depth") or 0) >= MAX_PROBE_CHAIN:
+    # Phase 12B/12E: suppress if probe depth limit reached (cap scales with interest)
+    _chain_cap = _max_curiosity_cap_for_interest(interest_level)
+    if _chain_cap == 0 or int(cs.get("probe_depth") or 0) >= _chain_cap:
         return False
     # Only suppress on the very first exchange (no conversation history yet)
     recent = cs.get("recent_frame_ids") or []
@@ -1542,11 +1829,65 @@ def _pick_slot_followup_frame_id(
     return None
 
 
+def _pick_curiosity_probe_frame(
+    engine_id: str,
+    interest_level: str,
+    memory: Optional[dict],
+    recent_frame_ids: list,
+) -> Optional[str]:
+    """Phase 12E: select a curiosity-deepening probe frame for the current engine.
+
+    Returns the first unseen probe frame whose interest_min requirement is met.
+    Falls back to None if no viable frame exists, so normal ladder logic still runs.
+    """
+    if interest_level not in ("medium", "high"):
+        return None
+    recent = set(recent_frame_ids or [])
+    engine_norm = (engine_id or "").strip().lower()
+    candidates = _CURIOSITY_PROBE_FRAMES.get(engine_norm) or []
+    for entry in candidates:
+        fid = entry["id"]
+        if fid in recent:
+            continue
+        if entry.get("interest_min") == "high" and interest_level != "high":
+            continue
+        return fid
+    return None
+
+
+def _pick_contextual_discovery_hint(counter_reply: str) -> Optional[dict]:
+    """Phase 12E: return one targeted follow-up question based on keywords in the persona's reply.
+
+    Used to prepend a specific question to the discovery panel rather than only showing
+    generic engine mirror questions. Returns None if no keyword matches.
+    """
+    if not counter_reply:
+        return None
+    for keywords, zh_q, en_hint in _DISCOVERY_KEYWORD_HINTS:
+        if any(kw in counter_reply for kw in keywords):
+            return {"zh": zh_q, "en": en_hint, "targeted": True}
+    return None
+
+
+def _max_curiosity_cap_for_interest(interest_level: str) -> int:
+    """Phase 12E: return max consecutive curiosity depth allowed for this interest level.
+
+    high   → up to 4 consecutive probe turns before forcing a bridge
+    medium → 2 (matches existing MAX_CURIOSITY_DEPTH baseline)
+    low    → 0, suppress probes even if depth counter is below cap
+    """
+    if interest_level == "high":
+        return 4
+    if interest_level == "medium":
+        return MAX_CURIOSITY_DEPTH
+    return 0
+
+
 def _is_loop_candidate(frame_id: str) -> bool:
     """Heuristic: treat selected P2 follow-ups and some engine follow-ups as loop-capable."""
     if not frame_id:
         return False
-    return frame_id.startswith("p2_") or frame_id in ("f_food_like_spicy", "f_food_tasty", "p2_pl_4")
+    return frame_id.startswith("p2_") or frame_id.startswith("f_probe_") or frame_id in ("f_food_like_spicy", "f_food_tasty", "p2_pl_4")
 
 
 def _probe_stub_for_persona(probe_id: str, persona: Optional[dict]) -> str:
@@ -1597,125 +1938,132 @@ def _nth_clause(text: str, n: int) -> str:
     return ""
 
 
-def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) -> str:
-    """Persona's answer to a learner's mirror question about the persona."""
+def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) -> tuple:
+    """Persona's answer to a learner's mirror question. Returns (zh, en) tuple."""
     if not persona:
-        return "我觉得都挺有意思的。"
-    facts   = persona.get("discoverable_facts") or {}
-    profile = persona.get("profile") or {}
-    name    = _assistant_name_from_persona(persona)
+        return ("我觉得都挺有意思的。", "")
+    facts      = persona.get("discoverable_facts") or {}
+    facts_en   = persona.get("discoverable_facts_en") or {}
+    vl         = persona.get("voice_lines") or {}
+    vl_en      = persona.get("voice_lines_en") or {}
+    profile    = persona.get("profile") or {}
+    name       = _assistant_name_from_persona(persona)
+    city_home  = (profile.get("hometown") or profile.get("city") or "").strip()
+
+    def _fact_en(engine_key: str) -> str:
+        return (facts_en.get(engine_key) or "").strip()
+
+    def _vl_en(engine_key: str) -> str:
+        return (vl_en.get(engine_key) or "").strip()
 
     # ── Identity / name ─────────────────────────────────────────────────────────
     if topic in ("name_meaning", "name_story", "name_giver"):
         fact = (facts.get("identity") or "").strip()
         if topic == "name_giver":
-            # Depth: who gave the name — second clause usually names the person
             depth = _nth_clause(fact, 1) if fact else ""
-            return depth or "是我父母给我取的名字。"
+            return (depth or "是我父母给我取的名字。", "")
         if topic == "name_story":
-            # Depth: story/meaning behind the name — third clause usually explains symbolism
             depth = _nth_clause(fact, 2) if fact else ""
-            return depth or "我的名字有一点意思，是家里人取的，有机会再跟你说。"
-        # name_meaning: first clause (teaser)
-        return _first_clause(fact) if fact else f"我叫{name}，这个名字是家人给取的，我觉得挺好的。"
+            return (depth or "我的名字有一点意思，是家里人取的，有机会再跟你说。", "")
+        zh = _first_clause(fact) if fact else f"我叫{name}，这个名字是家人给取的，我觉得挺好的。"
+        return (zh, _fact_en("identity"))
 
     # ── Food ────────────────────────────────────────────────────────────────────
     if topic in ("food_fav", "food_local", "food_spicy"):
         fact = (facts.get("food") or "").strip()
         if topic == "food_local":
             depth = _nth_clause(fact, 1) if fact else ""
-            return depth or "我家乡的菜也很有特色，有机会试试。"
+            return (depth or "我家乡的菜也很有特色，有机会试试。", "")
         if fact:
-            return _first_clause(fact)
+            return (_first_clause(fact), _fact_en("food"))
         fav = profile.get("favourite_food") or ""
-        return f"我最喜欢吃{fav}。" if fav else "我喜欢吃各种东西，很难只选一个。"
+        zh = f"我最喜欢吃{fav}。" if fav else "我喜欢吃各种东西，很难只选一个。"
+        return (zh, _fact_en("food"))
 
     # ── Place ────────────────────────────────────────────────────────────────────
     if topic in ("place_from", "place_like", "place_special"):
         fact = (facts.get("place") or "").strip()
-        city = (profile.get("hometown") or profile.get("city") or "").strip()
         if topic == "place_special":
-            # Depth: character of the place — first_clause of the fact works well here
-            return _first_clause(fact) if fact else "那里有一些很有意思的地方，有机会去看看。"
+            zh = _first_clause(fact) if fact else "那里有一些很有意思的地方，有机会去看看。"
+            return (zh, _fact_en("place"))
         if topic == "place_from":
-            # Introduction: always use hometown, not the character description
-            return f"我是{city}人，从小在那里长大。" if city else (voice_lines.get("place") or "我是中国人。")
-        # place_like: first clause of fact (character description is appropriate here)
-        if fact:
-            return _first_clause(fact)
-        return f"我是{city}人，从小在那里长大。" if city else "我觉得我住的地方挺好的。"
+            zh = f"我是{city_home}人，从小在那里长大。" if city_home else (vl.get("place") or "我是中国人。")
+            en = f"I'm from {city_home} — I grew up there." if city_home else _vl_en("place")
+            return (zh, en)
+        if topic == "place_like":
+            zh_vl = vl.get("place") or ""
+            if zh_vl:
+                return (zh_vl, _vl_en("place"))
+            zh = f"挺喜欢的，{city_home}有很多有意思的地方。" if city_home else "挺喜欢的，有很多有意思的地方。"
+            en = f"I quite like it — there's a lot to see in {city_home}." if city_home else "I quite like it — there's a lot to see."
+            return (zh, en)
+        zh = _first_clause(fact) if fact else (f"我是{city_home}人，从小在那里长大。" if city_home else "我觉得我住的地方挺好的。")
+        return (zh, _fact_en("place"))
 
     # ── Travel ───────────────────────────────────────────────────────────────────
     if topic in ("travel_where", "travel_fav", "travel_memorable"):
         fact = (facts.get("travel") or "").strip()
         if topic == "travel_memorable":
-            # Last clause often contains the memorable detail
             parts = re.split(r'[，、,]', fact)
             depth = parts[-1].strip().rstrip("。.") + "。" if parts and len(parts) > 1 else ""
-            return depth or "最难忘的是在一个很偏远的地方看星星那一晚。"
-        if fact:
-            return _first_clause(fact)
-        return "我去过几个城市，最喜欢有美食的地方。"
+            return (depth or "最难忘的是在一个很偏远的地方看星星那一晚。", "")
+        zh = _first_clause(fact) if fact else "我去过几个城市，最喜欢有美食的地方。"
+        return (zh, _fact_en("travel"))
 
     # ── Work ─────────────────────────────────────────────────────────────────────
     if topic in ("work_what", "work_like", "work_duration", "work_platform"):
         fact = (facts.get("work") or "").strip()
+        if topic == "work_like":
+            zh_vl = vl.get("work") or ""
+            return (zh_vl or "挺喜欢的，虽然有时候很忙。", _vl_en("work"))
         if topic == "work_duration":
-            # nth(0) is same as first_clause (work_what). Use nth(1) to give extra context.
             depth = _nth_clause(fact, 1) if fact else ""
-            return depth or "已经做了几年了，越做越有意思。"
+            return (depth or "已经做了几年了，越做越有意思。", "")
         if topic == "work_platform":
-            depth = _nth_clause(fact, 1) if fact else ""   # second clause often has platform
-            return depth or "我在网上分享，有一些人关注。"
+            depth = _nth_clause(fact, 1) if fact else ""
+            return (depth or "我在网上分享，有一些人关注。", "")
         if fact:
-            return _first_clause(fact)
+            return (_first_clause(fact), _fact_en("work"))
         job = profile.get("occupation") or ""
-        return f"我做{job}，还挺有意思的。" if job else "我的工作挺有意思，可以学很多东西。"
+        zh = f"我做{job}，还挺有意思的。" if job else "我的工作挺有意思，可以学很多东西。"
+        return (zh, _fact_en("work"))
 
     # ── Family ───────────────────────────────────────────────────────────────────
     if topic in ("family_size", "family_siblings", "family_live"):
         fact = (facts.get("family") or "").strip()
         if topic == "family_siblings":
-            # Second clause typically has sibling status (e.g. "我是独生女" or "我有一个姐姐")
             depth = _nth_clause(fact, 1) if fact else ""
-            return depth or "我家里就我一个，是独生子女。"
+            return (depth or "我家里就我一个，是独生子女。", "")
         if topic == "family_live":
-            # First clause of family fact typically says where family members are located
             depth = _nth_clause(fact, 0) if fact else ""
-            return depth or "我们不住在一起，但经常联系。"
-        # family_size: first clause introduces who's in the family
-        if fact:
-            return _first_clause(fact)
-        return "我家里有几口人，大家关系都挺好的。"
+            return (depth or "我们不住在一起，但经常联系。", _fact_en("family"))
+        zh = _first_clause(fact) if fact else "我家里有几口人，大家关系都挺好的。"
+        return (zh, _fact_en("family"))
 
     # ── Hobby ────────────────────────────────────────────────────────────────────
     if topic in ("hobby_what", "hobby_duration"):
         fact = (facts.get("hobby") or "").strip()
         if topic == "hobby_duration":
             depth = _nth_clause(fact, 1) if fact else ""
-            return depth or "已经玩了好几年了，越来越喜欢。"
+            return (depth or "已经玩了好几年了，越来越喜欢。", "")
         if fact:
-            return _first_clause(fact)
+            return (_first_clause(fact), _fact_en("hobby"))
         interests = profile.get("interests") or []
-        if interests:
-            return f"我喜欢{interests[0]}，有空就去。"
-        return "我有几个爱好，平时很忙，但一有时间就会去做。"
+        zh = f"我喜欢{interests[0]}，有空就去。" if interests else "我有几个爱好，平时很忙，但一有时间就会去做。"
+        return (zh, _fact_en("hobby"))
 
     # ── Topics that are always graceful deflections (no discoverable fact) ────────
-    if topic == "age":
-        return _persona_deflect("age", engine_id)
-    if topic == "marriage":
-        return _persona_deflect("marriage", engine_id)
-    if topic == "children":
-        return _persona_deflect("children", engine_id)
+    if topic in ("age", "marriage", "children"):
+        zh = _persona_deflect(topic, engine_id)
+        return (zh, _persona_deflect_en(zh))
 
-    return "我觉得都挺有意思的。"
+    return ("我觉得都挺有意思的。", "")
 
 
-def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> Optional[str]:
+def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> Optional[tuple]:
     """
     Check if the user's submitted text closely matches one of the mirror discovery questions.
-    If so, return a rich persona-specific answer via _mirror_persona_stub.
+    If so, return (zh, en) from _mirror_persona_stub.
     Falls through to None so callers can chain with _direct_persona_answer.
     """
     t_norm = (text or "").strip().rstrip("？?！!。，, ")
@@ -1781,6 +2129,8 @@ def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> O
     for keywords, topic, eng in _fuzzy:
         if all(kw in t_norm for kw in keywords):
             return _mirror_persona_stub(topic, eng, persona)
+
+    return None
 
     return None
 
@@ -2255,9 +2605,11 @@ class Handler(BaseHTTPRequestHandler):
                 if direction_intent == "mirror":
                     # Learner asked a specific mirror question about the persona
                     topic = (payload.get("direction_question_topic") or "").strip()
-                    stub  = _mirror_persona_stub(topic, engine_id, persona)
+                    stub_result = _mirror_persona_stub(topic, engine_id, persona)
+                    stub, stub_en = stub_result if isinstance(stub_result, tuple) else (stub_result, "")
                 else:
                     stub = _direction_stub(direction_intent, engine_id, last_partner_frame_id, persona)
+                    stub_en = ""
 
                 # Build mirror questions the learner can ask next (engine-specific)
                 mirror_opts = list(_MIRROR_QUESTIONS_BY_ENGINE.get(engine_id, []))
@@ -2272,7 +2624,7 @@ class Handler(BaseHTTPRequestHandler):
                     "frame_id": "direction_response",
                     "frame_text": stub,
                     "frame_pinyin": "",
-                    "frame_text_en": "",
+                    "frame_text_en": stub_en,
                     "result": "ok",
                     "options": [],
                     "option_count": 0,
@@ -2343,6 +2695,10 @@ class Handler(BaseHTTPRequestHandler):
             last_focus_slot = ""
             last_user_text = ""
             last_interest_level = "low"
+            # EFC: defaults so response assembly never references undefined names when
+            # next_question is false (e.g. frame loaded from dropdown only).
+            cs = None
+            _efc_entity_state: dict = {}
 
             # Phase 9.1/9.2: next_question + conversation_state → selector; prefer_bridge/force_bridge try bridge first
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
@@ -2407,16 +2763,32 @@ class Handler(BaseHTTPRequestHandler):
                     meaningful = True
                 unscripted_probe_first = last_turn_was_answer and (not user_asked_question) and _is_unscripted_substantive_answer(last_answer, slot_names)
                 weak_reply = last_turn_was_answer and len(answer_text) <= 2
+                # EFC: detect family entity from current answer; persist across turns via state.
+                _efc_entity_value = _detect_family_entity(answer_text) if last_turn_was_answer else None
+                # If no new entity detected, carry the one from previous turns.
+                _efc_entity_state = cs.get("efc_entity") or {} if isinstance(cs, dict) else {}
+                if _efc_entity_value:
+                    _efc_entity_state = {"type": "family", "value": _efc_entity_value}
+                _efc_active = bool(_efc_entity_state.get("value"))
                 interest_score = 0
                 interest_level = "low"
+                _interest_novelty_hit = False
+                _interest_initial_level = "low"
+                _interest_decayed_level = "low"
                 if last_turn_was_answer:
-                    interest_score = _score_answer_interest(last_answer, slot_names, new_memory_written, cs)
+                    interest_score, _interest_novelty_hit = _score_answer_interest(last_answer, slot_names, new_memory_written, cs)
                     interest_level = _classify_interest(interest_score)
+                    _interest_initial_level = interest_level
                     # One-turn resilience: if previous turn was interesting but this answer is short,
                     # try one more curiosity move before exiting the topic.
                     if weak_reply and (last_interest_level in ("medium", "high")) and interest_level == "low":
                         interest_level = "medium"
                         interest_score = max(interest_score, INTEREST_MEDIUM_THRESHOLD)
+                        _interest_initial_level = interest_level
+                    # Phase 12E refinement 2: decay interest if looping in same engine too long.
+                    # Decayed level is used only for curiosity decisions; raw level drives everything else.
+                    _loop_count_in_engine = int(cs.get("same_engine_chain_count") or 0)
+                    _interest_decayed_level = _decay_interest(interest_level, _loop_count_in_engine)
                     last_interest_level = interest_level
                     if interest_level in ("medium", "high") and (not user_asked_question):
                         pending_listening_move = True
@@ -2506,13 +2878,20 @@ class Handler(BaseHTTPRequestHandler):
                 # where bridge resets or ordering issues can silently drop it.
                 persona_id = (payload.get("persona_id") or cs.get("persona_id") or "").strip() or None
                 persona = _resolve_persona(persona_id) or (_get_persona(persona_id) if _get_persona else None)
-                _counter_reply = _answer_user_question_prefix(last_answer, persona) if last_turn_was_answer else None
-                # DEBUG — remove after diagnosis
-                _dbg_la = last_answer or {}
-                print(f"[DBG counter_reply] lta={last_turn_was_answer} is_q={_is_user_question(last_answer)} "
-                      f"submitted={_dbg_la.get('submitted_text','')!r} "
-                      f"hanzi={_dbg_la.get('selected_option_hanzi','')!r} "
-                      f"-> counter_reply={_counter_reply!r}", flush=True)
+                # Read prev counter_reply FIRST — needed for confusion guard and dedup.
+                _prev_counter_reply = (cs.get("last_counter_reply") or "").strip() if isinstance(cs, dict) else ""
+                _counter_result  = _answer_user_question_prefix(last_answer, persona, _prev_counter_reply) if last_turn_was_answer else None
+                _counter_reply   = _counter_result[0] if _counter_result else None
+                _counter_reply_en = _counter_result[1] if _counter_result else ""
+                # Dedup guard: if this counter_reply is identical to the one we gave last turn,
+                # replace it with a gentle variation so the persona doesn't sound stuck.
+                if _counter_reply and _counter_reply.strip() == _prev_counter_reply:
+                    _counter_reply = _persona_deflect("generic", _counter_reply)
+                    _counter_reply_en = ""
+
+                # Retired pivot: if the user just said they are retired, ask what they used to do.
+                _last_user_text = (last_answer or {}).get("submitted_text", "") if last_turn_was_answer else ""
+                _user_is_retired = "退休" in _last_user_text and "p2_wk_retired" not in recent
 
                 # Partner curiosity: prefer loop when triggered and depth allows, but avoid weak loop frames if possible
                 chosen = None
@@ -2520,7 +2899,12 @@ class Handler(BaseHTTPRequestHandler):
                 loop_attempted = False
                 listening_move_selected = "none"
                 listening_move_reason = ""
-                if force_food_followup:
+                if _user_is_retired:
+                    chosen = "p2_wk_retired"
+                    chosen_turn_type = "question"
+                    listening_move_selected = "retired_pivot"
+                    listening_move_reason = "user said retired"
+                elif force_food_followup:
                     chosen = _pick_slot_followup_frame_id(current_engine, ["DISH"], recent, memory, exchange_count=exchange_count)
                     if chosen:
                         chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
@@ -2529,6 +2913,24 @@ class Handler(BaseHTTPRequestHandler):
                         listening_move_reason = "food_followup_priority"
                         pending_listening_move = False
                         listening_wait_turns = 0
+                # EFC: Entity Follow-Up Chain — ask targeted questions about a specific family member.
+                # Fires when: family engine, entity detected/carried, not user question, depth allows.
+                if (chosen is None and last_turn_was_answer and (not user_asked_question)
+                        and _efc_active and current_engine == "family"):
+                    _efc_candidate = _pick_efc_frame(
+                        _efc_entity_state.get("type", ""),
+                        _efc_entity_state.get("value", ""),
+                        recent,
+                        cs,
+                    )
+                    if _efc_candidate:
+                        chosen = _efc_candidate
+                        chosen_turn_type = "loop_question"
+                        listening_move_selected = "efc"
+                        listening_move_reason = f"efc_family_{_efc_entity_state.get('value','')}"
+                        pending_listening_move = False
+                        listening_wait_turns = 0
+
                 # Generic probe-first: when unscripted answer sounds substantive, try one same-topic probe
                 # before bridging away. If it misses, normal bridge logic still runs next.
                 if chosen is None and unscripted_probe_first:
@@ -2574,10 +2976,15 @@ class Handler(BaseHTTPRequestHandler):
                         # Curiosity-first policy: whenever we have meaningful/unscripted signal and depth allows,
                         # attempt a same-topic probe BEFORE considering bridge.
                         has_curiosity_signal = bool(slot_names) or bool(unscripted_probe_first) or bool(meaningful)
-                        if curiosity_depth < MAX_CURIOSITY_DEPTH and has_curiosity_signal:
+                        # Phase 12E: use decayed interest for curiosity depth cap (raw level still drives listening/reaction)
+                        _curiosity_cap = _max_curiosity_cap_for_interest(_interest_decayed_level)
+                        if curiosity_depth < _curiosity_cap and has_curiosity_signal:
                             chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory, exchange_count=exchange_count)
                             if chosen is not None:
                                 chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
+                            # Phase 12E: if slot followup exhausted, try a curiosity probe frame
+                            if chosen is None and _interest_decayed_level in ("medium", "high"):
+                                chosen = _pick_curiosity_probe_frame(current_engine, _interest_decayed_level, memory, recent)
                             if chosen is None:
                                 chosen = _select_next_frame_ladder_avoiding(
                                     current_engine,
@@ -2589,7 +2996,7 @@ class Handler(BaseHTTPRequestHandler):
                                 )
                             if chosen and _is_loop_candidate(chosen):
                                 chosen_turn_type = "loop_question"
-                                curiosity_depth = min(curiosity_depth + 1, MAX_CURIOSITY_DEPTH)
+                                curiosity_depth = min(curiosity_depth + 1, _curiosity_cap)
                                 listening_move_selected = "loop_question"
                                 listening_move_reason = "interest_policy"
                                 pending_listening_move = False
@@ -2606,7 +3013,8 @@ class Handler(BaseHTTPRequestHandler):
                         if chosen is None and pending_listening_move:
                             listening_wait_turns += 1
                 # If user asked a question, do NOT attempt loop-questioning; keep flow simple and reciprocal.
-                if chosen is None and last_turn_was_answer and (not user_asked_question) and meaningful and curiosity_depth < MAX_CURIOSITY_DEPTH:
+                _curiosity_cap = _max_curiosity_cap_for_interest(_interest_decayed_level)
+                if chosen is None and last_turn_was_answer and (not user_asked_question) and meaningful and curiosity_depth < _curiosity_cap:
                     # stable probability gate for loop
                     seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/loop"
                     gate = 0
@@ -2618,6 +3026,9 @@ class Handler(BaseHTTPRequestHandler):
                         chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory, exchange_count=exchange_count)
                         if chosen is not None:
                             chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
+                        # Phase 12E: probe frame before falling back to generic ladder
+                        if chosen is None and _interest_decayed_level in ("medium", "high"):
+                            chosen = _pick_curiosity_probe_frame(current_engine, _interest_decayed_level, memory, recent)
                         if chosen is None:
                             # Fall back: next ladder frame, but avoid known weak loop frames if we have alternatives in engine
                             chosen = _select_next_frame_ladder_avoiding(
@@ -2634,7 +3045,7 @@ class Handler(BaseHTTPRequestHandler):
                             listening_wait_turns = 0
                 # Depth cap enforcement: if reached, force next ask/bridge and reset depth
                 if chosen is None:
-                    if curiosity_depth >= MAX_CURIOSITY_DEPTH:
+                    if curiosity_depth >= _max_curiosity_cap_for_interest(_interest_decayed_level):
                         # Force ask/bridge; reset depth
                         if prefer_bridge or force_bridge:
                             chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
@@ -2650,7 +3061,7 @@ class Handler(BaseHTTPRequestHandler):
                                 chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
                             if chosen and _is_loop_candidate(chosen):
                                 chosen_turn_type = "loop_question"
-                                curiosity_depth = min(curiosity_depth + 1, MAX_CURIOSITY_DEPTH)
+                                curiosity_depth = min(curiosity_depth + 1, _max_curiosity_cap_for_interest(_interest_decayed_level))
                                 pending_listening_move = False
                                 listening_wait_turns = 0
                         if chosen is None:
@@ -2931,13 +3342,43 @@ class Handler(BaseHTTPRequestHandler):
                             response["frame_pinyin"] = response["frame_pinyin"].replace("{CITY}", _city)
                         if "[CITY]" in (response.get("frame_text_en") or ""):
                             response["frame_text_en"] = response["frame_text_en"].replace("[CITY]", _city)
-                    else:
-                        # No city in memory — fill generic so placeholder never reaches the user
-                        _frame_text_raw = response.get("frame_text") or ""
-                        if "{PLACE}" in _frame_text_raw:
-                            response["frame_text"] = _frame_text_raw.replace("{PLACE}", "那儿")
-                        if "{CITY}" in (response.get("frame_text") or ""):
-                            response["frame_text"] = response["frame_text"].replace("{CITY}", "那儿")
+                # Safety net: if any {CITY}/{PLACE} token survived (no memory, or memory load failed),
+                # replace with 那儿 so the raw placeholder never reaches the learner UI.
+                for _tok, _fb in (("{CITY}", "那儿"), ("{PLACE}", "那儿")):
+                    if _tok in (response.get("frame_text") or ""):
+                        response["frame_text"] = response["frame_text"].replace(_tok, _fb)
+                    if _tok in (response.get("frame_pinyin") or ""):
+                        response["frame_pinyin"] = response["frame_pinyin"].replace(_tok, "nàr")
+                if "[CITY]" in (response.get("frame_text_en") or ""):
+                    response["frame_text_en"] = response["frame_text_en"].replace("[CITY]", "there")
+            # Safety net: {NAME} slot — fill from persona display_name; never reach the learner as raw token.
+            if "{NAME}" in (response.get("frame_text") or ""):
+                _name_fill = _assistant_name_from_persona(persona) if persona else ""
+                response["frame_text"] = response["frame_text"].replace("{NAME}", _name_fill or "我")
+            # EFC: {ENTITY} slot — fill from current efc_entity; update efc_depth in state_update.
+            if "{ENTITY}" in (response.get("frame_text") or ""):
+                _entity_val = (_efc_entity_state.get("value") or "").strip()
+                if _entity_val:
+                    response["frame_text"] = response["frame_text"].replace("{ENTITY}", _entity_val)
+                    _en = response.get("frame_text_en") or ""
+                    if "{ENTITY}" in _en:
+                        response["frame_text_en"] = _en.replace("{ENTITY}", _entity_val)
+                    _py = response.get("frame_pinyin") or ""
+                    if "{ENTITY}" in _py:
+                        response["frame_pinyin"] = _py.replace("{ENTITY}", _entity_val)
+                    # Increment efc_depth so the chain doesn't overshoot MAX_EFC_DEPTH.
+                    _new_efc_depth = int((cs or {}).get("efc_depth") or 0) + 1
+                    response.setdefault("state_update", {})
+                    response["state_update"]["efc_entity"] = _efc_entity_state
+                    response["state_update"]["efc_depth"] = _new_efc_depth
+                else:
+                    # No entity value — fall back to generic pronoun so raw token never reaches UI.
+                    response["frame_text"] = response["frame_text"].replace("{ENTITY}", "他们")
+            elif _efc_entity_state and cs is not None:
+                # Carry entity forward even when this frame has no ENTITY slot.
+                response.setdefault("state_update", {})
+                response["state_update"]["efc_entity"] = _efc_entity_state
+                response["state_update"]["efc_depth"] = int((cs or {}).get("efc_depth") or 0)
             # Frame-level direction metadata (for UI action buttons)
             supports_reverse = False
             supports_why = False
@@ -2965,6 +3406,11 @@ class Handler(BaseHTTPRequestHandler):
                 # Counter-reply: separate field so client TTS/displays it before the next question.
                 if _counter_reply:
                     response["counter_reply"] = _counter_reply
+                    if _counter_reply_en:
+                        response["counter_reply_en"] = _counter_reply_en
+                    # Store so next turn can dedup (client echoes conversation_state back).
+                    response["state_update"] = response.get("state_update") or {}
+                    response["state_update"]["last_counter_reply"] = _counter_reply
 
                 # Discovery mode: when user asked a question, offer follow-up questions THEY can
                 # ask the persona — surfacing the mirror question bank so the learner can
@@ -2981,6 +3427,10 @@ class Handler(BaseHTTPRequestHandler):
                     if _disc_pool:
                         response["discovery_questions"] = _disc_pool[:3]
                         response["user_led"] = True
+                    # Phase 12E: prepend one targeted hint based on keywords in the persona's reply
+                    _disc_hint = _pick_contextual_discovery_hint(_counter_reply)
+                    if _disc_hint:
+                        response["discovery_hint"] = _disc_hint
 
             # Phase 10.5: blended reciprocity injection early (prefer answer + 你呢？)
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
@@ -3024,7 +3474,7 @@ class Handler(BaseHTTPRequestHandler):
                         meaningful=meaningful,
                         last_partner_was_loop=(chosen_turn_type == "loop_question"),
                         last_partner_had_reaction=bool(reaction_prefix_text),
-                        interest_level=interest_level,
+                        interest_level=_interest_decayed_level,
                     )
                     if should:
                         response["probe_offer"] = True
@@ -3047,6 +3497,15 @@ class Handler(BaseHTTPRequestHandler):
                 response["interest_score"] = int(interest_score)
                 response["interest_level"] = interest_level
                 response["last_interest_level"] = last_interest_level
+                # Phase 12E: interest trace — inspect raw inputs, initial level, decay, and final curiosity level
+                response["interest_trace"] = {
+                    "raw_score":        int(interest_score),
+                    "novelty_hit":      bool(_interest_novelty_hit),
+                    "initial_level":    _interest_initial_level,
+                    "loop_count_in_engine": int(cs.get("same_engine_chain_count") or 0),
+                    "decayed_level":    _interest_decayed_level,
+                    "final_curiosity_level": _interest_decayed_level,
+                }
                 response["pending_listening_move"] = bool(pending_listening_move)
                 response["listening_wait_turns"] = int(listening_wait_turns)
                 response["listening_move_selected"] = listening_move_selected

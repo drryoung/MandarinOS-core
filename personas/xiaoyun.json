@@ -29,5 +29,23 @@
     "travel": "我去过西藏、新疆、云南还有几个东南亚国家，最难忘的是在西藏看星星那一晚。",
     "place": "成都的节奏不算快，大家都很悠闲，茶馆文化特别有趣，我很喜欢在茶馆坐一下午。",
     "food": "我觉得云南的菜最有特色，过桥米线、汽锅鸡，每次去都要吃个够。"
+  },
+  "discoverable_facts_en": {
+    "identity": "The name Xiaoyun is a little special.",
+    "family": "My parents are in Chengdu and I'm an only child.",
+    "work": "I've been a travel blogger for three years.",
+    "hobby": "My camera is my most important possession.",
+    "travel": "I've been to Tibet.",
+    "place": "Chengdu has a relaxed pace.",
+    "food": "I think Yunnan cuisine is the most distinctive."
+  },
+  "voice_lines_en": {
+    "identity": "My name is Xiaoyun.",
+    "family": "I'm far from home but very close to my family.",
+    "work": "I'm a travel blogger — I often go out to take photos and write.",
+    "hobby": "I love photography and exploring new places.",
+    "travel": "Travel is my work AND my hobby!",
+    "place": "My hometown is Chengdu — one of my favourite cities.",
+    "food": "I love trying local street food from different places."
   }
 }

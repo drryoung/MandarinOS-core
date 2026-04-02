@@ -8,6 +8,8 @@ alwaysApply: true
 Full directives: `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`
 Strategy doc: `docs/specs/MandarinOS_Extensibility_Strategy.md`
 
+**Repo map:** Treat **`AI_CONTEXT.md`** at the repository root as the authoritative orientation map for this project — read it (or `@AI_CONTEXT.md` in chat) before proposing architecture changes, new features, or large edits.
+
 ---
 
 ## Core rule

@@ -29,5 +29,23 @@
     "travel": "我去过成都、西安和上海，每次旅行都要去当地最有名的餐厅吃饭，这是我的旅行习惯。",
     "place": "重庆是山城，到处都是坡路，走来走去很累，但火锅一吃就什么都忘了。",
     "food": "我觉得重庆火锅是世界上最好吃的东西，没有之一，每周必吃。"
+  },
+  "discoverable_facts_en": {
+    "identity": "The name Jianguo sounds old-fashioned.",
+    "family": "I have four siblings.",
+    "work": "I'm the head chef at a Sichuan restaurant in Chongqing.",
+    "hobby": "I've been playing badminton for nearly twenty years.",
+    "travel": "I've been to Chengdu.",
+    "place": "Chongqing is a mountain city.",
+    "food": "I think Chongqing hotpot is the best food in the world."
+  },
+  "voice_lines_en": {
+    "identity": "My name is Jianguo.",
+    "family": "There are a lot of us and it's always lively when we get together.",
+    "work": "I'm a chef working in a restaurant.",
+    "hobby": "I enjoy badminton — I play after work regularly.",
+    "travel": "When I travel I always look for the best local restaurants.",
+    "place": "I'm a born-and-bred Chongqing local.",
+    "food": "I'm a chef, so I'm particularly passionate about food!"
   }
 }

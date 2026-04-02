@@ -1,0 +1,164 @@
+# Alpha session — 2026-04-01
+- **Persona:**ZhiYuan
+- **Browser / OS:** Chrome, Win11
+- **Rough length:** 15 min
+- **Focus:** hello
+## Transcript
+APP:
+你叫什么名字？
+🔊
+EN
+PY
+You:
+我叫杨利民，你呢？
+🔊
+EN
+APP:
+我呢，我叫志远。
+🔊
+EN
+You:
+你的名字是什么意思？
+🔊
+EN
+APP:
+志远这个名字是我父亲取的。
+🔊
+EN
+You:
+有一个小故事。
+🔊
+EN
+APP:
+哦。哦，是什么故事？
+🔊
+EN
+PY
+You:
+我的中文名字听起来我的英文名字
+🔊
+EN
+APP:
+怎么说？为什么呢？
+🔊
+EN
+PY
+You:
+你们听起来，Raymond。
+🔊
+EN
+APP:
+哦。你多大了？
+🔊
+EN
+PY
+You:
+我六十岁四岁，你呢？
+🔊
+EN
+APP:
+我呢，我叫志远。
+🔊
+EN
+You:
+谁给你取的名字？
+🔊
+EN
+APP:
+他希望我有远大的志向。
+🔊
+EN
+You:
+是的，住在一起。
+🔊
+EN
+APP:
+你结婚了吗？
+🔊
+EN
+PY
+You:
+结婚了，你呢？
+🔊
+EN
+APP:
+我呢，我们家人感情很好。
+🔊
+EN
+APP:
+真的吗？你有孩子吗？
+🔊
+EN
+PY
+You:
+我有两个孩子一个女儿一个。
+🔊
+EN
+APP:
+是吗？你多久见一次家人？
+🔊
+EN
+PY
+You:
+我天天见我爸妈妈妈。
+🔊
+EN
+APP:
+是吗？我觉得家人是最重要的。你最喜欢和家人一起做什么？
+🔊
+EN
+PY
+You:
+我们最最喜欢吃饭。
+🔊
+EN
+APP:
+嗯？
+🔊
+EN
+You:
+我们最喜欢吃饭。
+🔊
+EN
+APP:
+为什么好吃？
+🔊
+EN
+PY
+You:
+我们喜欢吃海鲜。
+🔊
+EN
+APP:
+顺便问一下，你喜欢吃辣吗？
+🔊
+EN
+PY
+You:
+喜欢
+🔊
+EN
+APP:
+你们那儿最有名的菜是什么？
+🔊
+EN
+PY
+You:
+新西兰牡蛎非常有名。
+🔊
+EN
+APP:
+怎么好吃？那儿有什么好吃的？
+
+
+## Notes (after session)
+- **Felt ok:**
+- **Pattern tag (guess):**
+food questions and follow up questions not responding to my answers. Curiosity not evident, just a string of questions
+I asked: You:
+你的名字是什么意思？but it did not degrade gracefully and asked a new question 志远这个名字是我父亲取的。
+app did not answer after I asked its age: 哦。你多大了？Me: 我六十岁四岁，你呢? APP: 我呢，我叫志远。
+app did not answer my question again APP: 我呢，我叫志远。You: 谁给你取的名字？APP: 他希望我有远大的志向。
+translation wrong for active sentence: 我呢，我们家人感情很好。nǐ yǒu háizi ma?Do you have children?
+family question almost ok but should be what do you most like to eat? or what kind of food do you eat? You: 我们最喜欢吃饭。APP: 为什么好吃？
+not good follow up after I disclose what is good to eat (repetition of same type of question) APP: 你们那儿最有名的菜是什么？You: 新西兰牡蛎非常有名。APP: 怎么好吃？那儿有什么好吃的？

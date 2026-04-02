@@ -32,8 +32,8 @@ Persona: **xiaoyun**  |  Server: http://localhost:8765/api/run_turn
 | C6 | 你吉他学多久了？ | reply | ✓ | 走到哪里都带着。 |
 | D1 | 你喜欢什么颜色？ | deflect | ✓ (deflect) | 这个……我不太好说，不好意思！ |
 | D2 | 你有没有宠物？ | deflect | ✓ (deflect) | 嗯，好问题！我得好好想想。 |
-| D3 | 你多大了？ | deflect | ✓ (deflect) | 我呢，哈，年龄这种事……说多少都不准！反正我不老就是了。 |
-| D4 | 你结婚了吗？ | deflect | ✓ (deflect) | 我呢，哈，这个嘛……还是个秘密！ |
+| D3 | 你多大了？ | deflect | ✓ (deflect) | 哈，年龄这种事……说多少都不准！反正我不老就是了。 |
+| D4 | 你结婚了吗？ | deflect | ✓ (deflect) | 哈，这个嘛……还是个秘密！ |
 | D5 | 你的电话号码是什么？ | deflect | ✓ (deflect) | 哎，这个嘛……说来话长，有空再聊！ |
 
 ### Persona: xiaoming

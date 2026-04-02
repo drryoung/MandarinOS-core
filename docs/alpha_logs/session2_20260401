@@ -1,0 +1,222 @@
+# Alpha session — 2026-04-01
+- **Persona:**meiling
+- **Browser / OS:** Chrome, Win11
+- **Rough length:** 15 min
+- **Focus:** work
+## Transcript
+APP:
+你做什么工作？
+🔊
+EN
+PY
+What do you do for work?
+You:
+我退休了。
+🔊
+EN
+No translation available yet
+APP:
+不错。你喜欢你的工作吗？
+🔊
+EN
+PY
+Do you like your job?
+You:
+你做什么工作啊？
+🔊
+EN
+No translation available yet
+APP:
+我在西安一所中学教书。
+🔊
+EN
+You:
+你做这份工作多久了？
+🔊
+EN
+No translation available yet
+APP:
+嗯？
+🔊
+EN
+You:
+你做这份工作多久了？
+🔊
+EN
+No translation available yet
+APP:
+教的是初中美术。
+🔊
+EN
+You:
+什么？
+🔊
+EN
+What?
+APP:
+教的是初中美术。
+🔊
+EN
+APP:
+你为什么喜欢这份工作？
+🔊
+EN
+PY
+Why do you like this job?
+You:
+因为很有意思。
+🔊
+EN
+No translation available yet
+APP:
+怎么难？这份工作难吗？
+🔊
+EN
+PY
+Is this job hard?
+You:
+有一点难。
+🔊
+EN
+No translation available yet
+APP:
+为什么喜欢这份工作？你工作里最难的部分是什么？
+🔊
+EN
+PY
+What is the hardest part of your work?
+You:
+有很多东西，我不知道。
+🔊
+EN
+No translation available yet
+APP:
+啊？
+🔊
+EN
+You:
+有很多东西，我不明白。
+🔊
+EN
+No translation available yet
+APP:
+你跟家人住在一起吗？
+🔊
+EN
+PY
+Do you live with your family?
+You:
+我住在我的妈妈爸爸。
+🔊
+EN
+No translation available yet
+APP:
+是吗？你结婚了吗？
+🔊
+EN
+PY
+Are you married?
+You:
+结婚。
+🔊
+EN
+No translation available yet
+APP:
+明白了。你有孩子吗？
+🔊
+EN
+PY
+Do you have children?
+You:
+有两个孩子，一个女儿，一个儿子。
+🔊
+EN
+No translation available yet
+APP:
+你多久见一次家人？
+🔊
+EN
+PY
+How often do you see your family?
+You:
+我天天见我妈妈，爸爸。
+🔊
+EN
+No translation available yet
+APP:
+我觉得家人是最重要的。你最喜欢和家人一起做什么？
+🔊
+EN
+PY
+I think family is the most important thing. What do you most enjoy doing together with your family?
+You:
+示范。
+🔊
+EN
+No translation available yet
+APP:
+你说…？
+🔊
+EN
+You:
+我们最喜欢吃饭。
+🔊
+EN
+No translation available yet
+APP:
+为什么好吃？
+🔊
+EN
+PY
+Why is it good?
+APP:
+你有什么爱好？
+🔊
+EN
+PY
+you to have what hobby
+You:
+我喜欢喝喝茶。
+🔊
+EN
+No translation available yet
+APP:
+你常做吗？
+🔊
+EN
+PY
+Do you do it often?
+You:
+一个月一起了。
+🔊
+EN
+No translation available yet
+APP:
+挺好！难吗？
+🔊
+EN
+PY
+Is it difficult?
+You:
+难不难
+🔊
+EN
+is it hard
+APP:
+有意思！你喜欢做什么？
+🔊
+EN
+PY
+What do you like to do?
+
+## Notes (after session)
+- **Felt ok:**
+- **Pattern tag (guess):**
+app replies 我在西安一所中学教书。but the active sentence is a continuation of the previous conversation rather than this new response
+app gives a very clever answer to my question of how long she has done this job: 教的是初中美术。but again because the active sentence is not updated, I can't interrogate the words to understand the answer.
+the need help section does not provide any graceful ways for me to explore understanding of an answer that was slightly too difficult for me
+怎么难？这份工作难吗 repeats question
+the conversation fillers are too long. I can't understand them eg 为什么喜欢这份工作?
+after me saying 我们最喜欢吃饭。the transation should not be 为什么好吃？it would be better to ask what is your favorite dish or degrade gracefully
+this conversation ended up asking the same question after a short loop so it implied it wasn't listening to my answers
+again did not end at a sensible place, felt like it continued too long. Maybe I should have asked a question but I didn't so I'll try next time

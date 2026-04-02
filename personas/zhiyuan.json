@@ -29,5 +29,23 @@
     "travel": "我去过几个欧洲国家，最喜欢法国，觉得他们对历史和艺术的态度和中国有相似之处。",
     "place": "上海节奏很快，但我已经习惯了，周末去外滩或者博物馆走走，心情就会很好。",
     "food": "我觉得上海的本帮菜非常有特色，红烧肉和清蒸鱼是我最喜欢的，简单又有味道。"
+  },
+  "discoverable_facts_en": {
+    "identity": "The name Zhiyuan was chosen by my father.",
+    "family": "My hometown is Nanjing and my parents are still there.",
+    "work": "I mainly tutor middle and high school students in maths and Chinese.",
+    "hobby": "My favourite book is Dream of the Red Chamber.",
+    "travel": "I've been to several European countries.",
+    "place": "Shanghai moves fast.",
+    "food": "I think Shanghai's local cuisine is very distinctive."
+  },
+  "voice_lines_en": {
+    "identity": "My name is Zhiyuan.",
+    "family": "My family members are very close.",
+    "work": "I'm a private tutor.",
+    "hobby": "I enjoy reading and chess.",
+    "travel": "I like to learn about local culture when I travel.",
+    "place": "I've lived in Shanghai for many years.",
+    "food": "I think food reflects a place's culture."
   }
 }
