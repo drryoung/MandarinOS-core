@@ -281,6 +281,10 @@ function _openWordInsightPopover(tokenEl, wordId, surfaceText, insightSource) {
   headwordEl.textContent = surfaceText || "";
 
   if (!wordId) {
+    lastClickedWordId = null;
+    window.lastClickedWordId = null;
+    // Avoid leaving a previous Explore Word card visible when this tap has no card.
+    if (state?.isOpen) dispatch({ type: "CARD_PANEL_CLOSED" });
     bodyEl.textContent = "Not in lexicon yet.";
     if (etymEl) {
       etymEl.textContent = "";
@@ -1648,8 +1652,12 @@ function setActivePartnerStatement(text, turnUidForHint, segments) {
     return;
   }
   const turnUid = turnUidForHint;
-  if (Array.isArray(segments) && segments.length > 0) {
-    for (const seg of segments) {
+  const effectiveSegments =
+    Array.isArray(segments) && segments.length > 0
+      ? segments
+      : tokenizeHanziForOption(str, {});
+  if (effectiveSegments.length > 0) {
+    for (const seg of effectiveSegments) {
       const span = document.createElement("span");
       span.textContent = seg.t || "";
       span.className = "tok tok-word word-insight-token";
@@ -1668,23 +1676,6 @@ function setActivePartnerStatement(text, turnUidForHint, segments) {
           window.lastClickedWordId = null;
           _openWordInsightPopover(span, null, seg.t || "", "active_sentence");
         }
-        hint_cascade_state = { level: 1, turn_uid: turnUid };
-        renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
-      });
-      el.appendChild(span);
-    }
-  } else {
-    for (const char of str) {
-      const span = document.createElement("span");
-      span.textContent = char;
-      span.className = "tok tok-word word-insight-token";
-      span.dataset.kind = "word";
-      span.dataset.insightSource = "active_sentence";
-      span.addEventListener("click", (e) => {
-        e.stopPropagation();
-        lastClickedWordId = null;
-        window.lastClickedWordId = null;
-        _openWordInsightPopover(span, null, char, "active_sentence");
         hint_cascade_state = { level: 1, turn_uid: turnUid };
         renderHintAffordance({ ...(window._currentHintAffordance || {}), visible: true }, turnUid, "tap");
       });
@@ -3927,6 +3918,10 @@ async function _runTurnInner(isNext = false, opts = {}) {
       loop_count_in_current_engine: window._loopCountInEngine || 0,
       engines_visited: Array.isArray(window._enginesVisited) ? window._enginesVisited : ["identity"],
       recent_confusion_count: window._recentConfusionCount || 0,
+      last_counter_reply: window._lastCounterReply || "",
+      // EFC: entity follow-up chain state — round-tripped so server can continue the chain
+      efc_entity: window._efcEntity || null,
+      efc_depth:  window._efcDepth  || 0,
     };
     if (window._learnerId) conversation_state.learner_id = window._learnerId;
     // Use the UI-selected partner (Phase 11C) as the persona_id for name/stub resolution.
@@ -4067,6 +4062,16 @@ async function _runTurnInner(isNext = false, opts = {}) {
   // Phase 9.1: update conversation state from response so Next has correct state
   window._currentEngineId = engineId;
   window._lastPartnerFrameId = frameId;
+  // Merge state_update fields
+  if (data.state_update && typeof data.state_update === "object") {
+    if (data.state_update.last_counter_reply !== undefined)
+      window._lastCounterReply = data.state_update.last_counter_reply;
+    // EFC state: persist entity and depth so chain continues across turns
+    if (data.state_update.efc_entity !== undefined)
+      window._efcEntity = data.state_update.efc_entity;
+    if (data.state_update.efc_depth !== undefined)
+      window._efcDepth = data.state_update.efc_depth;
+  }
   if (Array.isArray(window._recentFrameIds)) {
     window._recentFrameIds.push(frameId);
     if (window._recentFrameIds.length > 50) window._recentFrameIds = window._recentFrameIds.slice(-50);
@@ -4091,7 +4096,6 @@ async function _runTurnInner(isNext = false, opts = {}) {
 
   // Render frame sentence
   const fallbackText = data.prompt_text || data.frame_text || "";
-  renderFrameSentence({ id: frameId, text: fallbackText });
   setUiMode("READ");
   window._currentFrameText = (fallbackText && fallbackText.trim()) ? fallbackText.trim() : "";
   window._lastAcceptedAsrKey = "";  // reset dedup so fresh answers on new questions are accepted
@@ -4099,10 +4103,21 @@ async function _runTurnInner(isNext = false, opts = {}) {
   // Must appear in transcript BEFORE the next question and be spoken first.
   console.log("[DBG counter_reply]", { counter_reply: data.counter_reply, user_led: data.user_led, disc_q_count: (data.discovery_questions || []).length });
   const _counterReply = (data.counter_reply || "").trim();
+  const _counterReplyEn = (data.counter_reply_en || "").trim();
   if (_counterReply) {
     addTranscriptEntry("partner", _counterReply);
     // Track for repeat/slower recovery so "慢一点" repeats the persona's reply, not the pending frame question.
     window._lastPartnerSpokenText = _counterReply;
+    // Show counter_reply in the main interactive frame (Cluster 1 fix):
+    // learner can now click characters in the persona's answer to explore words.
+    // When in user-led mode the pending question is stored in _pendingFrameMeta and
+    // shown after the learner taps "Continue →". So we skip renderFrameSentence here.
+    setActivePartnerStatement(_counterReply, payload.turn_uid || "counter_reply");
+    // Override _sentenceHint so the ? button shows the persona answer's EN, not the next question's EN.
+    window._sentenceHint = { pinyin: "", text_en: _counterReplyEn };
+  } else {
+    // No counter_reply — render the app's next question into the main frame as normal.
+    renderFrameSentence({ id: frameId, text: fallbackText });
   }
   // Phase 8: append partner question to transcript — but only when NOT in discovery mode.
   // When user_led:true the frame question is held as a pending question; adding it now would
@@ -4146,24 +4161,18 @@ async function _runTurnInner(isNext = false, opts = {}) {
   // and only spoken when they tap "Continue →" in the discovery panel.
   // IMPORTANT: use queue:true on the counter_reply TTS to avoid speechSynthesis.cancel()
   // triggering a spurious second onend on the previous utterance (Windows/Chrome bug).
-  if (fallbackText && fallbackText.trim()) {
-    if (_counterReply) {
-      if (_isUserLed) {
-        // Pause: speak persona answer only, using queue so cancel() isn't called.
-        ttsSpeak({ text: _counterReply, lang: "zh-CN", queue: true });
-      } else {
-        ttsSpeak({
-          text: _counterReply, lang: "zh-CN",
-          onEvent: (e) => {
-            if (e?.payload?.completed) ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
-          },
-        });
-      }
-    } else {
-      ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
-    }
-  } else if (_counterReply) {
+  if (_counterReply) {
+    // Always use queue:true for counter_reply — avoids speechSynthesis.cancel() triggering
+    // a spurious second onend on the previous utterance (Windows/Chrome TTS bug).
     ttsSpeak({ text: _counterReply, lang: "zh-CN", queue: true });
+    if (fallbackText && fallbackText.trim() && !_isUserLed) {
+      // Non-user-led: queue the partner question immediately after the counter_reply.
+      // Using queue:true on both avoids the fragile onEvent completion callback chain
+      // that could silently drop the frame question on Windows.
+      ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN", queue: true });
+    }
+  } else if (fallbackText && fallbackText.trim()) {
+    ttsSpeak({ text: fallbackText.trim(), lang: "zh-CN" });
   }
   // Phase 6 — options: prefer server-sent options when server chose the frame (next_question) so options always match the displayed question after bridge
   const _frameData     = window._frameOptionsRuntime?.frames?.[frameId] || {};
@@ -4174,11 +4183,16 @@ async function _runTurnInner(isNext = false, opts = {}) {
   const hintAffordance = _frameData.hint_affordance || { visible: true };
   const turnUid        = frameId;
 
-  // Sentence-level hints (pinyin → English); used when no word is selected
-  window._sentenceHint = {
-    pinyin:  data.frame_pinyin  ?? "",
-    text_en: data.frame_text_en ?? ""
-  };
+  // Sentence-level hints (pinyin → English); used when no word is selected.
+  // When counter_reply is active, the active sentence shows the persona's answer,
+  // not the pending frame — so preserve the counter_reply hint set earlier.
+  // Only overwrite with frame metadata when no counter_reply is displayed.
+  if (!_counterReply) {
+    window._sentenceHint = {
+      pinyin:  data.frame_pinyin  ?? "",
+      text_en: data.frame_text_en ?? ""
+    };
+  }
   lastClickedWordId = null;
   window.lastClickedWordId = null;
 
@@ -4711,6 +4725,7 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
                 frame_id: meta.frame_id || "",
               });
               renderTranscript();
+              renderFrameSentence({ id: meta.frame_id || "", text: pending });
               ttsSpeak({ text: pending, lang: "zh-CN" });
             }
           },
@@ -4743,6 +4758,7 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
         frame_id: meta.frame_id || "",
       });
       renderTranscript();
+      renderFrameSentence({ id: meta.frame_id || "", text: pending });
       ttsSpeak({ text: pending, lang: "zh-CN" });
     }
   });
