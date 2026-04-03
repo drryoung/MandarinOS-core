@@ -1,0 +1,3 @@
+# Optional tooling for MandarinOS repo scripts (pip install -r requirements-tools.txt)
+# Used by tools/enrich_characters_1200_pinyin_gloss.py for pinyin backfill.
+pypinyin>=0.50.0

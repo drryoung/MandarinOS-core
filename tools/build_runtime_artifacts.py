@@ -189,13 +189,62 @@ def _sentence_options_for_question(question_frame_id: str, answer_frame: dict, f
     return options
 
 
+def _flatten_recovery_phrases_content(data: dict) -> list:
+    """
+    Normalize recovery JSON to a single phrases[] list for runtime + UI.
+    Supports:
+      - legacy: top-level `phrases` (with text_en, use, …)
+      - schema 1.1+: `not_understood`, `deflections`, `acknowledgements` buckets
+    """
+    legacy = data.get("phrases")
+    if isinstance(legacy, list) and len(legacy) > 0:
+        return legacy
+
+    out: list = []
+
+    def _one(row: dict, use: str, level_default: str, topic: str | None = None) -> None:
+        if not isinstance(row, dict):
+            return
+        gloss = (row.get("text_en") or row.get("meaning") or "").strip()
+        item = {
+            "id": row.get("id"),
+            "hanzi": row.get("hanzi") or "",
+            "pinyin": row.get("pinyin") or "",
+            "text_en": gloss,
+            "level": row.get("level") or level_default,
+            "use": use,
+            "recovery_action": row.get("recovery_action") or "",
+        }
+        for k in ("move_type", "response_role", "etymology", "repair_kind", "priority", "legacy_ids"):
+            if row.get(k) is not None:
+                item[k] = row[k]
+        if topic:
+            item["topic"] = topic
+        out.append(item)
+
+    for row in data.get("not_understood") or []:
+        _one(row, "not_understood", "P1")
+    for row in data.get("deflections") or []:
+        _one(row, "persona_deflect", "P2", topic="generic")
+    for row in data.get("acknowledgements") or []:
+        _one(row, "deflection_ack", "P1")
+    return out
+
+
 def build_recovery_phrases_runtime() -> dict:
     """Load content/recovery_phrases.json and return runtime shape. Fallback if file missing."""
     if CONTENT_RECOVERY.is_file():
         data = json.loads(CONTENT_RECOVERY.read_text(encoding="utf-8"))
-        phrases = data.get("phrases", [])
+        phrases = _flatten_recovery_phrases_content(data)
         default_id = data.get("default_for_not_understood")
-        return {"phrases": phrases, "default_for_not_understood": default_id}
+        schema_v = data.get("schema_version")
+        out = {
+            "phrases": phrases,
+            "default_for_not_understood": default_id,
+        }
+        if schema_v:
+            out["schema_version"] = schema_v
+        return out
     # Fallback so build never fails
     return {
         "phrases": [
@@ -612,16 +661,16 @@ def main():
     # ── 5b. Build and write recovery_phrases (Phase 9.4) ───────────────────────
     recovery_data = build_recovery_phrases_runtime()
     recovery_path = RUNTIME_OUT / "recovery_phrases.runtime.json"
-    recovery_path.write_text(
-        json.dumps({
-            "schema":         "recovery_phrases_v1",
-            "generated_at":   _now_iso(),
-            "phrase_count":   len(recovery_data["phrases"]),
-            "phrases":        recovery_data["phrases"],
-            "default_for_not_understood": recovery_data.get("default_for_not_understood"),
-        }, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    _rec_out = {
+        "schema":         "recovery_phrases_v1",
+        "generated_at":   _now_iso(),
+        "phrase_count":   len(recovery_data["phrases"]),
+        "phrases":        recovery_data["phrases"],
+        "default_for_not_understood": recovery_data.get("default_for_not_understood"),
+    }
+    if recovery_data.get("schema_version"):
+        _rec_out["schema_version"] = recovery_data["schema_version"]
+    recovery_path.write_text(json.dumps(_rec_out, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[build] recovery_phrases written: {len(recovery_data['phrases'])} phrases -> {recovery_path}")
 
     # ── 6. Load etymology source data ─────────────────────────────────────────

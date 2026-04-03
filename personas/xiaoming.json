@@ -24,6 +24,9 @@
   "discoverable_facts": {
     "identity": "我的名字是我奶奶给我取的，因为她希望我将来聪明能干。",
     "family": "我有一个姐姐，她住在成都，我们每个月视频聊天。",
+    "family_size": "我们家四口人——我、爸妈还有姐姐。",
+    "family_siblings": "我有一个姐姐，她住在成都，我们每个月视频聊天。",
+    "family_live": "我在北京工作，姐姐和爸妈都在成都，不住在一起，不过经常联系。",
     "work": "我在一家做人工智能的公司工作，主要负责语音识别项目。",
     "hobby": "我从高中开始学吉他，断断续续学了差不多十年了。",
     "travel": "我去过日本、泰国和韩国，最喜欢日本的拉面和温泉。",
@@ -33,6 +36,9 @@
   "discoverable_facts_en": {
     "identity": "My grandmother gave me my name.",
     "family": "I have one older sister.",
+    "family_size": "Four of us — me, my parents, and my older sister.",
+    "family_siblings": "I have an older sister — she lives in Chengdu.",
+    "family_live": "I work in Beijing; my sister and parents are in Chengdu. We're not together but we're always in touch.",
     "work": "I work at an AI company.",
     "hobby": "I started learning guitar in high school.",
     "travel": "I've been to Japan.",

@@ -221,6 +221,23 @@ UI responsibilities:
 - open/close card panel
 - emit trace events
 
+**Partner header vs `#frameSentence` (Phase 11C)**  
+`#partnerHeader` can show `partner_name:` + `partner_prefix` (voice line / recovery) + optional fact. That **prefix must not stay visible** when the latest partner utterance is rendered only in `#frameSentence` (counter-reply, mirror stub, discovery tap). The client clears prefix/fact for those cases via `syncPartnerHeaderWhenFrameSentenceIsPrimary()` and by skipping `partner_prefix` in `_updatePartnerHeader` when `counter_reply` is present.
+
+**Active sentence (`#frameSentence`) — two kinds of `/api/run_turn` client paths**
+
+The selector-driven **`next_question`** flow runs through `_runTurnInner` in `ui/app.js`, which updates the active line via `renderFrameSentence` or `setActivePartnerStatement` when `counter_reply` is present.
+
+The same endpoint also serves **short-circuit partner replies** that do *not* go through `_runTurnInner`: e.g. `direction_intent` **mirror** / **reverse** / **why**, **probe** stubs, and **discovery-panel** mirror taps (`submitDiscoveryQuestion`). Those responses still carry `frame_text`, `frame_text_en`, and optionally `frame_pinyin`. The client **must** apply them to `#frameSentence` and sentence hints in the same way (see `applyPartnerStubToActiveSentence` in `ui/app.js`). Updating only the transcript + TTS without touching the active sentence is a regression.
+
+**Persona content for mirror answers**
+
+Mirror/counter-reply answers are resolved server-side from `personas/<id>.json`. Prefer **explicit per-topic lines** in `discoverable_facts` / `discoverable_facts_en` (e.g. `family_siblings`, `family_live`, `family_size`) over splitting a single generic `family` string by clause — clause indices are brittle.
+
+**Server: entity follow-up (EFC) vs ladder**
+
+Frames tagged with **`efc_type`** (family entity-follow-up chain in `p2_frames.json`) are chosen only when a family **entity** is known (`_pick_efc_frame`); they are **excluded** from the generic partner-question ladder so `{ENTITY}` is not filled without state.
+
 ### 5.3 Builders / Tools (generate runtime artifacts)
 Likely areas:
 - `tools/` — builder scripts that generate runtime JSON artifacts

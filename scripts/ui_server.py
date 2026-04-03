@@ -162,24 +162,72 @@ try:
 except Exception as _e:
     print(f"[ui_server] WARNING: mirror_questions load failed: {_e}")
 
+def _flatten_recovery_phrases_for_maps(raw: dict) -> list:
+    """Same shape as tools/build_runtime_artifacts._flatten_recovery_phrases_content (keep in sync)."""
+    legacy = raw.get("phrases")
+    if isinstance(legacy, list) and len(legacy) > 0:
+        return legacy
+    out: list = []
+
+    def _one(row: dict, use: str, level_default: str, topic: Optional[str] = None) -> None:
+        if not isinstance(row, dict):
+            return
+        gloss = (row.get("text_en") or row.get("meaning") or "").strip()
+        item = {
+            "id": row.get("id"),
+            "hanzi": row.get("hanzi") or "",
+            "pinyin": row.get("pinyin") or "",
+            "text_en": gloss,
+            "level": row.get("level") or level_default,
+            "use": use,
+            "recovery_action": row.get("recovery_action") or "",
+        }
+        for k in ("move_type", "response_role", "etymology", "repair_kind", "priority", "legacy_ids"):
+            if row.get(k) is not None:
+                item[k] = row[k]
+        if topic:
+            item["topic"] = topic
+        out.append(item)
+
+    for row in raw.get("not_understood") or []:
+        _one(row, "not_understood", "P1")
+    for row in raw.get("deflections") or []:
+        _one(row, "persona_deflect", "P2", topic="generic")
+    for row in raw.get("acknowledgements") or []:
+        _one(row, "deflection_ack", "P1")
+    return out
+
+
 # Persona deflect phrases: loaded from content/recovery_phrases.json (use=persona_deflect).
 # Adding/editing a phrase only requires editing that file — no server code change.
 _persona_deflect_phrases: dict = {}     # topic -> [hanzi_str, ...]  (for _persona_deflect picker)
 _persona_deflect_en_map: dict = {}      # hanzi_str -> text_en       (for hint lookup)
+_persona_deflect_pinyin_map: dict = {}  # hanzi_str -> pinyin      (for counter_reply_pinyin)
+_recovery_phrase_legacy_id_alias: dict[str, str] = {}  # legacy phrase id -> canonical id (v1.2)
 _rp_path = CONTENT_DIR / "recovery_phrases.json"
 try:
     if _rp_path.is_file():
         _rp_data = json.loads(_rp_path.read_text(encoding="utf-8"))
-        for _p in (_rp_data.get("phrases") or []):
+        _rp_flat = _flatten_recovery_phrases_for_maps(_rp_data)
+        for _p in _rp_flat:
             if _p.get("use") == "persona_deflect":
                 _topic = _p.get("topic") or "generic"
                 _hz = (_p.get("hanzi") or "").strip()
                 if _hz:
                     _persona_deflect_phrases.setdefault(_topic, []).append(_hz)
                     _persona_deflect_en_map[_hz] = (_p.get("text_en") or "").strip()
+                    _py = (_p.get("pinyin") or "").strip()
+                    if _py:
+                        _persona_deflect_pinyin_map[_hz] = _py
+            _pid = (_p.get("id") or "").strip()
+            if _pid:
+                for _lid in _p.get("legacy_ids") or []:
+                    if isinstance(_lid, str) and _lid.strip():
+                        _recovery_phrase_legacy_id_alias[_lid.strip()] = _pid
         _nd = len(_persona_deflect_phrases)
         _np = sum(len(v) for v in _persona_deflect_phrases.values())
-        print(f"[ui_server] persona_deflect phrases loaded ({_np} phrases across {_nd} topics)")
+        _na = len(_recovery_phrase_legacy_id_alias)
+        print(f"[ui_server] persona_deflect phrases loaded ({_np} phrases across {_nd} topics); recovery legacy id aliases: {_na}")
     else:
         print(f"[ui_server] WARNING: recovery_phrases.json not found at {_rp_path}")
 except Exception as _e:
@@ -189,6 +237,36 @@ except Exception as _e:
 def _persona_deflect_en(zh: str) -> str:
     """Look up the English translation for a deflection phrase. Returns empty string if not found."""
     return _persona_deflect_en_map.get((zh or "").strip(), "")
+
+
+def _voice_line_en_for_zh(persona: Optional[dict], line_zh: str) -> str:
+    """When _direct_persona_answer returns a line from voice_lines, pair it with voice_lines_en."""
+    if not persona or not (line_zh or "").strip():
+        return ""
+    d = (line_zh or "").strip()
+    vl = (persona.get("voice_lines") or {})
+    vl_en = (persona.get("voice_lines_en") or {})
+    for key, line in vl.items():
+        if (line or "").strip() == d:
+            return (vl_en.get(key) or "").strip()
+    return ""
+
+
+def _resolve_counter_reply_pinyin(zh: str) -> str:
+    """Curated pinyin when counter_reply matches a persona_deflect phrase (full line or 我呢，+inner)."""
+    s = (zh or "").strip()
+    if not s:
+        return ""
+    if s in _persona_deflect_pinyin_map:
+        return _persona_deflect_pinyin_map[s]
+    _prefix = "我呢，"
+    if s.startswith(_prefix):
+        inner = s[len(_prefix) :].strip()
+        if inner and inner in _persona_deflect_pinyin_map:
+            py = _persona_deflect_pinyin_map[inner]
+            if py:
+                return f"wǒ ne，{py}"
+    return ""
 
 
 def _en_for_counter_reply(zh: str, inner: Optional[str] = None) -> str:
@@ -609,6 +687,9 @@ def _engine_partner_question_frame_ids(engine_norm: str) -> List[str]:
         if (fr.get("engine") or "").strip().lower() == engine_norm
         and "？" in (fr.get("text") or "")
         and ((fr.get("speaker") or "").strip().lower() == "partner" or (fr.get("speaker") or "").strip() == "")
+        # Entity follow-up chain frames (efc_type) need a resolved family entity — selected only
+        # via _pick_efc_frame. Do not let the generic ladder pick them (would hit {ENTITY} fallback).
+        and not (fr.get("efc_type") or "").strip()
     ]
     order = _FRAME_ORDER.get(engine_norm) or []
     ordered = [f for f in order if f in raw]
@@ -776,6 +857,13 @@ _FAMILY_EFC_CHAIN: list = [
 ]
 # Maximum EFC depth per entity before returning to the normal engine ladder.
 MAX_EFC_DEPTH = 3
+
+# When {ENTITY} must be substituted but efc_entity state is missing (should be rare after
+# ladder excludes EFC frames). Use a kinship noun so templates like 你{ENTITY}多大了？ stay grammatical.
+# ("他们" produced 你他们多大了？ — invalid.)
+_ENTITY_SLOT_FALLBACK_ZH = "孩子"
+_ENTITY_SLOT_FALLBACK_EN = "child"
+_ENTITY_SLOT_FALLBACK_PY = "háizi"
 
 
 def _detect_family_entity(text: str) -> Optional[str]:
@@ -1416,7 +1504,8 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     _direct = _direct_persona_answer(t, persona)
     if _direct:
         zh = f"我呢，{_direct}" if not _direct.startswith("我") else _direct
-        return (zh, _en_for_counter_reply(zh, _direct))
+        en = _en_for_counter_reply(zh, _direct) or _voice_line_en_for_zh(persona, _direct)
+        return (zh, en)
 
     # Generic 你呢 — whether standalone or at end of a compound answer
     _ni_ne_markers = ("你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "你来问")
@@ -2030,13 +2119,27 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
 
     # ── Family ───────────────────────────────────────────────────────────────────
     if topic in ("family_size", "family_siblings", "family_live"):
-        fact = (facts.get("family") or "").strip()
+        # Per-topic key first — authoritative, avoids fragile clause-index extraction.
+        # Fallback to clause-extraction only for personas that don't have the specific key yet.
         if topic == "family_siblings":
+            specific = (facts.get("family_siblings") or "").strip()
+            if specific:
+                return (specific, _fact_en("family_siblings"))
+            fact = (facts.get("family") or "").strip()
             depth = _nth_clause(fact, 1) if fact else ""
             return (depth or "我家里就我一个，是独生子女。", "")
         if topic == "family_live":
+            specific = (facts.get("family_live") or "").strip()
+            if specific:
+                return (specific, _fact_en("family_live"))
+            fact = (facts.get("family") or "").strip()
             depth = _nth_clause(fact, 0) if fact else ""
             return (depth or "我们不住在一起，但经常联系。", _fact_en("family"))
+        # family_size
+        specific = (facts.get("family_size") or "").strip()
+        if specific:
+            return (specific, _fact_en("family_size"))
+        fact = (facts.get("family") or "").strip()
         zh = _first_clause(fact) if fact else "我家里有几口人，大家关系都挺好的。"
         return (zh, _fact_en("family"))
 
@@ -2129,8 +2232,6 @@ def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> O
     for keywords, topic, eng in _fuzzy:
         if all(kw in t_norm for kw in keywords):
             return _mirror_persona_stub(topic, eng, persona)
-
-    return None
 
     return None
 
@@ -2887,7 +2988,9 @@ class Handler(BaseHTTPRequestHandler):
                 # replace it with a gentle variation so the persona doesn't sound stuck.
                 if _counter_reply and _counter_reply.strip() == _prev_counter_reply:
                     _counter_reply = _persona_deflect("generic", _counter_reply)
-                    _counter_reply_en = ""
+                    _counter_reply_en = _persona_deflect_en(_counter_reply)
+
+                _counter_reply_pinyin = _resolve_counter_reply_pinyin(_counter_reply) if _counter_reply else ""
 
                 # Retired pivot: if the user just said they are retired, ask what they used to do.
                 _last_user_text = (last_answer or {}).get("submitted_text", "") if last_turn_was_answer else ""
@@ -3372,8 +3475,15 @@ class Handler(BaseHTTPRequestHandler):
                     response["state_update"]["efc_entity"] = _efc_entity_state
                     response["state_update"]["efc_depth"] = _new_efc_depth
                 else:
-                    # No entity value — fall back to generic pronoun so raw token never reaches UI.
-                    response["frame_text"] = response["frame_text"].replace("{ENTITY}", "他们")
+                    # No entity in state — kinship noun + sync EN/PY (avoid 你他们… and stale {ENTITY} in gloss).
+                    _fbz, _fbe, _fbp = _ENTITY_SLOT_FALLBACK_ZH, _ENTITY_SLOT_FALLBACK_EN, _ENTITY_SLOT_FALLBACK_PY
+                    response["frame_text"] = response["frame_text"].replace("{ENTITY}", _fbz)
+                    _en = response.get("frame_text_en") or ""
+                    if "{ENTITY}" in _en:
+                        response["frame_text_en"] = _en.replace("{ENTITY}", _fbe)
+                    _py = response.get("frame_pinyin") or ""
+                    if "{ENTITY}" in _py:
+                        response["frame_pinyin"] = _py.replace("{ENTITY}", _fbp)
             elif _efc_entity_state and cs is not None:
                 # Carry entity forward even when this frame has no ENTITY slot.
                 response.setdefault("state_update", {})
@@ -3408,6 +3518,8 @@ class Handler(BaseHTTPRequestHandler):
                     response["counter_reply"] = _counter_reply
                     if _counter_reply_en:
                         response["counter_reply_en"] = _counter_reply_en
+                    if _counter_reply_pinyin:
+                        response["counter_reply_pinyin"] = _counter_reply_pinyin
                     # Store so next turn can dedup (client echoes conversation_state back).
                     response["state_update"] = response.get("state_update") or {}
                     response["state_update"]["last_counter_reply"] = _counter_reply

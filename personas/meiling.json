@@ -24,6 +24,9 @@
   "discoverable_facts": {
     "identity": "美玲这个名字是我妈妈取的，她很喜欢梅花，所以取了'美'字。",
     "family": "我和父母住在同一个小区，每天都能见面，感情很好。",
+    "family_size": "我家就三口人——我和爸妈。",
+    "family_siblings": "我是独生女，没有兄弟姐妹。",
+    "family_live": "我和父母住在同一个小区，每天都能见面，感情很好。",
     "work": "我在西安一所中学教书，教的是初中美术，已经教了八年了。",
     "hobby": "我练书法有十几年了，写的是楷书，最喜欢欧体的风格。",
     "travel": "我去过北京、苏州、成都，最喜欢苏州的园林，感觉非常有诗意。",
@@ -33,6 +36,9 @@
   "discoverable_facts_en": {
     "identity": "My mum chose the name Meiling for me.",
     "family": "I live in the same compound as my parents.",
+    "family_size": "Just the three of us — me and my parents.",
+    "family_siblings": "I'm an only child — no brothers or sisters.",
+    "family_live": "I live in the same compound as my parents, so we see each other every day.",
     "work": "I teach at a middle school in Xi'an.",
     "hobby": "I've been practising calligraphy for over ten years.",
     "travel": "I've been to Beijing.",

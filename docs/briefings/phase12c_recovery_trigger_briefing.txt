@@ -1,0 +1,174 @@
+# MandarinOS — Phase 12C Recovery Trigger Briefing (Cursor Implementation)
+
+## Objective
+Define WHEN to trigger each recovery phrase using:
+- ASR confidence
+- input quality
+- repair chain state
+
+This is a NON-BREAKING overlay.
+Do NOT rewrite selector.
+Only add routing logic.
+
+---
+
+## 1. Core Inputs (must exist or be derived)
+
+- asr_confidence (0.0–1.0)
+- transcript_text
+- normalized_text
+- partial_match_score (0–1)
+- is_empty_input (bool)
+- repeat_repair_count (int)
+- probe_depth (int)
+- last_user_move_type
+- last_system_move_type
+
+---
+
+## 2. Derived Signals
+
+low_confidence = asr_confidence < 0.45
+medium_confidence = 0.45 <= asr_confidence < 0.70
+high_confidence = asr_confidence >= 0.70
+
+has_no_text = transcript_text is empty or whitespace
+has_partial_signal = partial_match_score > 0 and no full match
+
+repair_chain_open = repeat_repair_count > 0 or probe_depth > 0
+
+---
+
+## 3. Phrase Routing Priority
+
+IF explicit recovery phrase detected:
+    → use phrase metadata FIRST (repair_kind)
+
+ELSE:
+    → use ASR + input signals
+
+---
+
+## 4. Trigger Logic
+
+### CASE A — Empty / No Input
+
+IF has_no_text:
+
+    IF repeat_repair_count == 0:
+        → trigger SOFT HOLD
+        (嗯？ / 啊？)
+
+    ELSE IF repeat_repair_count == 1:
+        → trigger BUFFER
+        (等一下 / 我想想)
+
+    ELSE:
+        → simplify + offer easy continuation
+        → allow bridge if needed
+
+---
+
+### CASE B — Low ASR Confidence
+
+IF low_confidence:
+
+    IF repeat_repair_count == 0:
+        → SOFT HOLD
+
+    ELSE IF repeat_repair_count == 1:
+        → DELIVERY REPAIR (repeat/slower)
+
+    ELSE:
+        → SIMPLIFY + optionally BRIDGE
+
+---
+
+### CASE C — Medium/High Confidence, Weak Match
+
+IF medium_confidence OR high_confidence AND no strong match:
+
+    IF has_partial_signal:
+        → treat as MEANING PROBLEM
+
+    ELSE:
+        → treat as STALL / BUFFER
+
+---
+
+### CASE D — Explicit Repair Phrase
+
+IF phrase detected:
+
+    SWITCH repair_kind:
+
+        soft_hold:
+            → repeat lightly
+
+        buffer:
+            → acknowledge, do not advance
+
+        repeat:
+            → repeat same content
+
+        slower:
+            → repeat slower / shorter
+
+        meaning:
+            → paraphrase simpler
+
+        simplify:
+            → reduce complexity
+
+        deflect_soft:
+            → acknowledge + pivot gently
+
+        deflect_later / topic_shift:
+            → BRIDGE to new topic
+
+---
+
+## 5. Escalation Ladder
+
+1. soft_hold
+2. repeat/slower
+3. meaning/simplify
+4. bridge
+
+MAX 3 repair attempts before escalation.
+
+---
+
+## 6. Response Behavior Rules
+
+IF repair_kind == repeat/slower:
+    - DO NOT introduce new content
+
+IF repair_kind == meaning/simplify:
+    - paraphrase
+    - reduce clause count
+
+IF repair_kind == buffer:
+    - acknowledge delay
+    - offer re-entry
+
+IF repair_kind == bridge:
+    - shift topic safely
+    - reset repair chain
+
+---
+
+## 7. Non-Breaking Constraint
+
+- This layer adjusts weighting/filtering ONLY
+- Do NOT replace existing selector logic
+- Do NOT remove legacy ranking
+
+---
+
+## Success Criteria
+
+- User never freezes
+- Conversation continues after failure
+- Simpler responses after repair
+- No infinite repair loops

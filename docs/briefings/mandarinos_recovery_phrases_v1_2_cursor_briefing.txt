@@ -1,0 +1,353 @@
+# MandarinOS — Recovery Phrases v1.2 Implementation Brief
+
+## Goal
+Upgrade `recovery_phrases.json` so recovery lines are:
+- short enough for beginner repetition
+- better aligned with conversation survival
+- richer in routing metadata
+- still safe to implement without selector rewrite
+
+This is an additive refinement, not an architecture change.
+
+---
+
+## Deliverables
+
+### 1) Replace the current file
+Use the attached `recovery_phrases_v1_2.json` as the new source of truth.
+
+Recommended path:
+- `content/recovery_phrases.json`
+or whatever path currently feeds the runtime builder
+
+### 2) Preserve compatibility
+Some phrase IDs changed because the Chinese was improved:
+- `zai_shuo_yi_ci` -> `zai_shuo_yi_bian`
+- `man_yi_dian` -> `man_yi_dian_shuo`
+- `wo_bu_dong` -> `wo_you_dian_bu_dong`
+- `shenme_yisi` -> `shenme_yisi_a`
+
+To avoid breaking existing references:
+- support `legacy_ids` during lookup, OR
+- migrate old references once in code/data and then ignore `legacy_ids`
+
+### 3) Keep existing field behavior
+Continue to support:
+- `id`
+- `hanzi`
+- `pinyin`
+- `text_en`
+- `level`
+- `use`
+- `recovery_action`
+
+Add support for:
+- `move_type`
+- `response_role`
+- `repair_kind`
+- `priority`
+- `legacy_ids` (optional compatibility helper)
+
+---
+
+## Why this refinement is better
+
+The old file had three issues:
+1. Some core repairs were too blunt or too textbook
+2. Generic persona deflections were too long and too scripted
+3. `recovery_action` alone was too coarse to route behavior well
+
+The new file keeps the strong short phrases, restores a few fuller phrases, and adds one thin intelligence layer:
+- `repair_kind`
+
+This gives better routing without any selector rewrite.
+
+---
+
+## Metadata contract
+
+### move_type
+Use the existing move-type ecosystem:
+- `REPAIR`
+- `REACTION`
+- `BRIDGE`
+
+### response_role
+Use:
+- `REPAIR` = system should stay in comprehension-repair mode
+- `SAFE` = system should prefer low-risk continuation, acknowledgment, or topic shift
+
+### repair_kind
+This is the main new routing signal.
+
+Allowed values in this file:
+- `soft_hold`
+- `buffer`
+- `repeat`
+- `slower`
+- `meaning`
+- `simplify`
+- `answer_gap`
+- `deflect_soft`
+- `deflect_later`
+- `deflect_topic_shift`
+- `answer_closed`
+- `ack`
+
+### priority
+Higher number = more preferred when multiple candidate phrases fit.
+Use this only as a local ranking hint, not a global selector override.
+
+---
+
+## Intended behavior by repair_kind
+
+### `soft_hold`
+Examples:
+- 嗯？
+- 啊？
+
+Meaning:
+- learner signals a light miss
+- system should repeat lightly
+- no topic shift yet
+
+System preference:
+- repeat previous idea once
+- maybe shorten slightly
+- do not advance topic
+
+### `buffer`
+Examples:
+- 等一下
+- 我想想
+
+Meaning:
+- learner is processing, not necessarily failing
+- system should not treat this as hard misunderstanding
+
+System preference:
+- acknowledge gently
+- hold the floor lightly
+- allow easy re-entry
+
+### `repeat`
+Examples:
+- 再说一遍
+- 你可以再说一遍吗？
+
+System preference:
+- repeat
+- stay on same topic
+- no new content
+
+### `slower`
+Examples:
+- 慢一点说
+- 你可以说慢一点吗？
+
+System preference:
+- slower / shorter re-delivery
+- same meaning
+- no topic shift
+
+### `meaning`
+Examples:
+- 我有点不懂
+- 什么意思啊？
+- 我听不懂
+
+System preference:
+- simpler paraphrase
+- same topic
+- avoid unexplained new vocabulary
+
+### `simplify`
+Examples:
+- 可以简单说吗？
+
+System preference:
+- even simpler paraphrase than `meaning`
+- fewer clauses
+- simpler sentence shape
+
+### `deflect_soft`
+Examples:
+- 这个不好说。
+- 我还没想好。
+- 这个还是秘密。
+
+System preference:
+- acknowledge
+- do not push the blocked question immediately
+- pivot gently to nearby safe content
+
+### `deflect_later`
+Examples:
+- 这个以后再聊。
+- 这个先不说吧。
+- 年龄啊，先不说吧。
+
+System preference:
+- bridge away from current question
+- reset local repair/insistence chain
+- offer safe next topic
+
+### `deflect_topic_shift`
+Examples:
+- 换个话题吧。
+- 我们聊简单一点吧。
+
+System preference:
+- explicit safe topic shift
+- easy next question
+- do not retry blocked topic immediately
+
+### `answer_gap`
+Example:
+- 不知道
+
+System preference:
+- accept as a weak answer
+- do not force repair loop
+- continue with easy follow-up or option support
+
+### `answer_closed`
+Example:
+- 还没有，不急。
+
+System preference:
+- treat as a short valid answer
+- continue normally
+
+### `ack`
+Examples:
+- 没关系！
+- 哦，好的！
+- 我明白了！
+
+System preference:
+- normal flow resume
+- low-complexity continuation acceptable
+
+---
+
+## Trigger/routing layer (non-breaking)
+
+Do NOT rewrite the selector.
+
+Implement this as a thin overlay in the existing unmatched / repair / follow-up path.
+
+### Recommended precedence
+When a recovery phrase is recognized:
+
+1. phrase metadata first
+2. ASR confidence second
+3. current repair chain state third
+
+### Recommended routing
+- `REPAIR + REPAIR` -> simplify/repeat/slower/same-topic behavior
+- `REPAIR + SAFE` -> supportive safe continuation, no pressure
+- `BRIDGE + SAFE` -> topic shift or nearby safe question
+- `REACTION + SAFE` -> normal flow resume
+
+### More specific routing
+- `repair_kind=soft_hold` -> light repeat
+- `repair_kind=buffer` -> acknowledge + hold
+- `repair_kind=repeat` -> repeat
+- `repair_kind=slower` -> slower repeat
+- `repair_kind=meaning` -> simpler paraphrase
+- `repair_kind=simplify` -> very simple paraphrase
+- `repair_kind=deflect_soft` -> acknowledge + gentle pivot
+- `repair_kind=deflect_later` -> bridge away
+- `repair_kind=deflect_topic_shift` -> explicit topic shift
+- `repair_kind=ack` -> resume normal flow
+
+---
+
+## Suggested default changes
+
+### Change default not-understood phrase
+From:
+- `shenme`
+
+To:
+- `en`
+
+Reason:
+- softer
+- more natural
+- less blunt
+- better as a first automatic learner reflex
+
+---
+
+## Notes on phrase inventory
+
+### Core drill backbone
+These should be the most common high-frequency recovery phrases:
+- 嗯？
+- 啊？
+- 等一下
+- 我想想
+- 再说一遍
+- 慢一点说
+- 我有点不懂
+- 什么意思啊？
+
+### Fuller but still useful forms
+These stay in the file, but should be lower-priority:
+- 可以简单说吗？
+- 不好意思，我没听懂。
+- 你可以再说一遍吗？
+- 你可以说慢一点吗？
+
+### Generic persona deflections
+The old generic deflections were too long and too personality-heavy.
+They were replaced with short reusable lines:
+- 这个不好说。
+- 我还没想好。
+- 这个以后再聊。
+- 这个先不说吧。
+- 换个话题吧。
+
+This is intentional. The app should train reusable conversational primitives, not one-off theatrical lines.
+
+---
+
+## Minimal implementation tasks
+
+1. Load the new JSON
+2. Recognize new fields
+3. Change default phrase ID to `en`
+4. Support `legacy_ids` for compatibility if needed
+5. In repair handling, branch on `repair_kind`
+6. Keep all legacy selector/scoring logic intact unless metadata is present
+
+---
+
+## Success criteria
+
+- Recovery phrases are short enough for repetition and memorization
+- Deflections sound natural and reusable
+- System responds differently to:
+  - soft hold
+  - repeat
+  - slower
+  - meaning repair
+  - simplification
+  - soft deflection
+  - explicit topic shift
+- No regression to Phase 10 / 11 selector logic
+- No infinite repair loops
+
+---
+
+## Explicit non-goals
+
+- No selector rewrite
+- No persona dialogue rewrite
+- No new scoring system
+- No heavy inference engine
+
+This is a content + metadata refinement layer only.

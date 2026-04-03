@@ -24,6 +24,9 @@
   "discoverable_facts": {
     "identity": "志远这个名字是我父亲取的，他希望我有远大的志向，我一直觉得这个名字是一种压力，也是动力。",
     "family": "我老家在南京，爸妈还在那边，我在上海工作，每年春节和国庆都会回去陪他们。",
+    "family_size": "我家就三口人，我和爸妈。",
+    "family_siblings": "我是独生子，没有兄弟姐妹，从小就很独立。",
+    "family_live": "爸妈在南京，我在上海工作，不住在一起，每年春节和国庆我会回去陪他们。",
     "work": "我主要给初中和高中学生补习数学和语文，做这行十年了，觉得教育是很有意义的工作。",
     "hobby": "我最喜欢的书是《红楼梦》，读了好几遍了，每次都有不同的感受。下棋也让我觉得很放松。",
     "travel": "我去过几个欧洲国家，最喜欢法国，觉得他们对历史和艺术的态度和中国有相似之处。",
@@ -33,6 +36,9 @@
   "discoverable_facts_en": {
     "identity": "The name Zhiyuan was chosen by my father.",
     "family": "My hometown is Nanjing and my parents are still there.",
+    "family_size": "Just three of us — me and my parents.",
+    "family_siblings": "I'm an only child — no siblings. I grew up quite independent.",
+    "family_live": "My parents are in Nanjing and I work in Shanghai. I go back for Spring Festival and National Day.",
     "work": "I mainly tutor middle and high school students in maths and Chinese.",
     "hobby": "My favourite book is Dream of the Red Chamber.",
     "travel": "I've been to several European countries.",
