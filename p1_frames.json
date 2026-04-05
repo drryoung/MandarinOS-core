@@ -756,6 +756,53 @@
       "move_type": "LOOP"
     },
     {
+      "id": "f_work_busy",
+      "text": "工作忙吗？",
+      "pinyin": "gōngzuò máng ma?",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": [
+        "w_gongzuo"
+      ],
+      "distractor_tokens": ["w_hen", "w_hao"],
+      "text_en": "Is work busy?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_work_where",
+      "text": "你工作在哪儿？",
+      "pinyin": "nǐ gōngzuò zài nǎr?",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": [
+        "w_nali",
+        "w_gongzuo"
+      ],
+      "distractor_tokens": ["w_xihuan", "w_hen"],
+      "text_en": "Where is your work based?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
+    },
+    {
       "id": "frame.opinion.like",
       "id_legacy": "f_like_work_yes",
       "text": "喜欢，我很喜欢。",

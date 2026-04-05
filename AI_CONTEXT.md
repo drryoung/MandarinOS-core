@@ -281,6 +281,15 @@ If tests exist for a builder:
 4) Refactoring UI rendering in a way that removes required affordances (hint button, option buttons, word click)
 5) Creating “helpful” new fields in payloads without updating the contract docs
 
+**Conversation selector failure modes** (see docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md §5 for full details with examples):
+
+6) Creating alternative preference lists instead of adding skip_when to frames — e.g. a special unfamiliar-city list shadowing the standard CITY slot preference list.
+7) Bypassing _frame_order_priority with wrapper flags — breaks the single ordering source of truth.
+8) Adding “final guard” functions that re-implement skip logic already handled by _check_skip_condition.
+9) Hard-coding Chinese sentences as inline Python strings — all partner sentences belong in frame JSON, persona JSON, or phrase-bank JSON.
+10) Starting ASR while TTS is still playing — always cancel synthesis and wait 380 ms before 
+ec.start().
+
 ---
 
 ## 9) If you are asked to implement a feature (Cursor as programmer)
@@ -322,6 +331,7 @@ If present, read these before making architectural suggestions:
 - **`docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`** — 12C / 12C.1 / 12D separation (mandatory for conversation-layer work)
 - **`docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`** — when implementing or scoping Phase 12D overlay
 - **`docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`** — user-led discovery, counter-reply, recovery; architectural debt AD-1–AD-3
+- **`docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md`** — conversation flow design principles: curiosity-led ordering, `skip_when` mechanism, oxygen questions, recovery hierarchy, and anti-patterns. **Mandatory for any selector, ordering, or frame-content change.**
 
 ### Extensibility strategy (mandatory — read before proposing any change)
 

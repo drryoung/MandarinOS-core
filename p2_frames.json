@@ -101,15 +101,15 @@
     },
     {
       "id": "p2_id_5",
-      "text": "这个名字对你有什么意义？",
-      "pinyin": "zhège míngzi duì nǐ yǒu shénme yìyì?",
+      "text": "这个名字有故事吗？",
+      "pinyin": "zhège míngzi yǒu gùshi ma?",
       "engine": "identity",
       "difficulty": 3,
       "slots": [],
       "option_tokens": [
-        "w_yiyi"
+        "w_mingzi"
       ],
-      "text_en": "What does this name mean to you?",
+      "text_en": "Does this name have a story behind it?",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -146,20 +146,15 @@
     },
     {
       "id": "p2_pl_1",
-      "text": "你觉得{CITY}生活怎么样？",
-      "pinyin": "nǐ juéde {CITY} shēnghuó zěnmeyàng?",
+      "text": "你觉得这里怎么样？",
+      "pinyin": "nǐ juéde zhèlǐ zěnmeyàng?",
       "engine": "place",
-      "difficulty": 3,
-      "slots": [
-        {
-          "name": "CITY",
-          "source": "fillers.cities"
-        }
-      ],
+      "difficulty": 2,
+      "slots": [],
       "option_tokens": [
         "w_zenmeyang"
       ],
-      "text_en": "you to feel; to think [CITY] life; to live how is it",
+      "text_en": "What do you think of it here?",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -172,20 +167,15 @@
     },
     {
       "id": "p2_pl_2",
-      "text": "{CITY}有什么好吃的？",
-      "pinyin": "{CITY} yǒu shénme hǎochī de?",
+      "text": "这里有什么好吃的？",
+      "pinyin": "zhèlǐ yǒu shénme hǎochī de?",
       "engine": "place",
-      "difficulty": 3,
-      "slots": [
-        {
-          "name": "CITY",
-          "source": "fillers.cities"
-        }
-      ],
+      "difficulty": 2,
+      "slots": [],
       "option_tokens": [
         "w_haochi"
       ],
-      "text_en": "[CITY] to have what tasty possessive/attribute particle",
+      "text_en": "What good food is there here?",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -249,6 +239,29 @@
       "move_type": "LOOP"
     },
     {
+      "id": "p2_pl_far",
+      "text": "离那儿远吗？",
+      "pinyin": "lí nàr yuǎn ma?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": [
+        "w_nali"
+      ],
+      "text_en": "Is it far from there?",
+      "skip_when": "city_is_well_known",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "LOOP"
+    },
+    {
       "id": "p2_pl_5",
       "text": "我觉得{CITY}{REASON_POS}。",
       "pinyin": "wǒ juéde {CITY} {REASON_POS}.",
@@ -277,6 +290,34 @@
         "LOOP"
       ],
       "move_type": "ANSWER"
+    },
+    {
+      "id": "p2_fa_live_with",
+      "text": "你跟家人住在一起吗？",
+      "pinyin": "nǐ gēn jiārén zhù zài yīqǐ ma?",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_zhuyiqi"],
+      "text_en": "Do you live with your family?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "ASK"
+    },
+    {
+      "id": "p2_fa_activity",
+      "text": "你最喜欢和家人一起做什么？",
+      "pinyin": "nǐ zuì xǐhuan hé jiārén yīqǐ zuò shénme?",
+      "engine": "family",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_xihuan"],
+      "text_en": "What do you most enjoy doing with your family?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
     },
     {
       "id": "p2_fa_1",
@@ -451,6 +492,8 @@
         "w_xiaban"
       ],
       "text_en": "Why do you like this job?",
+      "partner_why_answer": "因为我可以帮助别人。",
+      "partner_why_answer_en": "Because I get to help people.",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -486,6 +529,8 @@
         "w_zuijin"
       ],
       "text_en": "Is this job hard?",
+      "partner_why_answer": "刚开始有点难，慢慢就好了。",
+      "partner_why_answer_en": "It was hard at first, but gets easier.",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -507,6 +552,8 @@
         "w_zuijin"
       ],
       "text_en": "What is the hardest part of your work?",
+      "partner_why_answer": "因为时间不够，压力比较大。",
+      "partner_why_answer_en": "Not enough time — quite a lot of pressure.",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -528,6 +575,8 @@
         "w_anpai"
       ],
       "text_en": "Is this job well paid?",
+      "partner_why_answer": "还可以，比较稳定。",
+      "partner_why_answer_en": "Not bad — pretty stable.",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -549,6 +598,8 @@
         "w_jiejue"
       ],
       "text_en": "Do you recommend this job for young people? Why?",
+      "partner_why_answer": "推荐，可以学很多，也能帮助别人。",
+      "partner_why_answer_en": "Yes — you learn a lot and can help people.",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -669,15 +720,15 @@
     },
     {
       "id": "p2_hb_5",
-      "text": "你最大的成就是什么？",
-      "pinyin": "nǐ zuìdà de chéngjiù shì shénme?",
+      "text": "你做了多久了？",
+      "pinyin": "nǐ zuò le duō jiǔ le?",
       "engine": "hobby",
-      "difficulty": 3,
+      "difficulty": 2,
       "slots": [],
       "option_tokens": [
-        "w_zuida"
+        "w_shenme"
       ],
-      "text_en": "What's your biggest achievement?",
+      "text_en": "How long have you been doing it?",
       "allowed_response_roles": [
         "SAFE",
         "EXPAND",
@@ -1068,26 +1119,26 @@
     },
     {
       "id": "p2_wk_ext1",
-      "text": "工作有时候不容易。你工作的时候有没有让你很开心的事？",
-      "pinyin": "gōngzuò yǒushíhou bù róngyì. nǐ gōngzuò de shíhou yǒu méiyǒu ràng nǐ hěn kāixīn de shì?",
+      "text": "工作有时候挺累的。你喜欢你的工作吗？",
+      "pinyin": "gōngzuò yǒushíhou tǐng lèi de. nǐ xǐhuan nǐ de gōngzuò ma?",
       "engine": "work",
       "difficulty": 2,
       "slots": [],
       "option_tokens": ["w_xiaban"],
-      "text_en": "Work can be challenging sometimes. Is there anything at work that makes you really happy?",
+      "text_en": "Work can be tiring sometimes. Do you like your work?",
       "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
       "default_next_move_types": ["ANSWER"],
       "move_type": "EXTEND"
     },
     {
       "id": "p2_hb_ext1",
-      "text": "我觉得有爱好让生活更有趣。你的爱好是怎么开始的？",
-      "pinyin": "wǒ juéde yǒu àihào ràng shēnghuó gèng yǒuqù. nǐ de àihào shì zěnme kāishǐ de?",
+      "text": "我觉得有爱好很好。你的爱好是怎么开始的？",
+      "pinyin": "wǒ juéde yǒu àihào hěn hǎo. nǐ de àihào shì zěnme kāishǐ de?",
       "engine": "hobby",
       "difficulty": 2,
       "slots": [],
       "option_tokens": ["w_juede"],
-      "text_en": "I think having hobbies makes life more interesting. How did your hobby start?",
+      "text_en": "I think having hobbies is great. How did your hobby start?",
       "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
       "default_next_move_types": ["ANSWER"],
       "move_type": "EXTEND"
@@ -1107,26 +1158,27 @@
     },
     {
       "id": "p2_pl_ext1",
-      "text": "每个地方都有自己的特点。你觉得你住的地方有什么特色？",
-      "pinyin": "měi gè dìfang dōu yǒu zìjǐ de tèdiǎn. nǐ juéde nǐ zhù de dìfang yǒu shénme tèsè?",
+      "text": "每个地方都不一样。你觉得你住的地方有什么好的？",
+      "pinyin": "měi gè dìfang dōu bù yīyàng. nǐ juéde nǐ zhù de dìfang yǒu shénme hǎo de?",
       "engine": "place",
       "difficulty": 2,
       "slots": [],
       "option_tokens": ["w_juede"],
-      "text_en": "Every place has its own character. What do you think is special about where you live?",
+      "text_en": "Every place is different. What do you think is good about where you live?",
+      "skip_when": "city_is_familiar",
       "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
       "default_next_move_types": ["ANSWER"],
       "move_type": "EXTEND"
     },
     {
       "id": "p2_fd_ext1",
-      "text": "我很喜欢尝试各种食物。你觉得吃东西是一种享受吗？",
-      "pinyin": "wǒ hěn xǐhuan chángshì gèzhǒng shíwù. nǐ juéde chī dōngxi shì yī zhǒng xiǎngshòu ma?",
+      "text": "我最喜欢吃好吃的东西。你最喜欢什么食物？",
+      "pinyin": "wǒ zuì xǐhuan chī hǎochī de dōngxi. nǐ zuì xǐhuan shénme shíwù?",
       "engine": "food",
       "difficulty": 2,
       "slots": [],
       "option_tokens": ["w_haochi"],
-      "text_en": "I really like trying all kinds of food. Do you think eating is a kind of enjoyment?",
+      "text_en": "I love eating delicious food. What is your favourite food?",
       "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
       "default_next_move_types": ["ANSWER"],
       "move_type": "EXTEND"
@@ -1147,10 +1199,52 @@
       "move_type": "LOOP"
     },
     {
+      "id": "f_id_friends_call",
+      "text": "朋友一般怎么叫你？",
+      "pinyin": "péngyou yībān zěnme jiào nǐ?",
+      "text_en": "What do your friends usually call you?",
+      "engine": "identity",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_mingzi"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_name_story",
+      "text": "你名字有什么故事吗？",
+      "pinyin": "nǐ míngzi yǒu shénme gùshi ma?",
+      "text_en": "Does your name have a story?",
+      "engine": "identity",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_mingzi"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_name_story_react",
+      "text": "挺有意思的。",
+      "pinyin": "tǐng yǒu yìsi de.",
+      "text_en": "That's quite interesting.",
+      "engine": "identity",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": [],
+      "allowed_response_roles": ["SAFE", "EXPAND"],
+      "default_next_move_types": ["REACTION"],
+      "move_type": "REACTION"
+    },
+    {
       "id": "f_probe_id_nickname",
-      "text": "家里人是怎么叫你的？",
-      "pinyin": "jiālǐ rén shì zěnme jiào nǐ de?",
-      "text_en": "What do your family members call you?",
+      "text": "家里人怎么叫你？",
+      "pinyin": "jiālǐ rén zěnme jiào nǐ?",
+      "text_en": "What do your family call you?",
       "engine": "identity",
       "difficulty": 2,
       "slots": [],
@@ -1163,11 +1257,11 @@
     },
     {
       "id": "f_probe_id_character",
-      "text": "你觉得名字符合你的性格吗？",
-      "pinyin": "nǐ juéde míngzi fúhé nǐ de xìnggé ma?",
-      "text_en": "Do you think your name suits your personality?",
+      "text": "你觉得名字好听吗？",
+      "pinyin": "nǐ juéde míngzi hǎotīng ma?",
+      "text_en": "Do you think the name sounds nice?",
       "engine": "identity",
-      "difficulty": 3,
+      "difficulty": 2,
       "slots": [],
       "speaker": "partner",
       "option_tokens": ["w_juede"],
@@ -1192,10 +1286,108 @@
       "move_type": "LOOP"
     },
     {
+      "id": "p2_pl_country_special",
+      "text": "那个国家有什么特别的？",
+      "pinyin": "nà gè guójiā yǒu shénme tèbié de?",
+      "text_en": "What is special about that country?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "p2_pl_home_food",
+      "text": "那里有什么好吃的？",
+      "pinyin": "nàlǐ yǒu shénme hǎochī de?",
+      "text_en": "What good food is there?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_haochi"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "p2_pl_city_special",
+      "text": "这里有什么特别的？",
+      "pinyin": "zhèlǐ yǒu shénme tèbié de?",
+      "text_en": "What is special about here?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "p2_pl_home_where",
+      "text": "你老家在哪儿？",
+      "pinyin": "nǐ lǎojiā zài nǎr?",
+      "text_en": "Where is your hometown?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "ASK"
+    },
+    {
+      "id": "p2_pl_home_special",
+      "text": "老家有什么特别的？",
+      "pinyin": "lǎojiā yǒu shénme tèbié de?",
+      "text_en": "What is special about your hometown?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "p2_pl_why",
+      "text": "为什么？",
+      "pinyin": "wèishénme?",
+      "text_en": "Why?",
+      "engine": "place",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_weishenme", "w_yinwei"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "p2_pl_live_alone",
+      "text": "你一个人住吗？",
+      "pinyin": "nǐ yī gè rén zhù ma?",
+      "text_en": "Do you live alone?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_zhu"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "ASK"
+    },
+    {
       "id": "f_probe_place_why_move",
-      "text": "你为什么选择住在那里？",
-      "pinyin": "nǐ wèishénme xuǎnzé zhù zài nàlǐ?",
-      "text_en": "Why did you choose to live there?",
+      "text": "你为什么住在这里？",
+      "pinyin": "nǐ wèishénme zhù zài zhèlǐ?",
+      "text_en": "Why do you live here?",
       "engine": "place",
       "difficulty": 2,
       "slots": [],
@@ -1217,6 +1409,7 @@
       "speaker": "partner",
       "option_tokens": [],
       "interest_min": "medium",
+      "coherence_avoid_if": "sightseeing_context",
       "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
       "default_next_move_types": ["ANSWER"],
       "move_type": "LOOP"
@@ -1237,10 +1430,52 @@
       "move_type": "LOOP"
     },
     {
+      "id": "f_work_company",
+      "text": "你在哪个公司上班？",
+      "pinyin": "nǐ zài nǎ gè gōngsī shàngbān?",
+      "text_en": "Which company do you work for?",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_gongzuo"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "ASK"
+    },
+    {
+      "id": "f_work_tenure",
+      "text": "你做这个工作多久了？",
+      "pinyin": "nǐ zuò zhège gōngzuò duō jiǔ le?",
+      "text_en": "How long have you been doing this work?",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_gongzuo"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_work_tenure_react",
+      "text": "那你很有经验了。",
+      "pinyin": "nà nǐ hěn yǒu jīngyàn le.",
+      "text_en": "So you must be quite experienced then.",
+      "engine": "work",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": [],
+      "allowed_response_roles": ["SAFE", "EXPAND"],
+      "default_next_move_types": ["REACTION"],
+      "move_type": "REACTION"
+    },
+    {
       "id": "f_probe_work_origin",
-      "text": "你是怎么开始做这份工作的？",
-      "pinyin": "nǐ shì zěnme kāishǐ zuò zhè fèn gōngzuò de?",
-      "text_en": "How did you get started in this kind of work?",
+      "text": "你怎么开始做这个工作的？",
+      "pinyin": "nǐ zěnme kāishǐ zuò zhège gōngzuò de?",
+      "text_en": "How did you get started in this work?",
       "engine": "work",
       "difficulty": 2,
       "slots": [],
@@ -1283,9 +1518,9 @@
     },
     {
       "id": "f_probe_work_future",
-      "text": "你以后还想做别的工作吗？",
-      "pinyin": "nǐ yǐhòu hái xiǎng zuò bié de gōngzuò ma?",
-      "text_en": "Would you like to try a different kind of work in the future?",
+      "text": "你以后还想做这个工作吗？",
+      "pinyin": "nǐ yǐhòu hái xiǎng zuò zhège gōngzuò ma?",
+      "text_en": "Do you want to keep doing this work in the future?",
       "engine": "work",
       "difficulty": 3,
       "slots": [],
@@ -1373,11 +1608,11 @@
     },
     {
       "id": "f_probe_family_influence",
-      "text": "家里谁对你的影响最大？",
-      "pinyin": "jiālǐ shuí duì nǐ de yǐngxiǎng zuì dà?",
-      "text_en": "Who in your family has had the biggest influence on you?",
+      "text": "家里谁对你最重要？",
+      "pinyin": "jiālǐ shuí duì nǐ zuì zhòngyào?",
+      "text_en": "Who in your family is most important to you?",
       "engine": "family",
-      "difficulty": 3,
+      "difficulty": 2,
       "slots": [],
       "speaker": "partner",
       "option_tokens": [],
@@ -1387,10 +1622,66 @@
       "move_type": "LOOP"
     },
     {
+      "id": "f_hobby_special",
+      "text": "你喜欢做什么？有什么特别的爱好？",
+      "pinyin": "nǐ xǐhuan zuò shénme? yǒu shénme tèbié de àihào?",
+      "text_en": "What do you like to do? Do you have any special hobbies?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_xihuan"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "OPEN"
+    },
+    {
+      "id": "f_hobby_where",
+      "text": "你在哪儿做？",
+      "pinyin": "nǐ zài nǎr zuò?",
+      "text_en": "Where do you do it?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_hobby_best_part",
+      "text": "你最喜欢这个爱好的哪一点？",
+      "pinyin": "nǐ zuì xǐhuan zhège àihào de nǎ yīdiǎn?",
+      "text_en": "What do you like most about this hobby?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_xihuan"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_hobby_travel",
+      "text": "你会去别的地方做吗？",
+      "pinyin": "nǐ huì qù bié de dìfang zuò ma?",
+      "text_en": "Do you go to other places to do it?",
+      "engine": "hobby",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
       "id": "f_probe_hobby_origin",
-      "text": "你是怎么开始喜欢这个的？",
-      "pinyin": "nǐ shì zěnme kāishǐ xǐhuan zhège de?",
-      "text_en": "How did you get into this hobby?",
+      "text": "你是怎么开始这个爱好的？",
+      "pinyin": "nǐ shì zěnme kāishǐ zhège àihào de?",
+      "text_en": "How did you start this hobby?",
       "engine": "hobby",
       "difficulty": 2,
       "slots": [],
@@ -1418,11 +1709,11 @@
     },
     {
       "id": "f_probe_hobby_change",
-      "text": "这个爱好给你的生活带来了什么？",
-      "pinyin": "zhège àihào gěi nǐ de shēnghuó dài lái le shénme?",
-      "text_en": "What has this hobby brought to your life?",
+      "text": "这个爱好对你重要吗？",
+      "pinyin": "zhège àihào duì nǐ zhòngyào ma?",
+      "text_en": "Is this hobby important to you?",
       "engine": "hobby",
-      "difficulty": 3,
+      "difficulty": 2,
       "slots": [],
       "speaker": "partner",
       "option_tokens": [],
@@ -1448,11 +1739,11 @@
     },
     {
       "id": "f_probe_travel_learn",
-      "text": "旅行让你学到了什么？",
-      "pinyin": "lǚxíng ràng nǐ xué dào le shénme?",
-      "text_en": "What has travel taught you?",
+      "text": "你最喜欢哪次旅行？",
+      "pinyin": "nǐ zuì xǐhuan nǎ cì lǚxíng?",
+      "text_en": "Which trip have you enjoyed the most?",
       "engine": "travel",
-      "difficulty": 3,
+      "difficulty": 2,
       "slots": [],
       "speaker": "partner",
       "option_tokens": [],

@@ -13,6 +13,7 @@
 | [MandarinOS_conversation_system_blueprint_v1.md](./MandarinOS_conversation_system_blueprint_v1.md) | Blueprint | Core philosophy, layers (Engines → Curiosity → Fillers → Repair → Memory → Persona), engine list, P1 loop, design principles |
 | [mandarinos_conversation_architecture_v1.md](./mandarinos_conversation_architecture_v1.md) | Spine | Engine template, P1 loop structure, memory anchors, reciprocity (你呢？), what is stable vs exploratory |
 | [MandarinOS_engine_specs_v1.md](./MandarinOS_engine_specs_v1.md) | Engine catalogue | **Six engines** in one doc: Identity, Place, Food, Family, Study/Work, Travel — Core/Treasure/Loop questions, triggers, bridges, paths, examples |
+| [MANDARINOS_CONVERSATION_FLOW_DESIGN.md](./MANDARINOS_CONVERSATION_FLOW_DESIGN.md) | **Implementation rules** | Curiosity-led ordering, `skip_when` mechanism, oxygen/echo questions, recovery hierarchy, selector anti-patterns. **Read before any selector or ordering change.** |
 
 ---
 

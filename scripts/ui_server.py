@@ -66,7 +66,7 @@ MAX_PROBE_CHAIN = 2                   # Phase 12B: max consecutive probe follow-
 MIN_TURNS_FOR_LIFE_ENGINE = 16        # Difficulty ramp: "life" engine is all difficulty-3; block it early in session
 # Phase 12C: session arc tuning
 LOOP_COUNT_IN_ENGINE_SOFT_CAP = 2    # reduce LOOP when partner has asked ≥ this many LOOPs in current engine
-OVERLOAD_CONFUSION_THRESHOLD  = 2    # recent_confusion_count ≥ this → overload: prefer bridge / simpler frames
+OVERLOAD_CONFUSION_THRESHOLD  = 3    # recent_confusion_count ≥ this → overload: same-engine non-loop first, else bridge
 CLOSURE_EXCHANGE_THRESHOLD    = 12   # after this many total exchanges push toward bridge / close
 CLOSURE_BRIDGE_GATE           = 600  # out of 1000: hash-gate probability for bridge push in closure zone
 
@@ -352,17 +352,56 @@ def _engine_frame_ids(engine_norm: str) -> List[str]:
 # Order follows spec: core → treasure (follow-ups) → loop so we use treasure/loop questions, not just core.
 # P2 question frames (大家一般怎么叫你？, 你觉得{CITY}生活怎么样？, etc.) are included so we don't exhaust after 2–3 questions.
 _FRAME_ORDER: dict = {
-    # Identity flow: name → how people call you → meaning → EXTEND break → evaluations → age.
-    "identity": ["f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_ext1", "f_name_story_elicit", "p2_id_4", "p2_id_5", "f_how_old"],
-    # Place flow: origin → like it → live where → EXTEND break → life quality → food → leisure → convenient.
-    "place": ["f_from_where", "f_place_like_there", "frame.location.live_question", "p2_pl_1", "p2_pl_ext1", "p2_pl_2", "p2_pl_3", "p2_pl_4"],
-    # Family flow: have family → live together → siblings → married → children → EXTEND break → how often → weekend.
-    # p2_fa_1 ("你跟家人住在一起吗？") is more natural after the user reveals family members.
-    "family": ["f_have_family", "p2_fa_1", "f_have_siblings", "f_married", "f_have_children", "p2_fa_ext1", "p2_fa_2", "p2_fa_5"],
-    # Work: compact high-interest sequence with EXTEND break after difficulty questions.
-    "work": ["f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_ext1", "p2_wk_3", "p2_wk_4", "p2_wk_5"],
-    # Hobby: opening → frequency → difficulty → like what → EXTEND break → recommend → weekend → etc.  Phase 11.1: f_like_do_what moved to pos 3 to avoid consecutive duplicate opener.
-    "hobby": ["f_what_hobby", "f_often_do", "f_difficult_ma", "f_like_do_what", "p2_hb_ext1", "f_recommend_ma", "f_weekend_do", "f_like_chinese_culture", "f_like_what", "f_collect_what", "p2_hb_1", "p2_hb_2", "p2_hb_4", "p2_hb_5"],
+    # Identity flow (Phase 12C): name → friends call → family call → name story → age.
+    "identity": [
+        "f_ask_you_name",        # 1. 你叫什么名字？
+        "f_id_friends_call",     # 2. 朋友一般怎么叫你？
+        "f_probe_id_nickname",   # 3. 家里人怎么叫你？
+        "f_name_story",          # 4. 你名字有什么故事吗？
+        "f_how_old",             # 5. 你多大了？
+    ],
+    # Place flow (Phase 12C): origin → country interest → home food → current city → city interest →
+    # city food → hometown → hometown interest → evaluation → why → living situation → reason for living here.
+    "place": [
+        "f_from_where",              # 1. 你是哪里人？
+        "p2_pl_country_special",     # 2. 那个国家有什么特别的？  (note: skip-if-same-country needs selector work)
+        "p2_pl_home_food",           # 3. 那里有什么好吃的？
+        "frame.location.live_question", # 4. 你现在住哪里？
+        "p2_pl_city_special",        # 5. 这里有什么特别的？
+        "p2_pl_2",                   # 6. 这里有什么好吃的？
+        "p2_pl_home_where",          # 7. 你老家在哪儿？
+        "p2_pl_home_special",        # 8. 老家有什么特别的？
+        "p2_pl_1",                   # 9. 你觉得这里怎么样？
+        "p2_pl_live_alone",          # 10. 你一个人住吗？
+        "f_probe_place_why_move",    # 11. 你为什么住在这里？
+    ],
+    # Family flow (Phase 12C): live together → closest → activity → married → children.
+    # Screening questions (siblings, have_family) removed; warmth-first ordering.
+    "family": [
+        "p2_fa_live_with",          # 1. 你跟家人住在一起吗？
+        "f_probe_family_closest",   # 2. 你和家里谁最亲近？
+        "p2_fa_activity",           # 3. 你最喜欢和家人一起做什么？
+        "f_married",                # 4. 你结婚了吗？
+        "f_have_children",          # 5. 你有孩子吗？
+    ],
+    # Work (Phase 12C): what → company → tenure → location → origin story → future.
+    "work": [
+        "f_what_work",          # 1. 你做什么工作？
+        "f_work_company",       # 2. 你在哪个公司上班？
+        "f_work_tenure",        # 3. 你做这个工作多久了？
+        "f_work_where",         # 4. 你工作在哪儿？
+        "f_probe_work_origin",  # 5. 你怎么开始做这个工作的？
+        "f_probe_work_future",  # 6. 你以后还想做这个工作吗？
+    ],
+    # Hobby (Phase 12C): open → location → best part → origin → social → travel.
+    "hobby": [
+        "f_hobby_special",       # 1. 你喜欢做什么？有什么特别的爱好？
+        "f_hobby_where",         # 2. 你在哪儿做？
+        "f_hobby_best_part",     # 3. 你最喜欢这个爱好的哪一点？
+        "f_probe_hobby_origin",  # 4. 你是怎么开始这个爱好的？
+        "f_probe_hobby_social",  # 5. 你一般自己做还是跟朋友一起？
+        "f_hobby_travel",        # 6. 你会去别的地方做吗？
+    ],
     # Travel: been where → want to go → countries → best place → EXTEND break → fun things → how was it.
     "travel": ["f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_ext1", "p2_tr_3", "p2_tr_4"],
     # Food: what's good → famous dish → tasty → EXTEND break → spicy → expensive.
@@ -390,6 +429,7 @@ _FRAME_AFTER_ANY: dict = {
     "p2_pl_2": ["f_from_where", "frame.location.live_question"],
     "p2_pl_3": ["f_from_where", "frame.location.live_question"],
     "p2_pl_4": ["f_from_where", "frame.location.live_question"],
+    "p2_pl_far": ["f_from_where", "frame.location.live_question"],
     # Phase 12: EXTEND frame references "where you live" so needs place context first.
     "p2_pl_ext1": ["f_from_where", "frame.location.live_question"],
     # "Why do you like it there?" presupposes "do you like it there?" was already asked.
@@ -403,7 +443,7 @@ def _deictic_context_fresh(fid: str, recent_frame_ids: list, window: int = 4) ->
     Even if a place anchor exists somewhere in history, require it to be recent.
     """
     anchors = {
-        "f_place_like_there": ["f_from_where", "frame.location.live_question", "p2_pl_4", "p2_pl_2"],
+        "f_place_like_there": ["f_from_where", "frame.location.live_question", "p2_pl_far", "p2_pl_4", "p2_pl_2"],
         # "Why do you like it there?" also uses "那儿" — needs a recent place anchor AND like question
         "f_place_why_like":   ["f_place_like_there"],
     }.get(fid)
@@ -697,6 +737,16 @@ def _engine_partner_question_frame_ids(engine_norm: str) -> List[str]:
     return ordered + rest
 
 
+# Until this frame has been shown, bridging *out* of place should not land in food — otherwise
+# "顺便问一下，你会自己做吗？" appears without any "有什么好吃的？"-style setup (user request: Phase 12C).
+_PLACE_FOOD_TOPIC_PRIMED_FRAMES: frozenset = frozenset({"p2_pl_2"})
+
+
+def _place_food_topic_primed(recent_frame_ids: list) -> bool:
+    r = {(x or "").strip() for x in (recent_frame_ids or [])}
+    return bool(r & _PLACE_FOOD_TOPIC_PRIMED_FRAMES)
+
+
 # Phase 9.2: which engines we can bridge to from each engine (deterministic order; from conversation specs)
 _BRIDGE_TARGETS: dict = {
     "identity": ["place", "family", "work", "hobby"],
@@ -807,20 +857,184 @@ _OXYGEN_IDS_BY_SLOT: dict = {
 
 # Slot/topic-specific follow-up preferences (attempt before generic engine ladder).
 _SLOT_FOLLOWUP_PREFERENCES: dict = {
-    # CITY: ask "do you like it there?" before "why do you like it there?" — avoid presupposition failure.
-    "CITY": ["f_place_like_there", "f_place_why_like", "p2_pl_4", "p2_pl_2", "p2_pl_1"],
-    # JOB: compact high-interest sequence approved by user.
-    "JOB":  ["f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5"],
+    # CITY: distance → special? → probe → like → why → …
+    # Frames with skip_when in p2_frames.json are skipped by _check_skip_condition inside _pick_slot_followup_frame_id.
+    # p2_pl_far   skip_when=city_is_well_known  (北京/上海/广州)
+    # p2_pl_ext1  skip_when=city_is_familiar    (all curriculum cities/countries)
+    "CITY": ["p2_pl_far", "p2_pl_ext1", "f_probe_place_moved", "f_place_like_there", "f_place_why_like", "p2_pl_4", "p2_pl_1", "p2_pl_2"],
+    # JOB: aligned with work engine Phase 12C order.
+    "JOB":  ["f_work_company", "f_work_tenure", "f_work_where", "f_probe_work_origin", "f_probe_work_future"],
     # DISH: ask WHY first, then variety questions.
     "DISH": ["f_food_why_good", "f_food_like_spicy", "f_food_famous_dish", "f_food_expensive"],
-    "NAME": ["f_name_who_named", "p2_id_4"],
+    "NAME": ["f_id_friends_call", "f_probe_id_nickname", "f_name_story", "f_how_old"],
     # FAMILY: after user reveals family info, probe deeper — live together? siblings? married? children? how often?
-    "FAMILY": ["p2_fa_1", "f_have_siblings", "f_married", "f_have_children", "p2_fa_2", "p2_fa_5", "p2_fa_ext1"],
+    "FAMILY": ["p2_fa_live_with", "f_probe_family_closest", "p2_fa_activity", "f_married", "f_have_children"],
     # STORY: after user answers a story-elicitation frame — probe with "why" or "tell me more"
     "STORY": ["f_generic_why"],
     # TRAVEL: which is best? then why, then continuation.
     "TRAVEL": ["f_travel_which_best", "f_travel_why_interesting", "f_want_go_where", "p2_tr_2", "p2_tr_3", "p2_tr_4"],
+    # HOBBY: aligned with hobby engine Phase 12C order (skip opener — learner already disclosed hobby).
+    "HOBBY": ["f_hobby_where", "f_hobby_best_part", "f_probe_hobby_origin", "f_probe_hobby_social", "f_hobby_travel"],
 }
+
+# Very well-known cities: skip "离那儿远吗？" — partner can assume distance is obvious.
+# Referenced by skip_when="city_is_well_known" in p2_frames.json → evaluated via _check_skip_condition.
+_CITIES_SKIP_DISTANCE_ASK: frozenset = frozenset({"北京", "上海", "广州"})
+
+# Curriculum + common countries (p1_fillers): used only to detect "familiar" place tokens in answers.
+# Referenced by skip_when="city_is_familiar" in p2_frames.json → evaluated via _check_skip_condition.
+_FAMILIAR_PLACE_NAMES: frozenset = frozenset(
+    {
+        "北京", "上海", "广州", "深圳", "杭州", "南京", "苏州", "成都", "重庆", "武汉", "西安", "青岛", "厦门", "天津", "昆明",
+        "中国", "新西兰", "澳大利亚", "美国", "英国", "加拿大", "日本", "韩国", "法国", "德国", "新加坡", "马来西亚", "泰国",
+    }
+)
+
+
+# Declarative coherence-avoid conditions.
+# Maps coherence_avoid_if predicate name → (avoid_markers, allow_markers).
+# A frame is suppressed when ANY avoid marker is present AND NO allow marker is present in last_text.
+# Add new predicates here; no other code needs to change.
+_COHERENCE_MARKERS: dict = {
+    "sightseeing_context": {
+        "avoid": (
+            "花园", "风景", "园林", "古老", "历史", "博物馆", "建筑", "参观", "名胜古迹",
+            "很漂亮", "很美", "美丽", "文化", "特色", "湖水", "公园", "寺庙", "桥", "运河",
+        ),
+        "allow": ("想家", "想念", "老家", "父母", "回国", "家乡", "亲人"),
+    },
+}
+
+
+def _check_coherence_condition(frame_id: str, last_text: str) -> bool:
+    """
+    Evaluate the declarative coherence_avoid_if predicate on a frame.
+    Returns True → the frame is incoherent in the current last_text context and should be replaced.
+    """
+    fr = _frames_by_id.get(frame_id) or {}
+    predicate = (fr.get("coherence_avoid_if") or "").strip()
+    if not predicate:
+        return False
+    entry = _COHERENCE_MARKERS.get(predicate)
+    if not entry:
+        return False
+    t = last_text or ""
+    avoid_hit = any(m in t for m in entry["avoid"])
+    allow_hit = any(m in t for m in entry["allow"])
+    return avoid_hit and not allow_hit
+
+
+def _check_skip_condition(frame_id: str, context: dict) -> bool:
+    """
+    Evaluate the declarative skip_when predicate attached to a frame (from p2_frames.json).
+    Returns True → the frame should be skipped in the current context.
+
+    Supported predicates
+    --------------------
+    city_is_well_known  — city in {北京,上海,广州}  (skip "is it far?")
+    city_is_familiar    — city in _FAMILIAR_PLACE_NAMES  (skip "what's special?")
+    """
+    fr = _frames_by_id.get(frame_id) or {}
+    predicate = (fr.get("skip_when") or "").strip()
+    if not predicate:
+        return False
+
+    answer_text: str = context.get("answer_text") or ""
+    memory: Optional[dict] = context.get("memory")
+
+    if predicate == "city_is_well_known":
+        return _should_skip_place_distance_question(answer_text, memory)
+
+    if predicate == "city_is_familiar":
+        mem = memory or {}
+        blob = f"{answer_text} {mem.get('lives_in') or ''} {mem.get('hometown') or ''}"
+        for fam in _FAMILIAR_PLACE_NAMES:
+            if fam in blob:
+                return True
+        return False
+
+    return False
+
+
+def _should_skip_place_distance_question(answer_text: str, memory: Optional[dict]) -> bool:
+    """Skip p2_pl_far when current living city is Beijing/Shanghai/Guangzhou."""
+    mem = memory or {}
+    city = (mem.get("lives_in") or "").strip()
+    if not city:
+        try:
+            from learner_memory_capture import _extract_city_from_hanzi
+
+            city = (_extract_city_from_hanzi(answer_text or "") or "").strip()
+        except Exception:
+            city = ""
+    return bool(city) and city in _CITIES_SKIP_DISTANCE_ASK
+
+
+def _city_seems_unfamiliar(answer_text: str, memory: Optional[dict]) -> bool:
+    """True when the named place is likely unknown to a Chinese interlocutor (e.g. Dunedin, 丽江)."""
+    mem = memory or {}
+    blob = f"{answer_text or ''} {mem.get('lives_in') or ''} {mem.get('hometown') or ''}"
+    if re.search(r"[A-Za-z]", blob):
+        return True
+    for fam in _FAMILIAR_PLACE_NAMES:
+        if fam in blob:
+            return False
+    if re.search(r"住|在", answer_text or "") and len((answer_text or "").strip()) >= 2:
+        return True
+    return False
+
+
+def _maybe_frame_order_priority(
+    engine_id: str,
+    chosen: Optional[str],
+    recent: list,
+    memory: Optional[dict],
+    answer_text: str,
+    last_answer_fid: str,
+) -> Optional[str]:
+    """Apply soft FRAME_ORDER, honouring declarative skip_when conditions from frame definitions."""
+    if not chosen:
+        return None
+    skip_ctx = {"answer_text": answer_text, "memory": memory}
+    return _frame_order_priority(engine_id, chosen, set(recent), recent, memory, skip_context=skip_ctx) or chosen
+
+
+def _swap_place_like_if_unfamiliar_live_city(
+    chosen: Optional[str],
+    *,
+    last_answer: Optional[dict],
+    last_turn_was_answer: bool,
+    memory: Optional[dict],
+    recent: list,
+) -> Optional[str]:
+    """
+    Safety-net final guard: if we still chose f_place_like_there right after 你现在住哪里？,
+    prefer earlier frames that have not been skipped by their skip_when condition.
+    This catches paths that do not pass through _maybe_frame_order_priority (e.g. _select_next_frame_ladder).
+    """
+    if not chosen or chosen != "f_place_like_there":
+        return chosen
+    if not last_turn_was_answer or not isinstance(last_answer, dict):
+        return chosen
+    lf = _normalize_frame_id((last_answer.get("frame_id") or "").strip())
+    if lf != "frame.location.live_question":
+        return chosen
+    at = _answer_text_from_last_answer(last_answer) or ""
+    recent_set = set(recent or [])
+    recent_list = list(recent or [])
+    skip_ctx = {"answer_text": at, "memory": memory}
+    for candidate in ("p2_pl_far", "p2_pl_ext1"):
+        if candidate in recent_set:
+            continue
+        if _check_skip_condition(candidate, skip_ctx):
+            continue
+        if not _frame_deps_satisfied(candidate, recent_set, recent_list):
+            continue
+        if memory is not None and _should_suppress_ask_frame(candidate, memory, recent_list, RECALL_INTERVAL_TURNS):
+            continue
+        return candidate
+    return chosen
+
 
 # ── Entity Follow-Up Chains (EFC) ──────────────────────────────────────────────
 # When a user mentions a specific family member, the EFC chain asks follow-up
@@ -1042,6 +1256,14 @@ def _is_unscripted_substantive_answer(last_answer: Optional[dict], slot_names: L
     return True
 
 
+def _normalize_frame_id(fid: str) -> str:
+    """Map legacy ids (word cards / old clients) to canonical p1 frame ids."""
+    f = (fid or "").strip()
+    if f == "f_live_where":
+        return "frame.location.live_question"
+    return f
+
+
 def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
     """Best-effort: infer slot names from the user's answer frame (question frame_id in last_answer)."""
     if not last_answer or not isinstance(last_answer, dict):
@@ -1049,7 +1271,7 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
     # last_answer.frame_id is the partner ask frame the user answered (e.g. f_from_where)
     # selected option's card_id often points to a user frame with slots; try to infer via that mapping when possible.
     # We only have selected_option_hanzi/meaning here; so use memory capture triggers + known ask frame ids.
-    fid = (last_answer.get("frame_id") or "").strip()
+    fid = _normalize_frame_id((last_answer.get("frame_id") or "").strip())
     txt = _answer_text_from_last_answer(last_answer)
 
     slots: List[str] = []
@@ -1061,7 +1283,16 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
         slots.append("DISH")
     if fid in ("f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4"):
         slots.append("TRAVEL")
-    if fid in ("f_from_where", "frame.location.live_question", "p2_pl_1", "p2_pl_2", "p2_pl_3", "p2_pl_4", "f_place_like_there"):
+    if fid in (
+        "f_from_where",
+        "frame.location.live_question",
+        "p2_pl_1",
+        "p2_pl_2",
+        "p2_pl_3",
+        "p2_pl_4",
+        "p2_pl_far",
+        "f_place_like_there",
+    ):
         slots.append("CITY")
     # Family: answered a family opener, siblings, marriage or children question — probe deeper
     if fid in ("f_have_family", "f_have_siblings", "f_married", "f_have_children", "p2_fa_1", "p2_fa_2", "p2_fa_5", "p2_fa_ext1"):
@@ -1235,6 +1466,29 @@ def _should_force_listening_move(cs: dict, interest_level: str) -> bool:
     return False
 
 
+def _looks_like_place_distance_question(t: str) -> bool:
+    """
+    Learner small-talk about distance / never having been to a place
+    (e.g. 远吗？ 离这儿远吗？ 从来没去过).
+    """
+    s = (t or "").strip()
+    if not s:
+        return False
+    if "远吗" in s or "远不远" in s or "有多远" in s:
+        return True
+    if "多远" in s and len(s) <= 20:
+        return True
+    if "离" in s and "远" in s:
+        return True
+    if "从来没" in s and "去" in s:
+        return True
+    if "从没去过" in s:
+        return True
+    if "没去过" in s and len(s) < 40:
+        return True
+    return False
+
+
 def _is_user_question(last_answer: Optional[dict]) -> bool:
     """
     Best-effort detection for when the user's turn is a question (counter-question / repair).
@@ -1270,6 +1524,15 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     if text.startswith(starters):
         return True
     if text.endswith("吗") or ("吗" in text and len(text) <= 8):
+        return True
+    # Definition / paraphrase (火锅是什么 / 这个词什么意思)
+    if "是什么" in text or "什么意思" in text or text.startswith("什么叫") or "指的是什么" in text:
+        return True
+    # Learner home country — follow-up interest (NZ most interesting place, etc.)
+    if "新西兰" in text and any(k in text for k in ("哪里", "最有", "最好", "好玩", "有趣", "特别")):
+        return True
+    # Place distance / never been — often no ？ (e.g. 从来没去过)
+    if _looks_like_place_distance_question(text):
         return True
     return False
 
@@ -1312,59 +1575,41 @@ def _persona_reply_for_ni_ne(frame_id: str, persona: Optional[dict]) -> Optional
     if fid in ("f_have_children",):
         return _persona_deflect("children", fid)
 
-    # Name questions
+    # Name questions — build from profile when voice_line missing
     if fid in ("f_ask_you_name", "p2_id_2"):
         return voice_lines.get("identity") or (f"我叫{name}。" if name else None)
 
-    # Name meaning / name significance
-    if fid in ("f_ask_name_meaning", "p2_id_ext1", "p2_id_4", "p2_id_5"):
-        return voice_lines.get("identity") or "我的名字也有一个特别的意思。"
-
-    # Where from
+    # Where from — always built from profile hometown
     if fid in ("f_from_where",):
         hometown = (profile.get("hometown") or "").strip()
-        return f"我是{hometown}人。" if hometown else "我是中国人。"
+        return f"我是{hometown}人。" if hometown else voice_lines.get("place") or "我是中国人。"
 
-    # Current location / where living
+    # Current location — built from profile city
     if fid in ("frame.location.live_question", "p2_pl_ext1", "p2_pl_1"):
         city = (profile.get("city") or "").strip()
         if city:
             return f"我现在住在{city}。"
         return voice_lines.get("place") or "我现在住在中国。"
 
-    # Work / job
-    if fid in ("f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2"):
+    # Work — prefer occupation from profile
+    if fid in ("f_what_work", "f_like_work"):
         occ = (profile.get("occupation") or "").strip()
-        return voice_lines.get("work") or (f"我是{occ}。" if occ else "我也有工作。")
+        return voice_lines.get("work") or (f"我是{occ}。" if occ else None)
 
-    # Hobbies
-    if fid in ("f_what_hobby", "f_often_do", "f_like_do_what", "f_weekend_do",
-               "f_difficult_ma", "f_recommend_ma", "p2_hb_1", "p2_hb_2"):
+    # Hobbies — prefer interests list from profile
+    if fid in ("f_what_hobby", "f_often_do", "f_like_do_what", "f_weekend_do"):
         interests = profile.get("interests") or []
         if voice_lines.get("hobby"):
             return voice_lines["hobby"]
         if interests:
             return f"我喜欢{interests[0]}。"
-        return "我也有爱好。"
 
-    # Travel
-    if fid in ("f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2"):
-        return voice_lines.get("travel") or "我也喜欢旅行。"
+    # Food cross-topic frame (place engine, food topic) — use food voice_line
+    if fid == "p2_pl_2":
+        return voice_lines.get("food") or voice_lines.get("place")
 
-    # Food
-    if fid in ("f_food_what_good", "f_food_famous_dish", "f_food_tasty",
-               "p2_pl_2", "f_food_like_spicy", "f_food_expensive"):
-        return voice_lines.get("food") or "我觉得好吃的食物很重要。"
-
-    # Family
-    if fid in ("f_have_family", "f_have_siblings", "f_married", "f_have_children", "p2_fa_1", "p2_fa_2", "p2_fa_5"):
-        return voice_lines.get("family") or "我也有家人。"
-
-    # Place / life quality fallbacks
-    if fid in ("f_place_like_there", "f_place_why_like", "p2_pl_3", "p2_pl_4"):
-        return voice_lines.get("place") or "我觉得住的地方很重要。"
-
-    # Engine-level fallback: use voice_line for the frame's engine
+    # Engine-level fallback: use the frame's own engine to pick the right voice_line.
+    # Covers identity, work, place, food, family, travel, hobby, and any future engine.
     frame_rec = _frames_by_id.get(fid) or {}
     engine = (frame_rec.get("engine") or "").strip().lower()
     if engine and engine in voice_lines:
@@ -1473,32 +1718,167 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
     if any(p in t for p in ("你多大", "你几岁", "你的年龄", "你今年多大")):
         return _persona_deflect("age", t)
 
+    # Bare 为什么 / 为啥 — follow-up to the partner's last statement (city, life, preference).
+    # Without this, _answer_user_question_prefix falls through to _persona_deflect("generic")
+    # and can surface 换个话题吧 mid-conversation (unnatural bridge).
+    _ts = t.strip().rstrip("？?！!。，, ")
+    if _ts in ("为什么", "为啥", "为啥呢", "为什么呢"):
+        pool: list = []
+        ht = (profile.get("hometown") or "").strip()
+        if ht:
+            pool.append(f"因为我在{ht}长大的，比较熟悉，也比较有感情。")
+        if voice_lines.get("place"):
+            pool.extend(
+                [
+                    "因为习惯了，也比较有感情。",
+                    "因为节奏和生活方式都挺适合我。",
+                ]
+            )
+        if voice_lines.get("work"):
+            pool.append("因为我觉得很有意思，也比较适合我。")
+        if voice_lines.get("food"):
+            pool.append("因为口味很合我，吃惯了。")
+        if not pool:
+            pool = [
+                "因为习惯了，也比较熟悉。",
+                "因为我觉得挺合适的，慢慢就更喜欢了。",
+            ]
+        return _stable_pick(pool, f"why_bare|{_ts}|{ht}") or pool[0]
+
+    # "Where has (long) history?" — rhetorical / place-culture; avoid generic deflect before EXTEND follow-ups.
+    if "历史" in t and any(k in t for k in ("哪里", "哪儿", "什么地方")):
+        ht = (profile.get("hometown") or "").strip()
+        if ht:
+            return f"像{ht}这样的地方，历史就很长。你慢慢会发现很多细节。"
+        return "很多地方都有很长的历史，你慢慢看会发现很多细节。"
+
     return None
 
 
-def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[dict],
-                                 prev_counter_reply: str = "") -> Optional[tuple]:
+def _lexical_definition_reply(t: str) -> Optional[tuple]:
+    """
+    Short answers for vocabulary / place-interest questions so we don't fall through to
+    _persona_deflect('generic') (which can surface 换个话题吧 mid-interest).
+    """
+    if not t:
+        return None
+    if "火锅" in t and ("是什么" in t or "什么意思" in t):
+        return (
+            "我呢，火锅就是一边煮一边吃的那种锅，重庆的很辣，很香。",
+            "Hot pot is a simmering pot meal — spicy and fragrant in Chongqing.",
+        )
+    if "新西兰" in t and any(k in t for k in ("哪里", "最有", "最好", "好玩", "有趣", "特别")):
+        return (
+            "我呢，新西兰很美，每个地方都有自己的特点。你最喜欢哪一块？",
+            "New Zealand is beautiful — which part do you like most?",
+        )
+    if "是什么" in t and len(t) <= 28:
+        return (
+            "我呢，我用简单一点说：你问的是哪一个词？",
+            "Let me put it simply — which word do you mean?",
+        )
+    return None
+
+
+def _is_confusion_signal(t: str) -> bool:
+    """Learner signals they did not understand — not a new content question."""
+    if not (t or "").strip():
+        return False
+    s = t.strip()
+    if len(s) <= 2 and s in ("啊", "嗯", "呃", "哎", "噢", "哦"):
+        return True
+    # Avoid matching 是什么 / 哪里好玩 (genuine questions)
+    if "是什么" in s or re.search(r"新西兰|哪里.*好玩|哪里.*有趣|哪里.*特别", s):
+        return False
+    markers = (
+        "啊？", "啊！", "我不懂", "有点不懂", "听不懂", "没听懂", "没懂", "不明白",
+        "看不懂", "什么意思", "没太懂", "再说一遍", "慢一点", "慢一",
+    )
+    return any(m in s for m in markers)
+
+
+def _confusion_recovery_reply(t: str, prev_zh: str, seed: str = "") -> Optional[tuple]:
+    """
+    After we already gave a counter_reply, learner still confused — give a shorter repair line
+    instead of repeating the same voice-line paragraph or returning None (which let the frame loop).
+    """
+    if not (t or "").strip() or not (prev_zh or "").strip():
+        return None
+    if not _is_confusion_signal(t):
+        return None
+    pool = [
+        (
+            "好呢，我可能说得太快了。我再说短一点：重点是吃的和路——你想先听哪一个？",
+            "I may have been too fast. Shorter version: food or the place — which first?",
+        ),
+        (
+            "嗯，我慢一点。刚才那句话，你可以理解成：我说的是家乡的地形和吃的东西。",
+            "Let me slow down — I was talking about the landscape and the food back home.",
+        ),
+        (
+            "哦，我换个说法：不着急，我们一步一步来。你先告诉我，你哪一句没听懂？",
+            "Let me rephrase — no rush. Which sentence was unclear?",
+        ),
+        (
+            "好呢，我用更简单的词：山城就是很多坡；火锅是一种很辣的锅子。",
+            "Simpler words: mountain city means lots of hills; hot pot is a spicy pot meal.",
+        ),
+    ]
+    idx = sum(ord(c) for c in (seed + prev_zh + t)) % len(pool)
+    return pool[idx]
+
+
+def _place_distance_counter_reply(t: str, persona: Optional[dict]) -> Optional[tuple]:
+    """
+    Acknowledge distance / never-been and pivot to 特色 or 喜欢那儿 — natural small talk
+    when discussing new countries or cities.
+    """
+    if not _looks_like_place_distance_question(t):
+        return None
+    profile = (persona or {}).get("profile") or {}
+    ht = (profile.get("hometown") or "").strip()
+    pool = [
+        (
+            "嗯，是挺远的。不过每个地方都有自己的特点。你觉得那儿有什么特色？",
+            "Yeah, it's quite far. But every place has its own character. What do you think is special about it?",
+        ),
+        (
+            "听起来不近。那你喜欢在那儿生活吗？",
+            "Sounds far. Do you enjoy living there?",
+        ),
+        (
+            "地理上确实挺远的。不过你最喜欢那儿什么？",
+            "Geographically it's rather far. What do you like most about it?",
+        ),
+    ]
+    seed = f"pd|{t}|{ht}"
+    i = _stable_gate(seed) % len(pool)
+    zh, en = pool[i]
+    zh_out = f"我呢，{zh}" if not zh.startswith(("我", "嗯")) else zh
+    return (zh_out, en)
+
+
+def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[dict]) -> Optional[tuple]:
     """
     Return (zh, en) answering common counter-questions without adding new API turns.
     Handles: mirror questions (richest), direct persona questions, generic 你呢, catch-all deflection.
-    Returns None if last answer was not a question, or if learner is signalling confusion after a
-    deflection (preventing the loop where confusion → deflection → more confusion → same deflection).
+    Returns None if last answer was not a question.
+    Lexical definition and confusion-after-counter are resolved in the run_turn caller first.
     """
     if not _is_user_question(last_answer):
         return None
     t = (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
     if not t:
         return None
-    # Confusion guard: if the learner is expressing confusion/incomprehension AND we already
-    # gave a counter_reply last turn, don't give another one — let the turn move to the next frame.
-    _confusion_markers = ("什么意思", "我不懂", "听不懂", "没听懂", "啊？", "啊！", "不明白", "看不懂")
-    if prev_counter_reply and any(m in t for m in _confusion_markers):
-        return None
 
     # Mirror questions (richest answers — use discoverable_facts / profile via _mirror_persona_stub)
     _mirror = _find_mirror_answer(t, "", persona)
     if _mirror:
         return _mirror   # already (zh, en) tuple
+
+    _dist = _place_distance_counter_reply(t, persona)
+    if _dist:
+        return _dist
 
     # Direct questions aimed at the partner (你是哪里人？ 你住哪里？ etc.)
     _direct = _direct_persona_answer(t, persona)
@@ -1511,7 +1891,7 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     _ni_ne_markers = ("你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "你来问")
     _has_ni_ne = any(m in t for m in _ni_ne_markers)
     if _has_ni_ne:
-        fid = (last_answer.get("frame_id") or "").strip()
+        fid = _normalize_frame_id((last_answer.get("frame_id") or "").strip())
         reply = _persona_reply_for_ni_ne(fid, persona)
         if reply:
             zh = f"我呢，{reply}" if not reply.startswith("我呢") else reply
@@ -1890,6 +2270,8 @@ def _pick_slot_followup_frame_id(
     recent_frame_ids: list,
     memory: Optional[dict],
     exchange_count: int = 0,
+    answer_text: str = "",
+    last_answer_fid: str = "",
 ) -> Optional[str]:
     """Try slot/topic follow-up frames before generic ladder; avoid weak loop frames if possible."""
     recent = set(recent_frame_ids or [])
@@ -1897,13 +2279,18 @@ def _pick_slot_followup_frame_id(
     # so they don't land as the very first reply to the user introducing themselves.
     _NAME_DEEP_FOLLOWUP_MIN_EXCHANGES = 3
     _name_deep_followups = frozenset({"f_name_who_named", "p2_id_4", "p2_id_5", "f_name_story_elicit"})
+    _lf = _normalize_frame_id(last_answer_fid or "")
 
+    skip_ctx = {"answer_text": answer_text or "", "memory": memory}
     for s in slot_names or []:
         prefs = _SLOT_FOLLOWUP_PREFERENCES.get(s) or []
         # Prefer non-weak frames first
         ordered = [f for f in prefs if f not in _WEAK_LOOP_FRAME_IDS] + [f for f in prefs if f in _WEAK_LOOP_FRAME_IDS]
         for fid in ordered:
             if fid in recent:
+                continue
+            # Respect declarative skip_when conditions from frame definitions (e.g. city_is_well_known)
+            if _check_skip_condition(fid, skip_ctx):
                 continue
             # Guard: name deep-followups only after conversation is established
             if fid in _name_deep_followups and exchange_count < _NAME_DEEP_FOLLOWUP_MIN_EXCHANGES:
@@ -1942,6 +2329,152 @@ def _pick_curiosity_probe_frame(
             continue
         return fid
     return None
+
+
+# Food curiosity probes — incoherent right after place/affect turns (homesickness, scenery) without food in the answer.
+_FOOD_COHERENCE_PROBES: frozenset = frozenset({"f_probe_food_make", "f_probe_food_childhood", "f_probe_food_teach"})
+# Place turns where a food "自己做 / 小时候吃吗" probe feels like a non sequitur.
+_PLACE_AFFECT_CONTEXT_FRAMES: frozenset = frozenset(
+    {
+        "f_probe_place_miss",
+        "f_probe_place_why_move",
+        "f_probe_place_moved",
+        "p2_pl_ext1",
+        "f_place_why_like",
+        "f_place_like_there",
+        "f_from_where",
+        "frame.location.live_question",
+        "f_live_where",
+    }
+)
+# After learner signals confusion/skip, avoid jumping to food-heavy place loops.
+_LEARNER_SKIP_AVOID_FRAMES: frozenset = frozenset({"p2_pl_2", *tuple(_FOOD_COHERENCE_PROBES)})
+_LEARNER_SKIP_PREFER_PLACE: tuple = ("p2_pl_1", "p2_pl_4", "f_probe_place_moved", "f_probe_place_stay", "p2_pl_3")
+
+
+def _place_thread_for_food_guard(cs: dict, last_fid: str) -> bool:
+    """True if the user was answering a place/affect frame — even when last_answer.frame_id is empty."""
+    if last_fid in _PLACE_AFFECT_CONTEXT_FRAMES:
+        return True
+    lpf = (cs.get("last_partner_frame_id") or "").strip()
+    if lpf in _PLACE_AFFECT_CONTEXT_FRAMES:
+        return True
+    recent = cs.get("recent_frame_ids") or []
+    if recent:
+        tail = (recent[-1] or "").strip()
+        if tail in _PLACE_AFFECT_CONTEXT_FRAMES:
+            return True
+    return False
+
+
+def _apply_discourse_coherence_guard(
+    chosen: Optional[str],
+    *,
+    cs: dict,
+    recent: list,
+    last_answer: Optional[dict],
+    last_turn_was_answer: bool,
+    learner_skip_confusion: bool,
+    memory: Optional[dict],
+) -> Optional[str]:
+    """Swap incoherent next-frame picks (food probe after place emotion; food after learner skip)."""
+    if not chosen or not _frames_by_id:
+        return chosen
+    recent_set = set(recent or [])
+    recent_list = list(recent or [])
+
+    def _deps_ok(fid: str) -> bool:
+        return _frame_deps_satisfied(fid, recent_set, recent_list) and (
+            memory is None or not _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS)
+        )
+
+    last_fid = ""
+    last_text = ""
+    if last_turn_was_answer and isinstance(last_answer, dict):
+        last_fid = _normalize_frame_id((last_answer.get("frame_id") or "").strip())
+        last_text = _answer_text_from_last_answer(last_answer) or ""
+    if not last_fid:
+        last_fid = (cs.get("last_partner_frame_id") or "").strip()
+
+    # 1) Learner pressed "我不明白" skip — stay in place; don't open with {CITY}有什么好吃的 or cooking probes.
+    if learner_skip_confusion and chosen in _LEARNER_SKIP_AVOID_FRAMES:
+        eng = (cs.get("current_engine") or "").strip().lower()
+        if eng == "place":
+            for alt in _LEARNER_SKIP_PREFER_PLACE:
+                if alt == chosen:
+                    continue
+                if alt not in recent_set and alt in _frames_by_id and _deps_ok(alt):
+                    return alt
+        for alt in ("p2_pl_1", "p2_pl_4"):
+            if alt not in recent_set and alt in _frames_by_id and _deps_ok(alt):
+                return alt
+
+    # 2) Food probe after place/affect context — user wasn't talking about food.
+    if chosen in _FOOD_COHERENCE_PROBES and _place_thread_for_food_guard(cs, last_fid):
+        if _looks_food_related_answer(last_text) or ("吃" in last_text and len(last_text) <= 24):
+            return chosen
+        for alt in (
+            "f_probe_place_stay",
+            "f_probe_place_moved",
+            "f_probe_place_why_move",
+            "f_probe_place_miss",
+            "p2_pl_1",
+            "p2_pl_4",
+        ):
+            if alt in recent_set or alt not in _frames_by_id:
+                continue
+            if _deps_ok(alt):
+                return alt
+        # First list exhausted (long place threads) — any unseen place curiosity probe
+        for entry in _CURIOSITY_PROBE_FRAMES.get("place", []):
+            alt = (entry.get("id") or "").strip()
+            if not alt or alt in recent_set or alt not in _frames_by_id:
+                continue
+            if _deps_ok(alt):
+                return alt
+        # Still on a cooking probe after pure place/history talk — advance in place (or bridge non-food)
+        # instead of "你会自己做吗？" non sequiturs.
+        _ex = int(cs.get("exchange_count") or 0)
+        _ev = list(cs.get("engines_visited") or [])
+        cand = _select_next_frame_ladder_avoiding(
+            "place",
+            recent_list,
+            avoid_frame_ids=_WEAK_LOOP_FRAME_IDS | _FOOD_COHERENCE_PROBES,
+            memory=memory,
+            exchange_count=_ex,
+            engines_visited=_ev,
+        )
+        if cand:
+            _eng = ((_frames_by_id.get(cand) or {}).get("engine") or "").strip().lower()
+            if _eng != "food" and cand not in _FOOD_COHERENCE_PROBES:
+                return cand
+        # Place ladder often bridges to food first (place→food in _BRIDGE_TARGETS). Skip food here.
+        cand_br = _select_next_frame_bridge(
+            "place",
+            recent_list,
+            memory=memory,
+            exchange_count=_ex,
+            engines_visited=_ev,
+            exclude_engine_norms=frozenset({"food"}),
+        )
+        if cand_br and cand_br not in _FOOD_COHERENCE_PROBES:
+            _eng2 = ((_frames_by_id.get(cand_br) or {}).get("engine") or "").strip().lower()
+            if _eng2 != "food":
+                return cand_br
+
+    # 3) Declarative coherence_avoid_if check — works for any frame that declares one in p2_frames.json.
+    if last_text and _check_coherence_condition(chosen, last_text):
+        _coh_eng = ((_frames_by_id.get(chosen) or {}).get("engine") or "place")
+        alt = _select_next_frame_ladder_avoiding(
+            _coh_eng, recent_list,
+            avoid_frame_ids=_WEAK_LOOP_FRAME_IDS | {chosen},
+            memory=memory,
+            exchange_count=cs.get("exchange_count") or 0,
+        )
+        if alt and _deps_ok(alt):
+            return alt
+
+    return chosen
 
 
 def _pick_contextual_discovery_hint(counter_reply: str) -> Optional[dict]:
@@ -2241,26 +2774,21 @@ def _direction_stub(intent: str, engine_id: str, last_partner_frame_id: str, per
     eng = (engine_id or "").strip().lower()
     fid = (last_partner_frame_id or "").strip()
     if intent == "reverse":
+        # Use the persona's voice_line for the current engine — no hard-coded per-engine strings.
+        vl = ((persona or {}).get("voice_lines") or {})
+        base = vl.get(eng) or None
+        if base:
+            return base if base.startswith("我呢") else f"我呢，{base}"
         if eng == "identity":
-            return f"我呢，我叫{_assistant_name_from_persona(persona)}。"
-        if eng == "work":
-            return "我呢，我挺喜欢我的工作。"
-        if eng == "place":
-            return "我呢，我觉得这里挺方便。"
-        if eng == "family":
-            return "我呢，我常跟家人联系。"
+            name = _assistant_name_from_persona(persona)
+            return f"我呢，我叫{name}。" if name else "我呢，也差不多。"
         return "我呢，也差不多。"
     if intent == "why":
-        if fid in ("p2_wk_1",):
-            return "因为我可以帮助别人。"
-        if fid in ("p2_wk_2",):
-            return "刚开始有点难。"
-        if fid in ("p2_wk_3",):
-            return "因为时间不够。"
-        if fid in ("p2_wk_4",):
-            return "还可以，比较稳定。"
-        if fid in ("p2_wk_5",):
-            return "推荐，可以学很多。"
+        # Read partner_why_answer from the frame definition — no hard-coded frame-ID checks.
+        fr = _frames_by_id.get(fid) or {}
+        why = (fr.get("partner_why_answer") or "").strip()
+        if why:
+            return why
         return "因为我觉得很有意思。"
     return "嗯。"
 
@@ -2325,6 +2853,7 @@ def _select_next_frame_bridge(
     memory: Optional[dict] = None,
     exchange_count: int = 0,
     engines_visited: Optional[list] = None,
+    exclude_engine_norms: Optional[set] = None,
 ) -> Optional[str]:
     """
     Phase 9.2: bridge to another engine. Only used after MIN_TURNS_BEFORE_BRIDGE turns in current engine.
@@ -2333,6 +2862,7 @@ def _select_next_frame_bridge(
     so the next question is a more natural switch (place/identity/family) rather than jumping to food/travel.
     Phase 11.1: skips identity OPEN frames (e.g. f_ask_you_name) once session is established (exchange_count ≥ 2).
     Phase 12C: engines_visited (session-level list) — unvisited engines are tried before already-visited ones.
+    exclude_engine_norms: optional set of engine ids (e.g. {"food"}) to skip when bridging (discourse coherence).
     """
     recent = set(recent_frame_ids or [])
     engine_norm = (current_engine or "").strip().lower()
@@ -2362,9 +2892,15 @@ def _select_next_frame_bridge(
             [t for t in targets if (t or "").strip().lower() not in _visited_set]
             + [t for t in targets if (t or "").strip().lower() in _visited_set]
         )
+    exclude = set(exclude_engine_norms or ())
+    # De-emphasise food until the place-food opener (p2_pl_2) has been asked — place→food was first in bridge order.
+    if engine_norm == "place" and not _place_food_topic_primed(recent_list):
+        exclude.add("food")
     for target_engine in targets:
         target_norm = (target_engine or "").strip().lower()
         if target_norm == engine_norm:
+            continue
+        if target_norm in exclude:
             continue
         # "life" engine is all difficulty-3; keep it off-limits until the session is established
         if target_norm == "life" and exchange_count < MIN_TURNS_FOR_LIFE_ENGINE:
@@ -2538,6 +3074,56 @@ def _select_next_frame_ladder_avoiding(
     return unseen[0]
 
 
+def _select_non_loop_unseen_same_engine(
+    current_engine: str,
+    recent_frame_ids: list,
+    *,
+    memory: Optional[dict] = None,
+    exchange_count: int = 0,
+) -> Optional[str]:
+    """
+    Phase 12C overload: prefer a fresh same-engine question that is not a LOOP-style follow-up
+    before bridging away — reduces surprise topic jumps while the learner is still confused.
+    """
+    recent = set(recent_frame_ids or [])
+    engine_norm = (current_engine or "").strip().lower()
+    same_engine = _engine_partner_question_frame_ids(engine_norm) or _engine_frame_ids(engine_norm)
+    if not same_engine:
+        return None
+    recent_list = list(recent_frame_ids or [])
+
+    def _deps_satisfied(fid: str) -> bool:
+        return _frame_deps_satisfied(fid, recent, recent_list)
+
+    def _not_suppressed(fid: str) -> bool:
+        if memory is None:
+            return True
+        return not _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS)
+
+    _open_excl = _IDENTITY_OPEN_FRAMES if exchange_count >= 2 else frozenset()
+
+    def _not_mutually_excluded(fid: str) -> bool:
+        excl = _MUTUAL_EXCLUSION_FRAMES.get(fid) or set()
+        return not (excl & recent)
+
+    unseen_non_loop = [
+        fid for fid in same_engine
+        if fid not in recent
+        and fid not in _open_excl
+        and _deps_satisfied(fid)
+        and _not_suppressed(fid)
+        and _not_mutually_excluded(fid)
+        and not _is_loop_candidate(fid)
+    ]
+    if not unseen_non_loop:
+        return None
+    unseen_non_loop = sorted(
+        unseen_non_loop,
+        key=lambda fid: int((_frames_by_id.get(fid) or {}).get("difficulty") or 2),
+    )
+    return unseen_non_loop[0]
+
+
 def _count_remaining_engine_frames(engine: str, recent_list: list, memory: Optional[dict]) -> int:
     """Phase 11.1: count unseen, dep-satisfied, non-suppressed partner frames in this engine."""
     engine_norm = (engine or "").strip().lower()
@@ -2559,11 +3145,14 @@ def _frame_order_priority(
     recent_set: set,
     recent_list: list,
     memory: Optional[dict],
+    skip_context: Optional[dict] = None,
 ) -> Optional[str]:
     """
     Phase 11.1: soft FRAME_ORDER enforcement.
     If chosen_fid is later in FRAME_ORDER than some unseen, dep-satisfied frame, return that
     earlier frame instead. Returns None when chosen is already optimal or not in FRAME_ORDER.
+
+    skip_context: optional dict passed to _check_skip_condition for declarative skip_when logic.
     """
     order = _FRAME_ORDER.get((engine or "").strip().lower()) or []
     if not order or chosen_fid not in order:
@@ -2571,6 +3160,7 @@ def _frame_order_priority(
     chosen_pos = order.index(chosen_fid)
     if chosen_pos == 0:
         return None
+    ctx = skip_context or {}
     for fid in order[:chosen_pos]:
         if fid in recent_set:
             continue
@@ -2578,7 +3168,38 @@ def _frame_order_priority(
             continue
         if memory and _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS):
             continue
+        if _check_skip_condition(fid, ctx):
+            continue
         return fid
+    return None
+
+
+# ── Optional: line gloss (zh→en) for transcript when frame/cards omit text_en ─────────────
+_GLOSS_CACHE: dict = {}
+_GLOSS_CACHE_MAX = 600
+
+
+def _gloss_translate_zh_to_en(text: str) -> Optional[str]:
+    """Best-effort machine translation for transcript lines. Requires `deep-translator` (pip)."""
+    t = (text or "").strip()
+    if not t or len(t) > 900:
+        return None
+    if t in _GLOSS_CACHE:
+        return _GLOSS_CACHE[t]
+    if not re.search(r"[\u4e00-\u9fff]", t):
+        return t
+    try:
+        from deep_translator import GoogleTranslator
+
+        out = GoogleTranslator(source="zh-CN", target="en").translate(t)
+        if out and str(out).strip():
+            s = str(out).strip()
+            if len(_GLOSS_CACHE) >= _GLOSS_CACHE_MAX:
+                _GLOSS_CACHE.clear()
+            _GLOSS_CACHE[t] = s
+            return s
+    except Exception as e:
+        print(f"[ui_server] gloss: deep_translator unavailable or failed: {e}", flush=True)
     return None
 
 
@@ -2658,6 +3279,24 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path   = parsed.path
+
+        if path == "/api/gloss":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length else b"{}"
+            try:
+                payload = json.loads(body)
+            except Exception:
+                payload = {}
+            q = (payload.get("q") or payload.get("text") or "").strip()
+            en = _gloss_translate_zh_to_en(q) if q else None
+            result = {"ok": bool(en), "en": en or ""}
+            data = json.dumps(result, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
 
         if path == "/api/reset_memory":
             length = int(self.headers.get("Content-Length", 0))
@@ -2808,6 +3447,10 @@ class Handler(BaseHTTPRequestHandler):
                 recent = cs.get("recent_frame_ids") or []
                 prefer_bridge = cs.get("prefer_bridge") is True
                 force_bridge = cs.get("force_bridge") is True
+                # Learner said e.g. "我不明白" and advanced — don't treat as bridge intent.
+                if cs.get("learner_skip_confusion") is True:
+                    prefer_bridge = False
+                    force_bridge = False
                 # Phase 10.5 behaviour state (client-maintained lightweight counters)
                 curiosity_depth = int(cs.get("curiosity_depth") or 0)
                 exchange_count = int(cs.get("exchange_count") or 0)
@@ -2833,7 +3476,7 @@ class Handler(BaseHTTPRequestHandler):
                 last_answer = cs.get("last_answer") if isinstance(cs.get("last_answer"), dict) else None
                 memory = _lm_load(learner_id) if (_lm_load and learner_id) else None
                 if _capture_from_turn and _lm_load and _lm_save and _lm_apply_updates and learner_id and last_answer:
-                    fid = (last_answer.get("frame_id") or "").strip()
+                    fid = _normalize_frame_id((last_answer.get("frame_id") or "").strip())
                     if fid:
                         updates = _capture_from_turn(
                             fid,
@@ -2854,7 +3497,11 @@ class Handler(BaseHTTPRequestHandler):
                 user_asked_question = _is_user_question(last_answer) if last_turn_was_answer else False
                 last_partner_was_loop = cs.get("last_partner_turn_type") == "loop_question"
                 last_partner_had_reaction = cs.get("last_partner_had_reaction") is True
-                last_answer_fid = (last_answer.get("frame_id") or "").strip() if last_turn_was_answer and isinstance(last_answer, dict) else ""
+                last_answer_fid = (
+                    _normalize_frame_id((last_answer.get("frame_id") or "").strip())
+                    if last_turn_was_answer and isinstance(last_answer, dict)
+                    else ""
+                )
                 answer_text = _answer_text_from_last_answer(last_answer) if last_turn_was_answer else ""
                 force_food_followup = last_turn_was_answer and (not user_asked_question) and (
                     last_answer_fid == "p2_pl_2" or _looks_food_related_answer(answer_text)
@@ -2936,7 +3583,13 @@ class Handler(BaseHTTPRequestHandler):
                     _submitted = _submitted_raw.rstrip("。，！？、…·\u3002\uff0c\uff01\uff1f.!?, ")
                     _mem = memory or {}
                     if "CITY" in slot_names:
-                        _city = (_mem.get("lives_in") or _mem.get("hometown") or "").strip()
+                        # Echo must match what the user *just* said. Origin answers (f_from_where)
+                        # update hometown; lives_in may still be the earlier city — prefer hometown
+                        # so "我是新西兰人" echoes 新西兰, not 苏州 from 我现在住在苏州。
+                        if last_answer_fid == "f_from_where":
+                            _city = (_mem.get("hometown") or _mem.get("lives_in") or "").strip()
+                        else:
+                            _city = (_mem.get("lives_in") or _mem.get("hometown") or "").strip()
                         if not _city and _submitted:
                             # Extract city from "我是X人" / "来自X" / "住在X" patterns
                             for _patt_start, _patt_end in [("是", "人"), ("来自", ""), ("住在", "")]:
@@ -2979,9 +3632,29 @@ class Handler(BaseHTTPRequestHandler):
                 # where bridge resets or ordering issues can silently drop it.
                 persona_id = (payload.get("persona_id") or cs.get("persona_id") or "").strip() or None
                 persona = _resolve_persona(persona_id) or (_get_persona(persona_id) if _get_persona else None)
-                # Read prev counter_reply FIRST — needed for confusion guard and dedup.
+                # Read prev counter_reply FIRST — needed for confusion recovery and dedup.
                 _prev_counter_reply = (cs.get("last_counter_reply") or "").strip() if isinstance(cs, dict) else ""
-                _counter_result  = _answer_user_question_prefix(last_answer, persona, _prev_counter_reply) if last_turn_was_answer else None
+                _last_text_for_counter = ""
+                if last_turn_was_answer and isinstance(last_answer, dict):
+                    _last_text_for_counter = (
+                        (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
+                    )
+                _counter_seed = f"{cs.get('session_id', '')}/{len(recent or [])}" if isinstance(cs, dict) else ""
+                _counter_result = None
+                if last_turn_was_answer:
+                    _lex_ct = _lexical_definition_reply(_last_text_for_counter) if _last_text_for_counter else None
+                    if _lex_ct:
+                        _counter_result = _lex_ct
+                    elif (
+                        _prev_counter_reply
+                        and _last_text_for_counter
+                        and _is_confusion_signal(_last_text_for_counter)
+                    ):
+                        _counter_result = _confusion_recovery_reply(
+                            _last_text_for_counter, _prev_counter_reply, seed=_counter_seed
+                        )
+                    if _counter_result is None:
+                        _counter_result = _answer_user_question_prefix(last_answer, persona)
                 _counter_reply   = _counter_result[0] if _counter_result else None
                 _counter_reply_en = _counter_result[1] if _counter_result else ""
                 # Dedup guard: if this counter_reply is identical to the one we gave last turn,
@@ -3008,9 +3681,14 @@ class Handler(BaseHTTPRequestHandler):
                     listening_move_selected = "retired_pivot"
                     listening_move_reason = "user said retired"
                 elif force_food_followup:
-                    chosen = _pick_slot_followup_frame_id(current_engine, ["DISH"], recent, memory, exchange_count=exchange_count)
+                    chosen = _pick_slot_followup_frame_id(
+                        current_engine, ["DISH"], recent, memory, exchange_count=exchange_count,
+                        answer_text=answer_text, last_answer_fid=last_answer_fid,
+                    )
                     if chosen:
-                        chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
+                        chosen = _maybe_frame_order_priority(
+                            current_engine, chosen, recent, memory, answer_text, last_answer_fid,
+                        )
                         chosen_turn_type = "loop_question" if _is_loop_candidate(chosen) else "question"
                         listening_move_selected = "loop_question" if chosen_turn_type == "loop_question" else "question"
                         listening_move_reason = "food_followup_priority"
@@ -3082,9 +3760,14 @@ class Handler(BaseHTTPRequestHandler):
                         # Phase 12E: use decayed interest for curiosity depth cap (raw level still drives listening/reaction)
                         _curiosity_cap = _max_curiosity_cap_for_interest(_interest_decayed_level)
                         if curiosity_depth < _curiosity_cap and has_curiosity_signal:
-                            chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory, exchange_count=exchange_count)
+                            chosen = _pick_slot_followup_frame_id(
+                                current_engine, slot_names, recent, memory, exchange_count=exchange_count,
+                                answer_text=answer_text, last_answer_fid=last_answer_fid,
+                            )
                             if chosen is not None:
-                                chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
+                                chosen = _maybe_frame_order_priority(
+                                    current_engine, chosen, recent, memory, answer_text, last_answer_fid,
+                                )
                             # Phase 12E: if slot followup exhausted, try a curiosity probe frame
                             if chosen is None and _interest_decayed_level in ("medium", "high"):
                                 chosen = _pick_curiosity_probe_frame(current_engine, _interest_decayed_level, memory, recent)
@@ -3126,9 +3809,14 @@ class Handler(BaseHTTPRequestHandler):
                     if gate < int(P_LOOP_WHEN_TRIGGERED * 1000):
                         loop_attempted = True
                         # Prefer slot/topic follow-up first (often loop-like), then fall back to engine ladder
-                        chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory, exchange_count=exchange_count)
+                        chosen = _pick_slot_followup_frame_id(
+                            current_engine, slot_names, recent, memory, exchange_count=exchange_count,
+                            answer_text=answer_text, last_answer_fid=last_answer_fid,
+                        )
                         if chosen is not None:
-                            chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
+                            chosen = _maybe_frame_order_priority(
+                                current_engine, chosen, recent, memory, answer_text, last_answer_fid,
+                            )
                         # Phase 12E: probe frame before falling back to generic ladder
                         if chosen is None and _interest_decayed_level in ("medium", "high"):
                             chosen = _pick_curiosity_probe_frame(current_engine, _interest_decayed_level, memory, recent)
@@ -3159,9 +3847,14 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         # Soft chaining: slot/topic preference first, then existing bridge/ladder order
                         if last_turn_was_answer and (not user_asked_question) and meaningful:
-                            chosen = _pick_slot_followup_frame_id(current_engine, slot_names, recent, memory, exchange_count=exchange_count)
+                            chosen = _pick_slot_followup_frame_id(
+                                current_engine, slot_names, recent, memory, exchange_count=exchange_count,
+                                answer_text=answer_text, last_answer_fid=last_answer_fid,
+                            )
                             if chosen is not None:
-                                chosen = _frame_order_priority(current_engine, chosen, set(recent), recent, memory) or chosen
+                                chosen = _maybe_frame_order_priority(
+                                    current_engine, chosen, recent, memory, answer_text, last_answer_fid,
+                                )
                             if chosen and _is_loop_candidate(chosen):
                                 chosen_turn_type = "loop_question"
                                 curiosity_depth = min(curiosity_depth + 1, _max_curiosity_cap_for_interest(_interest_decayed_level))
@@ -3303,15 +3996,24 @@ class Handler(BaseHTTPRequestHandler):
                                 _transition_reason = "loop_limit_bridge"
 
                     # 2. Overload — user confused ≥ OVERLOAD_CONFUSION_THRESHOLD times;
-                    #    don't loop further, prefer bridge to lighter material.
+                    #    if selector picked a LOOP follow-up, try a same-engine non-LOOP question first,
+                    #    then bridge (avoids abrupt topic jumps during repair).
                     if _12c_overload and _is_loop_candidate(chosen) and not user_asked_question:
-                        _arc_br = _select_next_frame_bridge(
-                            current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited
+                        _arc_nl = _select_non_loop_unseen_same_engine(
+                            current_engine, recent, memory=memory, exchange_count=exchange_count
                         )
-                        if _arc_br:
-                            chosen = _arc_br
+                        if _arc_nl:
+                            chosen = _arc_nl
                             chosen_turn_type = "question"
-                            _transition_reason = "overload"
+                            _transition_reason = "overload_same_engine"
+                        else:
+                            _arc_br = _select_next_frame_bridge(
+                                current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited
+                            )
+                            if _arc_br:
+                                chosen = _arc_br
+                                chosen_turn_type = "question"
+                                _transition_reason = "overload"
 
                     # 3. Closure — session is long (≥ CLOSURE_EXCHANGE_THRESHOLD);
                     #    probabilistically push toward a new engine ONLY when the current engine
@@ -3345,6 +4047,37 @@ class Handler(BaseHTTPRequestHandler):
                                     chosen_turn_type = "question"
                                     _transition_reason = "closure"
                 # ── End Phase 12C ─────────────────────────────────────────────────────
+                # Discourse coherence must run *after* move_type filter + Phase 12C — those passes can
+                # bridge to food (place→food is first in _BRIDGE_TARGETS) and undo an earlier fix.
+                if chosen:
+                    chosen = _apply_discourse_coherence_guard(
+                        chosen,
+                        cs=cs,
+                        recent=recent,
+                        last_answer=last_answer,
+                        last_turn_was_answer=last_turn_was_answer,
+                        learner_skip_confusion=(cs.get("learner_skip_confusion") is True),
+                        memory=memory,
+                    )
+                if chosen:
+                    _before_place_swap = chosen
+                    chosen = _swap_place_like_if_unfamiliar_live_city(
+                        chosen,
+                        last_answer=last_answer,
+                        last_turn_was_answer=last_turn_was_answer,
+                        memory=memory,
+                        recent=recent,
+                    )
+                    if chosen != _before_place_swap and chosen == "p2_pl_ext1" and _is_loop_candidate("p2_pl_ext1"):
+                        chosen_turn_type = "loop_question"
+                if _transition_reason == "overload_same_engine":
+                    print(
+                        "[ARC] overload_same_engine "
+                        f"engine={current_engine!r} chosen_frame={chosen!r} "
+                        f"recent_confusion_count={recent_confusion_count} "
+                        f"threshold={OVERLOAD_CONFUSION_THRESHOLD}",
+                        flush=True,
+                    )
 
                 frame_id = chosen
                 frame_rec_chosen = _frames_by_id.get(frame_id, {})

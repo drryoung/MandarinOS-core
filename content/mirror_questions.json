@@ -16,7 +16,10 @@
     "place": [
       {"zh": "你是哪里人？",         "py": "nǐ shì nǎlǐ rén?",                    "en": "Where are you from?",                    "kind": "SENTENCE", "topic": "place_from"},
       {"zh": "那里有什么特别的？",   "py": "nàlǐ yǒu shénme tèbié de?",           "en": "What's special about that place?",       "kind": "SENTENCE", "topic": "place_special"},
-      {"zh": "你喜欢在那里生活吗？", "py": "nǐ xǐhuān zài nàlǐ shēnghuó ma?",    "en": "Do you enjoy living there?",             "kind": "SENTENCE", "topic": "place_like"}
+      {"zh": "你喜欢在那里生活吗？", "py": "nǐ xǐhuān zài nàlǐ shēnghuó ma?",    "en": "Do you enjoy living there?",             "kind": "SENTENCE", "topic": "place_like"},
+      {"zh": "离那儿远吗？",         "py": "lí nàr yuǎn ma?",                     "en": "Is it far from there?",                  "kind": "SENTENCE", "topic": "place_far"},
+      {"zh": "你从来没去过吗？",     "py": "nǐ cónglái méi qùguò ma?",            "en": "Have you never been there?",             "kind": "SENTENCE", "topic": "place_never_been"},
+      {"zh": "远不远？",             "py": "yuǎn bu yuǎn?",                       "en": "Is it far or not?",                      "kind": "SENTENCE", "topic": "place_far_or_not"}
     ],
     "travel": [
       {"zh": "你去过哪里？",         "py": "nǐ qùguò nǎlǐ?",                      "en": "Where have you been?",                   "kind": "SENTENCE", "topic": "travel_where"},

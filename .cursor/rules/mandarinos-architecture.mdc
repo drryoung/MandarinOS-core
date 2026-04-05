@@ -7,6 +7,7 @@ alwaysApply: true
 
 Full directives: `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`
 Strategy doc: `docs/specs/MandarinOS_Extensibility_Strategy.md`
+**Flow design + anti-patterns:** `docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md` ← read before any selector, ordering, or frame-content change
 
 **Repo map:** Treat **`AI_CONTEXT.md`** at the repository root as the authoritative orientation map for this project — read it (or `@AI_CONTEXT.md` in chat) before proposing architecture changes, new features, or large edits.
 
@@ -38,6 +39,9 @@ If skipping a level, explain clearly why.
 - **Soft ordering**: `FRAME_ORDER` is guidance, not a rigid script. New frames must be insertable without changing selector logic.
 - **Extensibility test**: adding 20–50 new frames must NOT require changes to selector logic, scoring, or runtime architecture. Flag any proposal that fails this test.
 - **Builder-first mindset**: when output quality is poor, check builder/distractor/tagging quality before selector changes.
+- **Declarative skip conditions**: to make a frame context-conditional, add `skip_when` to its JSON and register a named predicate in `_check_skip_condition()`. Do NOT add runtime `if`-blocks in the selector or create alternative preference lists.
+- **No inline Chinese strings**: all partner-side sentences belong in `p2_frames.json`, persona JSON, or `content/recovery_phrases.json` — never as literal strings in Python business logic.
+- **Curiosity before bridge**: if interest is high, ask oxygen/echo follow-ups before bridging. Only bridge when curiosity depth reaches cap or interest drops. Do not add separate `if interest == low` guards outside the existing interest model.
 
 ---
 

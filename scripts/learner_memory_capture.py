@@ -12,7 +12,7 @@ from typing import Dict, Optional
 # Frame IDs that map to a single learner_memory field (no ambiguity)
 _NAME_FRAMES = ("f_ask_you_name",)
 _ORIGIN_FRAMES = ("f_from_where",)   # → hometown (origin/nationality)
-_LIVE_FRAMES = ("frame.location.live_question",)  # → lives_in (current city)
+_LIVE_FRAMES = ("frame.location.live_question", "f_live_where")  # → lives_in (legacy id alias)
 _WORK_FRAMES = ("f_what_work",)
 _FAMILY_FRAMES = ("f_have_family", "f_have_siblings")
 _FOOD_FRAMES = ("f_food_what_good",)

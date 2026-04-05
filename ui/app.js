@@ -28,9 +28,12 @@ let transcriptSegmentMode = false;
 let transcriptSelectedLineIds = [];
 let transcriptReplayToken = 0;
 let userTranslationIndex = {};
+/** Normalized zh → en from /api/gloss (shared with partner lines). */
+const glossLineCache = new Map();
+const _glossFetchInFlight = new Set();
 
 function addTranscriptEntry(role, textZh, extras = {}) {
-  conversationTranscript.push({
+  const entry = {
     id: "line_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
     role: role === "partner" ? "partner" : "user",
     text_zh: textZh || "",
@@ -40,7 +43,60 @@ function addTranscriptEntry(role, textZh, extras = {}) {
     turn_uid: extras.turn_uid || "",
     replayable: true,
     created_at: new Date().toISOString(),
-  });
+    _glossPending: false,
+  };
+  conversationTranscript.push(entry);
+  maybeRequestGlossForEntry(entry);
+}
+
+/** Fill missing English via server /api/gloss (optional deep-translator) for any Chinese line. */
+function maybeRequestGlossForEntry(entry) {
+  if (!entry) return;
+  const zh = (entry.text_zh || entry.text || "").trim();
+  if (!/[\u4e00-\u9fff]/.test(zh)) return;
+  if ((entry.text_en || "").trim()) return;
+  const key = _normalizeTranscriptText(zh);
+  if (!key) return;
+  if (glossLineCache.has(key)) {
+    entry.text_en = glossLineCache.get(key);
+    if (entry.role === "user") userTranslationIndex[key] = entry.text_en;
+    return;
+  }
+  if (_glossFetchInFlight.has(key)) return;
+  _glossFetchInFlight.add(key);
+  entry._glossPending = true;
+  renderTranscript();
+  fetch("/api/gloss", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ q: zh }),
+  })
+    .then((r) => r.json())
+    .then((j) => {
+      if (j && j.ok && j.en && String(j.en).trim()) {
+        const en = String(j.en).trim();
+        glossLineCache.set(key, en);
+        entry.text_en = en;
+        if (entry.role === "user") userTranslationIndex[key] = en;
+      }
+    })
+    .catch(() => {})
+    .finally(() => {
+      entry._glossPending = false;
+      _glossFetchInFlight.delete(key);
+      renderTranscript();
+    });
+}
+
+function resolveLineEnglish(entry) {
+  if (!entry) return "";
+  const direct = (entry.text_en || "").trim();
+  if (direct) return direct;
+  const key = _normalizeTranscriptText(entry.text_zh || entry.text || "");
+  if (!key) return "";
+  if (entry.role === "user" && userTranslationIndex[key]) return userTranslationIndex[key];
+  if (glossLineCache.has(key)) return glossLineCache.get(key);
+  return "";
 }
 
 /** EN/PY for repeated partner lines after recovery (repeat / slower); uses current sentence hint for the question body. */
@@ -103,6 +159,9 @@ if (typeof window._unmatchedByFrame === "undefined") window._unmatchedByFrame = 
 if (typeof window._loopCountInEngine    === "undefined") window._loopCountInEngine    = 0;
 if (typeof window._enginesVisited       === "undefined") window._enginesVisited        = ["identity"];
 if (typeof window._recentConfusionCount === "undefined") window._recentConfusionCount  = 0;
+if (typeof window._lastAcceptedFreeTranscript === "undefined") window._lastAcceptedFreeTranscript = "";
+if (typeof window._lastAcceptedFreeTranscriptAt === "undefined") window._lastAcceptedFreeTranscriptAt = 0;
+if (typeof window._lastAcceptedFreeFrameId === "undefined") window._lastAcceptedFreeFrameId = "";
 // In-card progressive hints (no need to use ? after opening card)
 let _cardRevealCardId = null;
 /** How many optional blocks are visible after headword: 0 = hanzi only, then +pinyin, +meaning, +composition, +etymology in order. */
@@ -1316,7 +1375,7 @@ function renderTranscript() {
   (conversationTranscript || []).forEach((entry, idx) => {
     const lineId = entry.id || String(idx);
     const text = entry.text_zh || entry.text || "";
-    const textEn = entry.text_en || "";
+    const textEn = resolveLineEnglish(entry);
     const textPy = entry.pinyin || "";
     const role = entry.role === "partner" ? "partner" : "user";
     const uiState = transcriptLineUiState[lineId] || { showEn: false, showPy: false };
@@ -1400,8 +1459,9 @@ function renderTranscript() {
       detail.className = "transcript-line-detail";
       const chunks = [];
       if (shouldShowPy) chunks.push(textPy ? textPy : "Pinyin not available");
-      // For partner entries without a translation (dynamic persona answers), show nothing rather than a confusing placeholder.
-      if (shouldShowEn && (textEn || role === "user")) chunks.push(textEn || "No translation available yet");
+      if (shouldShowEn && (textEn || entry._glossPending || role === "user")) {
+        chunks.push(textEn || (entry._glossPending ? "…" : role === "user" ? "…" : ""));
+      }
       detail.textContent = chunks.join("  |  ");
       container.appendChild(detail);
     }
@@ -1412,9 +1472,7 @@ function renderTranscript() {
 
 function resolveUserLineTranslation(entry) {
   if (!entry || entry.role !== "user") return "";
-  if ((entry.text_en || "").trim()) return entry.text_en.trim();
-  const key = _normalizeTranscriptText(entry.text_zh || entry.text || "");
-  return userTranslationIndex[key] || "";
+  return resolveLineEnglish(entry);
 }
 
 function toggleLineEnglish(lineId) {
@@ -1426,7 +1484,7 @@ function toggleLineEnglish(lineId) {
     if (resolved) {
       entry.text_en = resolved;
     } else if (!st.showEn) {
-      entry.text_en = "No translation available yet";
+      maybeRequestGlossForEntry(entry);
     }
   }
   transcriptLineUiState[lineId] = { ...st, showEn: !st.showEn };
@@ -1940,6 +1998,8 @@ function isOpenEndedFrame(frameId) {
     "f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning",
     // Place — life-quality, local character, and leisure questions are all open
     "f_from_where", "frame.location.live_question",
+    "f_place_why_like", "f_place_like_there",
+    "f_probe_place_miss", "f_probe_place_moved", "f_probe_place_stay", "f_probe_place_why_move",
     "p2_pl_1", "p2_pl_ext1", "p2_pl_3", "p2_pl_4",
     // Family — open questions that invite any free answer
     "f_have_family", "f_have_siblings", "p2_fa_1", "p2_fa_2", "p2_fa_5",
@@ -1953,6 +2013,13 @@ function isOpenEndedFrame(frameId) {
   ]).has(fid);
 }
 
+/** Frames where learners often give foreign place names (Christchurch, Auckland) — Latin-heavy text is valid. */
+const _MIXED_SCRIPT_PLACE_FRAMES = new Set([
+  "frame.location.live_question",
+  "p2_pl_ext1",
+  "f_from_where",
+]);
+
 function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
   const s = (text || "").trim();
   if (!s) return false;
@@ -1964,12 +2031,24 @@ function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
   if (zhCount > 0 && zhCount < 2) return false;
   // Mixed-script is common for names in identity frames (e.g., Raymond).
   const identityOpen = new Set(["f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning"]).has(fid);
-  if (!identityOpen && latinCount > zhCount + 2) return false;
+  const placeMixedScript = _MIXED_SCRIPT_PLACE_FRAMES.has(fid);
+  if (!identityOpen && !placeMixedScript && latinCount > zhCount + 2) return false;
   // Repeated single word noise (e.g., 牛肉牛肉牛肉) should trigger repair.
   const norm = s.replace(/[，。！？、\s]/g, "");
   if (norm.length >= 4) {
     const half = Math.floor(norm.length / 2);
     if (half > 0 && norm.slice(0, half) === norm.slice(half)) return false;
+  }
+  // Same Hanzi 3+ times in a row (e.g. 拿拿拿, 呃呃呃) — hesitation / ASR noise, not a place answer.
+  if (/([\u4e00-\u9fff])\1{2,}/.test(norm)) return false;
+  // "Where do you live?" — name-only clauses (我叫…) with no place cue are usually wrong-Q or garbled ASR.
+  if (_MIXED_SCRIPT_PLACE_FRAMES.has(fid) && /我叫|大家叫我|我的名字/.test(norm)) {
+    const hasPlaceCue =
+      /住/.test(norm) ||
+      /[A-Za-z]/.test(s) ||
+      /(北京|上海|成都|香港|台湾|广州|深圳|西安|奥克兰|惠灵顿|新西兰|纽约|伦敦|悉尼|墨尔本|洛杉矶|温哥华|多伦多|国|市|区|县|村|镇|国外|国内|海外|那儿|这里|那边)/.test(norm) ||
+      /在(这儿|那里|那边|国内|国外)/.test(norm);
+    if (!hasPlaceCue) return false;
   }
   return s.length >= 2;
 }
@@ -1986,6 +2065,10 @@ function semanticSoftMatch(transcript, frameId) {
   // Direct questions aimed at the partner — user turns the conversation around by
   // asking the app about its origin, city, job, hobbies, or family.
   if (/你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(t)) return true;
+  // Scenery / place-quality free answers (often unmatched to word tiles)
+  if (/(风景|山水|漂亮|好看|很美|美|空气|环境|舒服|安静|不错|挺好|海|湖|山|树|绿)/.test(t)) return true;
+  // Foreign city / region names in Latin (Christchurch is longer than Dunedin — same rule as identity mixed-script).
+  if (_MIXED_SCRIPT_PLACE_FRAMES.has(fid) && /[\u4e00-\u9fff]/.test(t) && /[A-Za-z]/.test(t)) return true;
   // Identity nickname question: allow "大家叫我Raymond" style free answers.
   if (fid === "p2_id_2") {
     if (t.includes("叫我") || t.includes("大家叫")) return true;
@@ -2023,6 +2106,15 @@ function shouldAcceptUnmatchedFreeAnswer(transcript, options, frameId, unmatched
   return false;
 }
 
+/** True when the learner is asking about a word/meaning or probing their home country — not a repair "not understood" signal. */
+function isLexicalContentQuestion(transcript) {
+  const s = (transcript || "").trim();
+  if (!s) return false;
+  if (/(是什么|什么意思|什么意思啊|什么意思呢|什么叫|指的是什么)/.test(s)) return true;
+  if (/新西兰/.test(s) && /(哪里|最有|最好|好玩|有趣|特别)/.test(s)) return true;
+  return false;
+}
+
 function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmatchedCount) {
   const opts = Array.isArray(options) ? options : [];
   const hasStructuredSlots = opts.some((o) => (o?.kind || "").toUpperCase() === "FRAME_WITH_SLOTS");
@@ -2031,6 +2123,7 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
   const semantic = semanticSoftMatch(transcript, frameId);
   // Learner skip signal: "我不懂" / "不明白" → advance gracefully without repair loop
   if (/不懂|不明白/.test(transcript || "")) return { accept: true, reason: "learner_skip_signal" };
+  if (isLexicalContentQuestion(transcript)) return { accept: true, reason: "lexical_content_question" };
   if (opts.length === 0) return { accept: true, reason: "no_options" };
   if (semantic) return { accept: true, reason: "semantic_soft_match" };
   // One-strike fallback: after one repair attempt, accept any substantive Chinese answer
@@ -2054,17 +2147,25 @@ function listenForResponse(options, timeoutMs) {
       resolve({ transcript: "", matchedOption: null, asr_confidence: null });
       return;
     }
+    // Stop partner TTS before opening the mic — prevents ASR from transcribing speaker output
+    // (echo loop: app "talking to itself" / user line duplicating partner line).
+    try {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    } catch (_) {}
+    const postCancelDelayMs = 380;
+
     const rec = new SpeechRecognition();
     rec.continuous = false;
     rec.lang = "zh-CN";
     rec.interimResults = true;
     let finalTranscript = "";
     let resolved = false;
+    let tid = null;
     function done(transcript, matchedOption, asrConfidence) {
       if (resolved) return;
       resolved = true;
       try { rec.abort(); } catch (_) {}
-      clearTimeout(tid);
+      if (tid) clearTimeout(tid);
       const ac = typeof asrConfidence === "number" && !Number.isNaN(asrConfidence) ? asrConfidence : null;
       resolve({
         transcript: transcript || finalTranscript || "",
@@ -2072,10 +2173,6 @@ function listenForResponse(options, timeoutMs) {
         asr_confidence: ac,
       });
     }
-    const tid = setTimeout(() => {
-      const matched = matchTranscriptToOption(finalTranscript, options || []);
-      done(finalTranscript, matched, null);
-    }, timeoutMs);
     rec.onresult = (e) => {
       const last = e.results[e.results.length - 1];
       const item = last.isFinal ? last[0] : (last.length ? last[0] : null);
@@ -2104,12 +2201,19 @@ function listenForResponse(options, timeoutMs) {
         done(finalTranscript || "", null, null);
       }
     };
-    try {
-      rec.start();
-      emitUITrace({ type: "SPEECH_LISTEN_START", timestamp: new Date().toISOString(), payload: { lang: "zh-CN" } });
-    } catch (err) {
-      done("", null, null);
-    }
+    setTimeout(() => {
+      if (resolved) return;
+      tid = setTimeout(() => {
+        const matched = matchTranscriptToOption(finalTranscript, options || []);
+        done(finalTranscript, matched, null);
+      }, timeoutMs);
+      try {
+        rec.start();
+        emitUITrace({ type: "SPEECH_LISTEN_START", timestamp: new Date().toISOString(), payload: { lang: "zh-CN" } });
+      } catch (err) {
+        done("", null, null);
+      }
+    }, postCancelDelayMs);
   });
 }
 
@@ -3822,7 +3926,12 @@ function renderSentenceOptions(sentenceOptions, frameId) {
   const answers = (sentenceOptions || []).filter(o => o.kind === "SENTENCE" || !o.kind);
   const hasSteerReverse = _directionCaps.supports_reverse;
   const hasSteerWhy     = _directionCaps.supports_why;
-  if (!answers.length && !hasSteerReverse && !hasSteerWhy) { container.style.display = "none"; return; }
+  // Need help? + steer rows live here too — do not bail before they are appended.
+  const hasRecoveryPanel = !!getRecoveryPanelOption();
+  if (!answers.length && !hasSteerReverse && !hasSteerWhy && !hasRecoveryPanel) {
+    container.style.display = "none";
+    return;
+  }
 
   // Build each answer as a standard option-panel so speaker, ?, and word-exploration all work
   answers.forEach((opt, idx) => {
@@ -4402,7 +4511,7 @@ async function startFreshLearner() {
 /**
  * Run a turn: either "Run Turn" (frame from dropdown) or "Next" (selector-driven next frame).
  * @param {boolean} [isNext=false] When true, send next_question + conversation_state; server chooses frame.
- * @param {{ prefer_bridge?: boolean, force_bridge?: boolean, last_turn_was_answer?: boolean }} [opts] When isNext: prefer_bridge tries bridge first (e.g. after interesting answer or recovery); force_bridge only bridge; last_turn_was_answer triggers probe_offer.
+ * @param {{ prefer_bridge?: boolean, force_bridge?: boolean, last_turn_was_answer?: boolean, learner_skip_confusion?: boolean }} [opts] When isNext: prefer_bridge tries bridge first; learner_skip_confusion clears bridge intent after "我不明白" advance.
  */
 async function runTurn(isNext = false, opts = {}) {
   // Cancel any pending idle auto-advance so it doesn't conflict with this turn.
@@ -4468,6 +4577,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
     conversation_state.probe_depth = window._probeDepth || 0;
     if (opts.prefer_bridge === true) conversation_state.prefer_bridge = true;
     if (opts.force_bridge === true) conversation_state.force_bridge = true;
+    if (opts.learner_skip_confusion === true) conversation_state.learner_skip_confusion = true;
     if (opts.last_turn_was_answer === true) {
       conversation_state.last_turn_was_answer = true;
       // Send last_answer as long as it exists and has some content — even if frame_id is
@@ -4754,12 +4864,32 @@ async function _runTurnInner(isNext = false, opts = {}) {
   // Sentence-level response options (answers + always-on reverse/oxygen row)
   // These replace the word-hint panels as the primary response UI when present.
   renderSentenceOptions(data.sentence_options || [], frameId);
-  // Hide the word-hint panels when sentence options are showing — they are redundant.
+  // Hide word-level options only when the sentence row actually rendered panels (answers / steer / recovery).
+  // If the server sent sentence_options but nothing rendered (edge case), keep word cards visible.
   const hasSentenceOptions = (data.sentence_options || []).some(o => o.kind === "SENTENCE" || !o.kind);
-  if (hasSentenceOptions) {
+  const soc = document.getElementById("sentenceOptionsContainer");
+  const sentenceRowVisible =
+    soc && soc.style.display !== "none" && soc.querySelector(".option-panel");
+  if (hasSentenceOptions && sentenceRowVisible) {
     const optC = document.getElementById("optionsContainer");
     if (optC) optC.style.display = "none";
   }
+  const optCAfter = document.getElementById("optionsContainer");
+  emitUITrace({
+    type: "TURN_RENDER",
+    timestamp: new Date().toISOString(),
+    payload: {
+      frame_id: frameId,
+      next_question: !!payload.next_question,
+      sentence_row_visible: !!sentenceRowVisible,
+      recovery_panel_present: !!(soc && soc.querySelector('[data-recovery="true"]')),
+      word_options_visible: !!(optCAfter && optCAfter.style.display !== "none"),
+      prefer_bridge: opts.prefer_bridge === true,
+      force_bridge: opts.force_bridge === true,
+      recent_confusion_count: window._recentConfusionCount || 0,
+      arc_transition_reason: data.arc_state?.transition_reason ?? null,
+    },
+  });
   // Legacy probe state: store for runProbeTurn compatibility but don't render separately
   if (data.probe_offer === true && Array.isArray(data.probe_options) && data.probe_options.length > 0) {
     window._lastProbeOptions = data.probe_options;
@@ -4996,6 +5126,44 @@ window.addEventListener("load", async () => {
       return;
     }
 
+    // Same utterance repeated (ASR punctuation drift) — accept as answer, not partner "嗯？" recovery.
+    const _normNow = normalizeForMatch(saidTrimmed);
+    const _normPrev = normalizeForMatch(window._lastAcceptedFreeTranscript || "");
+    if (
+      _normNow && _normNow === _normPrev && frameId &&
+      frameId === window._lastAcceptedFreeFrameId &&
+      (_now - (window._lastAcceptedFreeTranscriptAt || 0)) < 15000
+    ) {
+      window._lastAcceptedAsrKey = _asrDedupKey;
+      window._lastAcceptedAsrTime = _now;
+      if (frameId) window._unmatchedByFrame[frameId] = 0;
+      window._consecutiveNotUnderstood = 0;
+      window._recentConfusionCount = 0;
+      emitUITrace({
+        type: "SPEECH_REPEAT_ACCEPTED",
+        timestamp: new Date().toISOString(),
+        payload: { transcript: saidTrimmed, frame_id: frameId },
+      });
+      addTranscriptEntry("user", saidTrimmed);
+      renderTranscript();
+      window._lastAnswer = { frame_id: frameId, submitted_text: saidTrimmed };
+      let _turnFired2 = false;
+      ttsSpeak({
+        text: saidTrimmed,
+        lang: "zh-CN",
+        onEvent: (e) => {
+          if (!_turnFired2 && e?.payload?.completed) {
+            _turnFired2 = true;
+            runTurn(true, { last_turn_was_answer: true });
+          }
+        },
+      });
+      lastClickedWordId = null;
+      window.lastClickedWordId = null;
+      setUiMode("READ");
+      return;
+    }
+
     const unmatchedCount = frameId ? (window._unmatchedByFrame?.[frameId] || 0) : 0;
     const unmatchedDecision = classifyUnmatchedFreeAnswerDecision(saidTrimmed, options, frameId, unmatchedCount);
     const substantialAnswer = unmatchedDecision.accept;
@@ -5010,6 +5178,9 @@ window.addEventListener("load", async () => {
         timestamp: new Date().toISOString(),
         payload: { transcript: saidTrimmed, matched: false, unmatched_decision_reason: unmatchedDecision.reason, frame_id: frameId }
       });
+      window._lastAcceptedFreeTranscript = saidTrimmed;
+      window._lastAcceptedFreeTranscriptAt = Date.now();
+      window._lastAcceptedFreeFrameId = frameId || "";
       // Learner skip signal ("我不懂"): advance without saving as scored answer
       if (unmatchedDecision.reason === "learner_skip_signal") {
         addTranscriptEntry("user", saidTrimmed);
@@ -5017,7 +5188,7 @@ window.addEventListener("load", async () => {
         lastClickedWordId = null;
         window.lastClickedWordId = null;
         setUiMode("READ");
-        runTurn(true);
+        runTurn(true, { learner_skip_confusion: true });
         return;
       }
       // Normalise turn-around phrases: ensure trailing "？" so the server reliably
@@ -5030,6 +5201,9 @@ window.addEventListener("load", async () => {
       const submittedForServer = _isTurnAround && !/[？?]$/.test(saidTrimmed) ? saidTrimmed + "？" : saidTrimmed;
       addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
+      window._lastAcceptedFreeTranscript = saidTrimmed;
+      window._lastAcceptedFreeTranscriptAt = Date.now();
+      window._lastAcceptedFreeFrameId = frameId || "";
       window._lastAnswer = { frame_id: frameId, submitted_text: submittedForServer };
       console.log("[DBG lastAnswer set]", JSON.stringify(window._lastAnswer));
       // One-shot guard: browser onend can fire twice (Windows/Chrome speechSynthesis bug).
