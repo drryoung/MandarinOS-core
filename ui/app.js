@@ -159,6 +159,9 @@ if (typeof window._unmatchedByFrame === "undefined") window._unmatchedByFrame = 
 if (typeof window._loopCountInEngine    === "undefined") window._loopCountInEngine    = 0;
 if (typeof window._enginesVisited       === "undefined") window._enginesVisited        = ["identity"];
 if (typeof window._recentConfusionCount === "undefined") window._recentConfusionCount  = 0;
+if (typeof window._seededBridgeEngines  === "undefined") window._seededBridgeEngines   = [];
+if (typeof window._lastRepairKind       === "undefined") window._lastRepairKind         = null;
+if (typeof window._prevRepairKind       === "undefined") window._prevRepairKind         = null;
 if (typeof window._lastAcceptedFreeTranscript === "undefined") window._lastAcceptedFreeTranscript = "";
 if (typeof window._lastAcceptedFreeTranscriptAt === "undefined") window._lastAcceptedFreeTranscriptAt = 0;
 if (typeof window._lastAcceptedFreeFrameId === "undefined") window._lastAcceptedFreeFrameId = "";
@@ -1875,6 +1878,8 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
 
   window._consecutiveNotUnderstood = before + 1;
   window._recentConfusionCount = (window._recentConfusionCount || 0) + 1;
+  window._prevRepairKind = window._lastRepairKind || null;
+  window._lastRepairKind = chosen.repair_kind || null;
 
   const recovery_trace = {
     recovery_trigger_reason,
@@ -1911,7 +1916,12 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
  */
 function getRecoveryPhraseForNotUnderstood(avoidPhraseId = null, precomputedContext = null) {
   const data = recoveryPhrasesRuntime || window._recoveryPhrases;
-  const phrases = learnerRecoveryPhrases(data);
+  // Phase 12D: partner auto-selects only from CORE_RECOVERY_SET + EXIT (好吧).
+  // Non-core phrases (e.g. 可以简单说吗？, 换个话题吧) are excluded from auto-selection.
+  // The full list is still used for explicit_recovery_match (ASR recognition of learner speech).
+  const phrases = learnerRecoveryPhrases(data).filter(
+    (p) => p.always_surface === true || p.routing_group === "EXIT"
+  );
   if (!data || phrases.length === 0) {
     const recovery_trace = {
       recovery_trigger_reason: "no_runtime_phrases",
@@ -3387,21 +3397,12 @@ function getTopicChangeTransition(phraseId) {
   return pool[Math.floor(Date.now() / 1000) % pool.length];
 }
 
-/** Resolve recovery_action so we respond correctly to each phrase (not always "repeat"). */
-const RECOVERY_ACTION_NEXT_TURN_IDS = new Set([
-  "wo_bu_dong", "ting_bu_dong", "bu_haoyisi_mei_tingdong",
-  "women_liao_dian_jiandan_ba", "women_keyi_liao_bie_de_ma", "bu_zhidao",
-]);
-const RECOVERY_ACTION_SLOWER_IDS = new Set(["man_yi_dian", "ni_keyi_shuo_man_yidian_ma"]);
-
+/** Resolve recovery_action from phrase metadata. All current phrases carry recovery_action in JSON (v1.2+). */
 function getRecoveryAction(phrase) {
   if (phrase.recovery_action === "next_turn" || phrase.recovery_action === "slower" || phrase.recovery_action === "repeat")
     return phrase.recovery_action;
   if (phrase.recovery_action === "meaning")
     return "repeat";
-  const id = (phrase.id || "").trim();
-  if (RECOVERY_ACTION_NEXT_TURN_IDS.has(id)) return "next_turn";
-  if (RECOVERY_ACTION_SLOWER_IDS.has(id)) return "slower";
   return "repeat";
 }
 
@@ -3409,9 +3410,24 @@ function getRecoveryPanelOption() {
   const data = recoveryPhrasesRuntime || window._recoveryPhrases;
   const learner = learnerRecoveryPhrases(data);
   if (!data || learner.length === 0) return null;
-  const p1 = learner.filter((p) => (p.level || "").toUpperCase() === "P1");
-  const p2 = learner.filter((p) => (p.level || "").toUpperCase() === "P2");
-  const pool = [...p1, ...p2].slice(0, RECOVERY_PHRASES_MAX);
+  const repairCount = window._consecutiveNotUnderstood || 0;
+  // Core-set phrases (always_surface) always first, ordered by routing group.
+  const _groupOrder = { MICRO_REACTION: 0, HOLD: 1, REPEAT_CONTROL: 2, UNDERSTANDING: 3 };
+  const core = learner
+    .filter((p) => p.always_surface === true)
+    .sort((a, b) => (_groupOrder[a.routing_group] ?? 9) - (_groupOrder[b.routing_group] ?? 9));
+  const coreIds = new Set(core.map((p) => p.id));
+  // EXIT group (好吧): surface only when TRIGGER_A or TRIGGER_B fires.
+  // TRIGGER_A: repair_count >= 2 AND same repair type repeated (learner is stuck in a loop).
+  // TRIGGER_B: repair_count >= 3 (persistence limit regardless of type).
+  const lastRepairKind = window._lastRepairKind || null;
+  const prevRepairKind = window._prevRepairKind || null;
+  const TRIGGER_A = repairCount >= 2 && lastRepairKind !== null && lastRepairKind === prevRepairKind;
+  const TRIGGER_B = repairCount >= 3;
+  const exitEligible = TRIGGER_A || TRIGGER_B;
+  const exit = exitEligible ? learner.filter((p) => p.routing_group === "EXIT") : [];
+  // Panel shows only CORE_RECOVERY_SET + EXIT (好吧 when eligible) — no extra non-core lines.
+  const pool = [...core, ...exit];
   if (pool.length === 0) return null;
   return {
     kind: "RECOVERY_PANEL",
@@ -3425,6 +3441,7 @@ function getRecoveryPanelOption() {
       pinyin: p.pinyin || "",
       meaning: p.text_en || p.meaning || "",
       recovery_action: getRecoveryAction(p),
+      repair_kind: p.repair_kind || null,
     })),
   };
 }
@@ -3478,7 +3495,11 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
 
       if (action === "next_turn") {
         renderTranscript();
-        const _transition = getTopicChangeTransition(phrase.id);
+        // exit_release (好吧): learner signals graceful exit from repair chain.
+        // Reset counter, continue naturally in current engine — no topic jump.
+        const _isExitRelease = phrase.repair_kind === "exit_release";
+        if (_isExitRelease) window._consecutiveNotUnderstood = 0;
+        const _transition = _isExitRelease ? null : getTopicChangeTransition(phrase.id);
         ttsSpeak({
           text: userText, lang: "zh-CN",
           onEvent: (e) => {
@@ -3491,6 +3512,8 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
                 text: _transition.zh, lang: "zh-CN",
                 onEvent: (e2) => { if (e2?.payload?.completed) runTurn(true, { prefer_bridge: true }); },
               });
+            } else if (_isExitRelease) {
+              runTurn(true);  // stay in engine — exit_release does not force a topic change
             } else {
               runTurn(true, { prefer_bridge: true });
             }
@@ -3611,12 +3634,27 @@ function renderOptions(options, frameId) {
 
           if (action === "next_turn") {
             renderTranscript();
-            // Speak recovery phrase then bridge to another topic (user indicated difficulty)
+            const _isExitRelease = phrase.repair_kind === "exit_release";
+            if (_isExitRelease) window._consecutiveNotUnderstood = 0;
+            const _transition = _isExitRelease ? null : getTopicChangeTransition(phrase.id);
             ttsSpeak({
               text: userText,
               lang: "zh-CN",
               onEvent: (e) => {
-                if (e?.payload?.completed) runTurn(true, { prefer_bridge: true });
+                if (!e?.payload?.completed) return;
+                if (_transition) {
+                  addTranscriptEntry("partner", _transition.zh, { text_en: _transition.en });
+                  renderTranscript();
+                  ttsSpeak({
+                    text: _transition.zh,
+                    lang: "zh-CN",
+                    onEvent: (e2) => { if (e2?.payload?.completed) runTurn(true, { prefer_bridge: true }); },
+                  });
+                } else if (_isExitRelease) {
+                  runTurn(true);
+                } else {
+                  runTurn(true, { prefer_bridge: true });
+                }
               },
             });
             return;
@@ -3816,6 +3854,7 @@ function renderOptions(options, frameId) {
       if (opt.kind !== "RECOVERY" && opt.kind !== "RECOVERY_PANEL") {
         window._consecutiveNotUnderstood = 0;
         window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
+        window._lastRepairKind = null; window._prevRepairKind = null;
         hideDiscoveryPanel();  // user answered partner's question — exit discovery mode
         window._pendingFrameText = null;
       }
@@ -4472,11 +4511,15 @@ async function startFreshLearner() {
   window._lastUserText           = "";
   window._unmatchedByFrame       = {};
   window._consecutiveNotUnderstood = 0;
+  window._lastRepairKind          = null;
+  window._prevRepairKind          = null;
   window._currentEngineId        = "identity";
   // Phase 12C: session arc state
   window._loopCountInEngine      = 0;
   window._enginesVisited         = ["identity"];
   window._recentConfusionCount   = 0;
+  // Phase 13B: seeded bridge queue reset on new session
+  window._seededBridgeEngines    = [];
 
   // Clear the "Remembered:" facts banner
   const rememberedEl = document.getElementById("rememberedFacts");
@@ -4546,6 +4589,8 @@ async function _runTurnInner(isNext = false, opts = {}) {
       same_engine_chain_count: window._sameEngineChainCount || 0,
       same_slot_chain_count: window._sameSlotChainCount || 0,
       last_focus_slot: window._lastFocusSlot || "",
+      seeded_bridge_engines: Array.isArray(window._seededBridgeEngines) ? window._seededBridgeEngines : [],
+      recent_reactions: Array.isArray(window._recentReactions) ? window._recentReactions : [],
       pending_listening_move: window._pendingListeningMove === true,
       listening_wait_turns: window._listeningWaitTurns || 0,
       last_interest_level: window._lastInterestLevel || "low",
@@ -4677,6 +4722,8 @@ async function _runTurnInner(isNext = false, opts = {}) {
   if (typeof data.same_engine_chain_count === "number") window._sameEngineChainCount = data.same_engine_chain_count;
   if (typeof data.same_slot_chain_count === "number") window._sameSlotChainCount = data.same_slot_chain_count;
   if (typeof data.last_focus_slot === "string") window._lastFocusSlot = data.last_focus_slot;
+  if (Array.isArray(data.seeded_bridge_engines)) window._seededBridgeEngines = data.seeded_bridge_engines;
+  if (Array.isArray(data.recent_reactions)) window._recentReactions = data.recent_reactions;
   if (typeof data.pending_listening_move === "boolean") window._pendingListeningMove = data.pending_listening_move;
   if (typeof data.listening_wait_turns === "number") window._listeningWaitTurns = data.listening_wait_turns;
   if (typeof data.last_interest_level === "string") window._lastInterestLevel = data.last_interest_level;
@@ -5066,6 +5113,7 @@ window.addEventListener("load", async () => {
       if (frameId) window._unmatchedByFrame[frameId] = 0;
       window._consecutiveNotUnderstood = 0;
       window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
+      window._lastRepairKind = null; window._prevRepairKind = null;
       // Understood: update conversation and move to next turn (same as selecting that option)
       emitUITrace({ type: "SPEECH_UNDERSTOOD", timestamp: new Date().toISOString(), payload: { transcript, matched_hanzi: matchedOption.hanzi } });
       if (matchedOption.card_id && matchedOption.kind !== "FRAME_WITH_SLOTS") {
@@ -5139,6 +5187,7 @@ window.addEventListener("load", async () => {
       if (frameId) window._unmatchedByFrame[frameId] = 0;
       window._consecutiveNotUnderstood = 0;
       window._recentConfusionCount = 0;
+      window._lastRepairKind = null; window._prevRepairKind = null;
       emitUITrace({
         type: "SPEECH_REPEAT_ACCEPTED",
         timestamp: new Date().toISOString(),
@@ -5173,6 +5222,7 @@ window.addEventListener("load", async () => {
       if (frameId) window._unmatchedByFrame[frameId] = 0;
       window._consecutiveNotUnderstood = 0;
       window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
+      window._lastRepairKind = null; window._prevRepairKind = null;
       emitUITrace({
         type: "SPEECH_ACCEPTED_AS_ANSWER",
         timestamp: new Date().toISOString(),

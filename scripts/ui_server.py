@@ -66,7 +66,7 @@ MAX_PROBE_CHAIN = 2                   # Phase 12B: max consecutive probe follow-
 MIN_TURNS_FOR_LIFE_ENGINE = 16        # Difficulty ramp: "life" engine is all difficulty-3; block it early in session
 # Phase 12C: session arc tuning
 LOOP_COUNT_IN_ENGINE_SOFT_CAP = 2    # reduce LOOP when partner has asked ≥ this many LOOPs in current engine
-OVERLOAD_CONFUSION_THRESHOLD  = 3    # recent_confusion_count ≥ this → overload: same-engine non-loop first, else bridge
+OVERLOAD_CONFUSION_THRESHOLD  = 5    # recent_confusion_count ≥ this → overload: same-engine non-loop first, else bridge
 CLOSURE_EXCHANGE_THRESHOLD    = 12   # after this many total exchanges push toward bridge / close
 CLOSURE_BRIDGE_GATE           = 600  # out of 1000: hash-gate probability for bridge push in closure zone
 
@@ -182,7 +182,8 @@ def _flatten_recovery_phrases_for_maps(raw: dict) -> list:
             "use": use,
             "recovery_action": row.get("recovery_action") or "",
         }
-        for k in ("move_type", "response_role", "etymology", "repair_kind", "priority", "legacy_ids"):
+        for k in ("move_type", "response_role", "etymology", "repair_kind", "priority", "legacy_ids",
+                   "core_set", "routing_group", "always_surface", "surface_when_repair_count_gte"):
             if row.get(k) is not None:
                 item[k] = row[k]
         if topic:
@@ -360,20 +361,16 @@ _FRAME_ORDER: dict = {
         "f_name_story",          # 4. 你名字有什么故事吗？
         "f_how_old",             # 5. 你多大了？
     ],
-    # Place flow (Phase 12C): origin → country interest → home food → current city → city interest →
-    # city food → hometown → hometown interest → evaluation → why → living situation → reason for living here.
+    # Place flow (Phase 12C final): origin → current city → special → food → hometown → travel bridge → who with → why.
     "place": [
-        "f_from_where",              # 1. 你是哪里人？
-        "p2_pl_country_special",     # 2. 那个国家有什么特别的？  (note: skip-if-same-country needs selector work)
-        "p2_pl_home_food",           # 3. 那里有什么好吃的？
-        "frame.location.live_question", # 4. 你现在住哪里？
-        "p2_pl_city_special",        # 5. 这里有什么特别的？
-        "p2_pl_2",                   # 6. 这里有什么好吃的？
-        "p2_pl_home_where",          # 7. 你老家在哪儿？
-        "p2_pl_home_special",        # 8. 老家有什么特别的？
-        "p2_pl_1",                   # 9. 你觉得这里怎么样？
-        "p2_pl_live_alone",          # 10. 你一个人住吗？
-        "f_probe_place_why_move",    # 11. 你为什么住在这里？
+        "f_from_where",       # 1. 你是哪里人？
+        "f_live_where",       # 2. 你现在住哪里？
+        "f_place_special",    # 3. 这里有什么特别的？
+        "f_place_food",       # 4. 这里有什么好吃的？
+        "f_home_where",       # 5. 你老家在哪儿？
+        "f_place_travel",     # 6. 你会去别的地方吗？
+        "f_live_with_who",    # 7. 你跟谁一起住？
+        "f_place_why_live",   # 8. 你为什么住在这里？
     ],
     # Family flow (Phase 12C): live together → closest → activity → married → children.
     # Screening questions (siblings, have_family) removed; warmth-first ordering.
@@ -384,14 +381,15 @@ _FRAME_ORDER: dict = {
         "f_married",                # 4. 你结婚了吗？
         "f_have_children",          # 5. 你有孩子吗？
     ],
-    # Work (Phase 12C): what → company → tenure → location → origin story → future.
+    # Work (Phase 12C): what → company → tenure → location → origin story → future → why?.
     "work": [
-        "f_what_work",          # 1. 你做什么工作？
-        "f_work_company",       # 2. 你在哪个公司上班？
-        "f_work_tenure",        # 3. 你做这个工作多久了？
-        "f_work_where",         # 4. 你工作在哪儿？
-        "f_probe_work_origin",  # 5. 你怎么开始做这个工作的？
-        "f_probe_work_future",  # 6. 你以后还想做这个工作吗？
+        "f_what_work",           # 1. 你做什么工作？
+        "f_work_company",        # 2. 你在哪个公司上班？
+        "f_work_tenure",         # 3. 你做这个工作多久了？
+        "f_work_where",          # 4. 你工作在哪儿？
+        "f_probe_work_origin",   # 5. 你怎么开始做这个工作的？
+        "f_probe_work_future",   # 6. 你以后还想做这个工作吗？
+        "f_probe_work_why_quit", # 7. 为什么呢？ — reacts to any answer about future plans
     ],
     # Hobby (Phase 12C): open → location → best part → origin → social → travel.
     "hobby": [
@@ -402,10 +400,24 @@ _FRAME_ORDER: dict = {
         "f_probe_hobby_social",  # 5. 你一般自己做还是跟朋友一起？
         "f_hobby_travel",        # 6. 你会去别的地方做吗？
     ],
-    # Travel: been where → want to go → countries → best place → EXTEND break → fun things → how was it.
-    "travel": ["f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_ext1", "p2_tr_3", "p2_tr_4"],
+    # Travel: where → best trip → special → food → who with → purpose.
+    # Travel (Phase 12C): start with WHERE (establishes context) → then depth questions.
+    # f_travel_been ("你去过吗？") removed — it has no referent as a cold opener.
+    "travel": [
+        "f_travel_where",     # 1. 你去过哪里？
+        "f_travel_best_trip", # 2. 哪次旅行最难忘？
+        "f_travel_special",   # 3. 那里有什么特别的？
+        "f_travel_food",      # 4. 那里有什么好吃的？
+        "f_travel_with_who",  # 5. 你是跟谁一起去的？
+        "f_travel_purpose",   # 6. 这是工作还是玩？
+    ],
     # Food: what's good → famous dish → tasty → EXTEND break → spicy → expensive.
-    "food": ["f_food_what_good", "f_food_famous_dish", "f_food_tasty", "p2_fd_ext1", "f_food_like_spicy", "f_food_expensive"],
+    # Food (Phase 12C): short vivid branch — available → famous → taste. Exits quickly to PLACE/TRAVEL.
+    "food": [
+        "f_food_available",  # 1. 那里有什么好吃的？
+        "f_food_famous",     # 2. 最有名的菜是什么？
+        "f_food_taste",      # 3. 是什么味道？
+    ],
     "life": [],
 }
 # A frame id may only be chosen if all of its "after" frames are in recent_frame_ids (already asked).
@@ -415,6 +427,8 @@ _FRAME_AFTER: dict = {
     "p2_id_2": ["f_ask_you_name"],
     # Story elicitation only makes sense after the story question was asked
     "f_name_story_elicit": ["p2_id_ext1"],
+    # "Why's that?" only makes sense after the future-plans question has been asked
+    "f_probe_work_why_quit": ["f_probe_work_future"],
 }
 
 # Phase 11.1: OPEN frames that must not be re-entered once the session is established (exchange_count ≥ 2).
@@ -731,10 +745,12 @@ def _engine_partner_question_frame_ids(engine_norm: str) -> List[str]:
         # via _pick_efc_frame. Do not let the generic ladder pick them (would hit {ENTITY} fallback).
         and not (fr.get("efc_type") or "").strip()
     ]
+    # Phase 12D: return only frames in _FRAME_ORDER — orphaned frames (removed from order but
+    # still in JSON) must not be reachable via the ladder. This prevents stale frames from
+    # appearing after engine content stabilisation.
     order = _FRAME_ORDER.get(engine_norm) or []
     ordered = [f for f in order if f in raw]
-    rest = sorted(f for f in raw if f not in order)
-    return ordered + rest
+    return ordered
 
 
 # Until this frame has been shown, bridging *out* of place should not land in food — otherwise
@@ -752,7 +768,7 @@ _BRIDGE_TARGETS: dict = {
     "identity": ["place", "family", "work", "hobby"],
     "place":    ["food", "family", "work", "travel", "hobby", "identity"],
     "family":   ["identity", "work", "hobby", "place"],
-    "work":     ["family", "identity", "hobby", "place"],
+    "work":     ["family", "identity", "place", "hobby"],
     "hobby":    ["family", "work", "identity", "travel", "food"],   # family/work first: most natural after hobbies
     "travel":   ["family", "work", "identity", "place", "hobby", "food"],
     "food":     ["family", "work", "place", "travel", "hobby", "life"],
@@ -766,22 +782,24 @@ _BRIDGE_PREFIXES: list = ["顺便问一下，"]
 # Frames that ask essentially the same question in different engines.
 # If any frame in a set has been shown, all others in that set are skipped.
 _MUTUAL_EXCLUSION_FRAMES: dict = {
-    # Food-place cluster: all ask "what food is there / what's famous / is it tasty?"
-    # They all require the same place-food context. If any place-food frame was shown, skip
-    # the others so the bridge doesn't return to food territory after it was already covered.
-    "f_food_what_good":   {"p2_pl_2", "f_food_famous_dish", "f_food_tasty"},
-    "f_food_famous_dish": {"p2_pl_2", "f_food_what_good",   "f_food_tasty"},
-    "f_food_tasty":       {"p2_pl_2", "f_food_what_good",   "f_food_famous_dish"},
-    "p2_pl_2":            {"f_food_what_good", "f_food_famous_dish", "f_food_tasty"},
+    # Phase 12D: food engine opener — skip if mid-engine food frames already shown.
+    # Happens when DISH bridge asks f_food_famous before the engine is entered directly;
+    # the ladder must not then circle back to the opener (那里有什么好吃的？).
+    "f_food_available": {"f_food_famous", "f_food_taste"},
+    # Cross-topic deduplication: travel "where have you been" vs place "where from/live"
     "f_travel_where": {"p2_tr_1"},     # "你去过哪里？" ↔ "你去过哪些国家？"
     "p2_tr_1": {"f_travel_where"},
     "f_ask_you_name": {"p2_id_2"},     # "你叫什么名字？" ↔ "大家一般怎么叫你？" (both ask for name)
     "p2_id_2": {"f_ask_you_name"},
-    "p2_id_4": {"p2_id_5"},           # "你觉得你的名字怎么样？" ↔ "这个名字对你有什么意义？" (both ask about name significance)
-    "p2_id_5": {"p2_id_4"},
-    # Work difficulty cluster: "这份工作难吗？" ↔ "你工作里最难的部分是什么？" — both probe difficulty
-    "p2_wk_2": {"p2_wk_3"},
-    "p2_wk_3": {"p2_wk_2"},
+    # Cross-topic deduplication: "who do you do X with?" — hobby social ↔ travel companion ↔ travel alone probe
+    # User answered once; don't repeat the same social question across engine boundary.
+    "f_travel_with_who":    {"f_probe_hobby_social", "f_probe_travel_alone"},
+    "f_probe_hobby_social": {"f_travel_with_who", "f_probe_travel_alone"},
+    "f_probe_travel_alone": {"f_travel_with_who", "f_probe_hobby_social"},
+    # Cross-topic deduplication: "你是哪里人？" — identity engine f_from_where and place engine
+    # f_home_where ask an identical question. Once either is answered, suppress the other.
+    "f_from_where": {"f_home_where"},
+    "f_home_where": {"f_from_where"},
 }
 
 # Oxygen loop questions (canonical list from MandarinOS_conversation_ladders_full_draft_v2.md) — offered as "Ask back" when user gave an interesting answer.
@@ -832,27 +850,40 @@ _REACTION_FALLBACKS_GENERIC: list = ["哦。", "是吗。", "不错。", "很好
 # These are short question-style reactions that invite the user to explain further.
 # Rule: keep each item semantically distinct — no two should be near-synonyms.
 _CURIOSITY_REACTIONS_BY_ENGINE: dict = {
-    "food":   ["哦？最喜欢哪种？", "自己会做吗？", "是在哪儿吃到的？"],
-    "travel": ["为什么想去那里？", "哪个地方最有意思？", "一般自己去还是跟人一起？"],
-    "place":  ["住多久了？", "为什么喜欢那儿？", "打算长期住下去吗？"],
-    "work":   ["为什么喜欢这份工作？", "工作里最有意思的是什么？", "是怎么开始做的？"],
-    "hobby":  ["是怎么开始喜欢这个的？", "自己做还是跟朋友一起？", "花不少时间吧？"],
-    "family": ["感情好吗？", "平时大家会一起做什么？", "谁对你影响最大？"],
-    "identity": ["你觉得名字符合你的性格吗？", "有什么故事吗？", "家人怎么叫你？"],
+    # Phase 13C: reactions must NOT contain '？' — the prepend guard blocks any reaction
+    # that itself ends in a question from being prepended to the next question frame,
+    # making high-interest turns invisible. Use short exclamations instead.
+    # All entries must be ≥5 Chinese characters so the ≤4-char blandness gate
+    # does not treat curiosity reactions as generic and override them with echoes.
+    # Each pool has ≥5 entries to reduce same-session repetition.
+    "food":     ["哇，听起来很好吃！", "真的吗，太有意思了！", "哦，真没想到！", "听起来很特别！", "哇，这很有特色！"],
+    "travel":   ["听起来太厉害了！", "哇，去过这么多地方！", "真的好羡慕！", "哇，太开眼界了！", "听起来很精彩！"],
+    "place":    ["哇，听起来不错！", "真的吗，很有意思！", "真不简单啊！", "听起来很有特色！", "真是太好了！"],
+    "work":     ["哇，真不简单！", "真的吗，太厉害了！", "听起来很有意思！", "哦，真了不起！", "太出乎意料了！"],
+    "hobby":    ["哇，太厉害了！", "听起来真有意思！", "真的吗，太棒了！", "哦，很特别啊！", "听起来很好玩！"],
+    "family":   ["听起来很幸福！", "哦，真有意思！", "感情很好啊！", "听起来很温馨！", "真的很好啊！"],
+    "identity": ["名字很好听！", "是吗，很有意思！", "哦，真有意思！", "很特别的名字！", "听起来不错！"],
 }
-_CURIOSITY_REACTIONS_GENERIC: list = ["为什么呢？", "真的吗？", "怎么说？", "是吗？"]
+_CURIOSITY_REACTIONS_GENERIC: list = ["真是不简单！", "听起来很有意思！", "是吗，很好啊！", "哦，真没想到！", "真是特别啊！"]
 
 # Oxygen selection by context (engine or slot). Only surface 1–2 when gating conditions fire.
 _OXYGEN_IDS_BY_ENGINE: dict = {
-    "place": ["zenmeyang", "nali"],
-    "work":  ["zenmeyang", "shenme_shihou"],  # busy? not available; keep lightweight
-    "food":  ["weishenme", "xihuan_ma"],
+    "place":  ["zenmeyang", "nali"],
+    "work":   ["weishenme", "zenmeyang"],  # "why?" is most natural for work disclosures
+    "food":   ["weishenme", "xihuan_ma"],
+    # Phase 12D Step 2: add oxygen coverage for engines previously without probes.
+    "hobby":  ["zenmeyang", "weishenme"],
+    "family": ["weishenme", "xihuan_ma"],
+    "travel": ["nali", "zenmeyang"],
 }
 _OXYGEN_IDS_BY_SLOT: dict = {
-    "CITY": ["zenmeyang", "nali"],
-    "JOB":  ["zenmeyang"],
-    "DISH": ["weishenme", "xihuan_ma"],
-    "NAME": ["weishenme"],
+    "CITY":   ["zenmeyang", "nali"],
+    "JOB":    ["zenmeyang"],
+    "DISH":   ["weishenme", "xihuan_ma"],
+    "NAME":   ["weishenme"],
+    # Phase 12D Step 2: slot-level oxygen coverage for HOBBY and TRAVEL bridges.
+    "HOBBY":  ["zenmeyang", "weishenme"],
+    "TRAVEL": ["nali", "zenmeyang"],
 }
 
 # Slot/topic-specific follow-up preferences (attempt before generic engine ladder).
@@ -861,21 +892,133 @@ _SLOT_FOLLOWUP_PREFERENCES: dict = {
     # Frames with skip_when in p2_frames.json are skipped by _check_skip_condition inside _pick_slot_followup_frame_id.
     # p2_pl_far   skip_when=city_is_well_known  (北京/上海/广州)
     # p2_pl_ext1  skip_when=city_is_familiar    (all curriculum cities/countries)
-    "CITY": ["p2_pl_far", "p2_pl_ext1", "f_probe_place_moved", "f_place_like_there", "f_place_why_like", "p2_pl_4", "p2_pl_1", "p2_pl_2"],
-    # JOB: aligned with work engine Phase 12C order.
-    "JOB":  ["f_work_company", "f_work_tenure", "f_work_where", "f_probe_work_origin", "f_probe_work_future"],
+    # CITY/PLACE: aligned with place engine Phase 12C final order (skip opener — city already disclosed).
+    "CITY": ["f_live_where", "f_place_special", "f_place_food", "f_home_where", "f_place_travel", "f_live_with_who", "f_place_why_live"],
+    # JOB: f_probe_work_role_detail fires first when interest is medium/high (slot followup is
+    # interest-gated), so the first follow-up naturally asks "what kind of work is that?" for
+    # any unusual job (CIO, blogger, chef, teacher, etc.) before continuing the standard chain.
+    "JOB":  ["f_probe_work_role_detail", "f_work_company", "f_work_tenure", "f_work_where",
+             "f_probe_work_origin", "f_probe_work_future", "f_probe_work_why_quit"],
     # DISH: ask WHY first, then variety questions.
-    "DISH": ["f_food_why_good", "f_food_like_spicy", "f_food_famous_dish", "f_food_expensive"],
+    # DISH/FOOD: aligned with food engine Phase 12C order (skip opener — dish already disclosed).
+    "DISH": ["f_food_famous", "f_food_taste"],
     "NAME": ["f_id_friends_call", "f_probe_id_nickname", "f_name_story", "f_how_old"],
     # FAMILY: after user reveals family info, probe deeper — live together? siblings? married? children? how often?
     "FAMILY": ["p2_fa_live_with", "f_probe_family_closest", "p2_fa_activity", "f_married", "f_have_children"],
     # STORY: after user answers a story-elicitation frame — probe with "why" or "tell me more"
     "STORY": ["f_generic_why"],
     # TRAVEL: which is best? then why, then continuation.
-    "TRAVEL": ["f_travel_which_best", "f_travel_why_interesting", "f_want_go_where", "p2_tr_2", "p2_tr_3", "p2_tr_4"],
+    # TRAVEL: aligned with travel engine Phase 12C order (skip opener — context already established).
+    "TRAVEL": ["f_travel_where", "f_travel_best_trip", "f_travel_special", "f_travel_food", "f_travel_with_who", "f_travel_purpose"],
     # HOBBY: aligned with hobby engine Phase 12C order (skip opener — learner already disclosed hobby).
     "HOBBY": ["f_hobby_where", "f_hobby_best_part", "f_probe_hobby_origin", "f_probe_hobby_social", "f_hobby_travel"],
+    # COMPANY: after the learner names any company (Alibaba, Fujitsu, a university, etc.),
+    # probe what it's like there before continuing the standard work sequence.
+    "COMPANY": ["f_probe_work_company_vibe", "f_work_tenure", "f_work_where",
+                "f_probe_work_origin", "f_probe_work_future", "f_probe_work_why_quit"],
 }
+
+# ── Response-seeded bridge engine queue ──────────────────────────────────────────────────────────
+# Maps a disclosed slot to the engine that should be seeded for future bridging.
+# When the learner mentions content that belongs to another engine, that engine is queued
+# as a preferred bridge target — conversation follows the learner's narrative thread.
+_SLOT_TO_BRIDGE_ENGINE: dict = {
+    "CITY":   "place",
+    "JOB":    "work",
+    "DISH":   "food",
+    "TRAVEL": "travel",
+    "FAMILY": "family",
+    "HOBBY":  "hobby",
+    "NAME":   "identity",
+}
+
+# Frame-id-based bridge seeds: when a specific partner frame is answered, seed the target engine
+# WITHOUT tagging a slot (avoids triggering slot-followup chains that jump engines prematurely).
+# e.g. f_work_where discloses a work city → seeds place for a future bridge, but must NOT
+# fire the CITY slot-followup chain which would ask f_live_where before work probe frames finish.
+_FRAME_ID_TO_SEED: dict = {
+    "f_work_where": "place",
+}
+
+# Content keywords that can seed an engine even when the frame_id doesn't trigger slot detection.
+_SEED_FAMILY_KEYWORDS: frozenset = frozenset({
+    "妻子", "老婆", "丈夫", "先生", "孩子", "父母", "父亲", "母亲", "妈妈", "爸爸",
+    "哥哥", "弟弟", "姐姐", "妹妹", "兄弟", "儿子", "女儿",
+})
+_SEED_PLACE_KEYWORDS: frozenset = frozenset({
+    "苏州", "北京", "上海", "广州", "深圳", "杭州", "南京", "成都", "重庆", "武汉", "西安",
+    "青岛", "厦门", "天津", "昆明", "新西兰", "澳大利亚", "美国", "英国", "加拿大", "法国",
+    "德国", "日本", "韩国", "新加坡",
+})
+
+
+def _infer_cross_engine_seeds(
+    slot_names: List[str],
+    answer_text: str,
+    current_engine: str,
+    last_fid: str = "",
+) -> List[str]:
+    """Return a deduplicated list of engine names that should be seeded for future bridging,
+    based on slot disclosures, frame_id, and content keywords in the learner's answer.
+
+    New seeds are placed first (most recent = highest priority).
+    Only engines different from current_engine are included — the current engine is already active.
+    """
+    norm = (current_engine or "").strip().lower()
+    seeds: List[str] = []
+    seen: set = set()
+
+    def _add(engine: str) -> None:
+        if engine and engine != norm and engine not in seen:
+            seeds.append(engine)
+            seen.add(engine)
+
+    # Frame-id-based seeds: most precise, no slot-followup side effects.
+    # Use this for frames that disclose cross-engine content but must NOT trigger the
+    # slot-followup chain for that slot (e.g. f_work_where discloses a city but the
+    # CITY slot-followup chain would jump to place engine before work probes finish).
+    fid_seed = _FRAME_ID_TO_SEED.get((last_fid or "").strip())
+    if fid_seed:
+        _add(fid_seed)
+
+    # Slot-based seeds (high reliability — frame_id triggered slot detection)
+    for slot in slot_names:
+        target = _SLOT_TO_BRIDGE_ENGINE.get(slot)
+        if target:
+            _add(target)
+
+    # Content-based seeds (for answers whose frame_id doesn't tag a slot).
+    # NOTE: place seeding is intentionally omitted here — city names appear inside institution
+    # and company names (e.g. "西安交通大学") which are NOT genuine place disclosures.
+    # Place seeds are reliably inferred via frame_id (_FRAME_ID_TO_SEED or CITY slot).
+    if answer_text:
+        if _looks_travel_related_answer(answer_text):
+            _add("travel")
+        if any(kw in answer_text for kw in _SEED_FAMILY_KEYWORDS):
+            _add("family")
+        if _looks_food_related_answer(answer_text):
+            _add("food")
+
+    return seeds
+
+
+def _merge_seeded_engines(
+    new_seeds: List[str],
+    existing: List[str],
+    current_engine: str,
+) -> List[str]:
+    """Merge new seeds (highest priority) with existing seeds, deduplicating.
+    Current engine is always excluded — it is being visited now.
+    """
+    norm = (current_engine or "").strip().lower()
+    result: List[str] = []
+    seen: set = set()
+    for e in new_seeds + (existing or []):
+        if e and e != norm and e not in seen:
+            result.append(e)
+            seen.add(e)
+    return result
+
 
 # Very well-known cities: skip "离那儿远吗？" — partner can assume distance is obvious.
 # Referenced by skip_when="city_is_well_known" in p2_frames.json → evaluated via _check_skip_condition.
@@ -924,6 +1067,19 @@ def _check_coherence_condition(frame_id: str, last_text: str) -> bool:
     return avoid_hit and not allow_hit
 
 
+_HOBBY_TRAVEL_KEYWORDS: frozenset = frozenset([
+    "旅行", "旅游", "环游", "出游", "游览", "出行", "旅程", "旅", "游玩", "背包",
+    "travel", "travelling", "traveling",
+])
+
+
+def _hobby_is_travel(answer_text: str, memory: Optional[dict]) -> bool:
+    """Return True if the disclosed hobby appears to be travel-related."""
+    mem = memory or {}
+    blob = f"{answer_text} {mem.get('hobby') or ''}".lower()
+    return any(kw in blob for kw in _HOBBY_TRAVEL_KEYWORDS)
+
+
 def _check_skip_condition(frame_id: str, context: dict) -> bool:
     """
     Evaluate the declarative skip_when predicate attached to a frame (from p2_frames.json).
@@ -933,6 +1089,7 @@ def _check_skip_condition(frame_id: str, context: dict) -> bool:
     --------------------
     city_is_well_known  — city in {北京,上海,广州}  (skip "is it far?")
     city_is_familiar    — city in _FAMILIAR_PLACE_NAMES  (skip "what's special?")
+    hobby_is_travel     — hobby answer contains travel keywords (skip location/travel sub-questions)
     """
     fr = _frames_by_id.get(frame_id) or {}
     predicate = (fr.get("skip_when") or "").strip()
@@ -952,6 +1109,9 @@ def _check_skip_condition(frame_id: str, context: dict) -> bool:
             if fam in blob:
                 return True
         return False
+
+    if predicate == "hobby_is_travel":
+        return _hobby_is_travel(answer_text, memory)
 
     return False
 
@@ -1148,9 +1308,11 @@ def _fill_efc_entity(frame_id: str, entity_value: str) -> Optional[str]:
 # slot followup preferences are exhausted. Ordered medium-interest first, high-interest last.
 # interest_min: "medium" = fires on medium or high; "high" = fires only on high.
 _CURIOSITY_PROBE_FRAMES: dict = {
+    # Phase 12D Step 1: frames already in FRAME_ORDER removed — curiosity layer must be true extension.
+    # Removed: f_probe_id_nickname (identity), f_probe_work_origin + f_probe_work_future (work),
+    #          f_probe_family_closest (family), f_probe_hobby_origin + f_probe_hobby_social (hobby).
     "identity": [
         {"id": "f_probe_id_like_name",    "interest_min": "medium"},
-        {"id": "f_probe_id_nickname",     "interest_min": "medium"},
         {"id": "f_probe_id_character",    "interest_min": "high"},
     ],
     "place": [
@@ -1160,10 +1322,11 @@ _CURIOSITY_PROBE_FRAMES: dict = {
         {"id": "f_probe_place_stay",      "interest_min": "high"},
     ],
     "work": [
-        {"id": "f_probe_work_origin",     "interest_min": "medium"},
-        {"id": "f_probe_work_dream",      "interest_min": "medium"},
-        {"id": "f_probe_work_best",       "interest_min": "medium"},
-        {"id": "f_probe_work_future",     "interest_min": "high"},
+        # f_probe_work_role_detail fires on any interesting job disclosure ("what kind of work is that?")
+        # before the linear frame sequence continues — works for any unusual role.
+        {"id": "f_probe_work_role_detail", "interest_min": "medium"},
+        {"id": "f_probe_work_dream",       "interest_min": "medium"},
+        {"id": "f_probe_work_best",        "interest_min": "medium"},
     ],
     "food": [
         {"id": "f_probe_food_make",       "interest_min": "medium"},
@@ -1171,18 +1334,17 @@ _CURIOSITY_PROBE_FRAMES: dict = {
         {"id": "f_probe_food_teach",      "interest_min": "high"},
     ],
     "family": [
-        {"id": "f_probe_family_closest",  "interest_min": "medium"},
         {"id": "f_probe_family_together", "interest_min": "medium"},
         {"id": "f_probe_family_influence","interest_min": "high"},
     ],
     "hobby": [
-        {"id": "f_probe_hobby_origin",    "interest_min": "medium"},
-        {"id": "f_probe_hobby_social",    "interest_min": "medium"},
-        {"id": "f_probe_hobby_change",    "interest_min": "high"},
+        {"id": "f_probe_hobby_change",    "interest_min": "medium"},
     ],
     "travel": [
-        {"id": "f_probe_travel_alone",    "interest_min": "medium"},
-        {"id": "f_probe_travel_learn",    "interest_min": "high"},
+        # f_probe_travel_alone removed: "你旅行的时候喜欢自己去还是跟人一起？" duplicates
+        # f_travel_with_who ("你是跟谁一起去的？") in the core FRAME_ORDER.
+        {"id": "f_probe_travel_why_fav",  "interest_min": "medium"},
+        {"id": "f_probe_travel_meaning",  "interest_min": "high"},
     ],
 }
 
@@ -1279,6 +1441,11 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
         slots.append("NAME")
     if fid in ("f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5"):
         slots.append("JOB")
+    # COMPANY: after the learner answers "which company do you work for?" with substantive content,
+    # trigger the company-probe followup ("那家公司怎么样？"). Works for any org — Alibaba, Fujitsu,
+    # a university, a school — not limited to foreign or well-known companies.
+    if fid == "f_work_company" and txt and len(txt) >= 2:
+        slots.append("COMPANY")
     if fid in ("f_food_what_good", "f_food_tasty", "f_food_like_spicy", "f_food_famous_dish", "f_food_expensive"):
         slots.append("DISH")
     if fid in ("f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4"):
@@ -1292,6 +1459,10 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
         "p2_pl_4",
         "p2_pl_far",
         "f_place_like_there",
+        # NOTE: f_work_where is intentionally excluded. It used to tag CITY here but that
+        # triggered the CITY slot-followup chain (_SLOT_FOLLOWUP_PREFERENCES["CITY"]),
+        # which pulled in f_live_where (place engine) before work probe frames finished.
+        # f_work_where now seeds "place" via _FRAME_ID_TO_SEED in _infer_cross_engine_seeds.
     ):
         slots.append("CITY")
     # Family: answered a family opener, siblings, marriage or children question — probe deeper
@@ -1351,7 +1522,16 @@ def _stable_gate(seed: str) -> int:
 # These indicate a genuinely new personal detail in the user's answer.
 # Story/context connectors signal the user is sharing something personal, not just naming a fact.
 _NOVELTY_STORY_MARKERS = (
-    "以前", "从小", "记得", "那时候", "有一次", "小时候", "当时", "后来", "长大",
+    "以前", "从小", "记得", "那时候", "有一次", "小时候", "当时", "后来", "长大", "曾经",
+)
+
+# Notable job/role keywords: if a JOB slot answer contains any of these,
+# award a novelty bonus so that unusual roles score HIGH interest instead of medium.
+_JOB_NOTABLE_ROLE_MARKERS = (
+    "首席", "总裁", "总经理", "副总", "总监", "经理", "主任", "主管",   # management
+    "博主", "设计师", "艺术家", "创作者", "作家", "记者", "摄影师",       # creative
+    "工程师", "程序员", "医生", "律师", "教授", "科学家", "研究员",         # professional
+    "CEO", "CIO", "CTO", "CFO", "COO",                                   # C-suite
 )
 # Personal ownership + quantity markers: "我有", "我们有", plus any digit character.
 _NOVELTY_OWNERSHIP_MARKERS = ("我有", "我们有", "我没有")
@@ -1416,6 +1596,13 @@ def _score_answer_interest(
         elif any(ch in _DIGITS for ch in text):
             novelty_hit = True
     if novelty_hit:
+        score += 1
+
+    # Notable job/role bonus: when the answer contains a specific, unusual job title
+    # (CIO, blogger, designer, engineer…), award +1 so the role scores HIGH interest
+    # instead of staying at medium. Only applied when JOB slot is already detected to
+    # avoid false positives from keyword coincidences in other engines.
+    if "JOB" in slot_names and text and any(m in text for m in _JOB_NOTABLE_ROLE_MARKERS):
         score += 1
 
     return max(0, score), novelty_hit
@@ -2240,16 +2427,46 @@ def _select_probe_options(engine_id: str, slot_names: List[str]) -> list:
     return [by_id[i] for i in desired if i in by_id]
 
 
-def _pick_reaction_text(engine_id: str, seed: str, *, interest_level: str = "low", exchange_count: int = 0) -> str:
-    """Return a short reaction phrase. When interest is high AND we're past the opening
-    exchanges, use curiosity questions so the partner sounds genuinely engaged."""
+def _pick_reaction_text(
+    engine_id: str,
+    seed: str,
+    *,
+    interest_level: str = "low",
+    exchange_count: int = 0,
+    recent_reactions: Optional[List[str]] = None,
+    _trace: Optional[dict] = None,
+) -> str:
+    """Return a short stance/reaction phrase for the given interest level.
+
+    Strategic review (Apr 2026): this is the STANCE slot only — acknowledgment/echo
+    is now handled separately. Deduplication via recent_reactions exclusion prevents
+    the same phrase repeating within a session.
+
+    When _trace is provided (a mutable dict), populates:
+      pool_before, pool_after, filter_applied, interest_class
+    """
     engine_norm = (engine_id or "").strip().lower()
-    # Only swap to curiosity reactions after the conversation is established (exchange ≥ 3)
-    # so the greeting / name exchange doesn't trigger "为什么呢？"
-    if interest_level == "high" and exchange_count >= 3:
-        seq = _CURIOSITY_REACTIONS_BY_ENGINE.get(engine_norm) or _CURIOSITY_REACTIONS_GENERIC
+    _cx_min = 3 if engine_norm == "identity" else 0
+    _use_curiosity = interest_level in ("medium", "high") and exchange_count >= _cx_min
+    if _use_curiosity:
+        seq = list(_CURIOSITY_REACTIONS_BY_ENGINE.get(engine_norm) or _CURIOSITY_REACTIONS_GENERIC)
     else:
-        seq = _REACTION_FALLBACKS_BY_ENGINE.get(engine_norm) or _REACTION_FALLBACKS_GENERIC
+        seq = list(_REACTION_FALLBACKS_BY_ENGINE.get(engine_norm) or _REACTION_FALLBACKS_GENERIC)
+    _pool_before = len(seq)
+    # Deduplication: remove recently used reactions from the pool so the same phrase
+    # doesn't repeat. Relax gracefully if exclusion would empty the pool.
+    _filter_applied = False
+    if recent_reactions and len(seq) > len(recent_reactions):
+        _filtered = [r for r in seq if r not in recent_reactions]
+        if _filtered:
+            seq = _filtered
+            _filter_applied = True
+    _pool_after = len(seq)
+    if _trace is not None:
+        _trace["pool_before"] = _pool_before
+        _trace["pool_after"] = _pool_after
+        _trace["filter_applied"] = _filter_applied
+        _trace["interest_class"] = "curiosity" if _use_curiosity else "fallback"
     return _stable_pick(seq, seed) or "嗯。"
 
 
@@ -2854,6 +3071,7 @@ def _select_next_frame_bridge(
     exchange_count: int = 0,
     engines_visited: Optional[list] = None,
     exclude_engine_norms: Optional[set] = None,
+    seeded_bridge_engines: Optional[List[str]] = None,
 ) -> Optional[str]:
     """
     Phase 9.2: bridge to another engine. Only used after MIN_TURNS_BEFORE_BRIDGE turns in current engine.
@@ -2862,15 +3080,27 @@ def _select_next_frame_bridge(
     so the next question is a more natural switch (place/identity/family) rather than jumping to food/travel.
     Phase 11.1: skips identity OPEN frames (e.g. f_ask_you_name) once session is established (exchange_count ≥ 2).
     Phase 12C: engines_visited (session-level list) — unvisited engines are tried before already-visited ones.
+    Phase 13B: seeded_bridge_engines — engines seeded by learner disclosures are tried first, making
+    bridges follow the conversational thread rather than a fixed priority list.
     exclude_engine_norms: optional set of engine ids (e.g. {"food"}) to skip when bridging (discourse coherence).
     """
     recent = set(recent_frame_ids or [])
     engine_norm = (current_engine or "").strip().lower()
-    targets = (
-        [e for e in _RECOVERY_BRIDGE_ENGINE_ORDER if (e or "").strip().lower() != engine_norm]
-        if use_recovery_order
-        else _BRIDGE_TARGETS.get(engine_norm) or []
-    )
+
+    if use_recovery_order:
+        base_targets = [e for e in _RECOVERY_BRIDGE_ENGINE_ORDER if (e or "").strip().lower() != engine_norm]
+    else:
+        base_targets = _BRIDGE_TARGETS.get(engine_norm) or []
+
+    # Phase 13B: seeded engines (from learner disclosures) take priority over the static list.
+    # A seed that is also in base_targets keeps its seeded position; others are appended after.
+    if seeded_bridge_engines and not use_recovery_order:
+        _seeded_norm = [e for e in seeded_bridge_engines if e and e != engine_norm]
+        _base_set = set(_seeded_norm)
+        targets = _seeded_norm + [e for e in base_targets if e not in _base_set]
+    else:
+        targets = base_targets
+
     # Reduce ping-pong: try engines we haven't visited recently first (so we don't jump A->B->A->B).
     recent_list = recent_frame_ids or []
     if recent_list and targets:
@@ -2882,16 +3112,31 @@ def _select_next_frame_bridge(
                 last_index_by_engine[eng] = i
         def _recent_rank(e):
             return last_index_by_engine.get((e or "").strip().lower(), -1)
-        targets = sorted(targets, key=_recent_rank)  # least recently used first
+        # Only apply LRU sort to unseeded portion — preserve seeded order.
+        if seeded_bridge_engines and not use_recovery_order:
+            _seeded_set = {e for e in seeded_bridge_engines if e and e != engine_norm}
+            _unseeded = [e for e in targets if e not in _seeded_set]
+            _unseeded_sorted = sorted(_unseeded, key=_recent_rank)
+            targets = [e for e in targets if e in _seeded_set] + _unseeded_sorted
+        else:
+            targets = sorted(targets, key=_recent_rank)  # least recently used first
     # Phase 12C: prefer engines not yet visited in this session (avoids returning to exhausted topics).
     # Split targets into unvisited-first, then already-visited, preserving LRU order within each group.
+    # Phase 13B: seeded engines keep their position regardless of visited status — the learner
+    # explicitly disclosed a topic that deserves follow-up, even if that engine was visited before.
     if engines_visited:
         _visited_set = {(e or "").strip().lower() for e in engines_visited}
         _visited_set.discard(engine_norm)  # current engine is already excluded from targets
-        targets = (
-            [t for t in targets if (t or "").strip().lower() not in _visited_set]
-            + [t for t in targets if (t or "").strip().lower() in _visited_set]
+        _seeded_set_v12c = (
+            {e for e in seeded_bridge_engines if e and e != engine_norm}
+            if (seeded_bridge_engines and not use_recovery_order)
+            else set()
         )
+        _seeded_portion   = [t for t in targets if (t or "").strip().lower() in _seeded_set_v12c]
+        _unseeded_portion = [t for t in targets if (t or "").strip().lower() not in _seeded_set_v12c]
+        _unvisited_unseeded = [t for t in _unseeded_portion if (t or "").strip().lower() not in _visited_set]
+        _visited_unseeded   = [t for t in _unseeded_portion if (t or "").strip().lower() in _visited_set]
+        targets = _seeded_portion + _unvisited_unseeded + _visited_unseeded
     exclude = set(exclude_engine_norms or ())
     # De-emphasise food until the place-food opener (p2_pl_2) has been asked — place→food was first in bridge order.
     if engine_norm == "place" and not _place_food_topic_primed(recent_list):
@@ -3169,6 +3414,12 @@ def _frame_order_priority(
         if memory and _should_suppress_ask_frame(fid, memory, recent_list, RECALL_INTERVAL_TURNS):
             continue
         if _check_skip_condition(fid, ctx):
+            continue
+        # Phase 12D: respect mutual exclusion — don't reinstate an earlier frame if its
+        # semantic equivalent has already been shown (e.g. don't reopen f_food_available
+        # after f_food_famous was chosen via slot followup).
+        _excl = _MUTUAL_EXCLUSION_FRAMES.get(fid) or set()
+        if _excl & recent_set:
             continue
         return fid
     return None
@@ -3465,6 +3716,8 @@ class Handler(BaseHTTPRequestHandler):
                 loop_count_in_engine   = int(cs.get("loop_count_in_current_engine") or 0)
                 engines_visited        = list(cs.get("engines_visited") or [])
                 recent_confusion_count = int(cs.get("recent_confusion_count") or 0)
+                # Phase 13B: response-seeded bridge queue — accumulated from learner disclosures.
+                seeded_bridge_engines: List[str] = list(cs.get("seeded_bridge_engines") or [])
                 # Arc flags — computed once, reused in soft bias pass
                 _12c_loop_capped = loop_count_in_engine >= LOOP_COUNT_IN_ENGINE_SOFT_CAP
                 _12c_overload    = recent_confusion_count >= OVERLOAD_CONFUSION_THRESHOLD
@@ -3511,6 +3764,13 @@ class Handler(BaseHTTPRequestHandler):
                     meaningful = True
                 unscripted_probe_first = last_turn_was_answer and (not user_asked_question) and _is_unscripted_substantive_answer(last_answer, slot_names)
                 weak_reply = last_turn_was_answer and len(answer_text) <= 2
+                # Phase 13B: accumulate seeded bridge engines from this turn's disclosures.
+                if last_turn_was_answer and answer_text:
+                    _new_seeds = _infer_cross_engine_seeds(slot_names, answer_text, current_engine, last_fid=last_answer_fid)
+                    if _new_seeds:
+                        seeded_bridge_engines = _merge_seeded_engines(
+                            _new_seeds, seeded_bridge_engines, current_engine
+                        )
                 # EFC: detect family entity from current answer; persist across turns via state.
                 _efc_entity_value = _detect_family_entity(answer_text) if last_turn_was_answer else None
                 # If no new entity detected, carry the one from previous turns.
@@ -3546,10 +3806,26 @@ class Handler(BaseHTTPRequestHandler):
                 # So when reaction triggers, we optionally prepend a short reaction phrase to the next question's text.
                 reaction_prefix_text = ""
                 reaction_used_fallback = False
+                # Load deduplication state: last 2 reaction texts used this session.
+                _recent_reactions: List[str] = list(cs.get("recent_reactions") or [])
+                # Default traces — overwritten if their respective code paths run this turn.
+                _sel_trace: dict = {"final_frame_source": "not_computed"}
+                # Reaction trace — captures both slots and composition decision.
+                _rxn_trace: dict = {
+                    "ack_slot": False,
+                    "ack_slot_trigger": None,
+                    "stance_slot": False,
+                    "stance_slot_reason": None,
+                    "pool_before": None,
+                    "pool_after": None,
+                    "filter_applied": False,
+                    "composition_mode": "none",
+                }
                 # Spec §3: after ANY user answer, bias to reaction (not only when "meaningful").
                 if last_turn_was_answer:
-                    # Vary with session+turn so we don't overuse generic fallbacks
-                    seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}"
+                    # Include last_answer_fid in seed for more entropy — avoids hash collision
+                    # when the same engine is active across consecutive turns with similar exchange counts.
+                    seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/{last_answer_fid}"
                     # Prefer reaction frame if available, else topic-specific fallback text
                     if _stable_pick([1], seed) is not None:  # cheap deterministic gate: use probability via hash below
                         # Implement probability gate using stable hash (no random module required)
@@ -3561,25 +3837,31 @@ class Handler(BaseHTTPRequestHandler):
                             if rid:
                                 # Avoid repeating "nice to meet you" beyond the very start; it feels interrogative.
                                 if (current_engine or "").strip().lower() == "identity" and exchange_count >= 1 and rid == "f_nice_to_meet":
-                                    reaction_prefix_text = _pick_reaction_text(current_engine, seed, interest_level=interest_level, exchange_count=exchange_count)
+                                    reaction_prefix_text = _pick_reaction_text(current_engine, seed, interest_level=interest_level, exchange_count=exchange_count, recent_reactions=_recent_reactions, _trace=_rxn_trace)
                                     reaction_used_fallback = True
                                 else:
                                     reaction_prefix_text = (_frames_by_id.get(rid) or {}).get("text") or ""
                             else:
-                                reaction_prefix_text = _pick_reaction_text(current_engine, seed, interest_level=interest_level, exchange_count=exchange_count)
+                                reaction_prefix_text = _pick_reaction_text(current_engine, seed, interest_level=interest_level, exchange_count=exchange_count, recent_reactions=_recent_reactions, _trace=_rxn_trace)
                                 reaction_used_fallback = True
+                            if reaction_prefix_text and interest_level in ("medium", "high"):
+                                _rxn_trace["stance_slot"] = True
+                                _rxn_trace["stance_slot_reason"] = f"interest={interest_level}"
 
-                # Phase 12C: echo / mirror — when we know the slot value, replace the generic
-                # reaction with a short echo so the app sounds like it truly heard the answer.
-                # Fires when: (a) the reaction is generic fallback text, OR (b) the reaction
-                # text is short/generic (≤4 Chinese chars like "很好！" "哦。") — those are
-                # bland acknowledgements that benefit from being replaced by a named echo.
-                _zh_chars_in_reaction = len([c for c in (reaction_prefix_text or "") if "\u4e00" <= c <= "\u9fff"])
-                _reaction_is_generic = reaction_used_fallback or _zh_chars_in_reaction <= 4
-                if last_turn_was_answer and _reaction_is_generic and reaction_prefix_text:
-                    _echo_candidate = ""
+                # ── Two-slot reaction model (Strategic review Apr 2026) ────────────────────────
+                # Slot 1 — Acknowledgment (ECHO): fires when a salient named entity is disclosed.
+                # Slot 2 — Stance (REACTION): fires when the answer is interesting (medium/high).
+                # Composition policy:
+                #   salient slot + HIGH interest + fallback stance → echo + stance (combined)
+                #   salient slot + other cases             → echo only
+                #   no salient slot                        → stance only (kept from above)
+                # ─────────────────────────────────────────────────────────────────────────────
+                _echo_candidate = ""
+                _salient_slots_for_echo = {"CITY", "JOB", "COMPANY", "DISH", "TRAVEL", "NAME"}
+                _echo_triggered_by: Optional[str] = None
+                if last_turn_was_answer and any(s in slot_names for s in _salient_slots_for_echo):
                     _submitted_raw = (last_answer.get("submitted_text") or "").strip() if isinstance(last_answer, dict) else ""
-                    # Strip ALL trailing punctuation (fullwidth and ASCII) so echo never ends with "。！" or "，！"
+                    # Strip ALL trailing punctuation so echo never ends with "。！" or "，！"
                     _submitted = _submitted_raw.rstrip("。，！？、…·\u3002\uff0c\uff01\uff1f.!?, ")
                     _mem = memory or {}
                     if "CITY" in slot_names:
@@ -3591,7 +3873,6 @@ class Handler(BaseHTTPRequestHandler):
                         else:
                             _city = (_mem.get("lives_in") or _mem.get("hometown") or "").strip()
                         if not _city and _submitted:
-                            # Extract city from "我是X人" / "来自X" / "住在X" patterns
                             for _patt_start, _patt_end in [("是", "人"), ("来自", ""), ("住在", "")]:
                                 _ps = _submitted.find(_patt_start)
                                 if _ps >= 0:
@@ -3606,24 +3887,71 @@ class Handler(BaseHTTPRequestHandler):
                                         break
                         if _city:
                             _echo_candidate = f"哦，{_city}！"
+                            _echo_triggered_by = "CITY"
                     elif "NAME" in slot_names and exchange_count <= 3:
                         _name = (_mem.get("learner_name") or "").strip()
                         if _name and len(_name) <= 6:
                             _echo_candidate = f"{_name}！"
+                            _echo_triggered_by = "NAME"
                     elif "DISH" in slot_names and _submitted and len(_submitted) <= 8:
                         _echo_candidate = f"哦，{_submitted}！"
+                        _echo_triggered_by = "DISH"
                     elif "TRAVEL" in slot_names and _submitted and len(_submitted) <= 8:
                         _echo_candidate = f"哦，{_submitted}！"
+                        _echo_triggered_by = "TRAVEL"
+                    elif "COMPANY" in slot_names:
+                        _co = (_mem.get("job_company") or _mem.get("company") or "").strip()
+                        if not _co and _submitted and 2 <= len(_submitted) <= 12:
+                            _co = _submitted
+                        if _co and len(_co) <= 12:
+                            _echo_candidate = f"哦，{_co}！"
+                            _echo_triggered_by = "COMPANY"
                     elif "JOB" in slot_names:
                         _job = (_mem.get("job") or _mem.get("occupation") or "").strip()
-                        if _job and len(_job) <= 6:
+                        if not _job and _submitted:
+                            for _patt in ("是一名", "当一名", "是个", "当个", "做", "当"):
+                                _pi = _submitted.find(_patt)
+                                if _pi >= 0:
+                                    _frag = _submitted[_pi + len(_patt):].rstrip("。，！？的 ")
+                                    if 2 <= len(_frag) <= 8:
+                                        _job = _frag
+                                        break
+                            if not _job and 2 <= len(_submitted) <= 8:
+                                _job = _submitted
+                        if _job and len(_job) <= 10:
                             _echo_candidate = f"哦，{_job}！"
-                    # Apply echo only when we have a clean value (not too long, not already prefixed)
-                    # Final guard: strip any punct that crept into the candidate from slot values
+                            _echo_triggered_by = "JOB"
+                    # Normalise: strip stray punctuation then ensure closing ！
                     if _echo_candidate:
                         _echo_candidate = _echo_candidate.rstrip("。，！？.!?,\u3002\uff0c\uff01\uff1f") + "！"
-                    if _echo_candidate and len(_echo_candidate) <= 14:
+
+                # Compose the final reaction_prefix_text using the two-slot policy.
+                if _echo_candidate:
+                    _rxn_trace["ack_slot"] = True
+                    _rxn_trace["ack_slot_trigger"] = _echo_triggered_by
+                    # For HIGH interest with a fallback stance reaction, combine both.
+                    # Brevity guard (B): cap combined prefix at 16 Chinese chars.
+                    # If exceeded, fall back to echo only to keep the opening short.
+                    if (
+                        interest_level == "high"
+                        and reaction_prefix_text
+                        and reaction_used_fallback
+                    ):
+                        _combined = _echo_candidate + reaction_prefix_text
+                        _combined_zh_len = len([c for c in _combined if "\u4e00" <= c <= "\u9fff"])
+                        if _combined_zh_len <= 16:
+                            reaction_prefix_text = _combined
+                            _rxn_trace["composition_mode"] = "echo+stance"
+                        else:
+                            reaction_prefix_text = _echo_candidate
+                            _rxn_trace["composition_mode"] = "echo_only (brevity_guard)"
+                    else:
                         reaction_prefix_text = _echo_candidate
+                        _rxn_trace["composition_mode"] = "echo_only"
+                else:
+                    if reaction_prefix_text:
+                        _rxn_trace["composition_mode"] = "stance_only"
+                # ─────────────────────────────────────────────────────────────────────────────
 
                 # User-question override (spec-friendly, no schema changes):
                 # if the user asked a question (counter-question), return the persona's answer
@@ -3736,30 +4064,51 @@ class Handler(BaseHTTPRequestHandler):
                     # allow one more same-topic probe before chain-cap forces a bridge.
                     if weak_reply and (last_interest_level in ("medium", "high")):
                         chain_exceeded = False
-                    # Phase 11.1: depth guard — block bridge if fresh frames remain and depth is shallow
+                    # Phase 11.1 / Phase 13C: depth guard — block bridge whenever content frames
+                    # remain, regardless of time in engine. The old chain-count expiry caused
+                    # ASR-repair turns to inflate same_engine_chain_count, disabling the guard
+                    # before all content frames were shown (e.g. f_probe_work_why_quit skipped).
                     _remaining_in_engine = _count_remaining_engine_frames(current_engine, recent, memory)
-                    _depth_guard_blocks = (
-                        same_engine_chain_count < ENGINE_DEPTH_GUARD_TURNS
-                        and _remaining_in_engine >= ENGINE_DEPTH_GUARD_MIN_REMAINING
-                    )
+                    _depth_guard_blocks = _remaining_in_engine >= ENGINE_DEPTH_GUARD_MIN_REMAINING
+                    # Phase 12D Step 4: minimum dwell invariant — never bridge before 2 turns in engine.
+                    _dwell_ok = same_engine_chain_count >= 2
+                    # Phase 12D Step 3 (revised): bridge eligible only when engine is truly exhausted
+                    # OR explicitly forced/preferred (recovery / change-topic).
+                    # Low interest alone is NOT a bridge trigger — the engine must be done first.
+                    # Rationale: low interest + remaining frames caused premature engine exits
+                    # (e.g. skipping age after 好吧 fired in identity engine).
+                    _engine_exhausted = _remaining_in_engine == 0
                     bridge_allowed = (
                         force_bridge
                         or prefer_bridge
-                        or (
-                            same_engine_chain_count >= MIN_SAME_ENGINE_CHAIN_BEFORE_BRIDGE
-                            and not _depth_guard_blocks
-                        )
+                        or (_engine_exhausted and _dwell_ok)
                     )
+                    # Selector trace — populated throughout selection, emitted in response.
+                    _sel_trace: dict = {
+                        "slot_followup": None,
+                        "ladder": None,
+                        "probe_eligible": False,
+                        "probe_chosen": None,
+                        "probe_suppressed_reason": None,
+                        "bridge_considered": False,
+                        "bridge_rejected_reason": None,
+                        "final_frame_source": None,
+                    }
                     if pending_listening_move or force_listening or chain_exceeded:
                         seed_base = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/interest"
                         gate_br = _stable_gate(seed_base + "/br")
                         p_br = P_BRIDGE_WHEN_INTEREST_HIGH if interest_level == "high" else 0.35
-                        # Curiosity-first policy: whenever we have meaningful/unscripted signal and depth allows,
-                        # attempt a same-topic probe BEFORE considering bridge.
+                        # Strategic review (Apr 2026): selection order should be:
+                        #   1. Slot followup   — responds directly to what the learner just said
+                        #   2. Frame ladder    — default topic spine; keeps conversation grounded
+                        #   3. Curiosity probe — depth/significance questions; only when HIGH interest
+                        #                        AND engine is grounded (≥2 turns in current engine)
+                        #   4. Bridge          — topic transfer (handled after this block)
                         has_curiosity_signal = bool(slot_names) or bool(unscripted_probe_first) or bool(meaningful)
                         # Phase 12E: use decayed interest for curiosity depth cap (raw level still drives listening/reaction)
                         _curiosity_cap = _max_curiosity_cap_for_interest(_interest_decayed_level)
                         if curiosity_depth < _curiosity_cap and has_curiosity_signal:
+                            # Step 1: slot followup — strongest local signal
                             chosen = _pick_slot_followup_frame_id(
                                 current_engine, slot_names, recent, memory, exchange_count=exchange_count,
                                 answer_text=answer_text, last_answer_fid=last_answer_fid,
@@ -3768,17 +4117,35 @@ class Handler(BaseHTTPRequestHandler):
                                 chosen = _maybe_frame_order_priority(
                                     current_engine, chosen, recent, memory, answer_text, last_answer_fid,
                                 )
-                            # Phase 12E: if slot followup exhausted, try a curiosity probe frame
-                            if chosen is None and _interest_decayed_level in ("medium", "high"):
-                                chosen = _pick_curiosity_probe_frame(current_engine, _interest_decayed_level, memory, recent)
+                            _sel_trace["slot_followup"] = chosen
+                            # Step 2: frame ladder — default spine when no slot followup
+                            _ladder_chosen = None
                             if chosen is None:
-                                chosen = _select_next_frame_ladder_avoiding(
+                                _ladder_chosen = _select_next_frame_ladder_avoiding(
                                     current_engine,
                                     recent,
                                     avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
                                     memory=memory,
                                     exchange_count=exchange_count,
                                     engines_visited=engines_visited,
+                                )
+                                chosen = _ladder_chosen
+                            _sel_trace["ladder"] = _ladder_chosen
+                            # Step 3: curiosity probe — only overrides ladder when interest = HIGH
+                            # and the engine has already progressed (≥2 same-engine turns).
+                            _probe_eligible = _interest_decayed_level == "high" and same_engine_chain_count >= 2
+                            _sel_trace["probe_eligible"] = _probe_eligible
+                            if _probe_eligible:
+                                _probe = _pick_curiosity_probe_frame(current_engine, _interest_decayed_level, memory, recent)
+                                if _probe is not None:
+                                    chosen = _probe
+                                    _sel_trace["probe_chosen"] = _probe
+                                else:
+                                    _sel_trace["probe_suppressed_reason"] = "no_eligible_probe_frame"
+                            else:
+                                _sel_trace["probe_suppressed_reason"] = (
+                                    "interest_not_high" if _interest_decayed_level != "high"
+                                    else "engine_not_grounded_lt2_turns"
                                 )
                             if chosen and _is_loop_candidate(chosen):
                                 chosen_turn_type = "loop_question"
@@ -3788,8 +4155,18 @@ class Handler(BaseHTTPRequestHandler):
                                 pending_listening_move = False
                                 listening_wait_turns = 0
                         # Only default to bridge when curiosity had no viable frame.
-                        if chosen is None and bridge_allowed and (force_listening or chain_exceeded or gate_br < int(p_br * 1000)):
-                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
+                        # Depth guard: never fire a chain_exceeded bridge when we just entered a
+                        # fresh engine and frames remain — the high chain count is from the
+                        # previous engine, not the current one.
+                        _sel_trace["bridge_considered"] = bool(
+                            chosen is None and bridge_allowed and (force_listening or chain_exceeded or gate_br < int(p_br * 1000))
+                        )
+                        if _sel_trace["bridge_considered"] and _depth_guard_blocks:
+                            _sel_trace["bridge_rejected_reason"] = "depth_guard_blocks"
+                        elif _sel_trace["bridge_considered"] and not bridge_allowed:
+                            _sel_trace["bridge_rejected_reason"] = "bridge_not_allowed"
+                        if chosen is None and bridge_allowed and (force_listening or chain_exceeded or gate_br < int(p_br * 1000)) and not _depth_guard_blocks:
+                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited, seeded_bridge_engines=seeded_bridge_engines)
                             if chosen:
                                 chosen_turn_type = "question"
                                 listening_move_selected = "bridge"
@@ -3839,7 +4216,7 @@ class Handler(BaseHTTPRequestHandler):
                     if curiosity_depth >= _max_curiosity_cap_for_interest(_interest_decayed_level):
                         # Force ask/bridge; reset depth
                         if prefer_bridge or force_bridge:
-                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
+                            chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited, seeded_bridge_engines=seeded_bridge_engines)
                         if chosen is None and not force_bridge:
                             chosen = _select_next_frame_ladder(current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
                         curiosity_depth = 0
@@ -3862,7 +4239,7 @@ class Handler(BaseHTTPRequestHandler):
                                 listening_wait_turns = 0
                         if chosen is None:
                             if prefer_bridge or force_bridge:
-                                chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited)
+                                chosen = _select_next_frame_bridge(current_engine, recent, use_recovery_order=prefer_bridge, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited, seeded_bridge_engines=seeded_bridge_engines)
                                 if chosen:
                                     pending_listening_move = False
                                     listening_wait_turns = 0
@@ -3988,7 +4365,7 @@ class Handler(BaseHTTPRequestHandler):
                             _transition_reason = "loop_limit"
                         else:
                             _arc_br = _select_next_frame_bridge(
-                                current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited
+                                current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited, seeded_bridge_engines=seeded_bridge_engines
                             )
                             if _arc_br:
                                 chosen = _arc_br
@@ -4008,7 +4385,7 @@ class Handler(BaseHTTPRequestHandler):
                             _transition_reason = "overload_same_engine"
                         else:
                             _arc_br = _select_next_frame_bridge(
-                                current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited
+                                current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited, seeded_bridge_engines=seeded_bridge_engines
                             )
                             if _arc_br:
                                 chosen = _arc_br
@@ -4040,7 +4417,7 @@ class Handler(BaseHTTPRequestHandler):
                             _close_gate = sum(ord(c) for c in _close_seed) % 1000
                             if _close_gate < CLOSURE_BRIDGE_GATE:
                                 _arc_br = _select_next_frame_bridge(
-                                    current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited
+                                    current_engine, recent, memory=memory, exchange_count=exchange_count, engines_visited=engines_visited, seeded_bridge_engines=seeded_bridge_engines
                                 )
                                 if _arc_br:
                                     chosen = _arc_br
@@ -4081,6 +4458,18 @@ class Handler(BaseHTTPRequestHandler):
 
                 frame_id = chosen
                 frame_rec_chosen = _frames_by_id.get(frame_id, {})
+                # Populate final_frame_source in selector trace.
+                if chosen:
+                    if _sel_trace.get("slot_followup") == chosen:
+                        _sel_trace["final_frame_source"] = "slot_followup"
+                    elif _sel_trace.get("probe_chosen") == chosen:
+                        _sel_trace["final_frame_source"] = "curiosity_probe"
+                    elif listening_move_selected == "bridge":
+                        _sel_trace["final_frame_source"] = "bridge"
+                    elif _sel_trace.get("ladder") == chosen:
+                        _sel_trace["final_frame_source"] = "ladder"
+                    else:
+                        _sel_trace["final_frame_source"] = "other"
                 _chosen_engine_raw = (frame_rec_chosen.get("engine") or current_engine or "unknown").strip()
                 # slot_followup is an internal routing tag — don't let it overwrite current_engine
                 # in the client state, or the next turn will bridge away from the topic immediately.
@@ -4239,7 +4628,9 @@ class Handler(BaseHTTPRequestHandler):
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
                 if reaction_prefix_text:
                     # Keep it lightweight: prepend only if the next frame is a question (avoid double-reactive turns)
-                    if "？" in (frame_rec.get("text") or ""):
+                    # Phase 12D: also block if reaction_prefix_text is itself a question — producing "Q1？Q2？" is confusing.
+                    _reaction_is_question = "？" in reaction_prefix_text
+                    if "？" in (frame_rec.get("text") or "") and not _reaction_is_question:
                         response["frame_text"] = f"{reaction_prefix_text}{response['frame_text']}"
                         response["system_note"] = "phase10.5 reaction_micro_layer"
                         response["reaction_used_fallback"] = bool(reaction_used_fallback)
@@ -4359,6 +4750,21 @@ class Handler(BaseHTTPRequestHandler):
                 response["same_slot_chain_count"] = int(same_slot_chain_count)
                 response["last_focus_slot"] = last_focus_slot
                 response["last_user_text"] = last_user_text
+                # Phase 13B: return updated seeded bridge queue for client round-trip.
+                # Remove the engine just visited so it doesn't loop back immediately.
+                _chosen_engine_for_seed = (frame_rec_chosen.get("engine") or "").strip().lower()
+                response["seeded_bridge_engines"] = [
+                    e for e in seeded_bridge_engines if e != _chosen_engine_for_seed
+                ]
+                # Reaction deduplication: persist last 2 reaction texts for next turn.
+                if reaction_prefix_text:
+                    _updated_recent_reactions = ([reaction_prefix_text] + _recent_reactions)[:2]
+                    response["recent_reactions"] = _updated_recent_reactions
+                else:
+                    response["recent_reactions"] = _recent_reactions
+                # Emit diagnostic traces so the conversation can be audited turn-by-turn.
+                response["selector_trace"] = _sel_trace
+                response["reaction_trace"] = _rxn_trace
                 # Phase 12C: session arc trace
                 response["loop_count_in_current_engine"] = int(loop_count_in_engine)
                 response["arc_state"] = {

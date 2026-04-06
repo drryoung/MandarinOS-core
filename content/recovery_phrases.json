@@ -1,7 +1,8 @@
 {
-  "schema_version": "1.2",
+  "schema_version": "1.3",
   "source": "docs/specs/mandarinos_emergency_phrases_p1_p2_v2.md, MandarinOS_support_packs_v1.md",
   "default_for_not_understood": "en",
+  "core_set_ids": ["a", "deng_yi_xia", "zai_shuo_yi_bian", "man_yi_dian_shuo", "shenme_yisi_a", "wo_you_dian_bu_dong"],
   "phrases": [
     {
       "id": "en",
@@ -27,7 +28,10 @@
       "move_type": "REPAIR",
       "response_role": "REPAIR",
       "repair_kind": "soft_hold",
-      "priority": 95
+      "priority": 200,
+      "core_set": true,
+      "routing_group": "MICRO_REACTION",
+      "always_surface": true
     },
     {
       "id": "shenme",
@@ -53,7 +57,10 @@
       "move_type": "REPAIR",
       "response_role": "SAFE",
       "repair_kind": "buffer",
-      "priority": 90
+      "priority": 200,
+      "core_set": true,
+      "routing_group": "HOLD",
+      "always_surface": true
     },
     {
       "id": "wo_xiang_xiang",
@@ -79,7 +86,10 @@
       "move_type": "REPAIR",
       "response_role": "REPAIR",
       "repair_kind": "repeat",
-      "priority": 100,
+      "priority": 200,
+      "core_set": true,
+      "routing_group": "REPEAT_CONTROL",
+      "always_surface": true,
       "legacy_ids": [
         "zai_shuo_yi_ci"
       ]
@@ -95,7 +105,10 @@
       "move_type": "REPAIR",
       "response_role": "REPAIR",
       "repair_kind": "slower",
-      "priority": 100,
+      "priority": 200,
+      "core_set": true,
+      "routing_group": "REPEAT_CONTROL",
+      "always_surface": true,
       "legacy_ids": [
         "man_yi_dian"
       ]
@@ -111,7 +124,10 @@
       "move_type": "REPAIR",
       "response_role": "REPAIR",
       "repair_kind": "meaning",
-      "priority": 95,
+      "priority": 200,
+      "core_set": true,
+      "routing_group": "UNDERSTANDING",
+      "always_surface": true,
       "legacy_ids": [
         "wo_bu_dong"
       ]
@@ -127,10 +143,27 @@
       "move_type": "REPAIR",
       "response_role": "REPAIR",
       "repair_kind": "meaning",
-      "priority": 85,
+      "priority": 200,
+      "core_set": true,
+      "routing_group": "UNDERSTANDING",
+      "always_surface": true,
       "legacy_ids": [
         "shenme_yisi"
       ]
+    },
+    {
+      "id": "hao_ba",
+      "hanzi": "好吧",
+      "pinyin": "hǎo ba",
+      "text_en": "Alright then",
+      "level": "P1",
+      "use": "not_understood",
+      "recovery_action": "next_turn",
+      "move_type": "REACTION",
+      "response_role": "SAFE",
+      "repair_kind": "exit_release",
+      "priority": 150,
+      "routing_group": "EXIT"
     },
     {
       "id": "ke_yi_jian_dan_shuo_ma",

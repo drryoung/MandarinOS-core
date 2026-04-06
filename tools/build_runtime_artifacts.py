@@ -215,7 +215,8 @@ def _flatten_recovery_phrases_content(data: dict) -> list:
             "use": use,
             "recovery_action": row.get("recovery_action") or "",
         }
-        for k in ("move_type", "response_role", "etymology", "repair_kind", "priority", "legacy_ids"):
+        for k in ("move_type", "response_role", "etymology", "repair_kind", "priority", "legacy_ids",
+                   "always_surface", "routing_group", "core_set"):
             if row.get(k) is not None:
                 item[k] = row[k]
         if topic:
@@ -244,6 +245,9 @@ def build_recovery_phrases_runtime() -> dict:
         }
         if schema_v:
             out["schema_version"] = schema_v
+        core_set_ids = data.get("core_set_ids")
+        if core_set_ids:
+            out["core_set_ids"] = core_set_ids
         return out
     # Fallback so build never fails
     return {

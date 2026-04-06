@@ -14,6 +14,7 @@ _NAME_FRAMES = ("f_ask_you_name",)
 _ORIGIN_FRAMES = ("f_from_where",)   # → hometown (origin/nationality)
 _LIVE_FRAMES = ("frame.location.live_question", "f_live_where")  # → lives_in (legacy id alias)
 _WORK_FRAMES = ("f_what_work",)
+_COMPANY_FRAMES = ("f_work_company",)
 _FAMILY_FRAMES = ("f_have_family", "f_have_siblings")
 _FOOD_FRAMES = ("f_food_what_good",)
 
@@ -27,6 +28,8 @@ for _fid in _LIVE_FRAMES:
     FRAME_TO_MEMORY_FIELD[_fid] = "lives_in"
 for _fid in _WORK_FRAMES:
     FRAME_TO_MEMORY_FIELD[_fid] = "job_or_study"
+for _fid in _COMPANY_FRAMES:
+    FRAME_TO_MEMORY_FIELD[_fid] = "job_company"
 for _fid in _FAMILY_FRAMES:
     FRAME_TO_MEMORY_FIELD[_fid] = "family"
 for _fid in _FOOD_FRAMES:
@@ -92,16 +95,46 @@ def _extract_city_from_hanzi(hanzi: str) -> Optional[str]:
     return None
 
 
-def _extract_job_from_hanzi(hanzi: str) -> Optional[str]:
-    """Extract job from '我是XXX。' (engineer/teacher/student)."""
+def _extract_job_and_company_from_hanzi(hanzi: str) -> tuple:
+    """Extract (job_title, company) from work disclosures.
+
+    Handles patterns:
+      我(曾经/以前/现在)?是[COMPANY]的[JOB]  →  job=JOB, company=COMPANY
+      我(曾经/以前)?是[JOB]                  →  job=JOB, company=None
+      我在[COMPANY]工作/上班                  →  job=None, company=COMPANY
+    Returns (job, company) — either may be None if not found.
+    """
     if not hanzi or not isinstance(hanzi, str):
-        return None
+        return None, None
     s = hanzi.strip()
     first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
-    m = re.match(r"我是\s*(.+?)\s*$", first)
+
+    # Pattern: 我(曾经|以前|现在)?是[COMPANY]的[JOB]
+    m = re.match(r"我(?:曾经|以前|现在)?是\s*(.+?)\s*的\s*(.+?)\s*$", first)
     if m:
-        return m.group(1).strip() or None
-    return None
+        company_part = m.group(1).strip()
+        job_part = m.group(2).strip()
+        # Sanity: company should be ≤20 chars, job ≤10 chars
+        if job_part and len(job_part) <= 10:
+            return job_part or None, company_part[:20] or None
+
+    # Pattern: 我(曾经|以前)?是[JOB]
+    m = re.match(r"我(?:曾经|以前)?是\s*(.+?)\s*$", first)
+    if m:
+        return m.group(1).strip() or None, None
+
+    # Pattern: 我在[COMPANY](工作|上班)
+    m = re.match(r"我(?:在|目前在|现在在)\s*(.+?)\s*(?:工作|上班)", first)
+    if m:
+        return None, m.group(1).strip() or None
+
+    return None, None
+
+
+def _extract_job_from_hanzi(hanzi: str) -> Optional[str]:
+    """Extract job title only (backward compatibility wrapper)."""
+    job, _ = _extract_job_and_company_from_hanzi(hanzi)
+    return job
 
 
 def _extract_food_from_hanzi(hanzi: str) -> Optional[str]:
@@ -159,9 +192,18 @@ def capture_from_turn(
             updates["lives_in"] = city
 
     elif fid in _WORK_FRAMES:
-        job = _extract_job_from_hanzi(value_hanzi)
+        job, company = _extract_job_and_company_from_hanzi(value_hanzi)
         if job:
             updates["job_or_study"] = job
+        # If company was embedded in the job disclosure (e.g. "我曾经是富士通的首席信息官"),
+        # capture it now so f_work_company can be suppressed as already-known.
+        if company:
+            updates["job_company"] = company
+
+    elif fid in _COMPANY_FRAMES:
+        # Direct answer to "你在哪个公司上班?" — store as-is
+        if value_hanzi:
+            updates["job_company"] = value_hanzi
 
     elif fid in _FAMILY_FRAMES:
         if value_any:
