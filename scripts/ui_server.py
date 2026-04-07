@@ -777,7 +777,15 @@ _BRIDGE_TARGETS: dict = {
 
 # When prefer_bridge (recovery / change topic): try engines in this order so the next question feels like a natural switch (place/identity/family first), not a jump to food/travel.
 _RECOVERY_BRIDGE_ENGINE_ORDER: list = ["place", "identity", "family", "work", "hobby", "travel", "food", "life"]
-_BRIDGE_PREFIXES: list = ["顺便问一下，"]
+_BRIDGE_PREFIXES: list = [
+    # Natural topic shifts — varied so the same opener doesn't repeat every transition.
+    # All entries end with "，" to be concatenated with the frame text.
+    "对了，",
+    "那，",
+    "说起来，",
+    "另外，",
+    "顺便问一下，",
+]
 
 # Frames that ask essentially the same question in different engines.
 # If any frame in a set has been shown, all others in that set are skipped.
@@ -800,6 +808,15 @@ _MUTUAL_EXCLUSION_FRAMES: dict = {
     # f_home_where ask an identical question. Once either is answered, suppress the other.
     "f_from_where": {"f_home_where"},
     "f_home_where": {"f_from_where"},
+    # Semantic group: living_arrangement — "do you live with family?"
+    # f_live_with_who (place engine) and p2_fa_live_with (family engine) are semantically identical.
+    # Once either is answered, the other is suppressed.
+    "f_live_with_who":  {"p2_fa_live_with"},
+    "p2_fa_live_with":  {"f_live_with_who"},
+    # Semantic group: location_origin — "where are you from / where is home?"
+    # f_home_where and f_from_where already suppress each other (above).
+    # f_place_origin is a variant that should be treated as equivalent if it exists.
+    "f_place_origin":   {"f_from_where", "f_home_where"},
 }
 
 # Oxygen loop questions (canonical list from MandarinOS_conversation_ladders_full_draft_v2.md) — offered as "Ask back" when user gave an interesting answer.
@@ -831,6 +848,32 @@ _WEAK_LOOP_FRAME_IDS: set = {
     "p2_pl_1", "p2_pl_3",
     "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4",
 }
+
+# Frames acceptable early in a session but weak as late-session continuations.
+# When late_session_mode is active and a meaningful answer was just given,
+# these frames are preempted by the soft closing move instead of being asked.
+# Add frames here declaratively; no selector logic change required.
+_LATE_SESSION_PREEMPTIBLE_FRAMES: frozenset = frozenset({
+    # EFC family secondary details — spouse/relative work, age, location micro-probes
+    "f_efc_family_work",
+    "f_efc_family_age",
+    "f_efc_family_where",
+    "f_efc_family_married",
+    "f_efc_family_child",
+    # Food drill expansions — repetitive "what's good to eat there?" chains
+    "f_travel_food",
+    "f_food_available",
+    "f_food_what_good",
+    "f_food_famous",
+    "f_food_famous_dish",
+    "f_food_taste",
+    "f_food_tasty",
+    "f_food_expensive",
+    "f_food_like_spicy",
+    # Travel secondary details — logistical follow-ups with low personal value late-session
+    "f_travel_with_who",
+    "f_travel_purpose",
+})
 
 # Topic-specific reaction fallbacks (used only when no suitable reaction frame exists).
 # Keep short; vary per topic to avoid overusing generic reactions.
@@ -865,6 +908,15 @@ _CURIOSITY_REACTIONS_BY_ENGINE: dict = {
     "identity": ["名字很好听！", "是吗，很有意思！", "哦，真有意思！", "很特别的名字！", "听起来不错！"],
 }
 _CURIOSITY_REACTIONS_GENERIC: list = ["真是不简单！", "听起来很有意思！", "是吗，很好啊！", "哦，真没想到！", "真是特别啊！"]
+
+# Soft closing reactions: emitted when late-session + topic completion suppress bridge
+# and no next move (probe or ladder frame) is available. Terminal / pause move — no follow-up.
+# Format: (hanzi, pinyin, english)
+_CLOSING_REACTIONS: list = [
+    ("明白了。", "Míngbai le.", "Got it."),
+    ("这样啊。", "Zhèyàng a.", "I see / so that's how it is."),
+    ("这样挺好。", "Zhèyàng tǐng hǎo.", "That sounds good."),
+]
 
 # Oxygen selection by context (engine or slot). Only surface 1–2 when gating conditions fire.
 _OXYGEN_IDS_BY_ENGINE: dict = {
@@ -1606,6 +1658,28 @@ def _score_answer_interest(
         score += 1
 
     return max(0, score), novelty_hit
+
+
+# Reasoning/meaning markers — if ANY of these appear in a HIGH-interest answer,
+# the topic completion guard suppresses immediate bridge entry for that turn.
+# The learner just said something substantial; let the conversation breathe.
+_REASONING_DEPTH_MARKERS: tuple = (
+    "因为", "所以", "觉得", "但是", "其实", "虽然", "不过", "而且",
+    "对我来说", "最重要", "最喜欢", "从小", "以前", "那时候",
+)
+
+
+def _answer_has_reasoning_depth(answer_text: str) -> bool:
+    """Return True if the answer contains explicit reasoning or personal meaning.
+
+    Used by the topic completion guard: when the learner gives a deep, meaningful
+    answer, suppress immediate new-engine bridge entry so the conversation can react
+    and stay with the topic rather than jumping away.
+    """
+    t = (answer_text or "").strip()
+    if not t or len(t) < 6:
+        return False
+    return any(m in t for m in _REASONING_DEPTH_MARKERS)
 
 
 def _classify_interest(score: int) -> str:
@@ -2481,6 +2555,62 @@ def _pick_reaction_frame_id(engine_id: str) -> Optional[str]:
     return None
 
 
+def _pick_closing_reaction(seed: str) -> tuple:
+    """Deterministically pick a closing reaction tuple (hanzi, pinyin, english) from the pool."""
+    return _stable_pick(_CLOSING_REACTIONS, seed) or _CLOSING_REACTIONS[0]
+
+
+# Cross-engine slot-within-engine followup:
+# When a slot from another engine is detected in the current engine, try these
+# within-current-engine frames instead of jumping to the foreign engine's frames.
+# This keeps the conversation in-engine while still being responsive to what the
+# learner just said. The cross-engine slot is also seeded for future bridging.
+#
+# Structure: { (slot_name, current_engine_norm): [frame_id, ...] }
+_CROSS_ENGINE_SLOT_WITHIN_ENGINE: dict = {
+    # CITY disclosed while in WORK engine (e.g. "I work in Sydney") →
+    # ask where work is based, not where the learner lives (place engine).
+    ("CITY", "work"):    ["f_work_where"],
+    # TRAVEL disclosed while in HOBBY engine (e.g. "my hobby is travel") →
+    # use the hobby-travel frame rather than jumping to the travel engine.
+    ("TRAVEL", "hobby"): ["f_hobby_travel"],
+    # CITY disclosed while in TRAVEL engine (e.g. "I've been to Paris") →
+    # ask about travel destination via travel engine frame, not place engine.
+    ("CITY", "travel"):  ["f_travel_special"],
+    # FAMILY disclosed while in WORK engine (e.g. "my wife works there too") →
+    # no within-engine alternative exists; ladder takes over.
+}
+
+# Engines that should observe a minimum dwell count before accepting a transition
+# from a given source engine via ANY route (slot followup or bridge).
+# Format: { (from_engine, to_engine): min_same_engine_chain_count }
+_ENGINE_TRANSITION_MIN_DWELL: dict = {
+    ("work", "place"):   3,   # must have 3+ work turns before transitioning to place
+    ("family", "place"): 2,
+}
+
+
+def _cross_engine_transition_blocked(
+    from_engine: str,
+    to_engine: str,
+    same_engine_chain_count: int,
+) -> bool:
+    """Return True if transitioning from from_engine to to_engine is not yet allowed
+    because the minimum dwell count in from_engine has not been reached.
+
+    Only applies when the two engines differ. Used as a narrow post-selection guard
+    after bridge or slot-followup returns a candidate — does NOT change bridge internals.
+    """
+    from_n = (from_engine or "").strip().lower()
+    to_n   = (to_engine   or "").strip().lower()
+    if from_n == to_n or not from_n or not to_n:
+        return False
+    min_dwell = _ENGINE_TRANSITION_MIN_DWELL.get((from_n, to_n))
+    if min_dwell is None:
+        return False
+    return same_engine_chain_count < min_dwell
+
+
 def _pick_slot_followup_frame_id(
     engine_id: str,
     slot_names: List[str],
@@ -2489,36 +2619,87 @@ def _pick_slot_followup_frame_id(
     exchange_count: int = 0,
     answer_text: str = "",
     last_answer_fid: str = "",
+    same_engine_chain_count: int = 0,
+    _trace: Optional[dict] = None,
 ) -> Optional[str]:
-    """Try slot/topic follow-up frames before generic ladder; avoid weak loop frames if possible."""
+    """Try slot/topic follow-up frames before generic ladder; avoid weak loop frames if possible.
+
+    Engine lock (Apr 2026): only frames whose 'engine' field matches current engine_id are
+    returned. Cross-engine slots are handled via _CROSS_ENGINE_SLOT_WITHIN_ENGINE (same-engine
+    alternative) or silently deferred to the bridge queue. This prevents slot detection from
+    causing implicit engine switches outside bridge control.
+
+    When _trace is provided (mutable dict), increments _trace['engine_lock_blocked'] for
+    each cross-engine frame that was rejected.
+    """
     recent = set(recent_frame_ids or [])
-    # NAME deep-followups (who named you, meaning, etc.) need a few exchanges of context first
-    # so they don't land as the very first reply to the user introducing themselves.
+    engine_norm = (engine_id or "").strip().lower()
     _NAME_DEEP_FOLLOWUP_MIN_EXCHANGES = 3
     _name_deep_followups = frozenset({"f_name_who_named", "p2_id_4", "p2_id_5", "f_name_story_elicit"})
-    _lf = _normalize_frame_id(last_answer_fid or "")
 
     skip_ctx = {"answer_text": answer_text or "", "memory": memory}
+
+    def _candidate_ok(fid: str, count_cross_engine_block: bool = False) -> bool:
+        """Shared eligibility checks for any candidate frame."""
+        if fid in recent:
+            return False
+        if _check_skip_condition(fid, skip_ctx):
+            return False
+        if fid in _name_deep_followups and exchange_count < _NAME_DEEP_FOLLOWUP_MIN_EXCHANGES:
+            return False
+        if memory is not None and _should_suppress_ask_frame(fid, memory, recent_frame_ids or [], RECALL_INTERVAL_TURNS):
+            return False
+        fr = _frames_by_id.get(fid) or {}
+        if "？" not in (fr.get("text") or ""):
+            return False
+        # Engine lock: only return frames that belong to the current engine.
+        # Frames with no 'engine' field (e.g. generic probes) are always allowed.
+        frame_engine = (fr.get("engine") or "").strip().lower()
+        if frame_engine and frame_engine != engine_norm:
+            if count_cross_engine_block and _trace is not None:
+                _trace["engine_lock_blocked"] = _trace.get("engine_lock_blocked", 0) + 1
+            return False
+        return True
+
     for s in slot_names or []:
+        # Step A: within-engine override for cross-engine slots (e.g. CITY in WORK → f_work_where)
+        # Dedup rules: same as _candidate_ok — already_asked (in recent), recent_frame
+        # (_should_suppress_ask_frame), and all other eligibility checks all apply.
+        # The trace records why each alt was blocked so the conversation can be audited.
+        within_engine_alts = _CROSS_ENGINE_SLOT_WITHIN_ENGINE.get((s, engine_norm)) or []
+        if within_engine_alts and _trace is not None:
+            _trace["cross_engine_alt_considered"] = True
+        for fid in within_engine_alts:
+            # Dedup check 1: frame was already shown to the learner at any point this session.
+            if fid in recent:
+                if _trace is not None and _trace.get("cross_engine_alt_blocked_reason") is None:
+                    _trace["cross_engine_alt_blocked_reason"] = "already_asked"
+                continue
+            # Dedup check 2: memory-based recall suppression (asked too recently).
+            if memory is not None and _should_suppress_ask_frame(fid, memory, recent_frame_ids or [], RECALL_INTERVAL_TURNS):
+                if _trace is not None and _trace.get("cross_engine_alt_blocked_reason") is None:
+                    _trace["cross_engine_alt_blocked_reason"] = "recent_frame"
+                continue
+            # All remaining eligibility checks (skip_when, question guard, engine check).
+            if not _candidate_ok(fid):
+                if _trace is not None and _trace.get("cross_engine_alt_blocked_reason") is None:
+                    _trace["cross_engine_alt_blocked_reason"] = "no_candidate"
+                continue
+            # Alt is eligible — use it.
+            if _trace is not None:
+                _trace["cross_engine_alt_used"] = fid
+                _trace["cross_engine_alt_blocked_reason"] = None
+            return fid
+        # If alts existed but all were blocked, record no_candidate if nothing more specific was set.
+        if within_engine_alts and _trace is not None and _trace.get("cross_engine_alt_blocked_reason") is None:
+            _trace["cross_engine_alt_blocked_reason"] = "no_candidate"
+
+        # Step B: standard slot preferences — engine-locked to current engine
         prefs = _SLOT_FOLLOWUP_PREFERENCES.get(s) or []
-        # Prefer non-weak frames first
         ordered = [f for f in prefs if f not in _WEAK_LOOP_FRAME_IDS] + [f for f in prefs if f in _WEAK_LOOP_FRAME_IDS]
         for fid in ordered:
-            if fid in recent:
-                continue
-            # Respect declarative skip_when conditions from frame definitions (e.g. city_is_well_known)
-            if _check_skip_condition(fid, skip_ctx):
-                continue
-            # Guard: name deep-followups only after conversation is established
-            if fid in _name_deep_followups and exchange_count < _NAME_DEEP_FOLLOWUP_MIN_EXCHANGES:
-                continue
-            if memory is not None and _should_suppress_ask_frame(fid, memory, recent_frame_ids or [], RECALL_INTERVAL_TURNS):
-                continue
-            # Only allow partner questions
-            fr = _frames_by_id.get(fid) or {}
-            if "？" not in (fr.get("text") or ""):
-                continue
-            return fid
+            if _candidate_ok(fid, count_cross_engine_block=True):
+                return fid
     return None
 
 
@@ -3718,6 +3899,9 @@ class Handler(BaseHTTPRequestHandler):
                 recent_confusion_count = int(cs.get("recent_confusion_count") or 0)
                 # Phase 13B: response-seeded bridge queue — accumulated from learner disclosures.
                 seeded_bridge_engines: List[str] = list(cs.get("seeded_bridge_engines") or [])
+                # Medium-path probe control: engines where a medium-triggered probe already fired.
+                # At most 1 medium probe per engine; tracked across turns via client round-trip.
+                medium_probe_fired_engines: List[str] = list(cs.get("medium_probe_fired_engines") or [])
                 # Arc flags — computed once, reused in soft bias pass
                 _12c_loop_capped = loop_count_in_engine >= LOOP_COUNT_IN_ENGINE_SOFT_CAP
                 _12c_overload    = recent_confusion_count >= OVERLOAD_CONFUSION_THRESHOLD
@@ -3810,6 +3994,10 @@ class Handler(BaseHTTPRequestHandler):
                 _recent_reactions: List[str] = list(cs.get("recent_reactions") or [])
                 # Default traces — overwritten if their respective code paths run this turn.
                 _sel_trace: dict = {"final_frame_source": "not_computed"}
+                # Closing move guards — set inside the selection block; defaulted here so the
+                # closing-move check at the end of selection is always safe to reference.
+                _late_session_mode = False
+                _topic_completion_suppresses_bridge = False
                 # Reaction trace — captures both slots and composition decision.
                 _rxn_trace: dict = {
                     "ack_slot": False,
@@ -4012,6 +4200,7 @@ class Handler(BaseHTTPRequestHandler):
                     chosen = _pick_slot_followup_frame_id(
                         current_engine, ["DISH"], recent, memory, exchange_count=exchange_count,
                         answer_text=answer_text, last_answer_fid=last_answer_fid,
+                        same_engine_chain_count=same_engine_chain_count,
                     )
                     if chosen:
                         chosen = _maybe_frame_order_priority(
@@ -4072,16 +4261,38 @@ class Handler(BaseHTTPRequestHandler):
                     _depth_guard_blocks = _remaining_in_engine >= ENGINE_DEPTH_GUARD_MIN_REMAINING
                     # Phase 12D Step 4: minimum dwell invariant — never bridge before 2 turns in engine.
                     _dwell_ok = same_engine_chain_count >= 2
+                    # Late-session anti-fragmentation: after ≥8 turns or ≥3 engines visited,
+                    # raise the dwell requirement to 3 turns so we don't race through engines.
+                    # This is NOT a change to _ENGINE_TRANSITION_MIN_DWELL — it's a session-stage
+                    # bias that keeps each new engine grounded longer before the next hop.
+                    _visited_engine_count = len(engines_visited) if engines_visited else 0
+                    _late_session_mode = (exchange_count >= 8) or (_visited_engine_count >= 3)
+                    _late_session_cross_engine_penalty_applied = False
+                    if _late_session_mode and not force_bridge and not prefer_bridge:
+                        if same_engine_chain_count < 3:
+                            _dwell_ok = False
+                            _late_session_cross_engine_penalty_applied = True
                     # Phase 12D Step 3 (revised): bridge eligible only when engine is truly exhausted
                     # OR explicitly forced/preferred (recovery / change-topic).
                     # Low interest alone is NOT a bridge trigger — the engine must be done first.
                     # Rationale: low interest + remaining frames caused premature engine exits
                     # (e.g. skipping age after 好吧 fired in identity engine).
                     _engine_exhausted = _remaining_in_engine == 0
+                    # Topic completion guard: when the learner just gave a HIGH-interest answer
+                    # containing explicit reasoning or personal meaning (因为/所以/觉得/其实…),
+                    # suppress spontaneous bridge entry for this turn.  The conversation should
+                    # react and stay on topic rather than immediately jumping to a new engine.
+                    # force_bridge / prefer_bridge (recovery / change-topic requests) still work.
+                    _topic_completion_suppresses_bridge = (
+                        not force_bridge
+                        and not prefer_bridge
+                        and interest_level == "high"
+                        and _answer_has_reasoning_depth(answer_text)
+                    )
                     bridge_allowed = (
                         force_bridge
                         or prefer_bridge
-                        or (_engine_exhausted and _dwell_ok)
+                        or (_engine_exhausted and _dwell_ok and not _topic_completion_suppresses_bridge)
                     )
                     # Selector trace — populated throughout selection, emitted in response.
                     _sel_trace: dict = {
@@ -4093,6 +4304,15 @@ class Handler(BaseHTTPRequestHandler):
                         "bridge_considered": False,
                         "bridge_rejected_reason": None,
                         "final_frame_source": None,
+                        "engine_lock_blocked": 0,
+                        "cross_engine_alt_considered": False,
+                        "cross_engine_alt_used": None,
+                        "cross_engine_alt_blocked_reason": None,
+                        "topic_completion_suppressed_bridge": _topic_completion_suppresses_bridge,
+                        "probe_path": None,
+                        "late_session_mode": _late_session_mode,
+                        "late_session_cross_engine_penalty_applied": _late_session_cross_engine_penalty_applied,
+                        "visited_engine_count": _visited_engine_count,
                     }
                     if pending_listening_move or force_listening or chain_exceeded:
                         seed_base = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/interest"
@@ -4112,6 +4332,8 @@ class Handler(BaseHTTPRequestHandler):
                             chosen = _pick_slot_followup_frame_id(
                                 current_engine, slot_names, recent, memory, exchange_count=exchange_count,
                                 answer_text=answer_text, last_answer_fid=last_answer_fid,
+                                same_engine_chain_count=same_engine_chain_count,
+                                _trace=_sel_trace,
                             )
                             if chosen is not None:
                                 chosen = _maybe_frame_order_priority(
@@ -4131,22 +4353,52 @@ class Handler(BaseHTTPRequestHandler):
                                 )
                                 chosen = _ladder_chosen
                             _sel_trace["ladder"] = _ladder_chosen
-                            # Step 3: curiosity probe — only overrides ladder when interest = HIGH
-                            # and the engine has already progressed (≥2 same-engine turns).
-                            _probe_eligible = _interest_decayed_level == "high" and same_engine_chain_count >= 2
+                            # Step 3: curiosity probe — two eligibility paths, both require chain ≥ 2.
+                            #
+                            # HIGH path:   interest_decayed == "high" AND chain ≥ 2
+                            #              → full probe inventory; up to curiosity_cap probes
+                            #
+                            # MEDIUM path: interest_decayed == "medium"
+                            #              AND answer contains reasoning/depth markers
+                            #              AND chain ≥ 2
+                            #              AND this engine has not had a medium probe this session
+                            #              → only medium-min frames (high-min skipped automatically)
+                            #              → at most 1 medium probe per engine per session
+                            _engine_norm_for_probe = (current_engine or "").strip().lower()
+                            _high_probe_eligible = (
+                                _interest_decayed_level == "high"
+                                and same_engine_chain_count >= 2
+                            )
+                            _medium_probe_eligible = (
+                                not _high_probe_eligible
+                                and _interest_decayed_level == "medium"
+                                and same_engine_chain_count >= 2
+                                and _answer_has_reasoning_depth(answer_text)
+                                and _engine_norm_for_probe not in medium_probe_fired_engines
+                            )
+                            _probe_eligible = _high_probe_eligible or _medium_probe_eligible
                             _sel_trace["probe_eligible"] = _probe_eligible
                             if _probe_eligible:
-                                _probe = _pick_curiosity_probe_frame(current_engine, _interest_decayed_level, memory, recent)
+                                _probe_interest = _interest_decayed_level if _high_probe_eligible else "medium"
+                                _probe = _pick_curiosity_probe_frame(current_engine, _probe_interest, memory, recent)
                                 if _probe is not None:
                                     chosen = _probe
                                     _sel_trace["probe_chosen"] = _probe
+                                    _sel_trace["probe_path"] = "high" if _high_probe_eligible else "medium_reasoning"
+                                    if _medium_probe_eligible:
+                                        if _engine_norm_for_probe not in medium_probe_fired_engines:
+                                            medium_probe_fired_engines = medium_probe_fired_engines + [_engine_norm_for_probe]
                                 else:
                                     _sel_trace["probe_suppressed_reason"] = "no_eligible_probe_frame"
                             else:
-                                _sel_trace["probe_suppressed_reason"] = (
-                                    "interest_not_high" if _interest_decayed_level != "high"
-                                    else "engine_not_grounded_lt2_turns"
-                                )
+                                if same_engine_chain_count < 2:
+                                    _sel_trace["probe_suppressed_reason"] = "engine_not_grounded_lt2_turns"
+                                elif _interest_decayed_level == "medium" and _engine_norm_for_probe in medium_probe_fired_engines:
+                                    _sel_trace["probe_suppressed_reason"] = "medium_probe_already_used_this_engine"
+                                elif _interest_decayed_level == "medium" and not _answer_has_reasoning_depth(answer_text):
+                                    _sel_trace["probe_suppressed_reason"] = "medium_no_reasoning_depth"
+                                else:
+                                    _sel_trace["probe_suppressed_reason"] = "interest_not_high_or_medium_reasoning"
                             if chosen and _is_loop_candidate(chosen):
                                 chosen_turn_type = "loop_question"
                                 curiosity_depth = min(curiosity_depth + 1, _curiosity_cap)
@@ -4189,6 +4441,7 @@ class Handler(BaseHTTPRequestHandler):
                         chosen = _pick_slot_followup_frame_id(
                             current_engine, slot_names, recent, memory, exchange_count=exchange_count,
                             answer_text=answer_text, last_answer_fid=last_answer_fid,
+                            same_engine_chain_count=same_engine_chain_count,
                         )
                         if chosen is not None:
                             chosen = _maybe_frame_order_priority(
@@ -4227,6 +4480,7 @@ class Handler(BaseHTTPRequestHandler):
                             chosen = _pick_slot_followup_frame_id(
                                 current_engine, slot_names, recent, memory, exchange_count=exchange_count,
                                 answer_text=answer_text, last_answer_fid=last_answer_fid,
+                                same_engine_chain_count=same_engine_chain_count,
                             )
                             if chosen is not None:
                                 chosen = _maybe_frame_order_priority(
@@ -4258,6 +4512,117 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"[SEL] engine={current_engine} chain={same_engine_chain_count} chosen={chosen} "
                       f"ex={exchange_count} pref_br={prefer_bridge} unscripted={unscripted_probe_first} "
                       f"meaningful={meaningful} submitted={repr(_dbg_submitted[:20])}", flush=True)
+
+                # Soft closing move: emit a reflective closing line instead of asking another question
+                # when the conversation has reached a natural pause point.
+                #
+                # Two triggers:
+                #   Original — chosen is still None (no frame available at all):
+                #              late_session + topic_completion_suppressed_bridge + no probe
+                #   Extended — chosen WAS set (e.g. by unscripted_probe_first) but the session
+                #              is late, the answer is substantive, no probe fired, bridge is not
+                #              forced, and the engine is nearly exhausted.  In this case a ladder
+                #              frame surviving does not justify interrupting a meaningful close.
+                _cm_late_session = _late_session_mode or (exchange_count >= 8) or (len(engines_visited or []) >= 3)
+                _cm_substantive = last_turn_was_answer and (not user_asked_question) and (
+                    unscripted_probe_first or _answer_has_reasoning_depth(answer_text)
+                )
+                # Preemptible trigger uses a lighter substantive check: any real (non-trivial) answer
+                # is enough when the session is late and the chosen frame is declared weak.
+                _cm_real_answer = last_turn_was_answer and (not user_asked_question) and (not weak_reply)
+                _cm_no_probe = not _sel_trace.get("probe_chosen")
+                _cm_bridge_not_forced = not force_bridge and not prefer_bridge
+                _cm_remaining_weak = (
+                    _count_remaining_engine_frames(current_engine, list(recent or []), memory) <= 1
+                )
+                _cm_chosen_preemptible = bool(chosen and chosen in _LATE_SESSION_PREEMPTIBLE_FRAMES)
+
+                # Suppressed-reason trace — always populated so every turn is auditable.
+                if not _cm_late_session:
+                    _closing_suppressed_reason = "not_late_session"
+                elif not _cm_no_probe:
+                    _closing_suppressed_reason = "probe_already_chosen"
+                elif not _cm_real_answer and not _cm_substantive:
+                    _closing_suppressed_reason = "no_reasoning_depth"
+                elif not _cm_bridge_not_forced:
+                    _closing_suppressed_reason = "bridge_not_suppressed"
+                elif chosen and not _cm_remaining_weak and not _cm_chosen_preemptible:
+                    _closing_suppressed_reason = "chosen_still_available"
+                else:
+                    _closing_suppressed_reason = ""
+                _sel_trace["closing_move_suppressed_reason"] = _closing_suppressed_reason
+
+                _cm_original = (
+                    not chosen
+                    and _cm_late_session
+                    and _topic_completion_suppresses_bridge
+                    and _cm_no_probe
+                )
+                _cm_extended = (
+                    _cm_late_session
+                    and _cm_substantive
+                    and _cm_no_probe
+                    and _cm_bridge_not_forced
+                    and _cm_remaining_weak
+                    and last_turn_was_answer
+                    and (not user_asked_question)
+                )
+                # Preemptible trigger: chosen frame is declared weak for late session;
+                # suppress it and close instead. No engine-exhaustion requirement.
+                _cm_preemptible = (
+                    _cm_late_session
+                    and _cm_real_answer
+                    and _cm_no_probe
+                    and _cm_bridge_not_forced
+                    and _cm_chosen_preemptible
+                )
+                _closing_preempted_frame = chosen if _cm_preemptible else None
+                _closing_move_fired = False
+                _closing_reason = ""
+                if _cm_original or _cm_extended or _cm_preemptible:
+                    _closing_move_fired = True
+                    _closing_reason = "meaningful_answer_no_next_move"
+                    _cl_trigger = "preemptible" if _cm_preemptible else ("extended" if _cm_extended else "original")
+                    _cl_seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/closing"
+                    _cl_zh, _cl_py, _cl_en = _pick_closing_reaction(_cl_seed)
+                    print(f"[CLOSING] trigger={_cl_trigger} late_session={_cm_late_session} "
+                          f"preempted={_closing_preempted_frame!r} engine={current_engine} text={_cl_zh!r}", flush=True)
+                    _closing_response = {
+                        "turn_uid":     payload.get("turn_uid", ""),
+                        "engine_id":    current_engine or "unknown",
+                        "frame_id":     "closing_move",
+                        "frame_text":   _cl_zh,
+                        "frame_pinyin": _cl_py,
+                        "frame_text_en": _cl_en,
+                        "result":       "ok",
+                        "options":      [],
+                        "option_count": 0,
+                        "gold_option_present": False,
+                        "card_id":      None,
+                        "system_note":  "closing_move",
+                        "sentence_options": [],
+                        "closing_move": True,
+                        "closing_reason": _closing_reason,
+                        "closing_preempted_frame": _closing_preempted_frame,
+                        "selector_trace": dict(_sel_trace, closing_move_fired=True, closing_reason=_closing_reason,
+                                               closing_preempted_frame=_closing_preempted_frame),
+                        "interest_level": interest_level,
+                        "same_engine_chain_count": int(same_engine_chain_count),
+                        "seeded_bridge_engines": list(seeded_bridge_engines),
+                        "recent_reactions": list(_recent_reactions),
+                        "medium_probe_fired_engines": list(medium_probe_fired_engines),
+                    }
+                    if _phase10_learner_memory is not None:
+                        _closing_response["learner_memory"] = _phase10_learner_memory
+                    if _phase10_persona_id:
+                        _closing_response["persona_id"] = _phase10_persona_id
+                    _cl_data = json.dumps(_closing_response, ensure_ascii=False).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Length", str(len(_cl_data)))
+                    self.end_headers()
+                    self.wfile.write(_cl_data)
+                    return
 
                 if not chosen:
                     self._json_error(400, "no frame available for next question")
@@ -4404,12 +4769,16 @@ class Handler(BaseHTTPRequestHandler):
                             == (current_engine or "").strip().lower()
                         )
                         _remaining_now = _count_remaining_engine_frames(current_engine, list(recent), memory)
-                        # Only push out if we've had enough turns in this engine OR it's nearly empty
+                        # Only push out if we've had enough turns in this engine OR it's nearly empty.
+                        # Late-session mode: require full exhaustion (_remaining_now == 0) instead of
+                        # "nearly empty" (< 2). This prevents closure from hopping engines too eagerly
+                        # when the session is already deep and many engines have been visited.
+                        _closure_nearly_empty_threshold = 0 if _late_session_mode else ENGINE_DEPTH_GUARD_MIN_REMAINING
                         _close_ready = (
                             _still_in_engine
                             and (
                                 same_engine_chain_count >= ENGINE_DEPTH_GUARD_TURNS
-                                or _remaining_now < ENGINE_DEPTH_GUARD_MIN_REMAINING
+                                or _remaining_now <= _closure_nearly_empty_threshold
                             )
                         )
                         if _close_ready:
@@ -4455,6 +4824,21 @@ class Handler(BaseHTTPRequestHandler):
                         f"threshold={OVERLOAD_CONFUSION_THRESHOLD}",
                         flush=True,
                     )
+
+                # Post-selection dwell guard: block any cross-engine transition that requires
+                # more dwell in the current engine (e.g. WORK→PLACE needs ≥3 turns in work).
+                # This applies to bridge-selected frames; slot followup already filters them
+                # out via the engine lock in _pick_slot_followup_frame_id.
+                if chosen and listening_move_selected == "bridge":
+                    _chosen_fr_eng = (_frames_by_id.get(chosen) or {}).get("engine", "").strip().lower()
+                    if _cross_engine_transition_blocked(current_engine, _chosen_fr_eng, same_engine_chain_count):
+                        chosen = None
+                        listening_move_selected = "none"
+                        _sel_trace["bridge_rejected_reason"] = (
+                            f"dwell_guard:{current_engine}->{_chosen_fr_eng} "
+                            f"(need {_ENGINE_TRANSITION_MIN_DWELL.get((current_engine, _chosen_fr_eng), '?')},"
+                            f" have {same_engine_chain_count})"
+                        )
 
                 frame_id = chosen
                 frame_rec_chosen = _frames_by_id.get(frame_id, {})
@@ -4762,6 +5146,8 @@ class Handler(BaseHTTPRequestHandler):
                     response["recent_reactions"] = _updated_recent_reactions
                 else:
                     response["recent_reactions"] = _recent_reactions
+                # Medium probe tracking: persist engine list so cap is enforced across turns.
+                response["medium_probe_fired_engines"] = medium_probe_fired_engines
                 # Emit diagnostic traces so the conversation can be audited turn-by-turn.
                 response["selector_trace"] = _sel_trace
                 response["reaction_trace"] = _rxn_trace
