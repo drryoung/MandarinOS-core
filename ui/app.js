@@ -160,6 +160,7 @@ if (typeof window._loopCountInEngine    === "undefined") window._loopCountInEngi
 if (typeof window._enginesVisited       === "undefined") window._enginesVisited        = ["identity"];
 if (typeof window._recentConfusionCount === "undefined") window._recentConfusionCount  = 0;
 if (typeof window._seededBridgeEngines  === "undefined") window._seededBridgeEngines   = [];
+if (typeof window._mediumProbeFiredEngines === "undefined") window._mediumProbeFiredEngines = [];
 if (typeof window._lastRepairKind       === "undefined") window._lastRepairKind         = null;
 if (typeof window._prevRepairKind       === "undefined") window._prevRepairKind         = null;
 if (typeof window._lastAcceptedFreeTranscript === "undefined") window._lastAcceptedFreeTranscript = "";
@@ -4520,6 +4521,7 @@ async function startFreshLearner() {
   window._recentConfusionCount   = 0;
   // Phase 13B: seeded bridge queue reset on new session
   window._seededBridgeEngines    = [];
+  window._mediumProbeFiredEngines = [];
 
   // Clear the "Remembered:" facts banner
   const rememberedEl = document.getElementById("rememberedFacts");
@@ -4591,6 +4593,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
       last_focus_slot: window._lastFocusSlot || "",
       seeded_bridge_engines: Array.isArray(window._seededBridgeEngines) ? window._seededBridgeEngines : [],
       recent_reactions: Array.isArray(window._recentReactions) ? window._recentReactions : [],
+      medium_probe_fired_engines: Array.isArray(window._mediumProbeFiredEngines) ? window._mediumProbeFiredEngines : [],
       pending_listening_move: window._pendingListeningMove === true,
       listening_wait_turns: window._listeningWaitTurns || 0,
       last_interest_level: window._lastInterestLevel || "low",
@@ -4724,6 +4727,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
   if (typeof data.last_focus_slot === "string") window._lastFocusSlot = data.last_focus_slot;
   if (Array.isArray(data.seeded_bridge_engines)) window._seededBridgeEngines = data.seeded_bridge_engines;
   if (Array.isArray(data.recent_reactions)) window._recentReactions = data.recent_reactions;
+  if (Array.isArray(data.medium_probe_fired_engines)) window._mediumProbeFiredEngines = data.medium_probe_fired_engines;
   if (typeof data.pending_listening_move === "boolean") window._pendingListeningMove = data.pending_listening_move;
   if (typeof data.listening_wait_turns === "number") window._listeningWaitTurns = data.listening_wait_turns;
   if (typeof data.last_interest_level === "string") window._lastInterestLevel = data.last_interest_level;
