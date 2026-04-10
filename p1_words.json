@@ -1062,47 +1062,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_liaotian",
-      "hanzi": "聊天",
-      "pinyin": "liáotiān",
-      "gloss_en": "to chat; to have a conversation",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "social",
-        "communication"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_faxian",
-      "hanzi": "发现",
-      "pinyin": "fāxiàn",
-      "gloss_en": "to discover; to find",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "activity",
-        "learning"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_liaojie",
-      "hanzi": "了解",
-      "pinyin": "liǎojiě",
-      "gloss_en": "to understand; to know about",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "learning"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
       "id": "w_zhidao",
       "hanzi": "知道",
       "pinyin": "zhīdào",
@@ -1116,19 +1075,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_xuandao",
-      "hanzi": "学到",
-      "pinyin": "xuédào",
-      "gloss_en": "to learn (a skill/knowledge)",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "learning"
-      ],
-      "frequency_band": "high"
-    },
-    {
       "id": "w_kandao",
       "hanzi": "看到",
       "pinyin": "kàndào",
@@ -1140,48 +1086,6 @@
         "sense"
       ],
       "frequency_band": "very_high"
-    },
-    {
-      "id": "w_wancheng",
-      "hanzi": "完成",
-      "pinyin": "wánchéng",
-      "gloss_en": "to complete; to finish",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "work",
-        "activity"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_xuanze",
-      "hanzi": "选择",
-      "pinyin": "xuǎnzé",
-      "gloss_en": "to choose; choice",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "activity"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_zhichi",
-      "hanzi": "支持",
-      "pinyin": "zhīchí",
-      "gloss_en": "to support; support",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "social"
-      ],
-      "frequency_band": "high"
     },
     {
       "id": "w_xuyao",
@@ -1212,134 +1116,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_tongyi",
-      "hanzi": "同意",
-      "pinyin": "tóngyì",
-      "gloss_en": "to agree",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "opinion"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_daibiǎo",
-      "hanzi": "代表",
-      "pinyin": "dàibiǎo",
-      "gloss_en": "to represent; representative",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "general"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_jieshaov",
-      "hanzi": "介绍",
-      "pinyin": "jièshào",
-      "gloss_en": "to introduce; to recommend",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "social"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_hezuo",
-      "hanzi": "合作",
-      "pinyin": "hézuò",
-      "gloss_en": "to cooperate; cooperation",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "work",
-        "social"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_tuisuo",
-      "hanzi": "探索",
-      "pinyin": "tànsuǒ",
-      "gloss_en": "to explore",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "travel",
-        "activity"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_fangsong",
-      "hanzi": "放松",
-      "pinyin": "fàngsōng",
-      "gloss_en": "to relax; relaxing",
-      "pos": [
-        "v",
-        "adj"
-      ],
-      "tags": [
-        "emotion",
-        "activity"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_gongtong",
-      "hanzi": "沟通",
-      "pinyin": "gōutōng",
-      "gloss_en": "to communicate; communication",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "communication",
-        "work"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_wangjì",
-      "hanzi": "忘记",
-      "pinyin": "wàngjì",
-      "gloss_en": "to forget",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "memory"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_pingheng",
-      "hanzi": "平衡",
-      "pinyin": "pínghéng",
-      "gloss_en": "to balance; balance",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "work",
-        "life"
-      ],
-      "frequency_band": "high"
-    },
-    {
       "id": "w_suixia",
       "hanzi": "随时",
       "pinyin": "suíshí",
@@ -1349,243 +1125,6 @@
       ],
       "tags": [
         "time"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_tuixiu",
-      "hanzi": "退休",
-      "pinyin": "tuìxiū",
-      "gloss_en": "to retire; retired",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "work",
-        "life"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_biye",
-      "hanzi": "毕业",
-      "pinyin": "bìyè",
-      "gloss_en": "to graduate; graduation",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "education",
-        "life"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_chuguo",
-      "hanzi": "出国",
-      "pinyin": "chūguó",
-      "gloss_en": "to go abroad",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "travel"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_tougan",
-      "hanzi": "通勤",
-      "pinyin": "tōngqín",
-      "gloss_en": "to commute; commuting",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "work",
-        "activity"
-      ],
-      "frequency_band": "mid"
-    },
-    {
-      "id": "w_qingchu",
-      "hanzi": "清楚",
-      "pinyin": "qīngchǔ",
-      "gloss_en": "clear; clearly; to understand",
-      "pos": [
-        "adj",
-        "adv"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_queding",
-      "hanzi": "确定",
-      "pinyin": "quèdìng",
-      "gloss_en": "certain; to confirm; to determine",
-      "pos": [
-        "adj",
-        "v"
-      ],
-      "tags": [
-        "opinion",
-        "describe"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_xiguan",
-      "hanzi": "习惯",
-      "pinyin": "xíguàn",
-      "gloss_en": "habit; to be accustomed to",
-      "pos": [
-        "n",
-        "v"
-      ],
-      "tags": [
-        "life",
-        "describe"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_fengfu",
-      "hanzi": "丰富",
-      "pinyin": "fēngfù",
-      "gloss_en": "rich; abundant; varied",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_fuza",
-      "hanzi": "复杂",
-      "pinyin": "fùzá",
-      "gloss_en": "complicated; complex",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_putong",
-      "hanzi": "普通",
-      "pinyin": "pǔtōng",
-      "gloss_en": "ordinary; common; average",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_rongyi",
-      "hanzi": "容易",
-      "pinyin": "róngyì",
-      "gloss_en": "easy; easily",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_anjing",
-      "hanzi": "安静",
-      "pinyin": "ānjìng",
-      "gloss_en": "quiet; peaceful",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe",
-        "place"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_wendìng",
-      "hanzi": "稳定",
-      "pinyin": "wěndìng",
-      "gloss_en": "stable; steady",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe",
-        "work"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_jìandan",
-      "hanzi": "简单",
-      "pinyin": "jiǎndān",
-      "gloss_en": "simple; easy",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_xinxian",
-      "hanzi": "新鲜",
-      "pinyin": "xīnxiān",
-      "gloss_en": "fresh; novel",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe",
-        "food",
-        "travel"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_piaoliang",
-      "hanzi": "美好",
-      "pinyin": "měihǎo",
-      "gloss_en": "beautiful; wonderful",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe",
-        "emotion"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_youhao",
-      "hanzi": "友好",
-      "pinyin": "yǒuhǎo",
-      "gloss_en": "friendly; amicable",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "social",
-        "describe"
       ],
       "frequency_band": "high"
     },
@@ -1602,115 +1141,6 @@
         "describe"
       ],
       "frequency_band": "very_high"
-    },
-    {
-      "id": "w_huasuan",
-      "hanzi": "划算",
-      "pinyin": "huásuàn",
-      "gloss_en": "worthwhile; good value",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "money",
-        "describe"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_linghuó",
-      "hanzi": "灵活",
-      "pinyin": "línghuó",
-      "gloss_en": "flexible; nimble",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "describe",
-        "work"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_yijing",
-      "hanzi": "已经",
-      "pinyin": "yǐjīng",
-      "gloss_en": "already",
-      "pos": [
-        "adv"
-      ],
-      "tags": [
-        "time"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_jingchang",
-      "hanzi": "经常",
-      "pinyin": "jīngcháng",
-      "gloss_en": "often; frequently",
-      "pos": [
-        "adv"
-      ],
-      "tags": [
-        "time"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_congxiao",
-      "hanzi": "从小",
-      "pinyin": "cóngxiǎo",
-      "gloss_en": "since childhood; from a young age",
-      "pos": [
-        "adv"
-      ],
-      "tags": [
-        "time",
-        "life"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_shidai",
-      "hanzi": "时代",
-      "pinyin": "shídài",
-      "gloss_en": "era; age; times",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "time",
-        "history"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_shaohou",
-      "hanzi": "稍后",
-      "pinyin": "shāohòu",
-      "gloss_en": "shortly after; a little later",
-      "pos": [
-        "adv"
-      ],
-      "tags": [
-        "time"
-      ],
-      "frequency_band": "mid"
-    },
-    {
-      "id": "w_ouér",
-      "hanzi": "偶尔",
-      "pinyin": "ǒu'ěr",
-      "gloss_en": "occasionally; once in a while",
-      "pos": [
-        "adv"
-      ],
-      "tags": [
-        "time",
-        "frequency"
-      ],
-      "frequency_band": "high"
     },
     {
       "id": "w_tianqi",
@@ -1739,19 +1169,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_nongcun",
-      "hanzi": "农村",
-      "pinyin": "nóngcūn",
-      "gloss_en": "countryside; rural area",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place"
-      ],
-      "frequency_band": "high"
-    },
-    {
       "id": "w_gongyuan",
       "hanzi": "公园",
       "pinyin": "gōngyuán",
@@ -1764,33 +1181,6 @@
         "activity"
       ],
       "frequency_band": "very_high"
-    },
-    {
-      "id": "w_bangongshi",
-      "hanzi": "办公室",
-      "pinyin": "bàngōngshì",
-      "gloss_en": "office",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "work"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_shizhongxin",
-      "hanzi": "市中心",
-      "pinyin": "shì zhōngxīn",
-      "gloss_en": "city centre",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place"
-      ],
-      "frequency_band": "high"
     },
     {
       "id": "w_waimian",
@@ -1860,46 +1250,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_qizi",
-      "hanzi": "妻子",
-      "pinyin": "qīzi",
-      "gloss_en": "wife",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "family"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_laopo",
-      "hanzi": "老婆",
-      "pinyin": "lǎopó",
-      "gloss_en": "wife (informal)",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "family"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_tongshi",
-      "hanzi": "同事",
-      "pinyin": "tóngshì",
-      "gloss_en": "colleague; co-worker",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "work",
-        "people"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
       "id": "w_xuesheng",
       "hanzi": "学生",
       "pinyin": "xuésheng",
@@ -1929,220 +1279,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_gongchengshi",
-      "hanzi": "工程师",
-      "pinyin": "gōngchéngshī",
-      "gloss_en": "engineer",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "work",
-        "people"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_kehù",
-      "hanzi": "客户",
-      "pinyin": "kèhù",
-      "gloss_en": "customer; client",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "work",
-        "people"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_waiguoren",
-      "hanzi": "外国人",
-      "pinyin": "wàiguórén",
-      "gloss_en": "foreigner",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "people",
-        "culture"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_daxue",
-      "hanzi": "大学",
-      "pinyin": "dàxué",
-      "gloss_en": "university; college",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "education",
-        "place"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_zhuanye",
-      "hanzi": "专业",
-      "pinyin": "zhuānyè",
-      "gloss_en": "major; speciality; professional",
-      "pos": [
-        "n",
-        "adj"
-      ],
-      "tags": [
-        "education",
-        "work"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_lishi",
-      "hanzi": "历史",
-      "pinyin": "lìshǐ",
-      "gloss_en": "history",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "history",
-        "culture"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_yinsxiang",
-      "hanzi": "印象",
-      "pinyin": "yìnxiàng",
-      "gloss_en": "impression",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "opinion",
-        "emotion"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_fengijng",
-      "hanzi": "风景",
-      "pinyin": "fēngjǐng",
-      "gloss_en": "scenery; landscape",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "travel",
-        "nature"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_jingsé",
-      "hanzi": "景色",
-      "pinyin": "jǐngsè",
-      "gloss_en": "scenery; view",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "travel",
-        "nature"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_lüyou",
-      "hanzi": "旅游",
-      "pinyin": "lǚyóu",
-      "gloss_en": "tourism; to go sightseeing",
-      "pos": [
-        "n",
-        "v"
-      ],
-      "tags": [
-        "travel",
-        "activity"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_riben",
-      "hanzi": "日本",
-      "pinyin": "Rìběn",
-      "gloss_en": "Japan",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "country"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_ouzhou",
-      "hanzi": "欧洲",
-      "pinyin": "Ōuzhōu",
-      "gloss_en": "Europe",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "continent"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_yingguo",
-      "hanzi": "英国",
-      "pinyin": "Yīngguó",
-      "gloss_en": "the United Kingdom; Britain",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "country"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_faguo",
-      "hanzi": "法国",
-      "pinyin": "Fǎguó",
-      "gloss_en": "France",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "country"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_mengxiang",
-      "hanzi": "梦想",
-      "pinyin": "mèngxiǎng",
-      "gloss_en": "dream; aspiration",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "emotion",
-        "life"
-      ],
-      "frequency_band": "high"
-    },
-    {
       "id": "w_shiqing",
       "hanzi": "事情",
       "pinyin": "shìqíng",
@@ -2167,230 +1303,6 @@
         "time"
       ],
       "frequency_band": "very_high"
-    },
-    {
-      "id": "w_qingkuang",
-      "hanzi": "情况",
-      "pinyin": "qíngkuàng",
-      "gloss_en": "situation; condition",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "general"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_xinqing",
-      "hanzi": "心情",
-      "pinyin": "xīnqíng",
-      "gloss_en": "mood; frame of mind",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "emotion"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_ganqing",
-      "hanzi": "感觉",
-      "pinyin": "gǎnjué",
-      "gloss_en": "feeling; sensation; sense",
-      "pos": [
-        "n",
-        "v"
-      ],
-      "tags": [
-        "emotion",
-        "sense"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_yali",
-      "hanzi": "压力",
-      "pinyin": "yālì",
-      "gloss_en": "pressure; stress",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "work",
-        "emotion"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_chengjiu",
-      "hanzi": "成就感",
-      "pinyin": "chéngjùgǎn",
-      "gloss_en": "sense of achievement",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "work",
-        "emotion"
-      ],
-      "frequency_band": "mid"
-    },
-    {
-      "id": "w_guangli",
-      "hanzi": "管理",
-      "pinyin": "guǎnlǐ",
-      "gloss_en": "to manage; management",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "work"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_jiezou",
-      "hanzi": "节奏",
-      "pinyin": "jiézòu",
-      "gloss_en": "rhythm; pace",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "life",
-        "music"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_jieri",
-      "hanzi": "节日",
-      "pinyin": "jiérì",
-      "gloss_en": "festival; holiday",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "culture",
-        "time"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_jiaqí",
-      "hanzi": "假期",
-      "pinyin": "jiàqī",
-      "gloss_en": "holiday; vacation",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "time",
-        "travel"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_huanjing",
-      "hanzi": "环境",
-      "pinyin": "huánjìng",
-      "gloss_en": "environment; surroundings",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "nature"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_cailiao",
-      "hanzi": "材料",
-      "pinyin": "cáiliào",
-      "gloss_en": "material; ingredient",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "food",
-        "general"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_qianzhu",
-      "hanzi": "前途",
-      "pinyin": "qiántú",
-      "gloss_en": "future prospects; promising future",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "work",
-        "life"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_niánjì",
-      "hanzi": "年纪",
-      "pinyin": "niánjì",
-      "gloss_en": "age (of a person)",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "life"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_reiqing",
-      "hanzi": "热情",
-      "pinyin": "rèqíng",
-      "gloss_en": "enthusiasm; passion; warm",
-      "pos": [
-        "n",
-        "adj"
-      ],
-      "tags": [
-        "emotion",
-        "work"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_wàizi",
-      "hanzi": "外资",
-      "pinyin": "wàizī",
-      "gloss_en": "foreign capital; foreign-invested",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "work",
-        "money"
-      ],
-      "frequency_band": "mid"
-    },
-    {
-      "id": "w_tese",
-      "hanzi": "特色",
-      "pinyin": "tèsè",
-      "gloss_en": "characteristic; special feature",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "food",
-        "culture",
-        "describe"
-      ],
-      "frequency_band": "high"
     },
     {
       "id": "w_huoguo",
@@ -2432,32 +1344,6 @@
       "frequency_band": "high"
     },
     {
-      "id": "w_mianshi",
-      "hanzi": "面食",
-      "pinyin": "miànshí",
-      "gloss_en": "noodle/flour dishes",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "food"
-      ],
-      "frequency_band": "mid"
-    },
-    {
-      "id": "w_xiaochi",
-      "hanzi": "小吃",
-      "pinyin": "xiǎochī",
-      "gloss_en": "snacks; street food",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "food"
-      ],
-      "frequency_band": "high"
-    },
-    {
       "id": "w_yundong",
       "hanzi": "运动",
       "pinyin": "yùndòng",
@@ -2469,35 +1355,6 @@
       "tags": [
         "activity",
         "sport"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_paobu",
-      "hanzi": "跑步",
-      "pinyin": "pǎobù",
-      "gloss_en": "to run; running",
-      "pos": [
-        "v",
-        "n"
-      ],
-      "tags": [
-        "activity",
-        "sport"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_kanshu",
-      "hanzi": "看书",
-      "pinyin": "kànshū",
-      "gloss_en": "to read (books)",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "activity",
-        "hobby"
       ],
       "frequency_band": "very_high"
     },
@@ -2515,47 +1372,6 @@
         "entertainment"
       ],
       "frequency_band": "very_high"
-    },
-    {
-      "id": "w_youpiao",
-      "hanzi": "邮票",
-      "pinyin": "yóupiào",
-      "gloss_en": "stamp (postage)",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "hobby",
-        "collect"
-      ],
-      "frequency_band": "mid"
-    },
-    {
-      "id": "w_chaye",
-      "hanzi": "茶叶",
-      "pinyin": "cháyè",
-      "gloss_en": "tea leaves",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "food",
-        "collect"
-      ],
-      "frequency_band": "mid"
-    },
-    {
-      "id": "w_jiedao",
-      "hanzi": "街道",
-      "pinyin": "jiēdào",
-      "gloss_en": "street; road",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place"
-      ],
-      "frequency_band": "high"
     },
     {
       "id": "w_dangran",
@@ -2614,33 +1430,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_zhide",
-      "hanzi": "值得",
-      "pinyin": "zhídé",
-      "gloss_en": "worth; worthwhile; deserving",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "opinion"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_yexu",
-      "hanzi": "也许",
-      "pinyin": "yěxǔ",
-      "gloss_en": "maybe; perhaps",
-      "pos": [
-        "adv"
-      ],
-      "tags": [
-        "opinion",
-        "grammar"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
       "id": "w_jìhuì",
       "hanzi": "机会",
       "pinyin": "jīhuì",
@@ -2666,49 +1455,6 @@
         "general"
       ],
       "frequency_band": "very_high"
-    },
-    {
-      "id": "w_dangdi",
-      "hanzi": "当地",
-      "pinyin": "dāngdì",
-      "gloss_en": "local; on the spot",
-      "pos": [
-        "adj",
-        "adv"
-      ],
-      "tags": [
-        "place",
-        "travel"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_waihaoo",
-      "hanzi": "外号",
-      "pinyin": "wàihào",
-      "gloss_en": "nickname",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "identity",
-        "social"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_waiguo",
-      "hanzi": "外国",
-      "pinyin": "wàiguó",
-      "gloss_en": "foreign country",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "culture"
-      ],
-      "frequency_band": "high"
     },
     {
       "id": "w_dagai",
@@ -2753,35 +1499,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_ziyou",
-      "hanzi": "自由",
-      "pinyin": "zìyóu",
-      "gloss_en": "free; freedom",
-      "pos": [
-        "adj",
-        "n"
-      ],
-      "tags": [
-        "emotion",
-        "describe"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_zhengmian",
-      "hanzi": "正面",
-      "pinyin": "zhèngmiàn",
-      "gloss_en": "positive side; front side",
-      "pos": [
-        "n",
-        "adj"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "mid"
-    },
-    {
       "id": "w_juedin",
       "hanzi": "决定",
       "pinyin": "juédìng",
@@ -2795,19 +1512,6 @@
         "general"
       ],
       "frequency_band": "very_high"
-    },
-    {
-      "id": "w_quanming",
-      "hanzi": "全名",
-      "pinyin": "quánmíng",
-      "gloss_en": "full name",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "identity"
-      ],
-      "frequency_band": "mid"
     },
     {
       "id": "w_nian_yr",
@@ -3165,19 +1869,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_shihe",
-      "hanzi": "适合",
-      "pinyin": "shìhé",
-      "gloss_en": "suitable for; to fit",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
       "id": "w_buguo",
       "hanzi": "不过",
       "pinyin": "bùguò",
@@ -3260,21 +1951,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_yiwai",
-      "hanzi": "意外",
-      "pinyin": "yìwài",
-      "gloss_en": "unexpected; accident; surprise",
-      "pos": [
-        "n",
-        "adj"
-      ],
-      "tags": [
-        "describe",
-        "emotion"
-      ],
-      "frequency_band": "high"
-    },
-    {
       "id": "w_he2",
       "hanzi": "合",
       "pinyin": "hé",
@@ -3343,20 +2019,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_bendi",
-      "hanzi": "本地",
-      "pinyin": "běndì",
-      "gloss_en": "local; native (of a place)",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "place",
-        "describe"
-      ],
-      "frequency_band": "high"
-    },
-    {
       "id": "w_yizhi",
       "hanzi": "一直",
       "pinyin": "yīzhí",
@@ -3397,20 +2059,6 @@
         "time"
       ],
       "frequency_band": "high"
-    },
-    {
-      "id": "w_xiudian",
-      "hanzi": "小店",
-      "pinyin": "xiǎodiàn",
-      "gloss_en": "small shop; little store",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "place",
-        "food"
-      ],
-      "frequency_band": "mid"
     },
     {
       "id": "w_de2",
@@ -3593,20 +2241,6 @@
       "frequency_band": "very_high"
     },
     {
-      "id": "w_chengguo",
-      "hanzi": "成果",
-      "pinyin": "chéngguǒ",
-      "gloss_en": "result; achievement; outcome",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "work",
-        "life"
-      ],
-      "frequency_band": "high"
-    },
-    {
       "id": "w_shu",
       "hanzi": "书",
       "pinyin": "shū",
@@ -3779,130 +2413,6 @@
         "number"
       ],
       "frequency_band": "very_high"
-    },
-    {
-      "id": "w_yiqie",
-      "hanzi": "一切",
-      "pinyin": "yīqiē",
-      "gloss_en": "everything; all",
-      "pos": [
-        "pron"
-      ],
-      "tags": [
-        "general"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_zhuyao",
-      "hanzi": "主要",
-      "pinyin": "zhǔyào",
-      "gloss_en": "main; mainly; primary",
-      "pos": [
-        "adj",
-        "adv"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_ouren",
-      "hanzi": "偶然",
-      "pinyin": "ǒurán",
-      "gloss_en": "accidental; by chance",
-      "pos": [
-        "adj",
-        "adv"
-      ],
-      "tags": [
-        "describe"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_shufu",
-      "hanzi": "舒服",
-      "pinyin": "shūfu",
-      "gloss_en": "comfortable; at ease",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "emotion",
-        "describe"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_youlan",
-      "hanzi": "游览",
-      "pinyin": "yóulǎn",
-      "gloss_en": "to tour; to go sightseeing",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "travel",
-        "activity"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_jiehe",
-      "hanzi": "结合",
-      "pinyin": "jiéhé",
-      "gloss_en": "to combine; to integrate",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "general"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_zuofa",
-      "hanzi": "做法",
-      "pinyin": "zuòfǎ",
-      "gloss_en": "method; way of doing; recipe",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "food",
-        "general"
-      ],
-      "frequency_band": "high"
-    },
-    {
-      "id": "w_youkong",
-      "hanzi": "有空",
-      "pinyin": "yǒu kòng",
-      "gloss_en": "to have free time; to be free",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "time",
-        "activity"
-      ],
-      "frequency_band": "very_high"
-    },
-    {
-      "id": "w_wujian",
-      "hanzi": "物件",
-      "pinyin": "wùjiàn",
-      "gloss_en": "object; item; article",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "general",
-        "collect"
-      ],
-      "frequency_band": "mid"
     },
     {
       "id": "w_ling",
@@ -4209,6 +2719,81 @@
         "social"
       ],
       "frequency_band": "very_high"
+    },
+    {
+      "id": "w_ba",
+      "hanzi": "吧",
+      "pinyin": "ba",
+      "gloss_en": "modal particle (suggestion/assumption)",
+      "pos": [
+        "part"
+      ],
+      "tags": [
+        "grammar"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "p2_pln_4"
+      ]
+    },
+    {
+      "id": "w_chi",
+      "hanzi": "吃",
+      "pinyin": "chī",
+      "gloss_en": "to eat",
+      "pos": [
+        "v"
+      ],
+      "tags": [
+        "food",
+        "activity"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_food_like_spicy",
+        "p2_fd_ext1",
+        "f_probe_food_childhood"
+      ]
+    },
+    {
+      "id": "w_hen",
+      "hanzi": "很",
+      "pinyin": "hěn",
+      "gloss_en": "very; quite",
+      "pos": [
+        "adv"
+      ],
+      "tags": [
+        "degree"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_place_like_yes",
+        "frame.opinion.like",
+        "f_food_there_is",
+        "p2_fa_4",
+        "f_work_tenure_react",
+        "f_nice_to_meet",
+        "p2_op_4"
+      ]
+    },
+    {
+      "id": "w_li",
+      "hanzi": "里",
+      "pinyin": "lǐ",
+      "gloss_en": "inside; in; within",
+      "pos": [
+        "part"
+      ],
+      "tags": [
+        "place"
+      ],
+      "frequency_band": "very_high",
+      "frame_ids": [
+        "f_probe_place_moved",
+        "f_probe_work_best",
+        "p2_wk_3"
+      ]
     }
   ]
 }
