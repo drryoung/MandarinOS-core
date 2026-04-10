@@ -2754,6 +2754,17 @@ def _probe_stub_for_persona(probe_id: str, persona: Optional[dict]) -> str:
 # This alias keeps all downstream code unchanged; add/edit questions in the JSON file only.
 _MIRROR_QUESTIONS_BY_ENGINE: dict = _mirror_questions_raw
 
+# Fuzzy-match table built from optional 'paraphrases' arrays in the JSON bank.
+# Each entry: (keyword_tuple, topic, engine). Matching: all keywords must be present in input.
+# To add a paraphrase variant, add it to the JSON entry — no Python edit required.
+_MIRROR_FUZZY: list = [
+    (tuple(kw_group), q["topic"], eng)
+    for eng, qs in _MIRROR_QUESTIONS_BY_ENGINE.items()
+    for q in qs
+    for kw_group in (q.get("paraphrases") or [])
+    if q.get("topic")
+]
+
 
 def _first_clause(text: str) -> str:
     """Return the first natural clause of a Chinese sentence (up to the first 、，or ,).
@@ -2821,7 +2832,7 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         return (zh, _fact_en("food"))
 
     # ── Place ────────────────────────────────────────────────────────────────────
-    if topic in ("place_from", "place_like", "place_special"):
+    if topic in ("place_from", "place_like", "place_special", "place_far", "place_far_or_not", "place_never_been"):
         fact = (facts.get("place") or "").strip()
         if topic == "place_special":
             zh = _first_clause(fact) if fact else "那里有一些很有意思的地方，有机会去看看。"
@@ -2836,6 +2847,10 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
                 return (zh_vl, _vl_en("place"))
             zh = f"挺喜欢的，{city_home}有很多有意思的地方。" if city_home else "挺喜欢的，有很多有意思的地方。"
             en = f"I quite like it — there's a lot to see in {city_home}." if city_home else "I quite like it — there's a lot to see."
+            return (zh, en)
+        if topic in ("place_far", "place_far_or_not", "place_never_been"):
+            zh = f"从这里到{city_home}不算远，交通也方便。" if city_home else "不算太远，我去过几次。"
+            en = f"Not too far from here to {city_home} — easy enough to get there." if city_home else "Not too far — I've been there a few times."
             return (zh, en)
         zh = _first_clause(fact) if fact else (f"我是{city_home}人，从小在那里长大。" if city_home else "我觉得我住的地方挺好的。")
         return (zh, _fact_en("place"))
@@ -2931,56 +2946,9 @@ def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> O
                 topic = q.get("topic") or ""
                 return _mirror_persona_stub(topic, eng or engine_id, persona)
 
-    # Fuzzy-match common paraphrase variants that canonical substring check misses
-    _fuzzy: list = [
-        # name meaning variants: 是什么意思 vs 有什么意思 vs 啥意思
-        (("你的名字", "意思"), "name_meaning", "identity"),
-        (("名字", "意思"),     "name_meaning", "identity"),
-        # name story variants
-        (("名字", "故事"),     "name_story",   "identity"),
-        (("名字", "来历"),     "name_story",   "identity"),
-        (("名字", "怎么取"),   "name_story",   "identity"),
-        # food
-        (("你", "吃", "什么"), "food_fav",     "food"),
-        (("你", "喜欢吃"),     "food_fav",     "food"),
-        # place
-        (("你", "哪里人"),     "place_from",   "place"),
-        (("你", "从哪"),       "place_from",   "place"),
-        # work
-        (("你", "工作"),         "work_what",        "work"),
-        # work_duration: require work/job context to avoid matching "你吉他学多久了？" etc.
-        (("工作", "多久"),       "work_duration",    "work"),
-        (("做", "工作", "多久"), "work_duration",    "work"),
-        (("这份工作", "多久"),   "work_duration",    "work"),
-        (("哪里", "分享"),       "work_platform",    "work"),
-        (("哪个", "平台"),       "work_platform",    "work"),
-        # travel depth
-        (("最难忘",),            "travel_memorable", "travel"),
-        (("难忘", "旅行"),       "travel_memorable", "travel"),
-        # place depth
-        (("那里", "特别"),       "place_special",    "place"),
-        (("有什么特色"),         "place_special",    "place"),
-        # food local
-        (("家乡", "好吃"),       "food_local",       "food"),
-        (("家乡", "吃"),         "food_local",       "food"),
-        # family location — 你妈妈/爸爸在哪儿 routes to family_live (first clause names location)
-        (("妈妈", "哪"),         "family_live",      "family"),
-        (("爸爸", "哪"),         "family_live",      "family"),
-        (("父母", "哪"),         "family_live",      "family"),
-        (("家人", "哪"),         "family_live",      "family"),
-        # family together
-        (("住在一起"),           "family_live",      "family"),
-        (("一起住"),             "family_live",      "family"),
-        # hobby duration — also catches "你吉他学多久了？" / "你唱歌学多久了？"
-        (("多久", "爱好"),       "hobby_duration",   "hobby"),
-        (("玩", "多久"),         "hobby_duration",   "hobby"),
-        (("学", "多久"),         "hobby_duration",   "hobby"),
-        (("练", "多久"),         "hobby_duration",   "hobby"),
-        # hobby
-        (("你", "爱好"),         "hobby_what",       "hobby"),
-        (("你", "喜欢做"),       "hobby_what",       "hobby"),
-    ]
-    for keywords, topic, eng in _fuzzy:
+    # Fuzzy-match paraphrase variants registered in mirror_questions.json ('paraphrases' arrays).
+    # Table is built at startup into _MIRROR_FUZZY — no Python edit required to add new variants.
+    for keywords, topic, eng in _MIRROR_FUZZY:
         if all(kw in t_norm for kw in keywords):
             return _mirror_persona_stub(topic, eng, persona)
 

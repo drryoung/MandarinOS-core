@@ -1,8 +1,41 @@
 # User-Led Discovery & Recovery — Strategist Brief
 
-**Date context:** March 2026 (last updated: 29 March 2026)  
+**Date context:** March 2026 (last updated: 10 April 2026)  
 **Audience:** Executive / product strategist (e.g. ChatGPT strategist session)  
 **Purpose:** Capture where MandarinOS is on **learner-as-interviewer** behaviour, **counter-replies**, and **recovery**, and propose how to refine this work without architectural churn.
+
+---
+
+## Session update — 10 April 2026 (mirror stabilization branch)
+
+Two minimal interventions were implemented to reduce architectural drift before further mirror content expansion. No selector or UI changes.
+
+**Intervention 1 — JSON-driven fuzzy/paraphrase routing**
+
+The `_find_mirror_answer` function previously maintained a 30-entry hardcoded Python list (`_fuzzy`) mapping paraphrase keyword-tuples to `(topic, engine)`. This list was the sole place paraphrase variants were registered; a new JSON bank entry did not automatically gain fuzzy coverage.
+
+That Python list has been **removed**. Paraphrase variants are now declared directly in `mirror_questions.json` as optional `"paraphrases"` arrays on each bank entry:
+
+```json
+{
+  "zh": "你的名字是什么意思？",
+  "topic": "name_meaning",
+  "paraphrases": [
+    ["你的名字", "意思"],
+    ["名字", "意思"]
+  ]
+}
+```
+
+At startup, `_MIRROR_FUZZY` is built from these arrays using the same list-comprehension pattern as the rest of the bank loader. The matching logic in `_find_mirror_answer` is **identical** — all keywords in a group must appear in the normalised input. A 38/38 regression pass confirmed no behavior change.
+
+**Canonical rule**: `mirror_questions.json` is now the source of truth for both the question bank and all paraphrase/fuzzy keyword groups. **To add a new paraphrase variant, edit the JSON only — no Python edit required.**
+
+**Intervention 2 — Missing place stub topics**
+
+Three bank entries (`place_far`, `place_far_or_not`, `place_never_been`) had no branch in `_mirror_persona_stub` and silently fell through to the generic non-answer `"我觉得都挺有意思的。"`. A minimal branch was added, reusing existing `city_home` from persona profile — stylistically consistent with the rest of the function.
+
+**Strategic decision confirmed**: `mirror_questions.json` is retained as the dedicated, curated learner-question bank. It is **not** being replaced by tagged forward-frame architecture (see AD-1 below — status updated).
 
 ---
 
@@ -93,15 +126,17 @@ The app can now **reverse the direction of questions** (learner interviews the p
 
 These are improvements identified but deliberately deferred to avoid scope creep before alpha testing. The system functions correctly without them; they reduce **future maintenance burden** rather than fixing live bugs.
 
-### AD-1 — Replace `mirror_questions.json` with tagged forward frames *(medium — content audit + minimal server change)*
+### AD-1 — ~~Replace `mirror_questions.json` with tagged forward frames~~ *(superseded — April 2026)*
 
-**Problem:** `content/mirror_questions.json` is a parallel question bank that must be kept in sync with `p1_frames.json` / `p2_frames.json`. Every time a new forward question frame is added, it should also appear as a learner discovery option — but currently requires editing two separate files.
+**Original intent:** Retire `mirror_questions.json` in favour of `mirror_topic` tags on forward frames.
 
-**Solution:** Add `mirror_topic` field to all forward frames that are reversible discovery questions. The server's `_find_mirror_answer` already has the routing logic; it just needs to read from tagged frames instead of the JSON bank. `mirror_questions.json` would then be retired.
+**Status: SUPERSEDED.** The April 2026 mirror stabilization branch confirmed `mirror_questions.json` as the **strategist-approved canonical source** for both the learner discovery bank and paraphrase/fuzzy keyword groups. The rationale for keeping it separate:
 
-**Groundwork already laid:** `f_how_old`, `f_married`, and `f_have_children` already carry `mirror_topic` tags as of 29 March. The convention is established; the remaining ~20 reversible forward frames need tagging. **Add `mirror_topic` to new frames as they are created — do not do a big-bang backfill until this is the focus of a dedicated session.**
+- It is a **curated learner-question bank** — the selection and ordering of questions the learner can ask is a distinct editorial concern from the frame order the partner follows.
+- It now carries `paraphrases` arrays (see April 2026 update above) that have no natural home in forward frame JSON.
+- The three existing `mirror_topic` tags on `f_how_old`, `f_married`, `f_have_children` are **unread by runtime code** and should be treated as dead metadata. They may be removed in a future dedicated maintenance pass; no action required now.
 
-**Risk:** Low. `mirror_questions.json` continues to work as a fallback during any transition.
+**Do not add further `mirror_topic` tags to forward frames.** Future mirror expansion = new entries in `mirror_questions.json`.
 
 ### AD-2 — Full 5-persona matrix test *(small — 30 min data work)*
 
@@ -170,7 +205,7 @@ After alpha testing characterises when curiosity follow-ups are missed, design *
 - `content/recovery_phrases.json` — `use: "persona_deflect"` phrases; `use: "deflection_ack"` phrases.
 - `p1_frames.json` / `p2_frames.json` — new frames + `mirror_topic` tags.
 - `p1_words.json` / `p1_fillers.json` — tokens and fillers for new frames.
-- `scripts/ui_server.py` — `_mirror_persona_stub` (new topics), `_find_mirror_answer` (new fuzzy patterns), `_FRAME_ORDER` / `_FRAME_AFTER` (new frame sequencing).
+- `scripts/ui_server.py` — `_mirror_persona_stub` (new topics only; no fuzzy-pattern edits needed), `_FRAME_ORDER` / `_FRAME_AFTER` (new frame sequencing). **Do NOT add fuzzy patterns here — they belong in `mirror_questions.json` `paraphrases` arrays.**
 - `personas/*.json` — `discoverable_facts` depth (clause structure for progressive reveal).
 
 ---
@@ -178,3 +213,5 @@ After alpha testing characterises when curiosity follow-ups are missed, design *
 ## Closing line for the room
 
 **We are past "does it work?" and into "does it feel fair, teachable, and like one coherent partner?"** The machinery for reversing questions and recovery is clean and fully data-driven. The next phase is **curiosity question design** and **persona coverage** — both are content tasks, not architecture tasks.
+
+*Mirror architecture is now stable: the bank → topic → persona stub routing model is locked, fuzzy routing is JSON-driven, and `mirror_questions.json` is the single content authority. Future work in this area is additive content editing only.*
