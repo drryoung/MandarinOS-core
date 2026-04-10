@@ -2754,6 +2754,72 @@ def _probe_stub_for_persona(probe_id: str, persona: Optional[dict]) -> str:
 # This alias keeps all downstream code unchanged; add/edit questions in the JSON file only.
 _MIRROR_QUESTIONS_BY_ENGINE: dict = _mirror_questions_raw
 
+# ── Core mirror entries: derived from partner frames via content/mirror_core_map.json ────────────
+# Prepended before discovery entries so pedagogically-aligned core questions appear first.
+# Fails loudly if a mapped frame_id is missing or slotted — no silent drift.
+_core_mirror_map_path = CONTENT_DIR / "mirror_core_map.json"
+try:
+    if _core_mirror_map_path.is_file():
+        _cm_raw = json.loads(_core_mirror_map_path.read_text(encoding="utf-8"))
+        _core_by_engine: dict = {}
+        for _cm_entry in (_cm_raw.get("core_entries") or []):
+            _cm_fid   = _cm_entry.get("frame_id", "")
+            _cm_topic = _cm_entry.get("topic", "")
+            if not _cm_fid or not _cm_topic:
+                continue
+            _cm_fr = _frames_by_id.get(_cm_fid)
+            if not _cm_fr:
+                raise RuntimeError(
+                    f"[MandarinOS] mirror_core_map: frame_id '{_cm_fid}' not found in frames_by_id. "
+                    "Update mirror_core_map.json or restore the frame."
+                )
+            if _cm_fr.get("slots"):
+                raise RuntimeError(
+                    f"[MandarinOS] mirror_core_map: frame_id '{_cm_fid}' has slots — "
+                    "slotted frames cannot be used as core mirror entries."
+                )
+            _cm_eng = (_cm_fr.get("engine") or "").strip().lower()
+            if not _cm_eng:
+                continue
+            _core_by_engine.setdefault(_cm_eng, []).append({
+                "zh":    _cm_fr["text"],
+                "py":    _cm_fr.get("pinyin", ""),
+                "en":    _cm_fr.get("text_en", ""),
+                "topic": _cm_topic,
+                "kind":  "SENTENCE",
+            })
+        # Merge: core first, then discovery. Deduplicate by topic (core wins).
+        # Paraphrases on removed discovery entries are inherited onto the matching core entry
+        # so _MIRROR_FUZZY continues to resolve legacy fuzzy inputs unchanged.
+        for _cm_eng, _cm_core_qs in _core_by_engine.items():
+            _cm_discovery = _MIRROR_QUESTIONS_BY_ENGINE.get(_cm_eng) or []
+            _cm_core_idx: dict = {q["topic"]: q for q in _cm_core_qs if q.get("topic")}
+            _cm_deduped_discovery = []
+            _cm_removed = 0
+            for _cm_q in _cm_discovery:
+                _cm_t = _cm_q.get("topic")
+                if _cm_t and _cm_t in _cm_core_idx:
+                    # Inherit any paraphrases from the removed discovery entry
+                    for _ph in (_cm_q.get("paraphrases") or []):
+                        _cm_core_idx[_cm_t].setdefault("paraphrases", [])
+                        if _ph not in _cm_core_idx[_cm_t]["paraphrases"]:
+                            _cm_core_idx[_cm_t]["paraphrases"].append(_ph)
+                    _cm_removed += 1
+                else:
+                    _cm_deduped_discovery.append(_cm_q)
+            if _cm_removed:
+                print(f"[ui_server] mirror_core_map: removed {_cm_removed} duplicate discovery "
+                      f"entry/entries from engine '{_cm_eng}' (topic overlap with core; paraphrases inherited)")
+            _MIRROR_QUESTIONS_BY_ENGINE[_cm_eng] = _cm_core_qs + _cm_deduped_discovery
+        _cm_n = sum(len(v) for v in _core_by_engine.values())
+        print(f"[ui_server] mirror_core_map loaded ({_cm_n} core entries across {len(_core_by_engine)} engines)")
+    else:
+        print(f"[ui_server] INFO: mirror_core_map.json not found at {_core_mirror_map_path} — using discovery bank only")
+except RuntimeError:
+    raise
+except Exception as _cm_e:
+    raise RuntimeError(f"[MandarinOS] mirror_core_map load failed: {_cm_e}") from _cm_e
+
 # Fuzzy-match table built from optional 'paraphrases' arrays in the JSON bank.
 # Each entry: (keyword_tuple, topic, engine). Matching: all keywords must be present in input.
 # To add a paraphrase variant, add it to the JSON entry — no Python edit required.
@@ -2808,8 +2874,17 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         return (vl_en.get(engine_key) or "").strip()
 
     # ── Identity / name ─────────────────────────────────────────────────────────
-    if topic in ("name_meaning", "name_story", "name_giver"):
+    if topic in ("name_what", "name_nickname", "name_meaning", "name_story", "name_giver"):
         fact = (facts.get("identity") or "").strip()
+        if topic == "name_what":
+            # Direct answer to "你叫什么名字？" — return the persona's name sentence
+            zh = vl.get("identity") or f"我叫{name}。"
+            return (zh, _vl_en("identity") or f"My name is {name}.")
+        if topic == "name_nickname":
+            # Answer to "朋友一般怎么叫你？" — how friends address the persona
+            zh = f"大家都叫我{name}，没有什么特别的外号。"
+            en  = f"Everyone calls me {name} — no special nickname."
+            return (zh, en)
         if topic == "name_giver":
             depth = _nth_clause(fact, 1) if fact else ""
             return (depth or "是我父母给我取的名字。", "")
@@ -2832,6 +2907,34 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         return (zh, _fact_en("food"))
 
     # ── Place ────────────────────────────────────────────────────────────────────
+    if topic == "place_live_now":
+        city_now = (profile.get("city") or "").strip()
+        hometown = (profile.get("hometown") or "").strip()
+        if city_now and hometown and city_now != hometown:
+            zh = f"我现在住在{city_now}，不是我老家，是来这里工作的。"
+            en = f"I live in {city_now} now — not my hometown, I came here for work."
+        elif city_now:
+            zh = f"我现在住在{city_now}。"
+            en = f"I live in {city_now} now."
+        else:
+            zh = vl.get("place") or "我住在这里已经好几年了。"
+            en = _vl_en("place")
+        return (zh, en)
+
+    if topic == "place_hometown":
+        city_home2 = (profile.get("hometown") or "").strip()
+        city_now2  = (profile.get("city") or "").strip()
+        if city_home2 and city_now2 and city_home2 != city_now2:
+            zh = f"我老家是{city_home2}，不过现在在{city_now2}工作。"
+            en = f"My hometown is {city_home2} — but I work in {city_now2} now."
+        elif city_home2:
+            zh = f"我老家就是{city_home2}，从小在那里长大。"
+            en = f"My hometown is {city_home2} — I grew up there."
+        else:
+            zh = vl.get("place") or "我老家在中国，有机会去看看！"
+            en = _vl_en("place")
+        return (zh, en)
+
     if topic in ("place_from", "place_like", "place_special", "place_far", "place_far_or_not", "place_never_been"):
         fact = (facts.get("place") or "").strip()
         if topic == "place_special":
@@ -2856,17 +2959,20 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         return (zh, _fact_en("place"))
 
     # ── Travel ───────────────────────────────────────────────────────────────────
-    if topic in ("travel_where", "travel_fav", "travel_memorable"):
+    if topic in ("travel_where", "travel_fav", "travel_memorable", "travel_with"):
         fact = (facts.get("travel") or "").strip()
         if topic == "travel_memorable":
             parts = re.split(r'[，、,]', fact)
             depth = parts[-1].strip().rstrip("。.") + "。" if parts and len(parts) > 1 else ""
             return (depth or "最难忘的是在一个很偏远的地方看星星那一晚。", "")
+        if topic == "travel_with":
+            specific = (facts.get("travel_with") or "").strip()
+            return (specific or "一般跟朋友或者家人一起。", _fact_en("travel_with"))
         zh = _first_clause(fact) if fact else "我去过几个城市，最喜欢有美食的地方。"
         return (zh, _fact_en("travel"))
 
     # ── Work ─────────────────────────────────────────────────────────────────────
-    if topic in ("work_what", "work_like", "work_duration", "work_platform"):
+    if topic in ("work_what", "work_like", "work_duration", "work_platform", "work_company", "work_origin"):
         fact = (facts.get("work") or "").strip()
         if topic == "work_like":
             zh_vl = vl.get("work") or ""
@@ -2877,6 +2983,12 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         if topic == "work_platform":
             depth = _nth_clause(fact, 1) if fact else ""
             return (depth or "我在网上分享，有一些人关注。", "")
+        if topic == "work_company":
+            specific = (facts.get("work_company") or "").strip()
+            return (specific or "我在一家挺不错的公司工作。", _fact_en("work_company"))
+        if topic == "work_origin":
+            specific = (facts.get("work_origin") or "").strip()
+            return (specific or "大学毕业后就开始做这个，慢慢越来越喜欢。", _fact_en("work_origin"))
         if fact:
             return (_first_clause(fact), _fact_en("work"))
         job = profile.get("occupation") or ""
@@ -2910,11 +3022,17 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         return (zh, _fact_en("family"))
 
     # ── Hobby ────────────────────────────────────────────────────────────────────
-    if topic in ("hobby_what", "hobby_duration"):
+    if topic in ("hobby_what", "hobby_duration", "hobby_best", "hobby_origin"):
         fact = (facts.get("hobby") or "").strip()
         if topic == "hobby_duration":
             depth = _nth_clause(fact, 1) if fact else ""
             return (depth or "已经玩了好几年了，越来越喜欢。", "")
+        if topic == "hobby_best":
+            specific = (facts.get("hobby_best") or "").strip()
+            return (specific or "最喜欢的感觉是完全投入进去，什么都不用想。", _fact_en("hobby_best"))
+        if topic == "hobby_origin":
+            specific = (facts.get("hobby_origin") or "").strip()
+            return (specific or "从小就开始喜欢了，一直坚持到现在。", _fact_en("hobby_origin"))
         if fact:
             return (_first_clause(fact), _fact_en("hobby"))
         interests = profile.get("interests") or []

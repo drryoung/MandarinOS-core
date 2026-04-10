@@ -31,7 +31,12 @@
     "hobby": "我练书法有十几年了，写的是楷书，最喜欢欧体的风格。",
     "travel": "我去过北京、苏州、成都，最喜欢苏州的园林，感觉非常有诗意。",
     "place": "西安有很多历史遗迹，兵马俑、大雁塔都在我家附近，我觉得住在这里很自豪。",
-    "food": "我最喜欢西安的凉皮和肉夹馍，这是我从小吃到大的味道。"
+    "food": "我最喜欢西安的凉皮和肉夹馍，这是我从小吃到大的味道。",
+    "work_company": "我在西安市内一所公立中学教美术，是正式编制的老师，已经在那个学校教了八年了。",
+    "work_origin": "从小喜欢画画，大学就选了美术教育，毕业后进了学校，感觉是很自然的选择。",
+    "hobby_best": "书法最好的时候是进入那种完全专注的状态，外面什么声音都听不到，只有笔和纸。",
+    "hobby_origin": "初中的时候老师书法写得特别好，我很佩服，就开始跟他练，一练就迷上了。",
+    "travel_with": "一般跟朋友或者家人一起，喜欢和人分享看到的历史古迹，自己去感觉少了点意思。"
   },
   "discoverable_facts_en": {
     "identity": "My mum chose the name Meiling for me.",
@@ -40,8 +45,13 @@
     "family_siblings": "I'm an only child — no brothers or sisters.",
     "family_live": "I live in the same compound as my parents, so we see each other every day.",
     "work": "I teach at a middle school in Xi'an.",
+    "work_company": "I teach at a public middle school in Xi'an — permanent staff position, been at that school for eight years.",
+    "work_origin": "I loved drawing as a child, studied art education at university, and went into teaching after graduating — it felt like the natural path.",
     "hobby": "I've been practising calligraphy for over ten years.",
+    "hobby_best": "Calligraphy at its best is total focus — the outside world disappears, just the brush and paper.",
+    "hobby_origin": "My middle school teacher had exceptional calligraphy — I started practising with him and got completely hooked.",
     "travel": "I've been to Beijing.",
+    "travel_with": "Usually with friends or family — I love sharing what I discover at historical sites. Alone feels a bit less meaningful.",
     "place": "Xi'an has many historical sites.",
     "food": "My favourites are Xi'an cold noodles and pork burgers."
   },

@@ -31,7 +31,12 @@
     "hobby": "我从高中开始学吉他，断断续续学了差不多十年了。",
     "travel": "我去过日本、泰国和韩国，最喜欢日本的拉面和温泉。",
     "place": "我老家是成都，但毕业后来北京工作，住在中关村附近。",
-    "food": "我妈妈做的回锅肉是我最喜欢的，每次回成都都要吃。"
+    "food": "我妈妈做的回锅肉是我最喜欢的，每次回成都都要吃。",
+    "work_company": "我在中关村一家做人工智能的公司工作，大概两百人左右的规模。",
+    "work_origin": "大学学计算机，喜欢写代码，毕业就进了这行，没有特别想过做别的。",
+    "hobby_best": "弹吉他最好的感觉是弹出一首熟悉的曲子，别人能听出来是什么，很有满足感。",
+    "hobby_origin": "高中时候一个朋友会弹吉他，觉得很酷，就借了他的吉他自己摸索，后来正式学了。",
+    "travel_with": "一般跟朋友或者同事一起，很少一个人去，一个人会有点无聊。"
   },
   "discoverable_facts_en": {
     "identity": "My grandmother gave me my name.",
@@ -40,8 +45,13 @@
     "family_siblings": "I have an older sister — she lives in Chengdu.",
     "family_live": "I work in Beijing; my sister and parents are in Chengdu. We're not together but we're always in touch.",
     "work": "I work at an AI company.",
+    "work_company": "I work at an AI company in Zhongguancun, Beijing — around two hundred people.",
+    "work_origin": "I studied computer science and went straight into the industry after graduation — never really considered anything else.",
     "hobby": "I started learning guitar in high school.",
+    "hobby_best": "The best feeling is playing a song people recognise — very satisfying.",
+    "hobby_origin": "A friend in high school played guitar — I borrowed his and taught myself, then properly learned.",
     "travel": "I've been to Japan.",
+    "travel_with": "Usually with friends or colleagues — it gets a bit boring alone.",
     "place": "My hometown is Chengdu.",
     "food": "My mum's twice-cooked pork is my favourite."
   },

@@ -31,7 +31,12 @@
     "hobby": "我最喜欢的书是《红楼梦》，读了好几遍了，每次都有不同的感受。下棋也让我觉得很放松。",
     "travel": "我去过几个欧洲国家，最喜欢法国，觉得他们对历史和艺术的态度和中国有相似之处。",
     "place": "上海节奏很快，但我已经习惯了，周末去外滩或者博物馆走走，心情就会很好。",
-    "food": "我觉得上海的本帮菜非常有特色，红烧肉和清蒸鱼是我最喜欢的，简单又有味道。"
+    "food": "我觉得上海的本帮菜非常有特色，红烧肉和清蒸鱼是我最喜欢的，简单又有味道。",
+    "work_company": "我是个人老师，没有固定的机构，学生都是通过口碑和介绍来的，一般在家里或者图书馆教。",
+    "work_origin": "大学读教育学，毕业后在学校做了几年，觉得个人补习更能针对每个学生，就转型了。",
+    "hobby_best": "读书最好的部分是沉浸在另一个世界里，忘记时间，等回过神来发现好几个小时过去了。",
+    "hobby_origin": "从小家里书很多，父母都喜欢读书，自然就养成了读书的习惯，没有什么特别的故事。",
+    "travel_with": "一般自己去，旅行是我的思考时间，不太喜欢跟很多人一起，有时候会叫一个朋友。"
   },
   "discoverable_facts_en": {
     "identity": "The name Zhiyuan was chosen by my father.",
@@ -40,8 +45,13 @@
     "family_siblings": "I'm an only child — no siblings. I grew up quite independent.",
     "family_live": "My parents are in Nanjing and I work in Shanghai. I go back for Spring Festival and National Day.",
     "work": "I mainly tutor middle and high school students in maths and Chinese.",
+    "work_company": "I'm independent — no institution. Students come through referrals and I teach at home or in libraries.",
+    "work_origin": "I studied education, taught in schools for a few years, then switched to private tutoring — more tailored to each student.",
     "hobby": "My favourite book is Dream of the Red Chamber.",
+    "hobby_best": "The best part is being lost in another world — suddenly realising hours have passed.",
+    "hobby_origin": "My family had many books and my parents loved reading — the habit came naturally, no particular story.",
     "travel": "I've been to several European countries.",
+    "travel_with": "Usually alone — travel is thinking time for me. I don't like big groups, though occasionally I'll invite one friend.",
     "place": "Shanghai moves fast.",
     "food": "I think Shanghai's local cuisine is very distinctive."
   },

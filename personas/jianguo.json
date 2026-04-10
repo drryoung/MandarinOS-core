@@ -31,7 +31,12 @@
     "hobby": "我打羽毛球打了快二十年了，以前代表学校参加过比赛，现在每周至少打两次。",
     "travel": "我去过成都、西安和上海，每次旅行都要去当地最有名的餐厅吃饭，这是我的旅行习惯。",
     "place": "重庆是山城，到处都是坡路，走来走去很累，但火锅一吃就什么都忘了。",
-    "food": "我觉得重庆火锅是世界上最好吃的东西，没有之一，每周必吃。"
+    "food": "我觉得重庆火锅是世界上最好吃的东西，没有之一，每周必吃。",
+    "work_company": "我在重庆市中心一家做了十多年的老川菜馆做主厨，生意一直挺好的。",
+    "work_origin": "小时候看妈妈做菜觉得很神奇，后来去了厨师学校，出来就进餐厅工作了。",
+    "hobby_best": "打羽毛球最好玩的是遇到一个势均力敌的对手，每一球都很紧张，打完很爽！",
+    "hobby_origin": "小学加入了学校的羽毛球队，教练很严格，打了几年就越来越喜欢了，现在停不下来。",
+    "travel_with": "一般跟朋友一起去，大家一起找好吃的，热热闹闹的最好！"
   },
   "discoverable_facts_en": {
     "identity": "The name Jianguo sounds old-fashioned.",
@@ -40,8 +45,13 @@
     "family_siblings": "Four siblings — I'm the second oldest!",
     "family_live": "We all live separately, but everyone's in Chongqing so we see each other often.",
     "work": "I'm the head chef at a Sichuan restaurant in Chongqing.",
+    "work_company": "I'm head chef at a long-established Sichuan restaurant in central Chongqing — been open over ten years.",
+    "work_origin": "Watching my mum cook felt magical as a kid — I went to culinary school then straight into restaurant work.",
     "hobby": "I've been playing badminton for nearly twenty years.",
+    "hobby_best": "A well-matched opponent — every point is tense, and afterwards you feel great.",
+    "hobby_origin": "I joined the school badminton team in primary school — strict coach, but after a few years I fell in love with it.",
     "travel": "I've been to Chengdu.",
+    "travel_with": "Usually with friends — we hunt for good food together. The more the merrier!",
     "place": "Chongqing is a mountain city.",
     "food": "I think Chongqing hotpot is the best food in the world."
   },

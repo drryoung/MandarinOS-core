@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "description": "Maps eligible partner frame IDs to mirror topic keys. Core mirror entries are derived from these frames at startup and prepended before mirror_questions.json discovery entries. Only slot-free partner frames are eligible. To add a core mirror question: add one entry here — no frame JSON changes needed. If the topic key is new, also add a branch to _mirror_persona_stub and any required discoverable_facts keys to persona JSON.",
+  "core_entries": [
+    {"frame_id": "f_ask_you_name",       "topic": "name_what",     "_note": "你叫什么名字？ — opening identity question"},
+    {"frame_id": "f_id_friends_call",    "topic": "name_nickname", "_note": "朋友一般怎么叫你？ — nickname/call-name"},
+    {"frame_id": "f_live_where",         "topic": "place_live_now","_note": "你现在住哪里？ — current city"},
+    {"frame_id": "f_home_where",         "topic": "place_hometown","_note": "你老家在哪儿？ — hometown (distinct from place_from)"},
+    {"frame_id": "f_what_work",          "topic": "work_what",     "_note": "你做什么工作？ — work opener (deduplicates discovery entry)"},
+    {"frame_id": "f_work_company",       "topic": "work_company",  "_note": "你在哪个公司上班？ — which company/workplace"},
+    {"frame_id": "f_probe_work_origin",  "topic": "work_origin",   "_note": "你怎么开始做这个工作的？ — career origin"},
+    {"frame_id": "f_hobby_special",      "topic": "hobby_what",    "_note": "你喜欢做什么？有什么特别的爱好？ — hobby opener (deduplicates discovery entry)"},
+    {"frame_id": "f_hobby_best_part",    "topic": "hobby_best",    "_note": "你最喜欢这个爱好的哪一点？ — best part of hobby"},
+    {"frame_id": "f_probe_hobby_origin", "topic": "hobby_origin",  "_note": "你是怎么开始这个爱好的？ — hobby origin"},
+    {"frame_id": "f_travel_where",       "topic": "travel_where",  "_note": "你去过哪里？ — travel opener (deduplicates discovery entry)"},
+    {"frame_id": "f_travel_with_who",    "topic": "travel_with",   "_note": "你是跟谁一起去的？ — travel companion"}
+  ]
+}

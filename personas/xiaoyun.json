@@ -31,7 +31,12 @@
     "hobby": "我的相机是我最重要的东西，走到哪里都带着，已经拍了大概两万张照片了。",
     "travel": "我去过西藏、新疆、云南还有几个东南亚国家，最难忘的是在西藏看星星那一晚。",
     "place": "成都的节奏不算快，大家都很悠闲，茶馆文化特别有趣，我很喜欢在茶馆坐一下午。",
-    "food": "我觉得云南的菜最有特色，过桥米线、汽锅鸡，每次去都要吃个够。"
+    "food": "我觉得云南的菜最有特色，过桥米线、汽锅鸡，每次去都要吃个够。",
+    "work_company": "我主要在小红书上发内容，也在其他平台分享，没有固定公司，是自由职业。",
+    "work_origin": "大学学的是新闻，但毕业后觉得旅行摄影更自由，慢慢就开始做博主了。",
+    "hobby_best": "最喜欢的是拍到一张构图刚刚好的照片，那种感觉很难形容，就是对了！",
+    "hobby_origin": "高中开始用手机拍照，后来买了第一台相机，越拍越觉得有意思，就一直坚持下来了。",
+    "travel_with": "拍照的时候喜欢一个人去，比较自由，但长途旅行的话有时候会叫朋友一起。"
   },
   "discoverable_facts_en": {
     "identity": "The name Xiaoyun is a little special.",
@@ -40,8 +45,13 @@
     "family_siblings": "I'm an only child — no siblings.",
     "family_live": "I work away from home, but I go back to Chengdu to see my parents every couple of months.",
     "work": "I've been a travel blogger for three years.",
+    "work_company": "I mainly post on Xiaohongshu and share on other platforms too — I'm freelance, no fixed company.",
+    "work_origin": "I studied journalism but found travel photography more freeing after graduating.",
     "hobby": "My camera is my most important possession.",
+    "hobby_best": "That moment when the composition is just right — hard to describe, it just clicks.",
+    "hobby_origin": "I started with a phone camera in high school, then got my first proper camera — the more I shot the more hooked I got.",
     "travel": "I've been to Tibet.",
+    "travel_with": "For photography I prefer going alone — more freedom. For long trips I sometimes bring friends.",
     "place": "Chengdu has a relaxed pace.",
     "food": "I think Yunnan cuisine is the most distinctive."
   },
