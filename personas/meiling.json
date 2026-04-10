@@ -38,6 +38,16 @@
     "hobby_origin": "初中的时候老师书法写得特别好，我很佩服，就开始跟他练，一练就迷上了。",
     "travel_with": "一般跟朋友或者家人一起，喜欢和人分享看到的历史古迹，自己去感觉少了点意思。"
   },
+  "discoverable_facts_simple": {
+    "work":   "我是美术老师。",
+    "travel": "我去过北京和苏州。",
+    "hobby":  "我喜欢练书法。"
+  },
+  "discoverable_facts_simple_en": {
+    "work":   "I'm an art teacher.",
+    "travel": "I've been to Beijing and Suzhou.",
+    "hobby":  "I enjoy practising calligraphy."
+  },
   "discoverable_facts_en": {
     "identity": "My mum chose the name Meiling for me.",
     "family": "I live in the same compound as my parents.",

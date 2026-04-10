@@ -38,6 +38,16 @@
     "hobby_origin": "高中开始用手机拍照，后来买了第一台相机，越拍越觉得有意思，就一直坚持下来了。",
     "travel_with": "拍照的时候喜欢一个人去，比较自由，但长途旅行的话有时候会叫朋友一起。"
   },
+  "discoverable_facts_simple": {
+    "work":   "我是旅行博主。",
+    "travel": "我去过西藏和云南。",
+    "hobby":  "我喜欢拍照。"
+  },
+  "discoverable_facts_simple_en": {
+    "work":   "I'm a travel blogger.",
+    "travel": "I've been to Tibet and Yunnan.",
+    "hobby":  "I enjoy photography."
+  },
   "discoverable_facts_en": {
     "identity": "The name Xiaoyun is a little special.",
     "family": "My parents are in Chengdu and I'm an only child.",

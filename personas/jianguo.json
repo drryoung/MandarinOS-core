@@ -38,6 +38,16 @@
     "hobby_origin": "小学加入了学校的羽毛球队，教练很严格，打了几年就越来越喜欢了，现在停不下来。",
     "travel_with": "一般跟朋友一起去，大家一起找好吃的，热热闹闹的最好！"
   },
+  "discoverable_facts_simple": {
+    "work":   "我是厨师。",
+    "travel": "我去过成都和上海。",
+    "hobby":  "我喜欢打羽毛球。"
+  },
+  "discoverable_facts_simple_en": {
+    "work":   "I'm a chef.",
+    "travel": "I've been to Chengdu and Shanghai.",
+    "hobby":  "I enjoy badminton."
+  },
   "discoverable_facts_en": {
     "identity": "The name Jianguo sounds old-fashioned.",
     "family": "I have four siblings.",

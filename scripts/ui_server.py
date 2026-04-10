@@ -2135,7 +2135,7 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     # Mirror questions (richest answers — use discoverable_facts / profile via _mirror_persona_stub)
     _mirror = _find_mirror_answer(t, "", persona)
     if _mirror:
-        return _mirror   # already (zh, en) tuple
+        return (_mirror[0], _mirror[1])   # return (zh, en); topic/engine handled by caller state-write
 
     _dist = _place_distance_counter_reply(t, persona)
     if _dist:
@@ -3047,10 +3047,113 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
     return ("我觉得都挺有意思的。", "")
 
 
+def _topic_to_fact_key(topic: str) -> str:
+    """Map a mirror topic string to its discoverable_facts key.
+    Topics that share a parent fact key (e.g. name_what / name_meaning → 'identity') are mapped here.
+    Topics that have their own dedicated key return that key directly.
+    """
+    _map: dict[str, str] = {
+        "name_what":       "identity",
+        "name_nickname":   "identity",
+        "name_meaning":    "identity",
+        "name_story":      "identity",
+        "name_giver":      "identity",
+        "food_fav":        "food",
+        "food_local":      "food",
+        "food_spicy":      "food",
+        "place_from":      "place",
+        "place_like":      "place",
+        "place_special":   "place",
+        "place_far":       "place",
+        "place_far_or_not":"place",
+        "place_never_been":"place",
+        "place_live_now":  "place",
+        "place_hometown":  "place",
+        "travel_where":    "travel",
+        "travel_fav":      "travel",
+        "travel_memorable":"travel",
+        "travel_with":     "travel_with",
+        "work_what":       "work",
+        "work_like":       "work",
+        "work_duration":   "work",
+        "work_platform":   "work",
+        "work_company":    "work_company",
+        "work_origin":     "work_origin",
+        "hobby_what":      "hobby",
+        "hobby_duration":  "hobby",
+        "hobby_best":      "hobby_best",
+        "hobby_origin":    "hobby_origin",
+        "family_size":     "family_size",
+        "family_siblings": "family_siblings",
+        "family_live":     "family_live",
+    }
+    return _map.get(topic, topic)
+
+
+# Restatement prefixes used in Stage 1 (natural restatement, not simplification).
+# Picked deterministically by topic hash so the same persona doesn't always use the same prefix.
+_RESTATE_PREFIXES = [
+    "我再说一遍——",
+    "换个说法——",
+    "我的意思是——",
+    "我再说清楚一点——",
+    "简单来说——",
+]
+
+
+def _mirror_persona_stub_simple(topic: str, engine_id: str, persona: Optional[dict]) -> tuple:
+    """
+    Shorter/simpler restatement of a persona mirror answer — for Stage 2 confusion repair only.
+    Priority:
+      1. discoverable_facts_simple[fact_key] — author-written simplified version
+      2. voice_lines[engine] — already short, persona-specific
+      3. Generic per-engine fallback
+    """
+    if not persona:
+        return ("我的意思很简单——都挺好的。", "Simply put — it's all pretty good.")
+    facts_simple    = persona.get("discoverable_facts_simple") or {}
+    facts_simple_en = persona.get("discoverable_facts_simple_en") or {}
+    vl              = persona.get("voice_lines") or {}
+    vl_en           = persona.get("voice_lines_en") or {}
+    eng             = (engine_id or "").strip().lower()
+    key             = _topic_to_fact_key(topic)
+
+    if facts_simple.get(key):
+        return (facts_simple[key], facts_simple_en.get(key, ""))
+
+    # Voice line is already short — use as simplified fallback
+    if vl.get(eng):
+        return (vl[eng], vl_en.get(eng, ""))
+
+    # Generic per-engine fallback
+    _generic: dict[str, tuple] = {
+        "work":     ("我的工作很简单——上班、做事。", "My work is simple — just show up and do it."),
+        "hobby":    ("我喜欢一件事，每天都做。", "I enjoy one thing and do it every day."),
+        "travel":   ("我去过几个地方，很喜欢旅行。", "I've been to a few places — I enjoy travelling."),
+        "place":    ("我住在中国，喜欢我住的地方。", "I live in China and like where I am."),
+        "identity": ("我的名字很简单。", "My name is simple."),
+        "food":     ("我喜欢吃好吃的。", "I enjoy good food."),
+        "family":   ("我家里有几个人。", "There are a few people in my family."),
+    }
+    return _generic.get(eng, ("我的意思很简单。", "Simply put."))
+
+
+def _mirror_restate_naturally(prev_zh: str, topic: str) -> tuple:
+    """
+    Stage 1 repair: restate the original mirror answer with a natural lead-in prefix.
+    Preserves listening practice value — does NOT simplify the content.
+    """
+    if not prev_zh:
+        return ("我刚才说的是——请再听一遍。", "Let me say that again.")
+    prefix_idx = sum(ord(c) for c in topic) % len(_RESTATE_PREFIXES)
+    prefix = _RESTATE_PREFIXES[prefix_idx]
+    return (f"{prefix}{prev_zh}", f"Let me rephrase — {prev_zh}")
+
+
 def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> Optional[tuple]:
     """
     Check if the user's submitted text closely matches one of the mirror discovery questions.
-    If so, return (zh, en) from _mirror_persona_stub.
+    Returns (zh, en, topic, engine) 4-tuple so callers can track state for repair escalation.
     Falls through to None so callers can chain with _direct_persona_answer.
     """
     t_norm = (text or "").strip().rstrip("？?！!。，, ")
@@ -3062,13 +3165,16 @@ def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> O
             # Match if submitted text contains or equals the canonical question
             if zh_norm in t_norm or t_norm == zh_norm:
                 topic = q.get("topic") or ""
-                return _mirror_persona_stub(topic, eng or engine_id, persona)
+                resolved_eng = eng or engine_id
+                zh, en = _mirror_persona_stub(topic, resolved_eng, persona)
+                return (zh, en, topic, resolved_eng)
 
     # Fuzzy-match paraphrase variants registered in mirror_questions.json ('paraphrases' arrays).
     # Table is built at startup into _MIRROR_FUZZY — no Python edit required to add new variants.
     for keywords, topic, eng in _MIRROR_FUZZY:
         if all(kw in t_norm for kw in keywords):
-            return _mirror_persona_stub(topic, eng, persona)
+            zh, en = _mirror_persona_stub(topic, eng, persona)
+            return (zh, en, topic, eng)
 
     return None
 
@@ -4062,7 +4168,18 @@ class Handler(BaseHTTPRequestHandler):
                         (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
                     )
                 _counter_seed = f"{cs.get('session_id', '')}/{len(recent or [])}" if isinstance(cs, dict) else ""
+
+                # Mirror confusion escalation state — read before branching.
+                # Cleared whenever a fresh (non-confusion) mirror answer is generated.
+                _cs_mirror_topic  = (cs.get("last_mirror_topic")  or "") if isinstance(cs, dict) else ""
+                _cs_mirror_engine = (cs.get("last_mirror_engine") or "") if isinstance(cs, dict) else ""
+                _cs_mirror_conf   = int(cs.get("mirror_confusion_count") or 0) if isinstance(cs, dict) else 0
+
                 _counter_result = None
+                _counter_is_new_mirror = False  # set True when a fresh mirror answer is generated this turn
+                _new_mirror_topic = ""
+                _new_mirror_engine = ""
+
                 if last_turn_was_answer:
                     _lex_ct = _lexical_definition_reply(_last_text_for_counter) if _last_text_for_counter else None
                     if _lex_ct:
@@ -4071,14 +4188,74 @@ class Handler(BaseHTTPRequestHandler):
                         _prev_counter_reply
                         and _last_text_for_counter
                         and _is_confusion_signal(_last_text_for_counter)
+                        and _cs_mirror_topic  # only escalate if a mirror answer was active
+                    ):
+                        # ── Mirror confusion escalation ladder ───────────────────────────────
+                        # Stage 1 (first confusion): restate original answer naturally.
+                        # Stage 2 (second confusion): simplified restatement.
+                        # Stage 3+ (further confusion): generic recovery / move on.
+                        if _cs_mirror_conf == 0:
+                            # Stage 1 — natural restatement, preserve listening practice value
+                            _counter_result = _mirror_restate_naturally(
+                                _prev_counter_reply, _cs_mirror_topic
+                            )
+                        elif _cs_mirror_conf == 1:
+                            # Stage 2 — simplified version (discoverable_facts_simple or voice_line)
+                            _counter_result = _mirror_persona_stub_simple(
+                                _cs_mirror_topic, _cs_mirror_engine, persona
+                            )
+                        else:
+                            # Stage 3 — generic confusion recovery, then conversation moves on
+                            _counter_result = _confusion_recovery_reply(
+                                _last_text_for_counter, _prev_counter_reply, seed=_counter_seed
+                            )
+                    elif (
+                        _prev_counter_reply
+                        and _last_text_for_counter
+                        and _is_confusion_signal(_last_text_for_counter)
+                        and not _cs_mirror_topic  # no active mirror — use existing generic path
                     ):
                         _counter_result = _confusion_recovery_reply(
                             _last_text_for_counter, _prev_counter_reply, seed=_counter_seed
                         )
                     if _counter_result is None:
-                        _counter_result = _answer_user_question_prefix(last_answer, persona)
-                _counter_reply   = _counter_result[0] if _counter_result else None
+                        # Fresh question turn — attempt mirror answer, then fall through
+                        _raw_mirror = _find_mirror_answer(
+                            (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or ""),
+                            "", persona
+                        ) if isinstance(last_answer, dict) else None
+                        if _raw_mirror and len(_raw_mirror) == 4:
+                            _counter_result      = (_raw_mirror[0], _raw_mirror[1])
+                            _counter_is_new_mirror = True
+                            _new_mirror_topic    = _raw_mirror[2]
+                            _new_mirror_engine   = _raw_mirror[3]
+                        else:
+                            _counter_result = _answer_user_question_prefix(last_answer, persona)
+
+                _counter_reply    = _counter_result[0] if _counter_result else None
                 _counter_reply_en = _counter_result[1] if _counter_result else ""
+
+                # ── Mirror confusion state update ────────────────────────────────────────
+                # Write to cs so the next turn's escalation ladder has correct context.
+                if isinstance(cs, dict):
+                    if _counter_is_new_mirror and _new_mirror_topic:
+                        # Fresh mirror answer — reset ladder
+                        cs["last_mirror_topic"]    = _new_mirror_topic
+                        cs["last_mirror_engine"]   = _new_mirror_engine
+                        cs["mirror_confusion_count"] = 0
+                    elif (
+                        _cs_mirror_topic
+                        and _last_text_for_counter
+                        and _is_confusion_signal(_last_text_for_counter)
+                    ):
+                        # Confusion on an active mirror answer — advance the ladder
+                        cs["mirror_confusion_count"] = _cs_mirror_conf + 1
+                    elif not _is_confusion_signal(_last_text_for_counter or ""):
+                        # Non-confusion turn — clear mirror escalation state
+                        cs["last_mirror_topic"]      = ""
+                        cs["last_mirror_engine"]     = ""
+                        cs["mirror_confusion_count"] = 0
+
                 # Dedup guard: if this counter_reply is identical to the one we gave last turn,
                 # replace it with a gentle variation so the persona doesn't sound stuck.
                 if _counter_reply and _counter_reply.strip() == _prev_counter_reply:

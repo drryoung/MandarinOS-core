@@ -38,6 +38,16 @@
     "hobby_origin": "从小家里书很多，父母都喜欢读书，自然就养成了读书的习惯，没有什么特别的故事。",
     "travel_with": "一般自己去，旅行是我的思考时间，不太喜欢跟很多人一起，有时候会叫一个朋友。"
   },
+  "discoverable_facts_simple": {
+    "work":   "我是补习老师。",
+    "travel": "我去过法国。",
+    "hobby":  "我喜欢读书。"
+  },
+  "discoverable_facts_simple_en": {
+    "work":   "I'm a private tutor.",
+    "travel": "I've been to France.",
+    "hobby":  "I enjoy reading."
+  },
   "discoverable_facts_en": {
     "identity": "The name Zhiyuan was chosen by my father.",
     "family": "My hometown is Nanjing and my parents are still there.",

@@ -38,6 +38,16 @@
     "hobby_origin": "高中时候一个朋友会弹吉他，觉得很酷，就借了他的吉他自己摸索，后来正式学了。",
     "travel_with": "一般跟朋友或者同事一起，很少一个人去，一个人会有点无聊。"
   },
+  "discoverable_facts_simple": {
+    "work":   "我做软件开发。",
+    "travel": "我去过日本和泰国。",
+    "hobby":  "我喜欢弹吉他。"
+  },
+  "discoverable_facts_simple_en": {
+    "work":   "I work in software development.",
+    "travel": "I've been to Japan and Thailand.",
+    "hobby":  "I enjoy playing guitar."
+  },
   "discoverable_facts_en": {
     "identity": "My grandmother gave me my name.",
     "family": "I have one older sister.",
