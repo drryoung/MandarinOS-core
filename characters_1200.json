@@ -119266,6 +119266,296 @@
         "日",
         "乚"
       ]
+    },
+    {
+      "id": "c_auto_20433",
+      "hanzi": "俑",
+      "pinyin": "yǒng",
+      "gloss_en": "clay figurine; terracotta figure",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "俑",
+      "decomposition_tree": {
+        "char": "俑"
+      },
+      "components_flat": [
+        "俑"
+      ]
+    },
+    {
+      "id": "c_auto_26999",
+      "hanzi": "楷",
+      "pinyin": "kǎi",
+      "gloss_en": "model; regular (script style)",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "楷",
+      "decomposition_tree": {
+        "char": "楷"
+      },
+      "components_flat": [
+        "楷"
+      ]
+    },
+    {
+      "id": "c_auto_29618",
+      "hanzi": "玲",
+      "pinyin": "líng",
+      "gloss_en": "tinkling of jade; (used in names)",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "玲",
+      "decomposition_tree": {
+        "char": "玲"
+      },
+      "components_flat": [
+        "玲"
+      ]
+    },
+    {
+      "id": "c_auto_30086",
+      "hanzi": "疆",
+      "pinyin": "jiāng",
+      "gloss_en": "boundary; border; Xinjiang",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "疆",
+      "decomposition_tree": {
+        "char": "疆"
+      },
+      "components_flat": [
+        "疆"
+      ]
+    },
+    {
+      "id": "c_auto_30865",
+      "hanzi": "碑",
+      "pinyin": "bēi",
+      "gloss_en": "stone tablet; stele; monument",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "碑",
+      "decomposition_tree": {
+        "char": "碑"
+      },
+      "components_flat": [
+        "碑"
+      ]
+    },
+    {
+      "id": "c_auto_32540",
+      "hanzi": "缜",
+      "pinyin": "zhěn",
+      "gloss_en": "meticulous; careful; dense",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "缜",
+      "decomposition_tree": {
+        "char": "缜"
+      },
+      "components_flat": [
+        "缜"
+      ]
+    },
+    {
+      "id": "c_auto_33459",
+      "hanzi": "芳",
+      "pinyin": "fāng",
+      "gloss_en": "fragrant; virtuous; (used in names)",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "芳",
+      "decomposition_tree": {
+        "char": "芳"
+      },
+      "components_flat": [
+        "芳"
+      ]
+    },
+    {
+      "id": "c_auto_38593",
+      "hanzi": "雁",
+      "pinyin": "yàn",
+      "gloss_en": "wild goose",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "雁",
+      "decomposition_tree": {
+        "char": "雁"
+      },
+      "components_flat": [
+        "雁"
+      ]
+    },
+    {
+      "id": "c_auto_39290",
+      "hanzi": "饺",
+      "pinyin": "jiǎo",
+      "gloss_en": "dumpling",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "饺",
+      "decomposition_tree": {
+        "char": "饺"
+      },
+      "components_flat": [
+        "饺"
+      ]
+    },
+    {
+      "id": "c_auto_39309",
+      "hanzi": "馍",
+      "pinyin": "mó",
+      "gloss_en": "steamed bread; flatbread",
+      "frequency_rank": null,
+      "frequency_band": null,
+      "stroke_count": null,
+      "primary_radical": null,
+      "decomposition": null,
+      "etymology": {
+        "type": "derived_structural",
+        "origin_note": "Derived structural metadata only. No historical etymology asserted.",
+        "source_note": "Generated from MandarinOS structural datasets."
+      },
+      "mnemonic": null,
+      "components_explanation": null,
+      "phonetic_clusters": null,
+      "tags": [
+        "auto_generated_full_set"
+      ],
+      "ids": "馍",
+      "decomposition_tree": {
+        "char": "馍"
+      },
+      "components_flat": [
+        "馍"
+      ]
     }
   ],
   "generated_at_utc": "2026-02-23T02:41:05.797786Z",

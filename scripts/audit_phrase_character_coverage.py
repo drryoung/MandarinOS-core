@@ -25,6 +25,8 @@ PHRASE_SOURCES: list[tuple[str, Path]] = [
     ("p2_frames.json", ROOT / "p2_frames.json"),
     ("content/mirror_questions.json", ROOT / "content" / "mirror_questions.json"),
     ("content/recovery_phrases.json", ROOT / "content" / "recovery_phrases.json"),
+    ("content/response_patterns.json", ROOT / "content" / "response_patterns.json"),
+    ("content/mirror_core_map.json", ROOT / "content" / "mirror_core_map.json"),
 ]
 
 
