@@ -146,24 +146,6 @@
       ]
     },
     {
-      "id": "w_shenme",
-      "hanzi": "什么",
-      "pinyin": "shénme",
-      "gloss_en": "what",
-      "pos": [
-        "pron"
-      ],
-      "tags": [
-        "question"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_pln_1",
-        "p2_fa_5",
-        "p2_tr_3"
-      ]
-    },
-    {
       "id": "w_shenmeshihou",
       "hanzi": "什么时候",
       "pinyin": "shénme shíhou",
@@ -215,22 +197,6 @@
       ]
     },
     {
-      "id": "w_na",
-      "hanzi": "那",
-      "pinyin": "nà",
-      "gloss_en": "then; that",
-      "pos": [
-        "pron"
-      ],
-      "tags": [
-        "discourse"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_pln_5"
-      ]
-    },
-    {
       "id": "w_jian",
       "hanzi": "见",
       "pinyin": "jiàn",
@@ -276,25 +242,6 @@
       "frequency_band": "high",
       "frame_ids": [
         "p2_op_3"
-      ]
-    },
-    {
-      "id": "w_xihuan",
-      "hanzi": "喜欢",
-      "pinyin": "xǐhuan",
-      "gloss_en": "to like",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "opinion",
-        "hobby"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_pl_3",
-        "p2_op_4",
-        "p2_hb_2"
       ]
     },
     {
@@ -422,22 +369,6 @@
       ],
       "tags": [
         "problem"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_wk_5"
-      ]
-    },
-    {
-      "id": "w_hui",
-      "hanzi": "会",
-      "pinyin": "huì",
-      "gloss_en": "will; can",
-      "pos": [
-        "aux"
-      ],
-      "tags": [
-        "grammar"
       ],
       "frequency_band": "very_high",
       "frame_ids": [
@@ -827,23 +758,6 @@
       ]
     },
     {
-      "id": "w_zuotian",
-      "hanzi": "昨天",
-      "pinyin": "zuótiān",
-      "gloss_en": "yesterday",
-      "pos": [
-        "t"
-      ],
-      "tags": [
-        "time",
-        "story"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_st_1"
-      ]
-    },
-    {
       "id": "w_houlai",
       "hanzi": "后来",
       "pinyin": "hòulái",
@@ -873,38 +787,6 @@
       "frequency_band": "very_high",
       "frame_ids": [
         "p2_st_2"
-      ]
-    },
-    {
-      "id": "w_jintian",
-      "hanzi": "今天",
-      "pinyin": "jīntiān",
-      "gloss_en": "today",
-      "pos": [
-        "t"
-      ],
-      "tags": [
-        "time"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_pln_1"
-      ]
-    },
-    {
-      "id": "w_mingtian",
-      "hanzi": "明天",
-      "pinyin": "míngtiān",
-      "gloss_en": "tomorrow",
-      "pos": [
-        "t"
-      ],
-      "tags": [
-        "time"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_pln_1"
       ]
     },
     {
@@ -954,25 +836,6 @@
       "frequency_band": "very_high",
       "frame_ids": [
         "p2_pln_1"
-      ]
-    },
-    {
-      "id": "w_gongzuo",
-      "hanzi": "工作",
-      "pinyin": "gōngzuò",
-      "gloss_en": "work",
-      "pos": [
-        "n",
-        "v"
-      ],
-      "tags": [
-        "work"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_wk_2",
-        "p2_wk_3",
-        "p2_wk_4"
       ]
     },
     {
@@ -1170,24 +1033,6 @@
       ]
     },
     {
-      "id": "w_qu",
-      "hanzi": "去",
-      "pinyin": "qù",
-      "gloss_en": "to go",
-      "pos": [
-        "v"
-      ],
-      "tags": [
-        "core"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_pl_3",
-        "p2_pln_4",
-        "p2_st_2"
-      ]
-    },
-    {
       "id": "w_difang",
       "hanzi": "地方",
       "pinyin": "dìfang",
@@ -1219,59 +1064,6 @@
       "frequency_band": "high",
       "frame_ids": [
         "p2_tr_3"
-      ]
-    },
-    {
-      "id": "w_ma",
-      "hanzi": "吗",
-      "pinyin": "ma",
-      "gloss_en": "question particle",
-      "pos": [
-        "part"
-      ],
-      "tags": [
-        "grammar"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_pl_3",
-        "p2_pl_4",
-        "p2_fa_1"
-      ]
-    },
-    {
-      "id": "w_de",
-      "hanzi": "的",
-      "pinyin": "de",
-      "gloss_en": "possessive/attribute particle",
-      "pos": [
-        "part"
-      ],
-      "tags": [
-        "grammar"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_id_1",
-        "p2_wk_4",
-        "p2_hb_5"
-      ]
-    },
-    {
-      "id": "w_le",
-      "hanzi": "了",
-      "pinyin": "le",
-      "gloss_en": "completion particle",
-      "pos": [
-        "part"
-      ],
-      "tags": [
-        "grammar",
-        "story"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_st_1"
       ]
     },
     {
@@ -1391,24 +1183,6 @@
         "p2_pl_home_where",
         "p2_pl_home_special",
         "f_probe_place_miss"
-      ]
-    },
-    {
-      "id": "w_pengyou",
-      "hanzi": "朋友",
-      "pinyin": "péngyou",
-      "gloss_en": "friend",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "people",
-        "social"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "f_id_friends_call",
-        "f_probe_hobby_social"
       ]
     },
     {
@@ -1939,22 +1713,6 @@
       ]
     },
     {
-      "id": "w_gaoxing",
-      "hanzi": "高兴",
-      "pinyin": "gāoxìng",
-      "gloss_en": "happy; glad; pleased",
-      "pos": [
-        "adj"
-      ],
-      "tags": [
-        "emotion"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "f_nice_to_meet"
-      ]
-    },
-    {
       "id": "w_renshi",
       "hanzi": "认识",
       "pinyin": "rènshi",
@@ -2089,23 +1847,6 @@
         "f_difficult_ma",
         "p2_wk_2",
         "p2_wk_3"
-      ]
-    },
-    {
-      "id": "w_cai",
-      "hanzi": "菜",
-      "pinyin": "cài",
-      "gloss_en": "dish; vegetable; food",
-      "pos": [
-        "n"
-      ],
-      "tags": [
-        "food"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "f_food_famous",
-        "f_food_famous_dish"
       ]
     },
     {
@@ -2417,23 +2158,6 @@
       ]
     },
     {
-      "id": "w_zhe",
-      "hanzi": "这",
-      "pinyin": "zhè",
-      "gloss_en": "this",
-      "pos": [
-        "pron"
-      ],
-      "tags": [
-        "demo"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "f_probe_work_dream",
-        "f_travel_purpose"
-      ]
-    },
-    {
       "id": "w_hai",
       "hanzi": "还",
       "pinyin": "hái",
@@ -2504,22 +2228,6 @@
       ]
     },
     {
-      "id": "w_na_wh",
-      "hanzi": "哪",
-      "pinyin": "nǎ",
-      "gloss_en": "which; what",
-      "pos": [
-        "pron"
-      ],
-      "tags": [
-        "question"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "f_hobby_best_part"
-      ]
-    },
-    {
       "id": "w_gei",
       "hanzi": "给",
       "pinyin": "gěi",
@@ -2552,22 +2260,6 @@
       "frame_ids": [
         "f_name_who_named",
         "p2_id_ext1"
-      ]
-    },
-    {
-      "id": "w_dou",
-      "hanzi": "都",
-      "pinyin": "dōu",
-      "gloss_en": "all; both; already",
-      "pos": [
-        "adv"
-      ],
-      "tags": [
-        "grammar"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "p2_pl_ext1"
       ]
     },
     {
@@ -2622,41 +2314,6 @@
       ]
     },
     {
-      "id": "w_jia",
-      "hanzi": "家",
-      "pinyin": "jiā",
-      "gloss_en": "home; family; measure for companies/shops",
-      "pos": [
-        "n",
-        "mw"
-      ],
-      "tags": [
-        "place",
-        "family",
-        "measure"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "f_probe_work_company_vibe"
-      ]
-    },
-    {
-      "id": "w_yi_num",
-      "hanzi": "一",
-      "pinyin": "yī",
-      "gloss_en": "one; a (number)",
-      "pos": [
-        "num"
-      ],
-      "tags": [
-        "measure"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": [
-        "f_hobby_best_part"
-      ]
-    },
-    {
       "id": "w_yang",
       "hanzi": "样",
       "pinyin": "yàng",
@@ -2687,22 +2344,6 @@
       "frame_ids": [
         "f_probe_place_miss"
       ]
-    },
-    {
-      "id": "w_xia",
-      "hanzi": "下",
-      "pinyin": "xià",
-      "gloss_en": "under; below; next; down",
-      "pos": [
-        "prep",
-        "adj",
-        "v"
-      ],
-      "tags": [
-        "direction"
-      ],
-      "frequency_band": "very_high",
-      "frame_ids": []
     },
     {
       "id": "w_anjing",
