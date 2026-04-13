@@ -1931,6 +1931,10 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
         interests = profile.get("interests") or []
         return voice_lines.get("hobby") or (f"我喜欢{interests[0]}。" if interests else "我也有很多爱好。")
 
+    # Who partner lives with (与谁住 / 跟谁住 phrasings — no 吗, no 你们住在一起 needed)
+    if any(p in t for p in ("与谁住", "跟谁住", "和谁住", "与谁同住", "跟谁同住", "和谁同住")):
+        return voice_lines.get("family") or "我现在自己住，但和家人经常联系。"
+
     # Family — has family / siblings
     if any(p in t for p in ("你有家人", "你有没有家人", "你的家人")):
         return voice_lines.get("family") or "我也有家人。"
@@ -2131,6 +2135,9 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     t = (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
     if not t:
         return None
+    # Normalise formal 您 → informal 你 so all downstream pattern checks (mirror bank,
+    # _direct_persona_answer substrings, etc.) work without duplicating every entry.
+    t = t.replace("您", "你")
 
     # Mirror questions (richest answers — use discoverable_facts / profile via _mirror_persona_stub)
     _mirror = _find_mirror_answer(t, "", persona)
@@ -3156,7 +3163,7 @@ def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> O
     Returns (zh, en, topic, engine) 4-tuple so callers can track state for repair escalation.
     Falls through to None so callers can chain with _direct_persona_answer.
     """
-    t_norm = (text or "").strip().rstrip("？?！!。，, ")
+    t_norm = (text or "").strip().rstrip("？?！!。，, ").replace("您", "你")
     for eng, questions in _MIRROR_QUESTIONS_BY_ENGINE.items():
         for q in questions:
             zh_norm = (q.get("zh") or "").rstrip("？?！!。，, ")
@@ -4219,11 +4226,13 @@ class Handler(BaseHTTPRequestHandler):
                             _last_text_for_counter, _prev_counter_reply, seed=_counter_seed
                         )
                     if _counter_result is None:
-                        # Fresh question turn — attempt mirror answer, then fall through
+                        # Mirror answers only fire when the user genuinely asked a question.
+                        # Statements (e.g. "我跟家人一起住。") must never match the mirror bank —
+                        # the fuzzy keyword pass would otherwise match topic keywords in any answer.
                         _raw_mirror = _find_mirror_answer(
                             (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or ""),
                             "", persona
-                        ) if isinstance(last_answer, dict) else None
+                        ) if isinstance(last_answer, dict) and user_asked_question else None
                         if _raw_mirror and len(_raw_mirror) == 4:
                             _counter_result      = (_raw_mirror[0], _raw_mirror[1])
                             _counter_is_new_mirror = True
