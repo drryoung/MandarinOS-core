@@ -2818,9 +2818,24 @@ try:
                 print(f"[ui_server] mirror_core_map: removed {_cm_removed} duplicate discovery "
                       f"entry/entries from engine '{_cm_eng}' (topic overlap with core; paraphrases inherited)")
             _MIRROR_QUESTIONS_BY_ENGINE[_cm_eng] = _cm_core_qs + _cm_deduped_discovery
+        # Reciprocal frame lookup: frame_id → mirror question entry.
+        # Built here while _cm_raw and _MIRROR_QUESTIONS_BY_ENGINE are both in scope.
+        # Covers all core_entries so adding new reciprocal frames only requires a JSON edit.
+        _RECIPROCAL_FRAME_TO_Q: dict = {}
+        for _rce in (_cm_raw.get("core_entries") or []):
+            _rce_fid, _rce_topic = _rce.get("frame_id", ""), _rce.get("topic", "")
+            if not _rce_fid or not _rce_topic:
+                continue
+            for _rce_qs in _MIRROR_QUESTIONS_BY_ENGINE.values():
+                for _rce_q in _rce_qs:
+                    if _rce_q.get("topic") == _rce_topic:
+                        _RECIPROCAL_FRAME_TO_Q[_rce_fid] = _rce_q
+                        break
+
         _cm_n = sum(len(v) for v in _core_by_engine.values())
-        print(f"[ui_server] mirror_core_map loaded ({_cm_n} core entries across {len(_core_by_engine)} engines)")
+        print(f"[ui_server] mirror_core_map loaded ({_cm_n} core entries across {len(_core_by_engine)} engines); reciprocal frame map: {len(_RECIPROCAL_FRAME_TO_Q)} frames")
     else:
+        _RECIPROCAL_FRAME_TO_Q = {}
         print(f"[ui_server] INFO: mirror_core_map.json not found at {_core_mirror_map_path} — using discovery bank only")
 except RuntimeError:
     raise
@@ -5143,6 +5158,15 @@ class Handler(BaseHTTPRequestHandler):
                     _disc_hint = _pick_contextual_discovery_hint(_counter_reply)
                     if _disc_hint:
                         response["discovery_hint"] = _disc_hint
+                elif last_turn_was_answer and not user_asked_question and not _counter_reply:
+                    # Reciprocal offer: learner answered a naturally-reciprocal partner frame
+                    # (e.g. 你结婚了吗？ → 是的！) — surface one blue ask-back card so they can
+                    # return the question without reintroducing the old green steer UI.
+                    _last_pf = (cs.get("last_partner_frame_id") or "").strip()
+                    _rec_q = _RECIPROCAL_FRAME_TO_Q.get(_last_pf)
+                    if _rec_q:
+                        response["discovery_questions"] = [_rec_q]
+                        response["user_led"] = True
 
             # Phase 10.5: blended reciprocity injection early (prefer answer + 你呢？)
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
