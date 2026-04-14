@@ -15,7 +15,6 @@ const cardError = document.getElementById("cardError");
 let state = Object.assign({}, _initialState);
 let uiTrace = [];
 let currentPlay = null; // { utterance_id, start, timeoutId, duration_ms }
-let _directionCaps = { supports_reverse: false, supports_why: false };
 
 // Phase 7 completion: transcript array for "You said" + Phase 8 Conversation Loop UI reuse.
 // Each entry: { role: 'user'|'partner', text: string }. Append on option select; Phase 8 will render full transcript.
@@ -3964,11 +3963,9 @@ function renderSentenceOptions(sentenceOptions, frameId) {
   container.innerHTML = "";
 
   const answers = (sentenceOptions || []).filter(o => o.kind === "SENTENCE" || !o.kind);
-  const hasSteerReverse = _directionCaps.supports_reverse;
-  const hasSteerWhy     = _directionCaps.supports_why;
-  // Need help? + steer rows live here too — do not bail before they are appended.
+  // Recovery panel lives here too — do not bail before it is appended.
   const hasRecoveryPanel = !!getRecoveryPanelOption();
-  if (!answers.length && !hasSteerReverse && !hasSteerWhy && !hasRecoveryPanel) {
+  if (!answers.length && !hasRecoveryPanel) {
     container.style.display = "none";
     return;
   }
@@ -4109,95 +4106,7 @@ function renderSentenceOptions(sentenceOptions, frameId) {
     container.appendChild(panel);
   });
 
-  // --- Steer cards: "Turn it around" options — rendered as full option-panel cards --------
-  // These give the learner a clearly-signposted way to redirect the conversation.
-  const _steerDefs = [
-    hasSteerReverse && { zh: "你呢？", py: "nǐ ne?", en: "And you? What about you?", intent: "reverse" },
-    hasSteerWhy     && { zh: "为什么这么问？", py: "wèishéme zhème wèn?", en: "Why do you ask?", intent: "why" },
-  ].filter(Boolean);
-
-  if (_steerDefs.length) {
-    const steerLabel = document.createElement("div");
-    steerLabel.className = "steer-panel-label";
-    steerLabel.textContent = "↩ Turn it around";
-    container.appendChild(steerLabel);
-
-    _steerDefs.forEach((def) => {
-      const panel = document.createElement("div");
-      panel.className = "option-panel";
-      panel.setAttribute("data-steer", "true");
-
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "option-btn";
-
-      const optionContent = document.createElement("div");
-      optionContent.className = "option-content";
-      const hanziWrap = document.createElement("span");
-      hanziWrap.className = "option-hanzi option-hanzi-tokens";
-      tokenizeHanziForOption(def.zh, { card_id: "__steer_" + def.intent, pinyin: def.py, meaning: def.en, hanzi: def.zh })
-        .forEach((seg) => {
-          const span = document.createElement("span");
-          span.textContent = seg.t;
-          span.className = "tok tok-word";
-          hanziWrap.appendChild(span);
-        });
-      optionContent.appendChild(hanziWrap);
-      btn.appendChild(optionContent);
-
-      // 🔊 + ? inline
-      const optionActions = document.createElement("div");
-      optionActions.className = "option-actions";
-
-      const speakerBtn = document.createElement("button");
-      speakerBtn.type = "button";
-      speakerBtn.className = "option-speaker-btn";
-      speakerBtn.setAttribute("title", "Hear pronunciation");
-      speakerBtn.textContent = "\uD83D\uDD0A";
-      speakerBtn.addEventListener("click", (e) => { e.stopPropagation(); ttsSpeak({ text: def.zh, lang: "zh-CN" }); });
-      optionActions.appendChild(speakerBtn);
-
-      const hintBtn2 = document.createElement("button");
-      hintBtn2.type = "button";
-      hintBtn2.className = "option-hint-btn";
-      hintBtn2.setAttribute("title", "Show pinyin / meaning");
-      hintBtn2.textContent = "?";
-      hintBtn2.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const hb = panel.querySelector(".option-hint-block");
-        if (!hb) return;
-        hb.style.display = hb.style.display !== "none" ? "none" : "block";
-        const pyEl = hb.querySelector(".option-hint-pinyin");
-        const enEl = hb.querySelector(".option-hint-meaning");
-        if (pyEl) pyEl.textContent = def.py;
-        if (enEl) enEl.textContent = def.en;
-      });
-      optionActions.appendChild(hintBtn2);
-      btn.appendChild(optionActions);
-      panel.appendChild(btn);
-
-      const hintBlock = document.createElement("div");
-      hintBlock.className = "option-hint-block";
-      hintBlock.style.display = "none";
-      hintBlock.appendChild(Object.assign(document.createElement("div"), { className: "option-hint-row option-hint-pinyin" }));
-      hintBlock.appendChild(Object.assign(document.createElement("div"), { className: "option-hint-row option-hint-meaning" }));
-      panel.appendChild(hintBlock);
-
-      btn.addEventListener("click", (ev) => {
-        if (ev.target.closest(".word-insight-token")) return;
-        container.querySelectorAll(".option-panel").forEach(p => p.classList.remove("selected"));
-        panel.classList.add("selected");
-        ttsSpeak({
-          text: def.zh, lang: "zh-CN",
-          onEvent: (e) => { if (e?.payload?.completed) runDirectionTurn(def.intent); },
-        });
-      });
-
-      container.appendChild(panel);
-    });
-  }
-
-  // Keep the reverseActionsRow clear — steer cards in the panel are the primary affordance
+  // Keep the reverseActionsRow clear
   const reverseActionsRow = document.getElementById("reverseActionsRow");
   if (reverseActionsRow) reverseActionsRow.innerHTML = "";
 
@@ -4841,7 +4750,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
       pinyin: fillSentenceHintPinyin(fallbackText.trim(), data.frame_pinyin || ""),
       frame_id: frameId,
     };
-    renderDiscoveryPanel(data.discovery_questions, fallbackText);
+    renderDiscoveryPanel((data.discovery_questions || []).slice(0, 2), fallbackText);
   } else {
     hideDiscoveryPanel();
     window._pendingFrameText = null;
@@ -4907,12 +4816,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
     rememberedEl.style.display = "none";
   }
 
-  // Phase 12C: update direction caps from server so steer cards show correctly
-  _directionCaps = {
-    supports_reverse: data.supports_reverse !== false,
-    supports_why:     data.supports_why !== false,
-  };
-  // Sentence-level response options (answers + always-on reverse/oxygen row)
+  // Sentence-level response options (answers + recovery row)
   // These replace the word-hint panels as the primary response UI when present.
   renderSentenceOptions(data.sentence_options || [], frameId);
   // Hide word-level options only when the sentence row actually rendered panels (answers / steer / recovery).
@@ -5371,10 +5275,6 @@ window.addEventListener("load", async () => {
 
 runBtn.addEventListener("click", () => runTurn(false));
 if (nextBtn) nextBtn.addEventListener("click", () => runTurn(true));
-const reverseBtn = document.getElementById("reverseBtn");
-if (reverseBtn) reverseBtn.addEventListener("click", () => runDirectionTurn("reverse"));
-const whyBtn = document.getElementById("whyBtn");
-if (whyBtn) whyBtn.addEventListener("click", () => runDirectionTurn("why"));
 const changeTopicBtn = document.getElementById("changeTopicBtn");
 if (changeTopicBtn) changeTopicBtn.addEventListener("click", () => runTurn(true, { prefer_bridge: true }));
 const showOptionsBtn = document.getElementById("showOptionsBtn");
