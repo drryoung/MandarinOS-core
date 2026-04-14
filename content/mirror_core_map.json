@@ -14,8 +14,17 @@
     {"frame_id": "f_probe_hobby_origin", "topic": "hobby_origin",  "_note": "你是怎么开始这个爱好的？ — hobby origin"},
     {"frame_id": "f_travel_where",       "topic": "travel_where",  "_note": "你去过哪里？ — travel opener (deduplicates discovery entry)"},
     {"frame_id": "f_travel_with_who",    "topic": "travel_with",   "_note": "你是跟谁一起去的？ — travel companion"},
-    {"frame_id": "f_married",            "topic": "marriage",      "_note": "你结婚了吗？ — reciprocal offer after learner answers"},
-    {"frame_id": "f_have_children",      "topic": "children",      "_note": "你有孩子吗？ — reciprocal offer after learner answers"},
-    {"frame_id": "f_live_with_who",      "topic": "family_live",   "_note": "你跟家人住在一起吗？ — reciprocal offer after learner answers"}
+    {"frame_id": "f_married",            "topic": "marriage",        "_note": "你结婚了吗？ — reciprocal offer after learner answers"},
+    {"frame_id": "f_have_children",      "topic": "children",        "_note": "你有孩子吗？ — reciprocal offer after learner answers"},
+    {"frame_id": "f_live_with_who",      "topic": "family_live",     "_note": "你跟家人住在一起吗？ — reciprocal offer after learner answers"},
+    {"frame_id": "p2_fa_live_with",      "topic": "family_live",     "_note": "你跟家人住在一起吗？ — first family-engine frame; natural wording variant"},
+    {"frame_id": "f_travel_best_trip",   "topic": "travel_memorable","_note": "哪次旅行最难忘？ — travel depth; bank topic travel_memorable"},
+    {"frame_id": "f_work_tenure",        "topic": "work_duration",   "_note": "你做这个工作多久了？ — work tenure; bank topic work_duration"},
+    {"frame_id": "f_how_old",            "topic": "age",             "_note": "你多大了？ — persona opened topic; learner may ask back"}
+  ],
+  "reciprocal_aliases": [
+    {"frame_id": "f_from_where", "topic": "place_from",
+     "_note": "你是哪里人？ — slotted (CITY fill); alias only for reciprocal card lookup. Live frame behavior is unchanged."}
   ]
 }
+

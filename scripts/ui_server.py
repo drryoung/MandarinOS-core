@@ -2832,8 +2832,24 @@ try:
                         _RECIPROCAL_FRAME_TO_Q[_rce_fid] = _rce_q
                         break
 
+        # reciprocal_aliases: slotted frames explicitly declared safe for reciprocal
+        # card lookup. Slot filling only affects question text shown to learner, not
+        # which mirror question we surface — so aliases are safe without slot checks.
+        for _ra in (_cm_raw.get("reciprocal_aliases") or []):
+            _ra_fid, _ra_topic = _ra.get("frame_id", ""), _ra.get("topic", "")
+            if not _ra_fid or not _ra_topic:
+                continue
+            if _ra_fid in _RECIPROCAL_FRAME_TO_Q:
+                continue  # core_entries wins if both declare same frame_id
+            for _ra_qs in _MIRROR_QUESTIONS_BY_ENGINE.values():
+                for _ra_q in _ra_qs:
+                    if _ra_q.get("topic") == _ra_topic:
+                        _RECIPROCAL_FRAME_TO_Q[_ra_fid] = _ra_q
+                        break
+
         _cm_n = sum(len(v) for v in _core_by_engine.values())
-        print(f"[ui_server] mirror_core_map loaded ({_cm_n} core entries across {len(_core_by_engine)} engines); reciprocal frame map: {len(_RECIPROCAL_FRAME_TO_Q)} frames")
+        _cm_alias_n = len(_cm_raw.get("reciprocal_aliases") or [])
+        print(f"[ui_server] mirror_core_map loaded ({_cm_n} core entries across {len(_core_by_engine)} engines); {_cm_alias_n} alias(es); reciprocal frame map: {len(_RECIPROCAL_FRAME_TO_Q)} frames")
     else:
         _RECIPROCAL_FRAME_TO_Q = {}
         print(f"[ui_server] INFO: mirror_core_map.json not found at {_core_mirror_map_path} — using discovery bank only")
