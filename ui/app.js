@@ -1,5 +1,5 @@
 import { initialState as _initialState, reduce } from "./state/cardPanelState.js";
-import { ttsSpeak } from "./ttsSpeak.js";
+import { ttsSpeak, ttsUnlock } from "./ttsSpeak.js";
 import { splitHeadwordPinyinToGraphemes } from "./pinyinAlign.js";
 
 const frameSelect = document.getElementById("frameSelect");
@@ -30,6 +30,15 @@ let userTranslationIndex = {};
 /** Normalized zh → en from /api/gloss (shared with partner lines). */
 const glossLineCache = new Map();
 const _glossFetchInFlight = new Set();
+
+// ── Challenge Mode state (C1–C4) ──────────────────────────────────────────
+// Single source of truth. window._challengeMode is exposed for console debugging.
+const _challenge = {
+  active: false,
+  helpLevel: 0,     // 0=none | 1=replay | 2=slow | 3=textRevealed | 4=suggestShown
+  recoveryCount: 0, // recovery clicks this turn; reset per turn
+};
+window._challengeMode = _challenge;
 
 function addTranscriptEntry(role, textZh, extras = {}) {
   const entry = {
@@ -1202,6 +1211,12 @@ function getHintButtonLabel(level, levelHasContent) {
  * @param {HTMLElement|null} [optionPanelEl] When provided, hints are rendered inside this panel (for option ? click).
  */
 function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl) {
+  // Challenge Mode: suppress hint button and all hint rows until text is revealed (helpLevel >= 3)
+  if (_challenge.active && _challenge.helpLevel < 3) {
+    const hintBtn = document.getElementById("hintBtn");
+    if (hintBtn) hintBtn.style.display = "none";
+    return;
+  }
   const hintBtn     = document.getElementById("hintBtn");
   const hintPinyin  = document.getElementById("hintPinyin");
   const hintMeaning = document.getElementById("hintMeaning");
@@ -1300,7 +1315,7 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
       }
     }
     if (hintMeaning) {
-      if (level >= 2 && sentenceHint.text_en) {
+      if (level >= 1 && sentenceHint.text_en) {
         hintMeaning.textContent = sentenceHint.text_en;
         hintMeaning.style.display = "block";
       } else {
@@ -2807,8 +2822,13 @@ function renderModeledOptions(containerEl, panelOptions, state) {
 function render() {
   // trace is rendered separately by runTurn; card panel driven by reducer state
   if (state.isOpen) {
+    const wasHidden = cardPanel.classList.contains("hidden");
     cardPanel.classList.remove("hidden");
     noCard.style.display = "none";
+    // Only scroll when the panel just became visible (card newly opened).
+    if (wasHidden) {
+      setTimeout(() => cardPanel.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
     cardError.textContent = state.error ? (state.error.message || state.error.kind || "Error") : "";
     const titleText = (state.activeCard && state.activeCard.title) || "";
     while (cardTitle.firstChild) cardTitle.removeChild(cardTitle.firstChild);
@@ -3136,19 +3156,6 @@ async function loadPersonas() {
     if (!btns) return;
     btns.innerHTML = "";
 
-    const noneBtn = document.createElement("button");
-    noneBtn.className = "persona-btn-none" + (!window._partnerId ? " active" : "");
-    noneBtn.textContent = "No partner";
-    noneBtn.addEventListener("click", () => {
-      window._partnerId = null;
-      window._partnerDisplayName = "";
-      window._revealedVoiceLines = {};
-      window._revealedPartnerFacts = {};
-      _updatePersonaBtnState();
-      _updatePartnerHeader("", "", "");
-    });
-    btns.appendChild(noneBtn);
-
     personas.forEach((p) => {
       const btn = document.createElement("button");
       btn.className = "persona-btn" + (window._partnerId === p.id ? " active" : "");
@@ -3168,10 +3175,16 @@ async function loadPersonas() {
       });
       btns.appendChild(btn);
     });
+    // Auto-select: if no partner is set yet, default to the first available persona.
+    if (!window._partnerId && personas.length > 0) {
+      window._partnerId = personas[0].id;
+      window._partnerDisplayName = (personas[0].display_name || "").trim();
+    }
     if (window._partnerId) {
       const sel = personas.find((x) => x && x.id === window._partnerId);
       if (sel) window._partnerDisplayName = (sel.display_name || "").trim();
     }
+    _updatePersonaBtnState();
   } catch (e) {
     console.warn("[app] loadPersonas failed:", e);
   }
@@ -3180,9 +3193,6 @@ async function loadPersonas() {
 function _updatePersonaBtnState() {
   const btns = document.getElementById("personaBtns");
   if (!btns) return;
-  btns.querySelectorAll(".persona-btn-none").forEach((b) =>
-    b.classList.toggle("active", !window._partnerId)
-  );
   btns.querySelectorAll(".persona-btn[data-persona-id]").forEach((b) =>
     b.classList.toggle("active", b.dataset.personaId === window._partnerId)
   );
@@ -3194,6 +3204,13 @@ function _updatePartnerHeader(partnerName, partnerPrefix, partnerFact) {
   const prefixLine = document.getElementById("partnerPrefixLine");
   const factLine = document.getElementById("partnerFactLine");
   if (!header || !nameLabel || !prefixLine) return;
+  // Challenge Mode: show partner name only — suppress Chinese prefix and discoverable fact
+  if (_challenge.active) {
+    if (partnerName) { nameLabel.textContent = `${partnerName}:`; prefixLine.textContent = ""; header.style.display = "flex"; }
+    else header.style.display = "none";
+    if (factLine) factLine.style.display = "none";
+    return;
+  }
   if (partnerName) {
     nameLabel.textContent = `${partnerName}:`;
     prefixLine.textContent = partnerPrefix || "";
@@ -3212,55 +3229,129 @@ function _updatePartnerHeader(partnerName, partnerPrefix, partnerFact) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Priority frames shown at the top of the dropdown (in declared order).
+// These bypass the starter-candidate filter — f_from_where is slotted but is
+// handled server-side via reciprocal alias and is intentionally kept here.
+const _PRIORITY_FRAME_IDS = [
+  "f_from_where",
+  "f_what_work",
+  "f_ask_you_name",
+  "f_hobby_special",
+];
+
+// Engine ordering for the "── Other questions ──" group.
+// Mirrors the natural arc of a getting-to-know-you conversation.
+const _ENGINE_ORDER = [
+  "identity", "place", "family", "work", "hobby", "travel", "food", "plans", "opinion", "study",
+];
+
+// On narrow viewports, only the first N "Other questions" rows are shown (after engine + file sort).
+// Desktop shows the full filtered list. Aligns with mobile CSS breakpoint (~600px).
+const _OTHER_QUESTIONS_MOBILE_MAX = 9;
+
+function _isNarrowFrameDropdownViewport() {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(max-width: 600px)").matches;
+}
+
+// Starter-candidate filter: only partner ASK frames with no slots.
+// Priority frames bypass this filter entirely (they are added unconditionally).
+function _isStarterCandidate(f) {
+  return f.speaker === "partner" &&
+         f.move_type === "ASK" &&
+         (f.slots || []).length === 0;
+}
+
 async function loadPackFramesIntoDropdown() {
   emitUITrace({ type: "UI_INFO", timestamp: new Date().toISOString(), payload: { message: "loadPackFramesIntoDropdown start" } });
 
   try {
     const packs = ["p1_frames.json", "p2_frames.json"];
-    const items = [];
+    const byId = {};  // frame_id → item (p2 wins on duplicate)
+    let fileOrder = 0;
 
     for (const pack of packs) {
       const resp = await fetch(`/${pack}`);
       if (!resp.ok) continue;
       const data = await resp.json();
       const frames = Array.isArray(data.frames) ? data.frames : [];
-
       for (const f of frames) {
         if (!f) continue;
         const eid = f.engine;
         const fid = f.id;
         if (typeof eid === "string" && eid && typeof fid === "string" && fid) {
-          items.push({ engine_id: eid, frame_id: fid });
+          byId[fid] = {
+            engine_id: eid,
+            frame_id:  fid,
+            speaker:   f.speaker  || "",
+            move_type: f.move_type || "",
+            slots:     Array.isArray(f.slots) ? f.slots : [],
+            file_order: fileOrder++,
+            label: (f.text_en || "").trim() || `${eid} :: ${fid}`,
+          };
         }
       }
     }
 
-    // If nothing loaded, do nothing (keep existing fixture dropdown)
-    if (items.length === 0) {
+    if (Object.keys(byId).length === 0) {
       emitUITrace({ type: "UI_ERROR", timestamp: new Date().toISOString(), payload: { message: "Pack frames loaded, but 0 usable (missing engine_id/frame_id?)" } });
       return;
     }
 
-    items.sort((a, b) => (a.engine_id + "::" + a.frame_id).localeCompare(b.engine_id + "::" + b.frame_id));
-
-    frameSelect.innerHTML = "";
-    for (const it of items) {
+    const makeOpt = (it) => {
       const opt = document.createElement("option");
       opt.value = it.frame_id;
-      opt.textContent = `${it.engine_id} :: ${it.frame_id}`;
+      opt.textContent = it.label;
       opt.dataset.engineId = it.engine_id;
-      frameSelect.appendChild(opt);
+      return opt;
+    };
+
+    frameSelect.innerHTML = "";
+
+    // Priority group: the 3 visible starters + 1 under More, in declared order
+    const priorityGroup = document.createElement("optgroup");
+    priorityGroup.label = "── Start here ──";
+    let firstPriorityId = null;
+    for (const fid of _PRIORITY_FRAME_IDS) {
+      const it = byId[fid];
+      if (!it) continue;
+      priorityGroup.appendChild(makeOpt(it));
+      if (!firstPriorityId) firstPriorityId = fid;
     }
-    frameSelect.selectedIndex = 0;
+    if (priorityGroup.children.length > 0) frameSelect.appendChild(priorityGroup);
+
+    // Other questions group: starter-candidate frames not already in priority group.
+    // Sorted by conversation-arc engine order, then file order within each engine.
+    const otherGroup = document.createElement("optgroup");
+    otherGroup.label = "── Other questions ──";
+    const prioritySet = new Set(_PRIORITY_FRAME_IDS);
+    const others = Object.values(byId)
+      .filter((it) => !prioritySet.has(it.frame_id) && _isStarterCandidate(it))
+      .sort((a, b) => {
+        const ea = _ENGINE_ORDER.indexOf(a.engine_id);
+        const eb = _ENGINE_ORDER.indexOf(b.engine_id);
+        const engDiff = (ea === -1 ? 99 : ea) - (eb === -1 ? 99 : eb);
+        return engDiff !== 0 ? engDiff : a.file_order - b.file_order;
+      });
+    const narrow = _isNarrowFrameDropdownViewport();
+    const othersShown = narrow ? others.slice(0, _OTHER_QUESTIONS_MOBILE_MAX) : others;
+    for (const it of othersShown) otherGroup.appendChild(makeOpt(it));
+    if (otherGroup.children.length > 0) frameSelect.appendChild(otherGroup);
+    console.log(
+      `[app] dropdown: ${priorityGroup.children.length} priority, ${othersShown.length} other questions` +
+        (narrow && others.length > othersShown.length ? ` (mobile cap ${ _OTHER_QUESTIONS_MOBILE_MAX }, ${others.length} total filtered)` : ` (${others.length} filtered)`) +
+        ` from ${Object.keys(byId).length} total frames`,
+    );
+
+    // Default to first priority frame
+    frameSelect.value = firstPriorityId || Object.keys(byId)[0];
   } catch (e) {
-    // If anything goes wrong, keep existing fixture dropdown and keep UI running.
     emitUITrace({
       type: "UI_ERROR",
       timestamp: new Date().toISOString(),
       payload: { message: "loadPackFramesIntoDropdown failed (kept fixtures)", error: String(e) }
     });
     console.error("[app] loadPackFramesIntoDropdown error:", e);
-    return;
   }
 }
 
@@ -3455,33 +3546,57 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
   const opt = getRecoveryPanelOption();
   if (!opt) return;
 
-  const panel = document.createElement("div");
-  panel.className = "option-panel";
-  panel.setAttribute("data-recovery", "true");
-  panel.setAttribute("data-card-id", opt.card_id || "");
+  const header = document.createElement("div");
+  header.className = "recovery-panel-label";
+  header.textContent = "Need help?";
+  targetContainer.appendChild(header);
 
-  const label = document.createElement("div");
-  label.className = "recovery-panel-label";
-  label.textContent = "Need help?";
-  panel.appendChild(label);
+  const scrollWrap = document.createElement("div");
+  scrollWrap.className = "recovery-phrases-scroll";
+  targetContainer.appendChild(scrollWrap);
 
-  const listWrap = document.createElement("div");
-  listWrap.className = "recovery-phrases-list";
-
+  // Each phrase uses the same flat flex-wrap structure as discovery panels:
+  // op-zh / op-py / op-en are direct card children so they wrap naturally on narrow screens.
   (opt.recoveryPhrases || []).forEach((phrase) => {
-    const row = document.createElement("div");
-    row.className = "recovery-phrase-row";
+    const panel = document.createElement("div");
+    panel.className = "option-panel recovery-card";
+    panel.setAttribute("data-recovery", "true");
+    panel.setAttribute("data-card-id", opt.card_id || "");
+    panel.setAttribute("role", "button");
+    panel.setAttribute("tabindex", "0");
 
-    const textBtn = document.createElement("button");
-    textBtn.type = "button";
-    textBtn.className = "recovery-phrase-text";
-    textBtn.textContent = phrase.hanzi || "";
-    const tooltipParts = [];
-    if (phrase.pinyin) tooltipParts.push(phrase.pinyin);
-    if (phrase.meaning) tooltipParts.push(phrase.meaning);
-    textBtn.setAttribute("title", tooltipParts.join(" — ") || "");
+    const zhSpan = document.createElement("span");
+    zhSpan.className = "op-zh";
+    zhSpan.textContent = phrase.hanzi || "";
+    panel.appendChild(zhSpan);
 
-    textBtn.addEventListener("click", async () => {
+    if (phrase.pinyin) {
+      const pySpan = document.createElement("span");
+      pySpan.className = "op-py";
+      pySpan.textContent = phrase.pinyin;
+      panel.appendChild(pySpan);
+    }
+    if (phrase.meaning) {
+      const enSpan = document.createElement("span");
+      enSpan.className = "op-en";
+      enSpan.textContent = phrase.meaning;
+      panel.appendChild(enSpan);
+    }
+
+    const speakBtn = document.createElement("button");
+    speakBtn.type = "button";
+    speakBtn.className = "op-icon-btn";
+    speakBtn.setAttribute("title", "Speak this phrase");
+    speakBtn.textContent = "\uD83D\uDD0A";
+    speakBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      ttsSpeak({ text: phrase.hanzi || "", lang: "zh-CN" });
+    });
+    panel.appendChild(speakBtn);
+
+    // Tap the card to use it (speaker click excluded)
+    panel.addEventListener("click", async (ev) => {
+      if (ev.target.closest(".op-icon-btn")) return;
       emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
         payload: { frame_id: frameId, card_id: "recovery:" + (phrase.id || ""), kind: "RECOVERY" } });
       targetContainer.querySelectorAll(".option-panel").forEach((p) => p.classList.remove("selected"));
@@ -3489,14 +3604,18 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
       const userText = (phrase.hanzi || "").trim();
       addTranscriptEntry("user", userText, { text_en: phrase.meaning || "" });
       const action = getRecoveryAction(phrase);
+      // Challenge Mode: track help usage; cascade to text reveal after 2 recovery clicks
+      if (_challenge.active) {
+        _challenge.recoveryCount++;
+        _challenge.helpLevel = Math.max(_challenge.helpLevel, action === "slower" ? 2 : 1);
+        if (_challenge.recoveryCount >= 2) _challengeRevealText();
+      }
       // Use the most recently spoken partner text — in discovery mode this may be a persona stub answer
       // rather than _currentFrameText (which holds the pending queued question).
       const currentQuestion = (window._lastPartnerSpokenText || window._currentFrameText || "").trim();
 
       if (action === "next_turn") {
         renderTranscript();
-        // exit_release (好吧): learner signals graceful exit from repair chain.
-        // Reset counter, continue naturally in current engine — no topic jump.
         const _isExitRelease = phrase.repair_kind === "exit_release";
         if (_isExitRelease) window._consecutiveNotUnderstood = 0;
         const _transition = _isExitRelease ? null : getTopicChangeTransition(phrase.id);
@@ -3505,7 +3624,6 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
           onEvent: (e) => {
             if (!e?.payload?.completed) return;
             if (_transition) {
-              // Partner acknowledges and signals the pivot before the next question
               addTranscriptEntry("partner", _transition.zh, { text_en: _transition.en });
               renderTranscript();
               ttsSpeak({
@@ -3513,7 +3631,7 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
                 onEvent: (e2) => { if (e2?.payload?.completed) runTurn(true, { prefer_bridge: true }); },
               });
             } else if (_isExitRelease) {
-              runTurn(true);  // stay in engine — exit_release does not force a topic change
+              runTurn(true);
             } else {
               runTurn(true, { prefer_bridge: true });
             }
@@ -3552,24 +3670,8 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
       setUiMode("READ");
     });
 
-    const speakerBtn = document.createElement("button");
-    speakerBtn.type = "button";
-    speakerBtn.className = "recovery-speaker-btn";
-    speakerBtn.setAttribute("title", "Speak this phrase");
-    speakerBtn.setAttribute("aria-label", "Speak this phrase");
-    speakerBtn.textContent = "\uD83D\uDD0A";
-    speakerBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      ttsSpeak({ text: phrase.hanzi || "", lang: "zh-CN" });
-    });
-
-    row.appendChild(textBtn);
-    row.appendChild(speakerBtn);
-    listWrap.appendChild(row);
+    scrollWrap.appendChild(panel);
   });
-
-  panel.appendChild(listWrap);
-  targetContainer.appendChild(panel);
 }
 
 function renderOptions(options, frameId) {
@@ -3970,6 +4072,15 @@ function renderSentenceOptions(sentenceOptions, frameId) {
     return;
   }
 
+  // Recovery phrases: route to #challengeRecoveryZone in challenge mode so they remain visible
+  // while sentenceOptionsContainer is hidden. Normal mode behaviour is unchanged.
+  if (_challenge.active) {
+    const zone = document.getElementById("challengeRecoveryZone");
+    if (zone) { zone.innerHTML = ""; renderRecoveryPanelInto(zone, frameId); }
+  } else {
+    renderRecoveryPanelInto(container, frameId);
+  }
+
   // Build each answer as a standard option-panel so speaker, ?, and word-exploration all work
   answers.forEach((opt, idx) => {
     const hanziStr = (opt.zh || "").trim();
@@ -4109,9 +4220,6 @@ function renderSentenceOptions(sentenceOptions, frameId) {
   // Keep the reverseActionsRow clear
   const reverseActionsRow = document.getElementById("reverseActionsRow");
   if (reverseActionsRow) reverseActionsRow.innerHTML = "";
-
-  // Recovery phrases ("Need help?") always live in the same container as sentence options
-  renderRecoveryPanelInto(container, frameId);
 
   container.style.display = "flex";
 }
@@ -4478,6 +4586,8 @@ async function runTurn(isNext = false, opts = {}) {
 }
 
 async function _runTurnInner(isNext = false, opts = {}) {
+  // Challenge Mode: reset per-turn help state before rendering begins
+  if (_challenge.active) _resetChallengeHelpState();
   const selected = frameSelect.value;
   const selectedOption = frameSelect.options[frameSelect.selectedIndex];
   const engineIdFromDropdown = selectedOption?.dataset?.engineId || null;
@@ -4743,6 +4853,17 @@ async function _runTurnInner(isNext = false, opts = {}) {
 
   // Discovery mode: persona answered the user's question — show "Ask them more" cards.
   // Also store frame metadata so it can be added to the transcript when "Continue" fires.
+  const _dq = data.discovery_questions || [];
+  console.log(
+    "[blue_panel_client]",
+    "user_led=" + !!_isUserLed,
+    "| discovery_questions=" + _dq.length,
+    "| counter_reply=" + !!data.counter_reply,
+    "| last_partner_frame_id=" + JSON.stringify(data.last_partner_frame_id ?? null),
+    "| frame_id=" + JSON.stringify(frameId),
+    "| blue_panel_shown=" + (_isUserLed && _dq.length > 0),
+    _isUserLed && _dq.length === 0 ? "| note=user_led_but_no_cards" : "",
+  );
   if (_isUserLed) {
     window._pendingFrameMeta = {
       text: fallbackText.trim(),
@@ -4750,7 +4871,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
       pinyin: fillSentenceHintPinyin(fallbackText.trim(), data.frame_pinyin || ""),
       frame_id: frameId,
     };
-    renderDiscoveryPanel((data.discovery_questions || []).slice(0, 2), fallbackText);
+    renderDiscoveryPanel(_dq.slice(0, 2), fallbackText);
   } else {
     hideDiscoveryPanel();
     window._pendingFrameText = null;
@@ -4819,6 +4940,13 @@ async function _runTurnInner(isNext = false, opts = {}) {
   // Sentence-level response options (answers + recovery row)
   // These replace the word-hint panels as the primary response UI when present.
   renderSentenceOptions(data.sentence_options || [], frameId);
+  // Challenge Mode: re-hide response containers after render so "Suggested responses" is the only reveal path
+  if (_challenge.active) {
+    const _soc = document.getElementById("sentenceOptionsContainer");
+    if (_soc) _soc.style.display = "none";
+    const _optC = document.getElementById("optionsContainer");
+    if (_optC) _optC.style.display = "none";
+  }
   // Hide word-level options only when the sentence row actually rendered panels (answers / steer / recovery).
   // If the server sent sentence_options but nothing rendered (edge case), keep word cards visible.
   const hasSentenceOptions = (data.sentence_options || []).some(o => o.kind === "SENTENCE" || !o.kind);
@@ -4928,6 +5056,26 @@ async function _runTurnInner(isNext = false, opts = {}) {
       : "tools/cards/out/cards_by_id.json";
     await resolveCard(state.activeCardId, cardsPath);
   }
+
+  // Mobile typing-mode re-focus: if the previous turn was submitted via the English
+  // input field, keep keyboard open by re-focusing the field after the turn renders.
+  // Conditions: mobile viewport + typing mode + no discovery panel open (discovery
+  // panel has its own "Continue" tap flow; forcing keyboard there is disruptive).
+  if (window._typingMode && window.innerWidth <= 600) {
+    const _disc = document.getElementById("discoveryPanel");
+    const _discVisible = _disc && _disc.style.display !== "none";
+    if (!_discVisible) {
+      const _engInputEl = document.getElementById("engInput");
+      if (_engInputEl) {
+        // Short delay: allow TTS to start and DOM to settle before pulling focus
+        setTimeout(() => {
+          _engInputEl.focus({ preventScroll: false });
+        }, 450);
+      }
+    }
+  }
+  // Clear typing mode — next turn starts tap-neutral unless useBtn sets it again
+  window._typingMode = false;
 }
 
 
@@ -4990,6 +5138,7 @@ window.addEventListener("load", async () => {
   // Phase 7.4: Speak-first — actually listen (Web Speech API), then either advance turn or show recovery
   const LISTEN_BEFORE_RECOVERY_MS = 7000;
   document.getElementById("tryRespondingBtn")?.addEventListener("click", async () => {
+    ttsUnlock();
     const btn = document.getElementById("tryRespondingBtn");
     const frameId = window._lastPartnerFrameId || null;
     const optionsFromFrame = frameId && window._frameOptionsRuntime?.frames?.[frameId]?.options;
@@ -5273,10 +5422,44 @@ window.addEventListener("load", async () => {
   render();
 });
 
-runBtn.addEventListener("click", () => runTurn(false));
-if (nextBtn) nextBtn.addEventListener("click", () => runTurn(true));
+runBtn.addEventListener("click", () => { ttsUnlock(); runTurn(false); });
+if (nextBtn) nextBtn.addEventListener("click", () => { ttsUnlock(); runTurn(true); });
 const changeTopicBtn = document.getElementById("changeTopicBtn");
-if (changeTopicBtn) changeTopicBtn.addEventListener("click", () => runTurn(true, { prefer_bridge: true }));
+if (changeTopicBtn) changeTopicBtn.addEventListener("click", () => { ttsUnlock(); runTurn(true, { prefer_bridge: true }); });
+// ── Challenge Mode helpers ────────────────────────────────────────────────
+function _resetChallengeHelpState() {
+  _challenge.helpLevel = 0;
+  _challenge.recoveryCount = 0;
+  document.body.classList.remove("challenge-text-revealed");
+}
+
+function _challengeRevealText() {
+  if (_challenge.helpLevel >= 3) return;
+  _challenge.helpLevel = 3;
+  document.body.classList.add("challenge-text-revealed");
+  // Text is now visible — let normal hint affordance render
+  renderHintAffordance(window._currentHintAffordance || { visible: false }, window._currentTurnUid || null, "tap");
+}
+
+function toggleChallengeMode() {
+  _challenge.active = !_challenge.active;
+  document.body.classList.toggle("challenge-mode", _challenge.active);
+  const btn = document.getElementById("challengeModeBtn");
+  if (btn) {
+    btn.textContent = _challenge.active ? "🔒 Challenge ON" : "Challenge Mode";
+    btn.classList.toggle("challenge-active", _challenge.active);
+  }
+  if (!_challenge.active) {
+    // Exiting: remove text-revealed class so state is clean on re-entry
+    document.body.classList.remove("challenge-text-revealed");
+    const zone = document.getElementById("challengeRecoveryZone");
+    if (zone) zone.innerHTML = "";
+  }
+}
+
+const challengeModeBtn = document.getElementById("challengeModeBtn");
+if (challengeModeBtn) challengeModeBtn.addEventListener("click", toggleChallengeMode);
+
 const showOptionsBtn = document.getElementById("showOptionsBtn");
 if (showOptionsBtn) showOptionsBtn.addEventListener("click", () => {
   const sentenceContainer = document.getElementById("sentenceOptionsContainer");
@@ -5287,6 +5470,8 @@ if (showOptionsBtn) showOptionsBtn.addEventListener("click", () => {
   if (hasSentence && sentenceContainer) {
     const isVisible = sentenceContainer.style.display !== "none";
     sentenceContainer.style.display = isVisible ? "none" : "flex";
+    // Challenge Mode: record that suggested responses were revealed
+    if (_challenge.active && !isVisible) _challenge.helpLevel = Math.max(_challenge.helpLevel, 4);
     setUiMode("RESPOND");
     if (!isVisible) sentenceContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
@@ -5320,17 +5505,16 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
   if (!panel) {
     panel = document.createElement("div");
     panel.id = "discoveryPanel";
-    // Insert between the action ladder and the sentence options
-    const anchor = document.getElementById("sentenceOptionsContainer")
-                || document.getElementById("optionsContainerParent")
-                || document.getElementById("engInputPanel");
-    if (anchor && anchor.parentNode) {
-      anchor.parentNode.insertBefore(panel, anchor);
+    // Insert after sentence options so blue mirror questions sit below suggested responses
+    const anchor = document.getElementById("optionsContainerParent")
+                || document.getElementById("sentenceOptionsContainer");
+    if (anchor) {
+      anchor.after(panel);
     } else {
       document.body.appendChild(panel);
     }
   }
-  panel.style.display = "block";
+  panel.style.display = "flex";
   const _hasCards = Array.isArray(questions) && questions.length > 0;
 
   // In deflect mode, pull acknowledgment phrases from the recovery vocabulary.
@@ -5375,8 +5559,8 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
     });
     card.appendChild(speakBtn);
 
-    card.addEventListener("click", () => submitDiscoveryQuestion(q));
-    card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") submitDiscoveryQuestion(q); });
+    card.addEventListener("click", () => { ttsUnlock(); submitDiscoveryQuestion(q); });
+    card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { ttsUnlock(); submitDiscoveryQuestion(q); } });
     panel.appendChild(card);
   });
 
@@ -5449,7 +5633,7 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
   footer.className = "discovery-footer";
   const continueBtn = document.createElement("button");
   continueBtn.className = "discovery-continue-btn";
-  continueBtn.textContent = "Continue conversation →";
+  continueBtn.textContent = "继续聊  Continue →";
   continueBtn.addEventListener("click", () => {
     hideDiscoveryPanel();
     const pending = window._pendingFrameText;
@@ -5582,6 +5766,12 @@ async function submitDiscoveryQuestion(q) {
     if (e.key === "Enter") { e.preventDefault(); doTranslate(); }
   });
 
+  // On mobile, the virtual keyboard can push the input out of view.
+  // Scroll it into view after a short delay so the keyboard has time to open.
+  engInput.addEventListener("focus", () => {
+    setTimeout(() => engInput.scrollIntoView({ behavior: "smooth", block: "nearest" }), 320);
+  });
+
   // ── English microphone: speak English → auto-fill field → translate ───────
   if (engMicBtn) {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -5642,6 +5832,7 @@ async function submitDiscoveryQuestion(q) {
   }
 
   useBtn.addEventListener("click", () => {
+    ttsUnlock();
     const zh = (engTranslated.textContent || "").trim();
     if (!zh || zh.startsWith("（")) return;
     const enOrig = engInput.value.trim();
@@ -5653,6 +5844,8 @@ async function submitDiscoveryQuestion(q) {
     engResult.style.display = "none";
     // Store as last answer so the server can use it for slot inference and interest scoring
     window._lastAnswer = { frame_id: window._lastPartnerFrameId || "", submitted_text: zh };
+    // Mark typing mode so the next turn re-focuses the input on mobile
+    window._typingMode = true;
     // Advance the conversation as if the user gave a free-text spoken answer
     runTurn(true, { last_turn_was_answer: true });
   });

@@ -1,12 +1,12 @@
 :root { --gap: 16px; --panel-width: 360px; }
 body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; }
 .container { display: flex; flex-direction: column; height: 100vh; }
-header { background:#0b4f6c; color: #fff; padding: 12px 16px; }
+header { background:#0b4f6c; color: #fff; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, var(--panel-width)); gap: var(--gap); padding: 12px; }
 .left { padding: 8px; border-right: 1px solid #eee; overflow: hidden; min-width: 0; }
 .right { padding: 8px; border-left: 1px solid #eee; overflow: auto; min-width: 0; }
-.controls { display:flex; flex-wrap: wrap; gap:8px; align-items:center; margin-bottom:8px; }
-#trace { background: #fafafa; border: 1px solid #ddd; padding: 12px; height: calc(100% - 80px); overflow:auto; white-space: pre-wrap; }
+.controls { margin-bottom:8px; }
+#trace { background: #fafafa; border: 1px solid #ddd; padding: 12px; max-height: 400px; overflow:auto; white-space: pre-wrap; }
 .card { background: #fff; border: 1px solid #ddd; padding: 12px; max-height: calc(100vh - 160px); overflow:auto; }
 .hidden { display: none; }
 .nocard { color: #666; }
@@ -19,19 +19,19 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 }
 
 .card-main-hanzi {
-  font-size: 1.45rem;
+  font-size: 1.4rem;
   font-weight: 600;
   font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .card-main-pinyin {
-  font: 0.9rem Arial, Helvetica, sans-serif;
+  font: 0.85rem Arial, Helvetica, sans-serif;
   opacity: 0.7;
   margin-top: 2px;
 }
 
 .card-main-meaning {
-  font: 0.9rem Arial, Helvetica, sans-serif;
+  font: 0.85rem Arial, Helvetica, sans-serif;
   opacity: 0.85;
   margin-top: 6px;
 }
@@ -39,7 +39,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 /* Phase 6 — Character Chips */
 
 .char-chip {
-  font-size: 16px;
+  font-size: 1rem;
   padding: 6px 10px;
   margin: 4px;
   border-radius: 10px;
@@ -87,7 +87,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   border-radius: 8px;
   background: #f9fafb;
   color: #374151;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -137,7 +137,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   line-height: 1.45;
 }
 .card-char-detail-py {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #6b7280;
 }
 .card-char-detail-mean {
@@ -148,7 +148,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   margin-top: 8px;
 }
 .card-char-detail-etym-empty {
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   color: #6b7280;
   font-style: italic;
 }
@@ -156,7 +156,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 .char-glyph-fallback .etym-origin {
   display: block;
   margin-top: 6px;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   line-height: 1.45;
   color: #374151;
 }
@@ -170,7 +170,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   gap: 6px;
 }
 .card-char-detail-etym .etym-char {
-  font-size: 12px;
+  font-size: 0.75rem;
   padding: 6px 8px;
   background: #fff;
   border-radius: 6px;
@@ -182,7 +182,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 }
 
 .card-composition-hint {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #6b7280;
   margin-top: 6px;
 }
@@ -194,7 +194,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   border-top: 1px solid #eee;
 }
 .card-etymology-trigger {
-  font-size: 14px;
+  font-size: 0.85rem;
   font-weight: 500;
   color: #1a56db;
   background: none;
@@ -215,7 +215,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   gap: 8px;
 }
 .card-etymology-content .etym-char {
-  font-size: 13px;
+  font-size: 0.75rem;
   padding: 6px 8px;
   background: #f8f9fa;
   border-radius: 6px;
@@ -230,20 +230,20 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 .card-etymology-content .etym-decomp,
 .card-etymology-content .etym-origin {
   display: block;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #555;
   margin-top: 2px;
 }
 .card-etymology-content .etym-mnemonic {
   display: block;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #333;
   margin-top: 4px;
   font-style: italic;
 }
 .card-etymology-content .etym-disclaimer {
   display: block;
-  font-size: 11px;
+  font-size: 0.75rem;
   color: #888;
   margin-top: 2px;
 }
@@ -257,7 +257,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 }
 .card-etymology-content .etym-narrative-type {
   display: block;
-  font-size: 11px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #1565c0;
@@ -271,7 +271,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 .card-etymology-content .etym-structure,
 .card-etymology-content .etym-usage-narrative {
   display: block;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #555;
   margin-top: 2px;
 }
@@ -284,7 +284,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   font-size: 1rem;
 }
 #cardPanel .card-main-hanzi {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
 }
 #cardPanel .card-main-pinyin,
 #cardPanel .card-main-meaning {
@@ -302,7 +302,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   font-size: 1rem;
 }
 #cardPanel .card-composition-hint {
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 #cardPanel .char-glyph-fallback .etym-origin {
   font-size: 1rem;
@@ -359,11 +359,11 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 #cardPanel .card-close-btn {
   width: 40px;
   height: 40px;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 #cardPanel .char-chip {
   font-family: "Ma Shan Zheng", "KaiTi", "STKaiti", serif;
-  font-size: 2.35rem;
+  font-size: 2rem;
   line-height: 1.1;
   padding: 12px 18px;
   margin: 6px 8px;
@@ -395,7 +395,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   border-radius: 50%;
   background: #fff;
   color: #1a56db;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -439,84 +439,138 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 /* No visual "correct" cue: all options are suggested responses (Design Constitution: no correct answer). */
 /* .option-panel[data-gold="true"] — reserved for internal/trace only; do not style as "the right answer". */
 .option-panel[data-slot="true"] { background: #f0fdf4; border-color: #86efac; }
-/* Recovery phrases: distinct border so they read as "help" not answer options */
-.option-panel[data-recovery="true"] { border-color: #d97706; background: #fffbeb; }
-.option-panel[data-recovery="true"] .option-hanzi { color: #b45309; }
+/* Recovery phrase colour handled by .option-panel.recovery-card rules below */
 /* Discovery panel: "You interview the persona" mode ──────────────────────── */
 #discoveryPanel {
   display: none;
-  margin: 10px 0;
-  padding: 10px 12px 12px;
+  margin: 8px 0;
+  padding: 10px 10px 12px;
   background: #f0f9ff;
-  border: 2px solid #7dd3fc;
-  border-radius: 12px;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  /* Cards stack vertically with visible gap between them */
+  display: none;
+  flex-direction: column;
+  gap: 8px;
 }
 .discovery-header {
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #0369a1;
-  margin-bottom: 8px;
+  margin-bottom: 2px;
   letter-spacing: 0.03em;
 }
 .discovery-sub { font-weight: 400; color: #0284c7; }
 .discovery-header--deflect { color: #64748b; font-weight: 600; font-style: normal; }
+
+/* ── Discovery card shared layout ─────────────────────────────────────────── */
+/* Both question and ack cards: full-width tap target with thumb-friendly height */
+.option-panel.discovery-question,
 .option-panel.discovery-ack {
-  background: #f8fafc;
-  border-color: #94a3b8;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 10px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+  /* Hairline shadow — enough to separate cards without visual weight */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-.option-panel.discovery-ack:hover { background: #e2e8f0; border-color: #475569; }
-.option-panel.discovery-ack .op-zh { font-size: 1.1rem; font-weight: 600; color: #334155; }
-.option-panel.discovery-ack .op-py { font-size: 0.8rem; color: #64748b; margin-left: 6px; }
-.option-panel.discovery-ack .op-en { font-size: 0.8rem; color: #64748b; margin-left: 6px; font-style: italic; }
+
 .option-panel.discovery-question {
   background: #fff;
-  border-color: #7dd3fc;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  border-color: #bae6fd;
 }
 .option-panel.discovery-question:hover { background: #e0f2fe; border-color: #0284c7; }
 .option-panel.discovery-question .op-zh { font-size: 1.1rem; font-weight: 600; color: #0c4a6e; }
-.option-panel.discovery-question .op-py { font-size: 0.8rem; color: #0369a1; margin-left: 6px; }
-.option-panel.discovery-question .op-en { font-size: 0.8rem; color: #555; margin-left: 6px; font-style: italic; }
+.option-panel.discovery-question .op-py { font-size: 0.75rem; color: #0369a1; }
+.option-panel.discovery-question .op-en { font-size: 0.75rem; color: #555; font-style: italic; }
+
+.option-panel.discovery-ack {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+.option-panel.discovery-ack:hover { background: #e2e8f0; border-color: #475569; }
+.option-panel.discovery-ack .op-zh { font-size: 1.1rem; font-weight: 600; color: #334155; }
+.option-panel.discovery-ack .op-py { font-size: 0.75rem; color: #64748b; }
+.option-panel.discovery-ack .op-en { font-size: 0.75rem; color: #64748b; font-style: italic; }
+
 .discovery-footer {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  padding-top: 10px;
-  background: linear-gradient(to top, #f8fafc 70%, rgba(248, 250, 252, 0));
+  margin-top: 6px;
+  /* No sticky — panel itself is not overflow:scroll, so sticky bottom doesn't fire.
+     Full-width button is always visible without needing position tricks. */
 }
 .discovery-continue-btn {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   background: #0369a1;
   border: 1.5px solid #0369a1;
-  border-radius: 20px;
-  padding: 8px 20px;
-  font-size: 0.9rem;
+  border-radius: 10px;
+  padding: 12px 16px;
+  min-height: 48px;
+  font-size: 1rem;
   font-weight: 700;
   color: #fff;
   cursor: pointer;
   letter-spacing: 0.02em;
-  box-shadow: 0 1px 3px rgba(3, 105, 161, 0.35);
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(3, 105, 161, 0.25);
+  transition: background 0.15s, box-shadow 0.15s;
 }
 .discovery-continue-btn:hover {
   background: #0284c7;
   border-color: #0284c7;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.45);
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.4);
 }
 
 
 .recovery-panel-label {
-  font: 0.9rem Arial, Helvetica, sans-serif;
+  font: 0.85rem Arial, Helvetica, sans-serif;
   font-weight: 600;
   color: #b45309;
   padding: 10px 16px 6px;
 }
+/* Scrollable stack — fixed pixel height so iOS Safari reliably scrolls.
+   Sized to show exactly 2 full cards + a partial peek of a 3rd to signal scrollability. */
+.recovery-phrases-scroll {
+  height: 220px;
+  overflow-y: scroll;               /* 'scroll' not 'auto' — more reliable on iOS Safari */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 4px 6px 4px;
+  box-sizing: border-box;
+}
+/* Recovery card — same flat flex-wrap layout as .option-panel.discovery-question, amber colours */
+.option-panel.recovery-card {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 10px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  cursor: pointer;
+  background: #fffbeb;
+  border-color: #d97706;
+  border-width: 1.5px;
+  border-radius: 8px;
+  flex-shrink: 0;    /* do not compress — let the scroll container scroll instead */
+  transition: background 0.15s, border-color 0.15s;
+}
+.option-panel.recovery-card:hover,
+.option-panel.recovery-card:active { background: #fef3c7; border-color: #b45309; }
+.option-panel.recovery-card .op-zh { font-size: 1.1rem; font-weight: 600; color: #b45309; }
+.option-panel.recovery-card .op-py { font-size: 0.75rem; color: #92400e; }
+.option-panel.recovery-card .op-en { font-size: 0.75rem; color: #78350f; font-style: italic; }
 .recovery-phrases-list {
   max-height: 140px;
   overflow-y: auto;
@@ -529,7 +583,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
   color: #b45309;
   background: #fff;
@@ -564,7 +618,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   background: #fff;
   color: #b45309;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -602,7 +656,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   display: none;
 }
 .option-hint-block .option-hint-row {
-  font: 0.9rem Arial, Helvetica, sans-serif;
+  font: 0.85rem Arial, Helvetica, sans-serif;
   margin-top: 4px;
   color: #444;
 }
@@ -627,18 +681,19 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 }
 .option-speaker-btn,
 .option-hint-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 1px solid #ccc;
   border-radius: 50%;
   background: #fff;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
 }
 .option-speaker-btn:hover,
 .option-hint-btn:hover {
@@ -648,14 +703,14 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 .option-hint-btn {
   font-weight: 600;
   color: #555;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
-.option-hanzi   { font-size: 1.45rem; font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight: 600; color: #0d9488; }
+.option-hanzi   { font-size: 1.4rem; font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight: 600; color: #0d9488; }
 /* Clickable word/character spans inside options — match legacy .option-hanzi sizing */
 .option-hanzi-tokens {
   display: inline;
-  font-size: 1.45rem;
+  font-size: 1.4rem;
   font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 600;
   color: #0d9488;
@@ -673,7 +728,7 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
 
 /* Hint cascade step 3 — etymology or character strip */
 .hint-depth-block {
-  font: 0.88rem/1.45 Arial, Helvetica, sans-serif;
+  font: 0.85rem/1.45 Arial, Helvetica, sans-serif;
   color: #374151;
   margin-top: 4px;
 }
@@ -685,27 +740,27 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
   font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
-  font-size: 1.05rem;
+  font-size: 1rem;
 }
 
 /* Card panel — short pointer to ? cascade + below */
 .card-explore-tip {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   line-height: 1.4;
   color: #6b7280;
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid #f3f4f6;
 }
-.option-pinyin  { font: 0.9rem Arial, Helvetica, sans-serif; color: #555; }
-.option-meaning { font: 0.9rem Arial, Helvetica, sans-serif; color: #888; }
+.option-pinyin  { font: 0.85rem Arial, Helvetica, sans-serif; color: #555; }
+.option-meaning { font: 0.85rem Arial, Helvetica, sans-serif; color: #888; }
 .option-slot-placeholder {
   display: inline-block;
   background: #dbeafe;
   color: #1d4ed8;
   border-radius: 4px;
   padding: 1px 6px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   margin: 0 2px;
 }
@@ -721,4 +776,60 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, v
   .right {
     border-left: none;
   }
+}
+
+/* ── Challenge Mode (C1–C4) ───────────────────────────────────────────────── */
+/* Additive overlay: body.challenge-mode gates all visibility changes.
+   Removing the class fully restores normal mode — no DOM cleanup needed.    */
+
+/* Transcript: hidden so learner relies on audio only */
+body.challenge-mode #transcriptPanel { display: none; }
+
+/* Active sentence text: invisible but structurally present so TTS + DOM are unchanged.
+   pointer-events: none prevents accidental token clicks before text is revealed.      */
+body.challenge-mode #frameSentence {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Mirror / reverse question buttons live in #reverseActionsRow (no inline style set by JS) */
+body.challenge-mode #reverseActionsRow { display: none; }
+
+/* Text-revealed override: body class added by _challengeRevealText() after cascade threshold */
+body.challenge-mode.challenge-text-revealed #frameSentence {
+  visibility: visible;
+  pointer-events: auto;
+  user-select: auto;
+}
+
+/* Challenge recovery zone: recovery phrase buttons, always visible in challenge mode */
+#challengeRecoveryZone { display: none; }
+body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
+
+/* Toggle button: purple tint when active */
+#challengeModeBtn.challenge-active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+}
+#challengeModeBtn.challenge-active:hover { background: #6d28d9; border-color: #6d28d9; }
+
+/* Mobile input usability: extra thumb padding and safe-area breathing room on iPhone */
+@media (max-width: 600px) {
+  /* Prevent iOS Safari auto-zoom (font must be >= 16px / 1rem on inputs) */
+  input, select, textarea { font-size: 1rem !important; }
+
+  /* Option panel buttons: larger tap targets for thumbs */
+  .option-btn { padding: 14px 12px; }
+
+  /* Action ladder: bigger mic and suggested-responses tap targets */
+  .action-ladder-btn { padding: 12px 18px; min-height: 44px; }
+  .action-ladder-btn.mic-only { padding: 12px; min-width: 44px; min-height: 44px; font-size: 1.1rem; }
+
+  /* Play / hint speaker buttons already 44px — keep consistent */
+  .play-question-speaker { width: 44px; height: 44px; }
+
+  /* Add bottom padding so content clears the iPhone home indicator */
+  .container { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }

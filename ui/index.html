@@ -14,24 +14,29 @@
     <div class="container">
       <header>
         <h1>MandarinOS UI Shell</h1>
+        <!-- Phase 11C: Persona selector — top bar so partner is always visible -->
+        <div class="persona-bar" id="personaBar">
+          <span class="persona-bar-label">Partner:</span>
+          <div id="personaBtns" class="persona-btn-row">
+            <!-- populated from /api/personas -->
+          </div>
+        </div>
       </header>
       <main>
         <section class="left">
           <div class="controls">
-            <label for="frameSelect">Frame:</label>
+            <label for="frameSelect" class="frame-label">Frame:</label>
             <select id="frameSelect">
-              <!-- frames populated dynamically by loadPackFramesIntoDropdown -->
+              <!-- populated by loadPackFramesIntoDropdown -->
             </select>
-            <button id="runBtn">Run Turn</button>
-            <button id="nextBtn" type="button" title="Next question (same topic)">Next</button>
-            <button id="changeTopicBtn" type="button" title="Switch to another topic (bridge)">Change topic</button>
-            <button id="startFreshBtn" type="button" title="Clear all memory and start as a new learner" style="margin-left:1em;color:#c0392b;border-color:#c0392b;">↺ Start Fresh</button>
-          </div>
-          <!-- Phase 11C: Persona selector -->
-          <div class="persona-bar" id="personaBar">
-            <span class="persona-bar-label">Partner:</span>
-            <div id="personaBtns" class="persona-btn-row">
-              <!-- populated from /api/personas -->
+            <!-- empty cell keeps column 1 clear so buttons align under the dropdown -->
+            <span></span>
+            <div class="controls-btn-row">
+              <button id="runBtn" class="run-btn">Start</button>
+              <button id="nextBtn" type="button" title="Next question (same topic)">Next</button>
+              <button id="changeTopicBtn" type="button" title="Switch to another topic (bridge)">Change topic</button>
+              <button id="startFreshBtn" type="button" title="Clear all memory and start as a new learner">↺ Clear memory</button>
+              <button id="challengeModeBtn" type="button" title="Toggle Challenge / Test Mode — hides scaffolding by default">Challenge Mode</button>
             </div>
           </div>
 
@@ -62,7 +67,7 @@
               <div id="transcriptContent" class="transcript-content"></div>
             </div>
             <div class="current-turn">
-              <div class="current-turn-label">Active conversation — last statement from MandarinOS</div>
+              <div class="current-turn-label">Active conversation — last statement</div>
               <!-- Phase 11C: Partner identity + voice line (shown on EXTEND frames) -->
               <div id="partnerHeader" class="partner-header" style="display:none;">
                 <span id="partnerNameLabel" class="partner-name-label"></span>
@@ -96,6 +101,9 @@
                   <button id="useTranslationBtn" type="button" class="eng-use-btn">Use this ↑</button>
                 </div>
               </div>
+              <!-- Challenge Mode: dedicated recovery zone so "Need help?" buttons stay visible
+                   while sentenceOptionsContainer (green responses) stays hidden by default. -->
+              <div id="challengeRecoveryZone" class="challenge-recovery-zone"></div>
               <!-- Sentence-level response options: 2-3 answers + recovery panel -->
               <div id="sentenceOptionsContainer" class="sentence-options-container" style="display:none;"></div>
               <div id="optionsContainerParent"></div>
@@ -110,8 +118,6 @@
             <button id="microGlossOpenCard" type="button" class="microgloss-open-card">Explore word</button>
           </div>
 
-          <h2>Trace</h2>
-          <pre id="trace" class="trace">(no trace)</pre>
         </section>
         <aside class="right">
           <h2>Explore word</h2>
@@ -121,6 +127,8 @@
             <div id="cardBody"></div>
           </div>
           <div id="noCard" class="nocard">No card opened</div>
+          <h2>Trace</h2>
+          <pre id="trace" class="trace">(no trace)</pre>
         </aside>
       </main>
     </div>
@@ -132,15 +140,15 @@
       }
       .frame-sentence-row .frame-sentence { flex: 1 1 200px; min-width: 0; }
       .frame-sentence {
-        font-size: 1.45rem; line-height: 1.6; min-height: 2.25rem;
+        font-size: 1.4rem; line-height: 1.6; min-height: 2.25rem;
         height: auto; overflow: visible; white-space: normal;
         position: relative; margin: 0;
         font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
       .play-question-speaker {
-        flex-shrink: 0; width: 44px; height: 44px; padding: 0;
-        border: 2px solid #1a56db; border-radius: 50%;
-        background: #fff; color: #1a56db; font-size: 1.25rem; cursor: pointer;
+        flex-shrink: 0; width: 32px; height: 32px; padding: 0;
+        border: 1.5px solid #1a56db; border-radius: 50%;
+        background: #fff; color: #1a56db; font-size: 0.9rem; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
       }
       .play-question-speaker:hover { background: #e8f0fe; }
@@ -149,9 +157,8 @@
 
       /* Phase 7.4: token spans */
       .tok { display: inline; }
-      .tok-word { color: #1a56db; cursor: pointer; }
-      .tok-word:hover { text-decoration: underline; }
-      .tok-word-unknown { color: #888; cursor: pointer; }
+      .tok-word { color: #1a56db; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+      .tok-word-unknown { color: #888; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; text-decoration-style: dotted; }
       /* Larger tap padding for mobile (overlap ok); avoids 44px-per-glyph row height */
       .word-insight-token { display: inline-block; padding: 6px 4px; margin: -2px 0; border-radius: 4px; }
       /* Option Chinese size/colour: see styles.css .option-hanzi-tokens */
@@ -162,17 +169,17 @@
       .microgloss {
         position: fixed; z-index: 10000; background: #fff;
         border: 1px solid #ccc; border-radius: 8px; padding: 8px 12px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.18); font: 0.9rem Arial, Helvetica, sans-serif;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.18); font: 0.85rem Arial, Helvetica, sans-serif;
         min-width: 148px; max-width: min(280px, calc(100vw - 24px)); max-height: min(50vh, 320px);
         overflow-y: auto; pointer-events: auto;
       }
-      .microgloss-headword { font-weight: bold; display: block; margin-bottom: 4px; font-size: 1.05rem; }
+      .microgloss-headword { font-weight: bold; display: block; margin-bottom: 4px; font-size: 1rem; }
       .microgloss-body { color: #444; font-size: 0.85rem; display: block; margin-bottom: 6px; }
       .microgloss-etym {
-        font-size: 0.78rem; color: #6b7280; display: block; margin-bottom: 8px; line-height: 1.35;
+        font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 8px; line-height: 1.35;
       }
       .microgloss-open-card {
-        font-size: 0.82rem; color: #1a56db; background: none;
+        font-size: 0.75rem; color: #1a56db; background: none;
         border: 1px solid #1a56db; border-radius: 4px; padding: 2px 8px; cursor: pointer;
       }
       .microgloss-open-card:hover { background: #e8f0fe; }
@@ -180,7 +187,7 @@
       /* Phase 7.4: Action Ladder */
       .action-ladder { margin: 12px 0 16px 0; display: flex; gap: 10px; flex-wrap: wrap; }
       .action-ladder-btn {
-        font: 0.9rem Arial, Helvetica, sans-serif; padding: 8px 16px; border-radius: 8px;
+        font: 0.85rem Arial, Helvetica, sans-serif; padding: 8px 16px; border-radius: 8px;
         border: 2px solid #1a56db; background: #fff; color: #1a56db; cursor: pointer;
         font-weight: 500;
       }
@@ -189,15 +196,15 @@
       .action-ladder-help:hover { background: #fef3e2; }
       .action-ladder-btn.mic-only { padding: 8px 12px; font-size: 1.1rem; min-width: 44px; }
       .hint-icon-btn {
-        width: 44px;
-        height: 44px;
-        min-width: 44px;
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
         padding: 0;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.1rem;
+        font-size: 0.9rem;
         line-height: 1;
       }
       /* showOptionsBtn removed — sentence options now always visible */
@@ -230,19 +237,22 @@
         border-top: 1px solid #e5e7eb;
       }
       .eng-input-row {
-        display: flex; gap: 6px; align-items: center;
+        display: flex; gap: 8px; align-items: center;
       }
       .eng-input-field {
-        flex: 1; padding: 7px 10px; border-radius: 8px;
-        border: 1.5px solid #d1d5db; font: 0.9rem Arial, Helvetica, sans-serif;
-        outline: none;
+        flex: 1; padding: 12px 14px; border-radius: 8px;
+        border: 1.5px solid #d1d5db;
+        /* 1rem (16px) prevents iOS Safari auto-zoom on focus */
+        font: 1rem Arial, Helvetica, sans-serif;
+        outline: none; min-height: 52px; box-sizing: border-box;
       }
       .eng-input-field:focus { border-color: #1a56db; }
       .eng-mic-btn {
         flex-shrink: 0;
-        width: 36px; height: 36px;
+        /* 44px meets Apple HIG minimum tap-target size */
+        width: 44px; height: 44px;
         border-radius: 50%; border: 1.5px solid #d1d5db;
-        background: #fff; cursor: pointer; font-size: 1rem;
+        background: #fff; cursor: pointer; font-size: 1.1rem;
         display: flex; align-items: center; justify-content: center;
         transition: background 0.15s, border-color 0.15s;
       }
@@ -256,32 +266,34 @@
         to   { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
       }
       .eng-translate-btn {
-        padding: 7px 14px; border-radius: 8px;
+        padding: 12px 18px; border-radius: 8px; min-height: 44px;
         border: 1.5px solid #1a56db; background: #fff; color: #1a56db;
-        font: 0.9rem Arial, Helvetica, sans-serif; cursor: pointer; white-space: nowrap;
+        font: 1rem Arial, Helvetica, sans-serif; cursor: pointer; white-space: nowrap;
+        display: flex; align-items: center;
       }
       .eng-translate-btn:hover { background: #e8f0fe; }
       .eng-translate-btn:disabled { opacity: 0.5; cursor: default; }
       .eng-translate-result {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-        margin-top: 8px; padding: 8px 10px;
+        margin-top: 8px; padding: 10px 12px;
         background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px;
       }
       .eng-translated-zh {
-        flex: 1; font: 1.15rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        flex: 1; font: 1.1rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
         color: #166534; min-width: 0;
       }
       .eng-speak-btn {
-        flex-shrink: 0; width: 34px; height: 34px; padding: 0;
+        flex-shrink: 0; width: 44px; height: 44px; padding: 0;
         border: 1.5px solid #0d9488; border-radius: 50%;
-        background: #fff; color: #0d9488; font-size: 1rem; cursor: pointer;
+        background: #fff; color: #0d9488; font-size: 1.1rem; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
       }
       .eng-speak-btn:hover { background: #ccfbf1; }
       .eng-use-btn {
-        padding: 5px 12px; border-radius: 7px;
+        padding: 10px 16px; border-radius: 7px; min-height: 44px;
         border: 1.5px solid #16a34a; background: #16a34a; color: #fff;
-        font: 0.85rem Arial, Helvetica, sans-serif; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+        font: 1rem Arial, Helvetica, sans-serif; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+        display: flex; align-items: center;
       }
       .eng-use-btn:hover { background: #15803d; border-color: #15803d; }
 
@@ -289,26 +301,26 @@
       .ui-mode-read    .options-area { opacity: 0.45; pointer-events: none; }
       .ui-mode-respond .options-area { opacity: 1;    pointer-events: auto; }
 
-      /* Phase 11C: Persona bar */
+      /* Phase 11C: Persona bar — now lives in <header> */
       .persona-bar {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-        margin: 8px 0 4px 0; min-height: 34px;
+        min-height: 30px;
       }
       .persona-bar-label {
-        font: 0.82rem Arial, Helvetica, sans-serif; color: #6b7280; white-space: nowrap;
+        font: 0.75rem Arial, Helvetica, sans-serif; color: rgba(255,255,255,0.7); white-space: nowrap;
       }
       .persona-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
       .persona-btn {
-        font: 0.88rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        font: 0.85rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
         padding: 4px 12px; border-radius: 16px;
-        border: 1.5px solid #d1d5db; background: #f9fafb; color: #374151;
+        border: 1.5px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.1); color: #fff;
         cursor: pointer; transition: border-color 0.15s, background 0.15s;
         white-space: nowrap;
       }
-      .persona-btn:hover { border-color: #1a56db; background: #e8f0fe; color: #1a56db; }
-      .persona-btn.active { border-color: #1a56db; background: #1a56db; color: #fff; }
+      .persona-btn:hover { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.2); }
+      .persona-btn.active { border-color: #7dd3fc; background: #0369a1; color: #fff; }
       .persona-btn-none {
-        font: 0.82rem Arial, Helvetica, sans-serif;
+        font: 0.75rem Arial, Helvetica, sans-serif;
         padding: 4px 10px; border-radius: 16px;
         border: 1.5px dashed #d1d5db; background: transparent; color: #9ca3af;
         cursor: pointer;
@@ -322,7 +334,7 @@
         border-bottom: 1px solid #e5e7eb;
       }
       .partner-name-label {
-        font: 600 0.88rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        font: 600 0.85rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
         color: #1a56db; white-space: nowrap; flex-shrink: 0;
       }
       .partner-prefix-line {
@@ -333,7 +345,7 @@
       /* Phase 11C: Discoverable fact — shown below the frame sentence, lighter weight */
       .partner-fact-line {
         margin-top: 6px; padding: 6px 10px;
-        font: italic 0.92rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        font: italic 0.85rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
         color: #6b7280;
         border-left: 3px solid #d1d5db;
         border-radius: 0 4px 4px 0;
@@ -362,7 +374,7 @@
       .transcript-content { line-height: 1.5; }
       .transcript-line { margin-bottom: 6px; display: flex; align-items: baseline; flex-wrap: wrap; }
       .transcript-line .turn-marker {
-        font: 0.9rem Arial, Helvetica, sans-serif; font-weight: 600;
+        font: 0.85rem Arial, Helvetica, sans-serif; font-weight: 600;
         min-width: 3.7em; flex-shrink: 0; margin-right: 1px;
       }
       .transcript-line.partner .turn-marker { color: #1e40af; }
@@ -370,7 +382,7 @@
       .transcript-line.partner .transcript-text { color: #1e40af; }
       .transcript-line.user .transcript-text { color: #0d9488; }
       .transcript-text.transcript-zh { font: 1rem "Noto Sans SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-      .transcript-text.transcript-en { font: 0.9rem Arial, Helvetica, sans-serif; }
+      .transcript-text.transcript-en { font: 0.85rem Arial, Helvetica, sans-serif; }
       .transcript-panel-label {
         font: 0.85rem Arial, Helvetica, sans-serif; color: #6b7280; margin-bottom: 6px;
       }
@@ -379,14 +391,14 @@
         margin-bottom: 8px;
       }
       .transcript-toolbar label {
-        font: 0.8rem Arial, Helvetica, sans-serif; color: #6b7280;
+        font: 0.75rem Arial, Helvetica, sans-serif; color: #6b7280;
       }
       .transcript-toolbar select, .transcript-toolbar button {
-        font: 0.8rem Arial, Helvetica, sans-serif;
+        font: 0.75rem Arial, Helvetica, sans-serif;
         padding: 3px 6px;
       }
       .replay-status {
-        font: 0.8rem Arial, Helvetica, sans-serif;
+        font: 0.75rem Arial, Helvetica, sans-serif;
         color: #1e40af;
         margin-bottom: 6px;
       }
@@ -417,6 +429,39 @@
         font: 0.85rem Arial, Helvetica, sans-serif;
         color: #374151;
       }
+      /* Focus fade: keep the most recent 4 lines fully visible;
+         older lines progressively fade so the eye stays on the active exchange.
+         Uses :nth-last-child() so the count updates automatically as lines are added.
+         transition keeps fading smooth when a new line is appended. */
+      .transcript-content > .transcript-line {
+        transition: opacity 0.3s ease, font-size 0.3s ease;
+      }
+      /* lines 5–8 back: faint */
+      .transcript-content > .transcript-line:not(:nth-last-child(-n+4)) {
+        opacity: 0.38;
+        font-size: 0.88em;
+      }
+      /* lines 3–4 back: slightly dimmed */
+      .transcript-content > .transcript-line:nth-last-child(3),
+      .transcript-content > .transcript-line:nth-last-child(4) {
+        opacity: 0.65;
+        font-size: 0.93em;
+      }
+      /* last 2 lines: full prominence */
+      .transcript-content > .transcript-line:nth-last-child(1),
+      .transcript-content > .transcript-line:nth-last-child(2) {
+        opacity: 1;
+        font-size: 1em;
+      }
+      /* active-replay always fully visible regardless of position */
+      .transcript-content > .transcript-line.active-replay {
+        opacity: 1 !important;
+        font-size: 1em !important;
+      }
+      /* detail lines (pinyin/EN expansions) follow their parent line's opacity */
+      .transcript-content > .transcript-line-detail:not(:nth-last-child(-n+4)) {
+        opacity: 0.38;
+      }
       .transcript-select {
         margin-right: 6px;
       }
@@ -430,10 +475,53 @@
         box-shadow: 0 2px 8px rgba(26, 86, 219, 0.12);
       }
       .current-turn-label {
-        font: 0.9rem Arial, Helvetica, sans-serif; font-weight: 600; color: #1a56db; letter-spacing: 0.02em;
+        font: 0.85rem Arial, Helvetica, sans-serif; font-weight: 600; color: #1a56db; letter-spacing: 0.02em;
         margin-bottom: 8px;
       }
-      .hint-row { font: 0.9rem Arial, Helvetica, sans-serif; }
+      .hint-row { font: 0.85rem Arial, Helvetica, sans-serif; }
+
+      /* ── Frame control grid ──────────────────────────────────────────────── */
+      /* col 1 = label (natural width), col 2 = dropdown + buttons (fills rest) */
+      .controls {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        column-gap: 6px;
+        row-gap: 6px;
+        align-items: center;
+      }
+      .frame-label {
+        font: 0.75rem Arial, Helvetica, sans-serif;
+        color: #6b7280;
+        white-space: nowrap;
+        /* grid-column: 1, grid-row: 1 — auto-placed */
+      }
+      #frameSelect {
+        font: 0.75rem Arial, Helvetica, sans-serif;
+        width: 100%;
+        /* grid-column: 2, grid-row: 1 — auto-placed */
+      }
+      /* Empty spacer holds col 1 of row 2 so buttons start under the dropdown */
+      .controls > span { display: block; }
+      .controls-btn-row {
+        /* grid-column: 2, grid-row: 2 — auto-placed */
+        display: flex;
+        flex-wrap: nowrap;   /* keep all buttons on a single row */
+        gap: 6px;
+        overflow-x: auto;    /* safety net on very narrow screens */
+        align-items: center;
+      }
+      /* Start button: green outline as primary action */
+      .run-btn {
+        border-color: #16a34a;
+        color: #16a34a;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .run-btn:hover { background: #f0fdf4; }
+      /* Display / Speed dropdowns in transcript toolbar */
+      .transcript-toolbar select {
+        font: 0.75rem Arial, Helvetica, sans-serif;
+      }
     </style>
     <script type="module" src="/app.js"></script>
   </body>
