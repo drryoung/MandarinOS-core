@@ -87,6 +87,30 @@
       {
         "zh": "远不远？", "py": "yuǎn bu yuǎn?", "en": "Is it far or not?",
         "kind": "SENTENCE", "topic": "place_far_or_not"
+      },
+      {
+        "zh": "你那儿离那边远吗？", "py": "nǐ nàr lí nàbiān yuǎn ma?", "en": "Is your place far from there?",
+        "kind": "SENTENCE", "topic": "place_distance_ref",
+        "paraphrases": [
+          ["离", "远吗"],
+          ["远不远"]
+        ]
+      },
+      {
+        "zh": "从你那儿到那边要多久？", "py": "cóng nǐ nàr dào nàbiān yào duō jiǔ?", "en": "How long does it take to get there?",
+        "kind": "SENTENCE", "topic": "place_distance_time",
+        "paraphrases": [
+          ["多久", "到"],
+          ["要多久"]
+        ]
+      },
+      {
+        "zh": "一般怎么去？", "py": "yìbān zěnme qù?", "en": "How do you usually get there?",
+        "kind": "SENTENCE", "topic": "place_distance_transport",
+        "paraphrases": [
+          ["怎么去"],
+          ["坐什么去"]
+        ]
       }
     ],
     "travel": [

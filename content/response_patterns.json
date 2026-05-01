@@ -1995,6 +1995,31 @@
         }
       ]
     }
+  ,
+    {
+      "key": "离那边远吗",
+      "options": [
+        { "zh": "不算太远。", "py": "Bù suàn tài yuǎn.", "en": "Not too far." },
+        { "zh": "有点远。", "py": "Yǒu diǎn yuǎn.", "en": "Quite far." },
+        { "zh": "挺远的。", "py": "Tǐng yuǎn de.", "en": "Pretty far." }
+      ]
+    },
+    {
+      "key": "到那边要多久",
+      "options": [
+        { "zh": "大概两三个小时。", "py": "Dàgài liǎng sān gè xiǎoshí.", "en": "About two or three hours." },
+        { "zh": "差不多四个小时。", "py": "Chàbùduō sì gè xiǎoshí.", "en": "About four hours." },
+        { "zh": "要好几个小时。", "py": "Yào hǎo jǐ gè xiǎoshí.", "en": "Several hours." }
+      ]
+    },
+    {
+      "key": "一般怎么去",
+      "options": [
+        { "zh": "一般坐高铁去。", "py": "Yìbān zuò gāotiě qù.", "en": "Usually by high-speed rail." },
+        { "zh": "一般坐飞机。", "py": "Yìbān zuò fēijī.", "en": "Usually by plane." },
+        { "zh": "可以坐高铁或者飞机。", "py": "Kěyǐ zuò gāotiě huòzhě fēijī.", "en": "High-speed rail or plane." }
+      ]
+    }
   ],
   "generic_fallback": [
     {

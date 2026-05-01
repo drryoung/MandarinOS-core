@@ -23,6 +23,16 @@ Use this when you start again to check that the Phase 7 directives were implemen
 
 ---
 
+## Mobile / LAN testing (e.g. iPhone on same Wi‑Fi)
+
+- You can open the UI from a phone using **`http://<laptop-LAN-IP>:8765`** (same paths as on desktop, e.g. `/ui/index.html`). The dev server binds so it is reachable on the LAN; use your laptop’s IPv4 address from `ipconfig` / System Settings.
+- **Microphone / speech input does not work** when the page is loaded as **plain HTTP to a LAN IP**. Browser speech APIs (`SpeechRecognition` / Web Speech API) require a [**secure context**](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) (`https:` or special cases like `localhost`). **`http://192.168.x.x` is not a secure context** on iPhone Safari. **This is treated as a browser/environment constraint for alpha, not as an app bug.**
+- **Typed-input mobile testing** (tapping options, English → Chinese field, etc.) **remains fully valid** without HTTPS or extra setup.
+
+To exercise speech input from a phone later, serve the same UI over **HTTPS** to the device (e.g. reverse proxy with TLS, dev certificate, or tunnel)—out of scope for this note.
+
+---
+
 ## Test 1: Play question (TTS)
 
 **Goal:** The current question can be heard via a single click.

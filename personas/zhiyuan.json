@@ -73,5 +73,13 @@
     "travel": "I like to learn about local culture when I travel.",
     "place": "I've lived in Shanghai for many years.",
     "food": "I think food reflects a place's culture."
+  },
+  "distance_profile": {
+    "reference": "上海",
+    "far_level": "不算远",
+    "time": "一个多小时",
+    "transport": "高铁",
+    "zh": "南京离上海不算远，坐高铁一个多小时。",
+    "en": "Nanjing isn't far from Shanghai — about an hour by high-speed rail."
   }
 }

@@ -20,7 +20,10 @@
     {"frame_id": "p2_fa_live_with",      "topic": "family_live",     "_note": "你跟家人住在一起吗？ — first family-engine frame; natural wording variant"},
     {"frame_id": "f_travel_best_trip",   "topic": "travel_memorable","_note": "哪次旅行最难忘？ — travel depth; bank topic travel_memorable"},
     {"frame_id": "f_work_tenure",        "topic": "work_duration",   "_note": "你做这个工作多久了？ — work tenure; bank topic work_duration"},
-    {"frame_id": "f_how_old",            "topic": "age",             "_note": "你多大了？ — persona opened topic; learner may ask back"}
+    {"frame_id": "f_how_old",            "topic": "age",             "_note": "你多大了？ — persona opened topic; learner may ask back"},
+    {"frame_id": "f_place_distance_ref",       "topic": "place_distance_ref",       "_note": "你那儿离那边远吗？ — distance from reference city"},
+    {"frame_id": "f_place_distance_time",      "topic": "place_distance_time",      "_note": "从你那儿到那边要多久？ — travel time"},
+    {"frame_id": "f_place_distance_transport", "topic": "place_distance_transport", "_note": "一般怎么去？ — transport mode"}
   ],
   "reciprocal_aliases": [
     {"frame_id": "f_from_where", "topic": "place_from",

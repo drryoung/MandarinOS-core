@@ -259,6 +259,8 @@ Open UI at:
 
 (If the port differs, trust what the server prints, but 8765 is the canonical expectation.)
 
+**Same Wi‑Fi / iPhone:** You can use `http://<laptop-LAN-IP>:8765` to load the UI on a phone. **Speech / mic input will not work on plain HTTP to a LAN IP** (browsers require a secure context for the Web Speech API); that is **not** treated as an app bug for alpha. **Typed interaction still works** for mobile testing. Details: `docs/briefings/PHASE7_COMPLETION_REVIEW_AND_TEST.md` → section *Mobile / LAN testing*.
+
 ---
 
 ## 7) Testing expectations

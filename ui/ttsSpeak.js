@@ -4,6 +4,32 @@
 // Emits MandarinOS trace entries: { type, timestamp, payload }
 
 /**
+ * iOS Safari requires speechSynthesis.speak() to be called synchronously
+ * within a user-gesture call stack. Any await (e.g. a fetch) breaks the
+ * gesture chain and iOS silently drops subsequent speak() calls.
+ *
+ * Call ttsUnlock() synchronously at the top of every click handler that will
+ * later call ttsSpeak() after an async gap. The zero-length utterance primes
+ * the synthesiser inside the gesture window; real speech then works after
+ * the await completes.
+ *
+ * Safe to call on non-iOS browsers — it is a no-op if speech is already
+ * unlocked or if SpeechSynthesis is unavailable.
+ */
+export function ttsUnlock() {
+  if (typeof window === "undefined" || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+  // Only unlock once per page load — subsequent calls are free no-ops.
+  if (window._ttsUnlocked) return;
+  try {
+    const u = new SpeechSynthesisUtterance("");
+    u.volume = 0;
+    u.lang = "zh-CN";
+    window.speechSynthesis.speak(u);
+    window._ttsUnlocked = true;
+  } catch (_) {}
+}
+
+/**
  * @param {object} opts
  * @param {string} opts.text
  * @param {string} [opts.lang]

@@ -73,5 +73,13 @@
     "travel": "When I travel I always look for the best local restaurants.",
     "place": "I'm a born-and-bred Chongqing local.",
     "food": "I'm a chef, so I'm particularly passionate about food!"
+  },
+  "distance_profile": {
+    "reference": "成都",
+    "far_level": "不远",
+    "time": "一个多小时",
+    "transport": "高铁",
+    "zh": "重庆离成都不远，坐高铁一个多小时就到了。",
+    "en": "Chongqing isn't far from Chengdu — just over an hour by high-speed rail."
   }
 }

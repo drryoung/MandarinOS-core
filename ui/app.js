@@ -40,6 +40,40 @@ const _challenge = {
 };
 window._challengeMode = _challenge;
 
+// ── Session tracker — observational telemetry only ─────────────────────────
+// Counts signals emitted by the user during this session.
+// Read-only from the perspective of all conversation logic: this object must
+// never be read by frame selection, selector scoring, recovery, or hints.
+// Exposed on window for console inspection only.
+const _tracker = {
+  mode: "normal",                // "normal" | "challenge" — mirrors _challenge.active at session start
+  total_turns: 0,                // user-submitted turns (incremented once per accepted /api/run_turn response)
+  recovery_uses: 0,              // times user tapped a recovery phrase card
+  successful_recoveries: 0,      // recovery uses where the immediately following turn was accepted
+  suggestion_clicks: 0,          // times user selected a suggested response option
+  card_opens: 0,                 // user-initiated card-panel opens (not re-renders)
+  questions_asked: 0,            // user turns containing a question marker (吗/什么/怎么/为什么)
+  depth_responses: 0,            // user turns containing a depth marker (因为/所以/觉得/但是/其实/对我来说)
+  unmatched_responses: 0,        // turns where ASR input did not match any option and was rejected
+  engines_used: new Set(),       // engine IDs seen in responses this session
+  _pendingRecovery: false,       // transient: true if last user action was a recovery tap (cleared on next turn)
+};
+window._sessionTracker = _tracker;
+
+/**
+ * Record question and depth signals from a single accepted user turn.
+ * Called once per submitted answer; each turn counts at most once for each dimension.
+ * Never touches conversation logic — observational only.
+ */
+function _trackUserTextSignals(text) {
+  if (!text || typeof text !== "string") return;
+  const QUESTION_MARKERS = ["吗", "什么", "怎么", "为什么", "哪里", "谁", "你呢"];
+  // 想 and 希望 are broad markers; included as specified in the scoring spec.
+  const DEPTH_MARKERS   = ["因为", "所以", "觉得", "但是", "其实", "对我来说", "最喜欢", "想", "希望"];
+  if (QUESTION_MARKERS.some(m => text.includes(m))) _tracker.questions_asked++;
+  if (DEPTH_MARKERS.some(m => text.includes(m)))    _tracker.depth_responses++;
+}
+
 function addTranscriptEntry(role, textZh, extras = {}) {
   const entry = {
     id: "line_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
@@ -163,6 +197,8 @@ if (typeof window._listeningWaitTurns === "undefined") window._listeningWaitTurn
 if (typeof window._lastInterestLevel === "undefined") window._lastInterestLevel = "low";
 if (typeof window._lastUserText === "undefined") window._lastUserText = "";
 if (typeof window._unmatchedByFrame === "undefined") window._unmatchedByFrame = {};
+/** Partner recovery lines already shown for this question frame_id (caps repair spam per frame). */
+if (typeof window._recoveryPromptsByFrame === "undefined") window._recoveryPromptsByFrame = {};
 // Phase 12C: session arc state
 if (typeof window._loopCountInEngine    === "undefined") window._loopCountInEngine    = 0;
 if (typeof window._enginesVisited       === "undefined") window._enginesVisited        = ["identity"];
@@ -447,6 +483,7 @@ async function _openCardForWordId(wordId) {
   const engineId = sel?.options[sel?.selectedIndex]?.dataset?.engineId || null;
   emitUITrace({ type: "OPEN_CARD", timestamp: new Date().toISOString(),
     payload: { engine_id: engineId, frame_id: frameId, card_id: cardId, reason: "token_click" } });
+  _tracker.card_opens++;
   dispatch({ type: "OPEN_CARD", payload: { card_id: cardId } });
   await resolveCard(cardId, "tools/cards/out/cards_by_id.json");
   // NOTE: does NOT advance turn, reset hints, or change ui_mode
@@ -1767,6 +1804,8 @@ function computeRecoveryTriggerContext(input) {
     explicit_recovery_match,
     explicit_recovery_phrase_id: explicit_recovery_match ? explicit_recovery_match.id : null,
     frame_id: input?.frame_id || null,
+    frame_recovery_shown: Math.max(0, parseInt(input?.frame_recovery_shown, 10) || 0),
+    incomplete_utterance: input?.incomplete_utterance === true,
   };
 }
 
@@ -1779,6 +1818,16 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
   const band = ctx.asr_confidence_band;
   const isEmpty = ctx.is_empty_input;
   const hasPartial = ctx.has_partial_signal;
+  const frameRecoveryShown = Math.max(0, parseInt(ctx.frame_recovery_shown, 10) || 0);
+  /** After two recovery lines on the same frame, force move-on phrasing (additive cap). */
+  const forcePerFrameMoveOn = frameRecoveryShown >= 2;
+
+  const basePhrases = Array.isArray(phrases) ? phrases : [];
+  let phrasePool = basePhrases;
+  if (ctx.incomplete_utterance === true) {
+    phrasePool = basePhrases.filter((p) => p && p.id !== "wo_xiang_xiang" && (p.hanzi || "").trim() !== "我想想");
+    if (phrasePool.length === 0) phrasePool = basePhrases;
+  }
 
   let recovery_trigger_reason = "legacy_rotation";
   let repair_kind = null;
@@ -1786,7 +1835,7 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
   let chosen = null;
 
   const tryKind = (kind, reason) => {
-    const pool = _phrasesByRepairKind(phrases, kind);
+    const pool = _phrasesByRepairKind(phrasePool, kind);
     const p = _pickRandomPhrase(pool);
     if (p) {
       recovery_trigger_reason = reason;
@@ -1800,60 +1849,68 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
     chosen = ctx.explicit_recovery_match;
     recovery_trigger_reason = "explicit_recovery_phrase";
     repair_kind = chosen.repair_kind || null;
-  } else if (before >= 3) {
+  } else if (forcePerFrameMoveOn || before >= 3) {
     // Termination guarantee (Phase 12C): after 3+ consecutive repairs the system MUST
     // exit the repair chain. Bypass simplify/meaning — force next_turn unconditionally.
-    const moveOnPool = phrases.filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION);
+    const moveOnPool = phrasePool.filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION);
     chosen = _pickRandomPhrase(moveOnPool) || moveOnPool[0] || null;
     if (chosen) {
-      recovery_trigger_reason = "tier3_forced_exit";
+      recovery_trigger_reason = forcePerFrameMoveOn ? "per_frame_recovery_cap" : "tier3_forced_exit";
       repair_kind = chosen.repair_kind || "bridge";
     }
   } else if (isEmpty) {
     if (before === 0) {
       chosen = tryKind("soft_hold", "empty_input_soft_hold")
-        || _pickRandomPhrase(phrases.filter((p) => (p.recovery_action || "") === "soft"));
+        || _pickRandomPhrase(phrasePool.filter((p) => (p.recovery_action || "") === "soft"));
       if (chosen) recovery_trigger_reason = chosen.repair_kind === "soft_hold" ? "empty_input_soft_hold" : "empty_input_soft_fallback";
     } else if (before === 1) {
       chosen = tryKind("buffer", "empty_input_buffer")
-        || _pickRandomPhrase(_phrasesByRepairKind(phrases, "buffer"));
+        || _pickRandomPhrase(_phrasesByRepairKind(phrasePool, "buffer"));
       if (chosen) recovery_trigger_reason = "empty_input_buffer";
     } else {
       chosen = tryKind("meaning", "empty_input_escalate_meaning")
         || tryKind("simplify", "empty_input_escalate_simplify")
-        || _pickRandomPhrase(phrases.filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION));
+        || _pickRandomPhrase(phrasePool.filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION));
       if (chosen) recovery_trigger_reason = "empty_input_escalate";
     }
   } else if (band === "low") {
     if (before === 0) {
-      chosen = tryKind("soft_hold", "low_asr_soft_hold") || _pickRandomPhrase(phrases.filter((p) => (p.recovery_action || "") === "soft"));
+      chosen = tryKind("soft_hold", "low_asr_soft_hold") || _pickRandomPhrase(phrasePool.filter((p) => (p.recovery_action || "") === "soft"));
     } else if (before === 1) {
       chosen = tryKind("repeat", "low_asr_delivery_repeat")
         || tryKind("slower", "low_asr_delivery_slower")
-        || _pickRandomPhrase(phrases.filter((p) => NOT_UNDERSTOOD_ROTATION_ACTION.has(p.recovery_action || "")));
+        || _pickRandomPhrase(phrasePool.filter((p) => NOT_UNDERSTOOD_ROTATION_ACTION.has(p.recovery_action || "")));
     } else {
       chosen = tryKind("simplify", "low_asr_escalate_simplify")
         || tryKind("meaning", "low_asr_escalate_meaning")
-        || _pickRandomPhrase(phrases.filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION));
+        || _pickRandomPhrase(phrasePool.filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION));
       if (chosen) recovery_trigger_reason = "low_asr_escalate";
     }
   } else if (band === "medium" || band === "high") {
     if (hasPartial) {
       chosen = tryKind("meaning", "weak_match_meaning") || tryKind("simplify", "weak_match_simplify");
-      if (!chosen) chosen = _pickRandomPhrase(_phrasesByRepairKind(phrases, "meaning"));
+      if (!chosen) chosen = _pickRandomPhrase(_phrasesByRepairKind(phrasePool, "meaning"));
+    } else if (ctx.incomplete_utterance === true) {
+      chosen = tryKind("repeat", "incomplete_delivery_repeat")
+        || tryKind("soft_hold", "incomplete_soft_hold")
+        || _pickRandomPhrase(phrasePool.filter((p) => (p.recovery_action || "") === "soft"));
     } else {
-      chosen = tryKind("buffer", "stall_buffer") || _pickRandomPhrase(phrases.filter((p) => (p.repair_kind || "") === "buffer"));
+      chosen = tryKind("buffer", "stall_buffer") || _pickRandomPhrase(phrasePool.filter((p) => (p.repair_kind || "") === "buffer"));
     }
   } else {
     if (hasPartial) {
       chosen = tryKind("meaning", "unknown_band_partial_meaning") || tryKind("meaning", "unknown_band_meaning");
+    } else if (ctx.incomplete_utterance === true) {
+      chosen = tryKind("repeat", "unknown_incomplete_repeat")
+        || tryKind("soft_hold", "unknown_incomplete_soft")
+        || _pickRandomPhrase(phrasePool.filter((p) => (p.recovery_action || "") === "soft"));
     }
   }
 
   if (!chosen) {
     const consecutive = before + 1;
     if (consecutive === 1) {
-      const softPool = phrases.filter((p) => (p.recovery_action || "") === "soft");
+      const softPool = phrasePool.filter((p) => (p.recovery_action || "") === "soft");
       if (softPool.length > 0) {
         chosen = _pickRandomPhrase(softPool);
         recovery_trigger_reason = "legacy_soft_first";
@@ -1861,7 +1918,7 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
       }
     }
     if (!chosen && consecutive >= NOT_UNDERSTOOD_MOVE_ON_AFTER) {
-      const moveOnPool = phrases.filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION);
+      const moveOnPool = phrasePool.filter((p) => (p.recovery_action || "") === NOT_UNDERSTOOD_MOVE_ON_ACTION);
       if (moveOnPool.length > 0) {
         chosen = moveOnPool[0];
         recovery_trigger_reason = "legacy_move_on";
@@ -1869,8 +1926,8 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
       }
     }
     if (!chosen) {
-      const rotationPool = phrases.filter((p) => NOT_UNDERSTOOD_ROTATION_ACTION.has(p.recovery_action || ""));
-      const pool = rotationPool.length > 0 ? rotationPool : phrases;
+      const rotationPool = phrasePool.filter((p) => NOT_UNDERSTOOD_ROTATION_ACTION.has(p.recovery_action || ""));
+      const pool = rotationPool.length > 0 ? rotationPool : phrasePool;
       if (avoidPhraseId && pool.length > 1) {
         const i = pool.findIndex((p) => p.id === avoidPhraseId);
         const nextIdx = i >= 0 ? (i + 1) % pool.length : 0;
@@ -1878,7 +1935,7 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
       } else {
         const defaultId = data.default_for_not_understood;
         const found = defaultId ? pool.find((p) => p.id === defaultId) : null;
-        chosen = found || pool[0] || phrases[0];
+        chosen = found || pool[0] || phrasePool[0];
       }
       recovery_trigger_reason = "legacy_rotation";
       repair_kind = chosen.repair_kind || repair_kind;
@@ -1886,7 +1943,7 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
   }
 
   if (!chosen) {
-    chosen = phrases[0];
+    chosen = phrasePool[0];
     recovery_trigger_reason = "emergency_fallback";
     repair_kind = chosen.repair_kind || null;
   }
@@ -1901,6 +1958,7 @@ function selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId }) {
     repair_kind: repair_kind || chosen.repair_kind || null,
     asr_confidence_band: band,
     repeat_repair_count: before,
+    frame_recovery_shown: frameRecoveryShown,
     explicit_recovery_phrase_id: explicit_recovery_phrase_id || null,
     asr_confidence: ctx.asr_confidence,
     partial_match_score: ctx.partial_match_score,
@@ -1974,6 +2032,18 @@ function normalizeForMatch(s) {
   return s.trim().replace(/\s+/g, "").replace(/[。？！，、；：""''\s]/g, "");
 }
 
+/** Single-token fillers / fragments — not substantive answers; avoid persona-stall recovery tone. */
+function isIncompleteLearnerUtterance(transcript) {
+  const raw = (transcript || "").trim();
+  if (!raw) return false;
+  const t = normalizeForMatch(raw);
+  if (!t) return false;
+  const fillers = new Set(["我", "嗯", "啊", "呃", "哦", "喔", "哎", "诶", "这个", "那个", "就是"]);
+  if (fillers.has(t)) return true;
+  if (t.length === 1 && /[\u4e00-\u9fff]/.test(t)) return true;
+  return false;
+}
+
 /**
  * Match recognized transcript to an option (by hanzi or pinyin). Returns the option or null.
  * Phase 9: The speech engine records Chinese accurately; recovery is often triggered when the
@@ -2019,8 +2089,9 @@ function matchTranscriptToOption(transcript, options) {
 function isOpenEndedFrame(frameId) {
   const fid = (frameId || "").trim();
   return new Set([
-    // Identity
+    // Identity (incl. nickname + name-story questions — free-text answers common)
     "f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning",
+    "f_id_friends_call", "f_probe_id_nickname", "f_name_story", "f_name_story_elicit", "f_how_old",
     // Place — life-quality, local character, and leisure questions are all open
     "f_from_where", "frame.location.live_question",
     "f_place_why_like", "f_place_like_there",
@@ -2045,6 +2116,38 @@ const _MIXED_SCRIPT_PLACE_FRAMES = new Set([
   "f_from_where",
 ]);
 
+/** Partner asked how others address the learner — includes legacy p2_id_2 wording. */
+const _NICKNAME_CALL_FRAMES = new Set(["f_id_friends_call", "f_probe_id_nickname", "p2_id_2"]);
+
+function containsLatinNameLikeContent(text) {
+  return typeof text === "string" && /[A-Za-z]{2,}/.test(text);
+}
+
+/** Heuristic: nickname / call-name reply (tolerates 教 misread for 叫). */
+function looksLikeNicknameCallAnswer(transcript, frameId) {
+  if (!_NICKNAME_CALL_FRAMES.has((frameId || "").trim())) return false;
+  const t = (transcript || "").trim();
+  if (!t) return false;
+  if (/叫我|大家叫我|朋友们叫我|朋友叫我/.test(t)) {
+    if (containsLatinNameLikeContent(t)) return true;
+    const afterCall = (t.split(/叫/).pop() || "").replace(/我|的|了|是|说|嘛|呀|哦|喔/g, "");
+    if ((afterCall.match(/[\u4e00-\u9fff]/g) || []).length >= 2) return true;
+  }
+  const subject = /朋友|家里人|家人|他们|他|她|大家|人们|别人/.test(t);
+  const verb = /叫|教/.test(t);
+  const me = /我/.test(t);
+  if (subject && verb && me) {
+    if (containsLatinNameLikeContent(t)) return true;
+    const stripped = t.replace(
+      /我的朋友|人们|别人|朋友|家里人|家人|他们|他|她|大家|一般|通常|都|会|叫|教|我|的|了|是|说|被|怎么|如何|么|嘛|呀|哦|喔|给|被|一般|通常/g,
+      "",
+    );
+    if ((stripped.match(/[\u4e00-\u9fff]/g) || []).length >= 2) return true;
+  }
+  if (/^[A-Za-z][A-Za-z\s.'-]{0,28}[A-Za-z]$/.test(t.trim())) return true;
+  return false;
+}
+
 function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
   const s = (text || "").trim();
   if (!s) return false;
@@ -2054,8 +2157,11 @@ function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
   const latinCount = (s.match(/[A-Za-z]/g) || []).length;
   // Too short in Chinese usually means we likely misheard.
   if (zhCount > 0 && zhCount < 2) return false;
-  // Mixed-script is common for names in identity frames (e.g., Raymond).
-  const identityOpen = new Set(["f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning"]).has(fid);
+  // Mixed-script is common for names in identity frames (e.g., Raymond) and nickname-call questions.
+  const identityOpen = new Set([
+    "f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning",
+    "f_id_friends_call", "f_probe_id_nickname", "f_how_old",
+  ]).has(fid);
   const placeMixedScript = _MIXED_SCRIPT_PLACE_FRAMES.has(fid);
   if (!identityOpen && !placeMixedScript && latinCount > zhCount + 2) return false;
   // Repeated single word noise (e.g., 牛肉牛肉牛肉) should trigger repair.
@@ -2094,8 +2200,9 @@ function semanticSoftMatch(transcript, frameId) {
   if (/(风景|山水|漂亮|好看|很美|美|空气|环境|舒服|安静|不错|挺好|海|湖|山|树|绿)/.test(t)) return true;
   // Foreign city / region names in Latin (Christchurch is longer than Dunedin — same rule as identity mixed-script).
   if (_MIXED_SCRIPT_PLACE_FRAMES.has(fid) && /[\u4e00-\u9fff]/.test(t) && /[A-Za-z]/.test(t)) return true;
-  // Identity nickname question: allow "大家叫我Raymond" style free answers.
-  if (fid === "p2_id_2") {
+  // Identity: how people call you — tolerate ASR / mixed-script name answers.
+  if (_NICKNAME_CALL_FRAMES.has(fid)) {
+    if (looksLikeNicknameCallAnswer(t, fid)) return true;
     if (t.includes("叫我") || t.includes("大家叫")) return true;
     const hasZh = /[\u4e00-\u9fff]/.test(t);
     const hasLatin = /[A-Za-z]/.test(t);
@@ -2255,6 +2362,15 @@ function syncPartnerHeaderWhenFrameSentenceIsPrimary() {
   else _updatePartnerHeader("", "", "");
 }
 
+/** Show or clear the always-visible English translation below the active frame sentence. */
+function _setFrameEnglish(enText) {
+  const el = document.getElementById("frameEnglish");
+  if (!el) return;
+  const t = (enText || "").trim();
+  el.textContent = t;
+  el.style.display = t ? "block" : "none";
+}
+
 /**
  * Set the active conversation area to show a partner statement (e.g. "你呢？" or recovery phrase).
  * When turnUidForHint is provided, renders clickable tokens. Optional segments can supply word_id
@@ -2273,6 +2389,7 @@ function setActivePartnerStatement(text, turnUidForHint, segments) {
   syncPartnerHeaderWhenFrameSentenceIsPrimary();
   if (!turnUidForHint) {
     el.textContent = str;
+    _setFrameEnglish("");
     return;
   }
   const turnUid = turnUidForHint;
@@ -3597,6 +3714,8 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
     // Tap the card to use it (speaker click excluded)
     panel.addEventListener("click", async (ev) => {
       if (ev.target.closest(".op-icon-btn")) return;
+      _tracker.recovery_uses++;
+      _tracker._pendingRecovery = true;
       emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
         payload: { frame_id: frameId, card_id: "recovery:" + (phrase.id || ""), kind: "RECOVERY" } });
       targetContainer.querySelectorAll(".option-panel").forEach((p) => p.classList.remove("selected"));
@@ -4032,6 +4151,8 @@ function renderOptions(options, frameId) {
       // Phase 8: append user answer, then advance to next turn so the server picks the next partner line
       // (e.g. 很高兴认识你。 or 你的名字是什么意思？) instead of staying on hardcoded "你呢？"
       // Phase 10: record last_answer for fact-capture (server stores by learner_id)
+      _trackUserTextSignals(userText);
+      _tracker.suggestion_clicks++;
       window._lastAnswer = { frame_id: frameId, selected_option_hanzi: userText, selected_option_meaning: opt.meaning || undefined };
       addTranscriptEntry("user", userText, { text_en: opt.meaning || "" });
       renderTranscript();
@@ -4186,6 +4307,7 @@ function renderSentenceOptions(sentenceOptions, frameId) {
       if (ev.target.closest(".word-insight-token")) return;
       emitUITrace({ type: "SENTENCE_OPTION_SELECTED", timestamp: new Date().toISOString(),
         payload: { frame_id: frameId, text: hanziStr, topic: opt.topic || null } });
+      _tracker.suggestion_clicks++;
       container.querySelectorAll(".option-panel").forEach(p => p.classList.remove("selected"));
       panel.classList.add("selected");
       if (opt.topic) {
@@ -4253,6 +4375,7 @@ function applyPartnerStubToActiveSentence(stub, data, turnUid) {
     pinyin: fillSentenceHintPinyin(t, data?.frame_pinyin),
     text_en: data?.frame_text_en != null ? String(data.frame_text_en).trim() : "",
   };
+  _setFrameEnglish(window._sentenceHint.text_en);
   lastClickedWordId = null;
   window.lastClickedWordId = null;
   window._currentHintAffordance = { visible: true };
@@ -4528,6 +4651,7 @@ async function startFreshLearner() {
   window._lastInterestLevel      = "low";
   window._lastUserText           = "";
   window._unmatchedByFrame       = {};
+  window._recoveryPromptsByFrame = {};
   window._consecutiveNotUnderstood = 0;
   window._lastRepairKind          = null;
   window._prevRepairKind          = null;
@@ -4568,6 +4692,20 @@ async function startFreshLearner() {
     document.getElementById("actionLadder")?.prepend(statusEl);
   }
   setTimeout(() => { statusEl.textContent = ""; }, 4000);
+
+  // Reset session tracker — preserve mode based on current challenge state
+  // (challenge button stays toggled; a fresh start begins a new tracked session in the same mode)
+  _tracker.total_turns = 0;
+  _tracker.recovery_uses = 0;
+  _tracker.successful_recoveries = 0;
+  _tracker.suggestion_clicks = 0;
+  _tracker.card_opens = 0;
+  _tracker.questions_asked = 0;
+  _tracker.depth_responses = 0;
+  _tracker.unmatched_responses = 0;
+  _tracker.engines_used = new Set();
+  _tracker._pendingRecovery = false;
+  _tracker.mode = _challenge.active ? "challenge" : "normal";
 }
 
 /**
@@ -4766,6 +4904,26 @@ async function _runTurnInner(isNext = false, opts = {}) {
   const frameId = data.frame_id || selected;
   const engineId = data.engine_id ?? (payload.engine_id || engineIdFromDropdown);
 
+  // ── Session tracker hooks (observational only — do not gate any conversation logic on these) ──
+  // Count user-submitted turns only (same gate as _exchangeCount).
+  // "Next"-driven advances and bridge/probe auto-advances do not set last_turn_was_answer.
+  if (opts?.last_turn_was_answer === true) {
+    _tracker.total_turns++;
+  }
+  // Track every engine ID returned by the server (includes recovery-driven advances).
+  if (engineId) _tracker.engines_used.add(engineId.toLowerCase());
+  // _pendingRecovery: check whether this turn was routed to a real frame.
+  // Using data.frame_id (before the || selected fallback) as a conservative proxy for
+  // "server returned a genuine continuation frame, not a stub or closing response".
+  // TODO: data.frame_id is not a guaranteed accepted/routed signal — the server could
+  //       return a frame_id for a closing or soft-fallback stub too. Revisit once a
+  //       dedicated "turn_accepted" field is confirmed in /api/run_turn responses.
+  if (_tracker._pendingRecovery) {
+    if (data.frame_id) _tracker.successful_recoveries++;
+    _tracker._pendingRecovery = false; // always clear regardless of outcome
+  }
+  // ── end session tracker hooks ──
+
   // Phase 9.1: update conversation state from response so Next has correct state
   window._currentEngineId = engineId;
   window._lastPartnerFrameId = frameId;
@@ -4826,6 +4984,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
     setActivePartnerStatement(_counterReply, payload.turn_uid || "counter_reply");
     // Override _sentenceHint so the ? button shows the persona answer's EN, not the next question's EN.
     window._sentenceHint = { pinyin: fillSentenceHintPinyin(_counterReply, _counterReplyPinyin), text_en: _counterReplyEn };
+    _setFrameEnglish(_counterReplyEn);
   } else {
     // No counter_reply — render the app's next question into the main frame as normal.
     renderFrameSentence({ id: frameId, text: fallbackText });
@@ -4914,6 +5073,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
       pinyin: fillSentenceHintPinyin(fallbackText, data.frame_pinyin),
       text_en: data.frame_text_en ?? "",
     };
+    _setFrameEnglish(window._sentenceHint.text_en);
   }
   lastClickedWordId = null;
   window.lastClickedWordId = null;
@@ -5167,7 +5327,10 @@ window.addEventListener("load", async () => {
       btn.title = "Speak your answer";
     }
     if (matchedOption) {
-      if (frameId) window._unmatchedByFrame[frameId] = 0;
+      if (frameId) {
+        window._unmatchedByFrame[frameId] = 0;
+        delete window._recoveryPromptsByFrame[frameId];
+      }
       window._consecutiveNotUnderstood = 0;
       window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
       window._lastRepairKind = null; window._prevRepairKind = null;
@@ -5186,6 +5349,7 @@ window.addEventListener("load", async () => {
       addTranscriptEntry("user", (matchedOption.hanzi || "").trim(), { text_en: matchedOption.meaning || "" });
       renderTranscript();
       const saidText = (matchedOption.hanzi || "").trim();
+      _trackUserTextSignals(saidText);
       // If the SPOKEN text (not the matched card) contained a turn-around phrase, preserve it
       // as submitted_text so the server can detect the counter-question.  Without this, the
       // "你呢" part of "我喜欢工作，你呢？" is swallowed when an option card matched the first part.
@@ -5241,7 +5405,10 @@ window.addEventListener("load", async () => {
     ) {
       window._lastAcceptedAsrKey = _asrDedupKey;
       window._lastAcceptedAsrTime = _now;
-      if (frameId) window._unmatchedByFrame[frameId] = 0;
+      if (frameId) {
+        window._unmatchedByFrame[frameId] = 0;
+        delete window._recoveryPromptsByFrame[frameId];
+      }
       window._consecutiveNotUnderstood = 0;
       window._recentConfusionCount = 0;
       window._lastRepairKind = null; window._prevRepairKind = null;
@@ -5250,6 +5417,7 @@ window.addEventListener("load", async () => {
         timestamp: new Date().toISOString(),
         payload: { transcript: saidTrimmed, frame_id: frameId },
       });
+      _trackUserTextSignals(saidTrimmed);
       addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
       window._lastAnswer = { frame_id: frameId, submitted_text: saidTrimmed };
@@ -5276,7 +5444,10 @@ window.addEventListener("load", async () => {
     if (substantialAnswer) {
       window._lastAcceptedAsrKey  = _asrDedupKey;
       window._lastAcceptedAsrTime = _now;
-      if (frameId) window._unmatchedByFrame[frameId] = 0;
+      if (frameId) {
+        window._unmatchedByFrame[frameId] = 0;
+        delete window._recoveryPromptsByFrame[frameId];
+      }
       window._consecutiveNotUnderstood = 0;
       window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
       window._lastRepairKind = null; window._prevRepairKind = null;
@@ -5306,6 +5477,7 @@ window.addEventListener("load", async () => {
         || /你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(saidTrimmed);
       // Ensure trailing "？" so server _is_user_question reliably fires
       const submittedForServer = _isTurnAround && !/[？?]$/.test(saidTrimmed) ? saidTrimmed + "？" : saidTrimmed;
+      _trackUserTextSignals(saidTrimmed);
       addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
       window._lastAcceptedFreeTranscript = saidTrimmed;
@@ -5333,12 +5505,16 @@ window.addEventListener("load", async () => {
       return;
     }
     // Not understood: update conversation with what we heard and partner's recovery (Phase 9: improve decision so reasonable answers aren't treated as not understood)
+    _tracker.unmatched_responses++; // unmatchedDecision.accept === false
+    const _frameRecShown = frameId ? (window._recoveryPromptsByFrame?.[frameId] || 0) : 0;
     const recoveryCtx = computeRecoveryTriggerContext({
       transcript: saidTrimmed,
       options,
       asr_confidence,
       frame_id: frameId,
       repeat_repair_count: window._consecutiveNotUnderstood || 0,
+      frame_recovery_shown: _frameRecShown,
+      incomplete_utterance: isIncompleteLearnerUtterance(saidTrimmed),
     });
     const lastRecoveryId = window._lastRecoveryPhraseId || null;
     const phrase = getRecoveryPhraseForNotUnderstood(lastRecoveryId, recoveryCtx);
@@ -5355,11 +5531,15 @@ window.addEventListener("load", async () => {
         repair_kind: phrase.recovery_trace?.repair_kind,
         asr_confidence_band: phrase.recovery_trace?.asr_confidence_band,
         repeat_repair_count: phrase.recovery_trace?.repeat_repair_count,
+        frame_recovery_shown_before: _frameRecShown,
         explicit_recovery_phrase_id: phrase.recovery_trace?.explicit_recovery_phrase_id,
         asr_confidence: phrase.recovery_trace?.asr_confidence,
       },
     });
     if (frameId) window._unmatchedByFrame[frameId] = unmatchedCount + 1;
+    if (frameId) {
+      window._recoveryPromptsByFrame[frameId] = _frameRecShown + 1;
+    }
     addTranscriptEntry("user", (transcript && transcript.trim()) ? transcript.trim() : "[couldn't understand]");
     window._lastRecoveryPhraseId = phrase.id;
     addTranscriptEntry("partner", phrase.hanzi, {
@@ -5374,12 +5554,14 @@ window.addEventListener("load", async () => {
       text_en: phrase.text_en,
       etymology: phrase.etymology || "",
     };
+    _setFrameEnglish(phrase.text_en);
     lastClickedWordId = null;
     window.lastClickedWordId = null;
     hint_cascade_state = { level: 0, turn_uid: "recovery" };
     renderHintAffordance({ visible: true }, "recovery", "tap");
     if (phrase.recovery_action === "next_turn") {
       window._consecutiveNotUnderstood = 0;
+      if (frameId) delete window._recoveryPromptsByFrame[frameId];
       setUiMode("READ");
       ttsSpeak({
         text: phrase.hanzi,
@@ -5443,6 +5625,7 @@ function _challengeRevealText() {
 
 function toggleChallengeMode() {
   _challenge.active = !_challenge.active;
+  _tracker.mode = _challenge.active ? "challenge" : "normal";
   document.body.classList.toggle("challenge-mode", _challenge.active);
   const btn = document.getElementById("challengeModeBtn");
   if (btn) {
@@ -5615,6 +5798,7 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
               });
               renderTranscript();
               window._sentenceHint = { pinyin: fillSentenceHintPinyin(pending, meta.pinyin || ""), text_en: meta.text_en || "" };
+              _setFrameEnglish(meta.text_en || "");
               syncPartnerHeaderWhenFrameSentenceIsPrimary();
               renderFrameSentence({ id: meta.frame_id || "", text: pending });
               ttsSpeak({ text: pending, lang: "zh-CN" });
@@ -5650,6 +5834,7 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
       });
       renderTranscript();
       window._sentenceHint = { pinyin: fillSentenceHintPinyin(pending, meta.pinyin || ""), text_en: meta.text_en || "" };
+      _setFrameEnglish(meta.text_en || "");
       syncPartnerHeaderWhenFrameSentenceIsPrimary();
       renderFrameSentence({ id: meta.frame_id || "", text: pending });
       ttsSpeak({ text: pending, lang: "zh-CN" });
@@ -5731,12 +5916,52 @@ async function submitDiscoveryQuestion(q) {
   const useBtn         = document.getElementById("useTranslationBtn");
   if (!engInput || !translateBtn || !engResult || !engTranslated || !useBtn) return;
 
+  const engTranslatedPy = document.getElementById("engTranslatedPy");
+
+  function _setTranslationPinyin(zh) {
+    if (!engTranslatedPy) return;
+    const py = (typeof buildSentencePinyinFromLexicon === "function")
+      ? buildSentencePinyinFromLexicon(zh)
+      : "";
+    engTranslatedPy.textContent = py;
+    engTranslatedPy.style.display = py ? "block" : "none";
+  }
+
+  /** Render zh as clickable explore-word tokens inside #engTranslatedZh. */
+  function _renderTranslationTokens(zh) {
+    while (engTranslated.firstChild) engTranslated.removeChild(engTranslated.firstChild);
+    const segs = (typeof tokenizeHanziForOption === "function")
+      ? tokenizeHanziForOption(zh, {})
+      : [{ t: zh, word_id: null }];
+    for (const seg of segs) {
+      const span = document.createElement("span");
+      span.textContent = seg.t || "";
+      const isCjk = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(seg.t || "");
+      if (isCjk) {
+        span.className = seg.word_id
+          ? "tok tok-word word-insight-token"
+          : "tok tok-word tok-word-unknown word-insight-token";
+        span.dataset.insightSource = "translate_result";
+        if (seg.word_id) span.dataset.wordId = seg.word_id;
+        span.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          lastClickedWordId = seg.word_id || null;
+          window.lastClickedWordId = lastClickedWordId;
+          _openWordInsightPopover(span, seg.word_id || null, seg.t || "", "translate_result");
+          if (seg.word_id && _shouldAlsoOpenCardPanel()) await _openCardForWordId(seg.word_id);
+        });
+      }
+      engTranslated.appendChild(span);
+    }
+  }
+
   async function doTranslate() {
     const text = engInput.value.trim();
     if (!text) return;
     translateBtn.disabled = true;
     translateBtn.textContent = "…";
     engResult.style.display = "none";
+    if (engTranslatedPy) { engTranslatedPy.textContent = ""; engTranslatedPy.style.display = "none"; }
     try {
       const url = "https://api.mymemory.translated.net/get?q=" +
                   encodeURIComponent(text) + "&langpair=en%7Czh";
@@ -5744,16 +5969,19 @@ async function submitDiscoveryQuestion(q) {
       const data = await res.json();
       const zh = (data?.responseData?.translatedText || "").trim();
       if (zh && zh !== text) {
-        engTranslated.textContent = zh;
+        _renderTranslationTokens(zh);
+        _setTranslationPinyin(zh);
         engResult.style.display = "flex";
         // Auto-play so the user hears pronunciation immediately
         ttsSpeak({ text: zh, lang: "zh-CN" });
       } else {
         engTranslated.textContent = "（翻译失败，请再试）";
+        if (engTranslatedPy) { engTranslatedPy.textContent = ""; engTranslatedPy.style.display = "none"; }
         engResult.style.display = "flex";
       }
     } catch (_) {
       engTranslated.textContent = "（无法连接翻译服务）";
+      if (engTranslatedPy) { engTranslatedPy.textContent = ""; engTranslatedPy.style.display = "none"; }
       engResult.style.display = "flex";
     } finally {
       translateBtn.disabled = false;
@@ -5856,6 +6084,146 @@ window.SystemFaultLog          = SystemFaultLog;
 window.buildDiagnosticCompleted = buildDiagnosticCompleted;
 window.hint_cascade_state   = hint_cascade_state;
 window.renderHintAffordance = renderHintAffordance;
+
+// ── Session scorecard ─────────────────────────────────────────────────────────
+
+/**
+ * Render the six scorecard metrics as a modal overlay.
+ * Accepts the full /api/end_session response object.
+ * Removed on close; re-entrant (removes any previous overlay first).
+ */
+function renderScorecard(response) {
+  if (!response || !response.metrics) return;
+  const m    = response.metrics;
+  const mode = (response.mode || "normal");
+
+  // Remove any leftover overlay from an older session (defensive)
+  const prev = document.getElementById("scorecardOverlay");
+  if (prev) prev.remove();
+
+  const content = document.getElementById("scorecardContent");
+  if (!content) {
+    console.warn("[renderScorecard] #scorecardContent not found");
+    return;
+  }
+
+  content.innerHTML = "";
+  content.classList.remove("scorecard-placeholder");
+
+  // Mode badge
+  const modeBadge = document.createElement("div");
+  modeBadge.className = "sc-mode-badge";
+  modeBadge.textContent = mode === "challenge" ? "Challenge Mode" : "Normal Mode";
+  content.appendChild(modeBadge);
+
+  // Metric rows: [ rawText, label, meaning ]
+  const rows = [
+    [
+      `${m.flow.raw} turns`,
+      m.flow.label,
+      "How long you kept the conversation going",
+    ],
+    [
+      `${m.recovery.raw_uses} recoveries (${m.recovery.raw_successes} successful)`,
+      m.recovery.label,
+      "How well you got unstuck",
+    ],
+    [
+      `${m.support.raw_uses} support uses`,
+      m.support.label,
+      "How much help you used",
+    ],
+    [
+      `${m.participation.raw} questions`,
+      m.participation.label,
+      "Whether you only answered or also drove the conversation",
+    ],
+    [
+      `${m.depth.raw} extended answers`,
+      m.depth.label,
+      "Whether you went beyond short answers",
+    ],
+    [
+      `${m.stability.raw_unmatched} unmatched responses`,
+      m.stability.label,
+      "How often the system could not understand or route your response",
+    ],
+  ];
+
+  rows.forEach(([rawText, label, meaning]) => {
+    const row = document.createElement("div");
+    row.className = "sc-row";
+
+    const top = document.createElement("div");
+    top.className = "sc-row-top";
+
+    const rawEl = document.createElement("span");
+    rawEl.className = "sc-raw";
+    rawEl.textContent = rawText;
+
+    const sep = document.createElement("span");
+    sep.className = "sc-sep";
+    sep.textContent = "→";
+
+    const labelEl = document.createElement("span");
+    labelEl.className = "sc-label";
+    labelEl.textContent = label;
+
+    top.appendChild(rawEl);
+    top.appendChild(sep);
+    top.appendChild(labelEl);
+
+    const meaningEl = document.createElement("div");
+    meaningEl.className = "sc-meaning";
+    meaningEl.textContent = meaning;
+
+    row.appendChild(top);
+    row.appendChild(meaningEl);
+    content.appendChild(row);
+  });
+}
+
+/**
+ * Collect the current session tracker, POST it to /api/end_session,
+ * log the response to console, and render the scorecard overlay.
+ * Intentionally read-only with respect to conversation state.
+ */
+async function endSession() {
+  const t = _tracker;
+  const payload = {
+    session_id:            window._sessionId || "",
+    mode:                  t.mode,
+    total_turns:           t.total_turns,
+    recovery_uses:         t.recovery_uses,
+    successful_recoveries: t.successful_recoveries,
+    suggestion_clicks:     t.suggestion_clicks,
+    card_opens:            t.card_opens,
+    questions_asked:       t.questions_asked,
+    depth_responses:       t.depth_responses,
+    unmatched_responses:   t.unmatched_responses,
+    engines_used:          Array.from(t.engines_used),
+  };
+
+  let result = null;
+  try {
+    const res = await fetch("/api/end_session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    result = await res.json();
+  } catch (err) {
+    console.error("[endSession] request failed:", err);
+    return null;
+  }
+
+  console.log("[endSession] scorecard result:", result);
+  if (result?.ok) renderScorecard(result);
+  return result;
+}
+
+window.endSession    = endSession;
+window.renderScorecard = renderScorecard;
 
 
 

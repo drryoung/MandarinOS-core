@@ -11,6 +11,7 @@ from typing import List, Optional
 from urllib.parse import urlparse, parse_qs
 import mimetypes
 import os
+import datetime
 
 # Ensure stdout can handle non-ASCII (Chinese) characters on Windows cp1252 terminals.
 if hasattr(sys.stdout, "reconfigure"):
@@ -425,8 +426,8 @@ _FRAME_AFTER: dict = {
     "f_ask_name_meaning": ["f_ask_you_name"],  # don't ask name meaning before asking name
     # Identity follow-up assumes a name exists
     "p2_id_2": ["f_ask_you_name"],
-    # Story elicitation only makes sense after the story question was asked
-    "f_name_story_elicit": ["p2_id_ext1"],
+    # Story elicitation only after the name-story question (not p2_id_ext1 — that blocked the elicit in identity ladder).
+    "f_name_story_elicit": ["f_name_story"],
     # "Why's that?" only makes sense after the future-plans question has been asked
     "f_probe_work_why_quit": ["f_probe_work_future"],
 }
@@ -1444,8 +1445,29 @@ def _looks_food_related_answer(text: str) -> bool:
 def _looks_travel_related_answer(text: str) -> bool:
     if not text:
         return False
-    cues = ("去过", "想去", "旅行", "旅游", "国家", "城市", "地方", "机票", "景点", "出国")
+    cues = ("去过", "想去", "旅行", "旅游", "国家", "城市", "机票", "景点", "出国")
     return any(c in text for c in cues)
+
+
+# High-confidence travel-enthusiasm signals — used to override engine dwell when the
+# learner explicitly expresses a preference or habit for travel (not just a mention).
+# Only fires when the TRAVEL slot is ALSO detected (double-gated for precision).
+_STRONG_TRAVEL_SIGNALS: frozenset = frozenset([
+    "很喜欢旅行", "很喜欢旅游",
+    "爱旅行", "爱旅游",
+    "常常旅行", "常常旅游",
+    "经常旅行", "经常旅游",
+    "喜欢旅行", "喜欢旅游",
+    "喜欢去别的地方", "喜欢去其他地方", "喜欢去不同的地方",
+    "常旅行", "常旅游",
+])
+
+
+def _has_strong_travel_signal(text: str) -> bool:
+    """Return True when the learner's answer contains an explicit travel-enthusiasm phrase."""
+    if not text:
+        return False
+    return any(kw in text for kw in _STRONG_TRAVEL_SIGNALS)
 
 
 def _is_unscripted_substantive_answer(last_answer: Optional[dict], slot_names: List[str]) -> bool:
@@ -1478,6 +1500,32 @@ def _normalize_frame_id(fid: str) -> str:
     return f
 
 
+def _is_name_story_teaser_answer(text: str) -> bool:
+    """True when the learner only hedges that a story exists without telling it (identity f_name_story)."""
+    raw = (text or "").strip()
+    if not raw:
+        return False
+    t = raw.replace(" ", "").rstrip("。.").strip()
+    if not t:
+        return False
+    if len(t) > 16:
+        return False
+    depth_markers = (
+        "因为", "所以", "爷爷", "奶奶", "父母", "爸爸", "妈妈", "给我", "起的", "取的",
+        "小名", "学名", "出生", "时候", "那年",
+    )
+    if any(m in t for m in depth_markers):
+        return False
+    if t in (
+        "有一个小故事", "有一个故事", "有一点故事", "有小故事", "有故事", "有一点儿故事",
+        "有点儿故事", "有个故事", "有个小故事", "有一点小故事", "有", "有有",
+    ):
+        return True
+    if "故事" in t and t.startswith("有") and len(t) <= 12:
+        return True
+    return False
+
+
 def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
     """Best-effort: infer slot names from the user's answer frame (question frame_id in last_answer)."""
     if not last_answer or not isinstance(last_answer, dict):
@@ -1489,7 +1537,7 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
     txt = _answer_text_from_last_answer(last_answer)
 
     slots: List[str] = []
-    if fid in ("f_ask_you_name", "p2_id_2", "f_ask_name_meaning"):
+    if fid in ("f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "f_id_friends_call", "f_probe_id_nickname", "f_name_story"):
         slots.append("NAME")
     if fid in ("f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5"):
         slots.append("JOB")
@@ -1530,6 +1578,7 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
     _identity_frame_ids = frozenset({
         "f_ask_you_name", "p2_id_2", "f_ask_name_meaning", "p2_id_ext1",
         "p2_id_4", "p2_id_5", "f_name_who_named", "f_name_story_elicit",
+        "f_id_friends_call", "f_probe_id_nickname", "f_name_story",
         "frame.greeting.hello", "frame.greeting.hello_reply", "f_nice_to_meet",
     })
     _is_identity_frame = fid in _identity_frame_ids
@@ -2017,6 +2066,28 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
             return f"像{ht}这样的地方，历史就很长。你慢慢会发现很多细节。"
         return "很多地方都有很长的历史，你慢慢看会发现很多细节。"
 
+    # Distance / travel time / transport questions
+    if any(p in t for p in ("离那边远吗", "离那边", "离那里远", "离北京远", "离上海远", "离成都远", "离广州远")):
+        dp = (persona or {}).get("distance_profile") or {}
+        zh_pre = (dp.get("zh") or "").strip()
+        if zh_pre:
+            return zh_pre
+        far = (dp.get("far_level") or "不算太远").strip()
+        ref = (dp.get("reference") or "那边").strip()
+        ht = ((persona or {}).get("profile") or {}).get("hometown") or ""
+        return f"{ht}离{ref}{far}。" if ht else "不算太远。"
+
+    if any(p in t for p in ("要多久", "多久到", "需要多长时间", "多长时间")):
+        dp = (persona or {}).get("distance_profile") or {}
+        time_val = (dp.get("time") or "几个小时").strip()
+        transport = (dp.get("transport") or "交通工具").strip()
+        return f"坐{transport}要{time_val}左右。"
+
+    if any(p in t for p in ("怎么去", "坐什么去", "怎样去")):
+        dp = (persona or {}).get("distance_profile") or {}
+        transport = (dp.get("transport") or "高铁").strip()
+        return f"一般坐{transport}去。"
+
     return None
 
 
@@ -2404,6 +2475,10 @@ _CROSS_ENGINE_SLOT_WITHIN_ENGINE: dict = {
     # CITY disclosed while in TRAVEL engine (e.g. "I've been to Paris") →
     # ask about travel destination via travel engine frame, not place engine.
     ("CITY", "travel"):  ["f_travel_special"],
+    # TRAVEL disclosed while in PLACE engine (e.g. "我想去中国") →
+    # ask where they most want to go (place-engine frame) rather than falling
+    # through to f_live_with_who, which is topically unrelated.
+    ("TRAVEL", "place"): ["f_place_want_visit"],
     # FAMILY disclosed while in WORK engine (e.g. "my wife works there too") →
     # no within-engine alternative exists; ladder takes over.
 }
@@ -2973,6 +3048,29 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
             en = _vl_en("place")
         return (zh, en)
 
+    if topic in ("place_distance_ref", "place_distance_time", "place_distance_transport"):
+        dp = persona.get("distance_profile") or {}
+        zh_pre = (dp.get("zh") or "").strip()
+        en_pre = (dp.get("en") or "").strip()
+        if topic == "place_distance_ref":
+            if zh_pre:
+                return (zh_pre, en_pre)
+            far = (dp.get("far_level") or "不算太远").strip()
+            ref = (dp.get("reference") or city_home or "那边").strip()
+            zh = f"{city_home}离{ref}{far}。" if city_home else "不算太远。"
+            return (zh, f"It's {far} from {ref}." if ref else "Not too far.")
+        if topic == "place_distance_time":
+            t_val = (dp.get("time") or "几个小时").strip()
+            transport = (dp.get("transport") or "交通工具").strip()
+            zh = f"坐{transport}要{t_val}左右。"
+            en = f"About {t_val} by {transport}."
+            return (zh, en)
+        if topic == "place_distance_transport":
+            transport = (dp.get("transport") or "高铁").strip()
+            zh = f"一般坐{transport}去。"
+            en = f"Usually by {transport}."
+            return (zh, en)
+
     if topic in ("place_from", "place_like", "place_special", "place_far", "place_far_or_not", "place_never_been"):
         fact = (facts.get("place") or "").strip()
         if topic == "place_special":
@@ -3107,6 +3205,9 @@ def _topic_to_fact_key(topic: str) -> str:
         "place_never_been":"place",
         "place_live_now":  "place",
         "place_hometown":  "place",
+        "place_distance_ref":       "place",
+        "place_distance_time":      "place",
+        "place_distance_transport": "place",
         "travel_where":    "travel",
         "travel_fav":      "travel",
         "travel_memorable":"travel",
@@ -3698,6 +3799,133 @@ def _stub_card_id(frame_id: str):
     return None
 
 
+# ── Scorecard helpers (session summary only — not runtime scoring) ──────────
+# These functions are called only by /api/end_session and never touch the
+# conversation selector, frame engine, or any turn-level runtime logic.
+
+_PROGRESS_HISTORY_PATH = REPO_ROOT / "data" / "progress_history.json"
+
+
+def _scorecard_flow(total_turns: int) -> dict:
+    n = total_turns
+    if n <= 5:
+        label = "Short"
+    elif n <= 10:
+        label = "Holding"
+    elif n <= 18:
+        label = "Sustained"
+    else:
+        label = "Natural"
+    return {"raw": n, "label": label}
+
+
+def _scorecard_recovery(recovery_uses: int, successful_recoveries: int) -> dict:
+    uses = recovery_uses
+    successes = min(successful_recoveries, uses)  # guard: successes cannot exceed uses
+    rate = round(successes / uses, 3) if uses > 0 else None
+    if uses == 0:
+        label = "Smooth"
+    elif uses <= 3 and rate is not None and rate >= 0.70:
+        label = "Recovered smoothly"
+    elif uses <= 7 and rate is not None and rate >= 0.50:
+        label = "Recovered with effort"
+    else:
+        label = "Struggling to recover"
+    return {"raw_uses": uses, "raw_successes": successes, "rate": rate, "label": label}
+
+
+def _scorecard_support(suggestion_clicks: int, card_opens: int, total_turns: int) -> dict:
+    support_uses = suggestion_clicks + card_opens
+    per_turn = round(support_uses / total_turns, 3) if total_turns > 0 else 0.0
+    if per_turn <= 0.15:
+        label = "Independent"
+    elif per_turn <= 0.40:
+        label = "Lightly supported"
+    elif per_turn <= 0.80:
+        label = "Assisted"
+    else:
+        label = "Heavily guided"
+    return {"raw_uses": support_uses, "per_turn": per_turn, "label": label}
+
+
+def _scorecard_participation(questions_asked: int) -> dict:
+    n = questions_asked
+    if n == 0:
+        label = "Responding only"
+    elif n <= 2:
+        label = "Occasional questions"
+    elif n <= 5:
+        label = "Active participant"
+    else:
+        label = "Leading the conversation"
+    return {"raw": n, "label": label}
+
+
+def _scorecard_depth(depth_responses: int) -> dict:
+    n = depth_responses
+    if n == 0:
+        label = "Basic answers"
+    elif n <= 2:
+        label = "Some extension"
+    elif n <= 5:
+        label = "Explaining ideas"
+    else:
+        label = "Expressive speaker"
+    return {"raw": n, "label": label}
+
+
+def _scorecard_stability(unmatched_responses: int, total_turns: int) -> dict:
+    n = unmatched_responses
+    rate = round(n / total_turns, 3) if total_turns > 0 else 0.0
+    if rate <= 0.10:
+        label = "Stable"
+    elif rate <= 0.25:
+        label = "Some friction"
+    elif rate <= 0.45:
+        label = "Unstable"
+    else:
+        label = "Breaking down"
+    return {"raw_unmatched": n, "rate": rate, "label": label}
+
+
+def _compute_scorecard(sess: dict) -> dict:
+    """Compute all six scorecard metrics from a raw session object.
+    All fields default to 0 if absent; total_turns=0 does not crash."""
+    total_turns           = max(0, int(sess.get("total_turns",           0) or 0))
+    recovery_uses         = max(0, int(sess.get("recovery_uses",         0) or 0))
+    successful_recoveries = max(0, int(sess.get("successful_recoveries", 0) or 0))
+    suggestion_clicks     = max(0, int(sess.get("suggestion_clicks",     0) or 0))
+    card_opens            = max(0, int(sess.get("card_opens",            0) or 0))
+    questions_asked       = max(0, int(sess.get("questions_asked",       0) or 0))
+    depth_responses       = max(0, int(sess.get("depth_responses",       0) or 0))
+    unmatched_responses   = max(0, int(sess.get("unmatched_responses",   0) or 0))
+    return {
+        "flow":          _scorecard_flow(total_turns),
+        "recovery":      _scorecard_recovery(recovery_uses, successful_recoveries),
+        "support":       _scorecard_support(suggestion_clicks, card_opens, total_turns),
+        "participation": _scorecard_participation(questions_asked),
+        "depth":         _scorecard_depth(depth_responses),
+        "stability":     _scorecard_stability(unmatched_responses, total_turns),
+    }
+
+
+def _append_progress_history(record: dict) -> None:
+    """Append a challenge-mode session record to data/progress_history.json.
+    Creates the file if absent; never overwrites existing records."""
+    path = _PROGRESS_HISTORY_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    history: list = []
+    if path.is_file():
+        try:
+            parsed = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(parsed, list):
+                history = parsed
+        except Exception:
+            history = []
+    history.append(record)
+    path.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 # ── HTTP Handler ──────────────────────────────────────────────────────────────
 class Handler(BaseHTTPRequestHandler):
 
@@ -3998,6 +4226,18 @@ class Handler(BaseHTTPRequestHandler):
                     meaningful = True
                 unscripted_probe_first = last_turn_was_answer and (not user_asked_question) and _is_unscripted_substantive_answer(last_answer, slot_names)
                 weak_reply = last_turn_was_answer and len(answer_text) <= 2
+                # Strong travel intent override: if the learner explicitly expresses travel
+                # enthusiasm (e.g. "我很喜欢旅行") AND the TRAVEL slot is detected, bridge
+                # immediately to the travel engine rather than continuing the current engine's
+                # ladder. Fires only when not already in travel engine and the answer is not
+                # a question. Double-gated (slot + strong signal) for precision.
+                force_travel_bridge = (
+                    last_turn_was_answer
+                    and not user_asked_question
+                    and current_engine != "travel"
+                    and "TRAVEL" in slot_names
+                    and _has_strong_travel_signal(answer_text)
+                )
                 # Phase 13B: accumulate seeded bridge engines from this turn's disclosures.
                 if last_turn_was_answer and answer_text:
                     _new_seeds = _infer_cross_engine_seeds(slot_names, answer_text, current_engine, last_fid=last_answer_fid)
@@ -4334,6 +4574,23 @@ class Handler(BaseHTTPRequestHandler):
                         listening_move_reason = "food_followup_priority"
                         pending_listening_move = False
                         listening_wait_turns = 0
+                elif force_travel_bridge:
+                    _ftb_frame = _select_next_frame_bridge(
+                        current_engine, recent,
+                        memory=memory, exchange_count=exchange_count,
+                        engines_visited=engines_visited,
+                        seeded_bridge_engines=["travel"],
+                    )
+                    if _ftb_frame:
+                        chosen = _ftb_frame
+                        chosen_turn_type = "question"
+                        listening_move_selected = "bridge"
+                        listening_move_reason = "strong_travel_intent"
+                        pending_listening_move = False
+                        listening_wait_turns = 0
+                        print(f"[travel_override] strong_travel_intent → bridging to {chosen} (from {current_engine})", flush=True)
+                    else:
+                        print(f"[travel_override] strong_travel_intent fired but no travel frame available (engine={current_engine})", flush=True)
                 # EFC: Entity Follow-Up Chain — ask targeted questions about a specific family member.
                 # Fires when: family engine, entity detected/carried, not user question, depth allows.
                 if (chosen is None and last_turn_was_answer and (not user_asked_question)
@@ -4351,6 +4608,19 @@ class Handler(BaseHTTPRequestHandler):
                         listening_move_reason = f"efc_family_{_efc_entity_state.get('value','')}"
                         pending_listening_move = False
                         listening_wait_turns = 0
+
+                # Name-story teaser → one elicit ("什么故事？") before age / ladder advance.
+                if chosen is None and last_turn_was_answer and (not user_asked_question):
+                    if last_answer_fid == "f_name_story" and _is_name_story_teaser_answer(answer_text):
+                        _recent_eff = set(recent or [])
+                        _elicit = "f_name_story_elicit"
+                        if _elicit not in _recent_eff and _frame_deps_satisfied(_elicit, _recent_eff, list(recent or [])):
+                            chosen = _elicit
+                            chosen_turn_type = "question"
+                            listening_move_selected = "name_story_teaser"
+                            listening_move_reason = "teaser_answer_needs_elicit"
+                            pending_listening_move = False
+                            listening_wait_turns = 0
 
                 # Generic probe-first: when unscripted answer sounds substantive, try one same-topic probe
                 # before bridging away. If it misses, normal bridge logic still runs next.
@@ -5155,6 +5425,19 @@ class Handler(BaseHTTPRequestHandler):
                     response["state_update"] = response.get("state_update") or {}
                     response["state_update"]["last_counter_reply"] = _counter_reply
 
+                # ── Blue panel debug trace ─────────────────────────────────────
+                _dbg_last_pf_pre = (cs.get("last_partner_frame_id") or "").strip()
+                _dbg_in_recip    = _dbg_last_pf_pre in _RECIPROCAL_FRAME_TO_Q
+                print(
+                    f"[blue_panel_debug] "
+                    f"user_asked_question={user_asked_question} | "
+                    f"counter_reply={'YES' if _counter_reply else 'NO'} | "
+                    f"last_turn_was_answer={last_turn_was_answer} | "
+                    f"last_partner_frame_id={_dbg_last_pf_pre!r} | "
+                    f"in_reciprocal_map={_dbg_in_recip}"
+                )
+                # ──────────────────────────────────────────────────────────────
+
                 # Discovery mode: when user asked a question, offer follow-up questions THEY can
                 # ask the persona — surfacing the mirror question bank so the learner can
                 # interview the persona instead of being relentlessly interrogated.
@@ -5170,6 +5453,9 @@ class Handler(BaseHTTPRequestHandler):
                     if _disc_pool:
                         response["discovery_questions"] = _disc_pool[:3]
                         response["user_led"] = True
+                        print(f"[blue_panel_debug] SHOWN (discovery) | engine={_disc_eng!r} | {len(_disc_pool[:3])} card(s)")
+                    else:
+                        print(f"[blue_panel_debug] NOT SHOWN | reason=no_mirror_questions_for_engine | engine={_disc_eng!r}")
                     # Phase 12E: prepend one targeted hint based on keywords in the persona's reply
                     _disc_hint = _pick_contextual_discovery_hint(_counter_reply)
                     if _disc_hint:
@@ -5183,6 +5469,21 @@ class Handler(BaseHTTPRequestHandler):
                     if _rec_q:
                         response["discovery_questions"] = [_rec_q]
                         response["user_led"] = True
+                        print(f"[blue_panel_debug] SHOWN (reciprocal) | frame={_last_pf!r} | q={_rec_q.get('zh','?')!r}")
+                    else:
+                        _reason = "no_reciprocal_mapping" if _last_pf else "no_last_partner_frame"
+                        print(f"[blue_panel_debug] NOT SHOWN | reason={_reason} | frame={_last_pf!r}")
+                else:
+                    # Neither discovery nor reciprocal path fired — explain why
+                    if not last_turn_was_answer:
+                        _dbg_reason = "not_an_answer_turn"
+                    elif user_asked_question and not _counter_reply:
+                        _dbg_reason = "user_asked_question_but_no_counter_reply"
+                    elif user_asked_question and _counter_reply:
+                        _dbg_reason = "unreachable"  # handled above
+                    else:
+                        _dbg_reason = "counter_reply_present_blocks_reciprocal"
+                    print(f"[blue_panel_debug] NOT SHOWN | reason={_dbg_reason}")
 
             # Phase 10.5: blended reciprocity injection early (prefer answer + 你呢？)
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
@@ -5369,6 +5670,60 @@ class Handler(BaseHTTPRequestHandler):
                                         pass
 
             data = json.dumps(response, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/end_session":
+            length = int(self.headers.get("Content-Length", 0))
+            body   = self.rfile.read(length)
+            try:
+                sess = json.loads(body)
+            except Exception:
+                sess = {}
+
+            # engines_used arrives as a JSON array (Set serialised by the frontend)
+            engines = sess.get("engines_used")
+            if not isinstance(engines, list):
+                engines = []
+
+            mode       = (sess.get("mode") or "normal").strip().lower()
+            session_id = (sess.get("session_id") or "").strip()
+
+            metrics = _compute_scorecard(sess)
+            print(
+                f"[ui_server] /api/end_session session_id={session_id!r} mode={mode!r} "
+                f"turns={sess.get('total_turns', 0)} flow={metrics['flow']['label']!r}",
+                flush=True,
+            )
+
+            saved = False
+            if mode == "challenge":
+                record = {
+                    "session_id": session_id,
+                    "mode":       mode,
+                    "timestamp":  datetime.datetime.utcnow().isoformat() + "Z",
+                    "session":    sess,
+                    "metrics":    metrics,
+                }
+                try:
+                    _append_progress_history(record)
+                    saved = True
+                    print(f"[ui_server] /api/end_session: saved to {_PROGRESS_HISTORY_PATH}", flush=True)
+                except Exception as exc:
+                    print(f"[ui_server] /api/end_session: failed to save progress history: {exc}", flush=True)
+
+            result = {
+                "ok":         True,
+                "session_id": session_id,
+                "mode":       mode,
+                "saved":      saved,
+                "metrics":    metrics,
+            }
+            data = json.dumps(result, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))

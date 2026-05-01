@@ -2,8 +2,14 @@
 body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; }
 .container { display: flex; flex-direction: column; height: 100vh; }
 header { background:#0b4f6c; color: #fff; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
-main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, var(--panel-width)); gap: var(--gap); padding: 12px; }
-.left { padding: 8px; border-right: 1px solid #eee; overflow: hidden; min-width: 0; }
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, var(--panel-width)); grid-template-rows: 1fr; gap: var(--gap); padding: 12px; }
+.left { padding: 8px; border-right: 1px solid #eee; overflow: hidden; min-width: 0; min-height: 0; }
+/* Conversation section title — sits above Frame / Start controls */
+.left > .conversation-heading {
+  font: 600 1.1rem Arial, Helvetica, sans-serif;
+  color: #111;
+  margin: 0 0 10px 0;
+}
 .right { padding: 8px; border-left: 1px solid #eee; overflow: auto; min-width: 0; }
 .controls { margin-bottom:8px; }
 #trace { background: #fafafa; border: 1px solid #ddd; padding: 12px; max-height: 400px; overflow:auto; white-space: pre-wrap; }
@@ -815,12 +821,36 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
 }
 #challengeModeBtn.challenge-active:hover { background: #6d28d9; border-color: #6d28d9; }
 
+/* Controls button row — slightly larger than browser defaults for readability on all screens */
+.controls-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.controls-btn-row button {
+  padding: 8px 14px;
+  font-size: 0.95rem;
+  min-height: 38px;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f1f5f9;
+  white-space: nowrap;
+}
+.controls-btn-row button:hover { background: #e2e8f0; }
+
 /* Mobile input usability: extra thumb padding and safe-area breathing room on iPhone */
 @media (max-width: 600px) {
   /* Prevent iOS Safari auto-zoom (font must be >= 16px / 1rem on inputs) */
   input, select, textarea { font-size: 1rem !important; }
 
-  /* Option panel buttons: larger tap targets for thumbs */
+  /* Controls buttons: full 44px touch targets for iPhone */
+  .controls-btn-row button {
+    padding: 12px 16px;
+    font-size: 1rem;
+    min-height: 44px;
+  }
   .option-btn { padding: 14px 12px; }
 
   /* Action ladder: bigger mic and suggested-responses tap targets */
@@ -833,3 +863,78 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
   /* Add bottom padding so content clears the iPhone home indicator */
   .container { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
+
+/* ── Session Scorecard in-page panel ─────────────────────────────────────── */
+.scorecard-panel-inline {
+  margin-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+}
+.scorecard-panel-inline h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 10px;
+}
+.scorecard-placeholder {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+#scorecardContent {
+  font-size: 0.85rem;
+}
+.sc-mode-badge {
+  font-size: 0.72rem;
+  color: #0891b2;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+.sc-row {
+  margin-bottom: 12px;
+}
+.sc-row-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+.sc-raw {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.88rem;
+}
+.sc-sep {
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+.sc-label {
+  color: #0891b2;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+.sc-meaning {
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+/* ── Trace toggle ─────────────────────────────────────────────────────────── */
+.trace-details {
+  margin-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 6px;
+}
+.trace-summary {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  padding: 4px 0;
+}
+.trace-summary::-webkit-details-marker { display: none; }
+.trace-summary:hover { color: #64748b; }

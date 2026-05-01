@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>MandarinOS UI Shell</title>
+    <title>MandarinOS</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,7 +13,7 @@
   <body>
     <div class="container">
       <header>
-        <h1>MandarinOS UI Shell</h1>
+        <h1>MandarinOS</h1>
         <!-- Phase 11C: Persona selector — top bar so partner is always visible -->
         <div class="persona-bar" id="personaBar">
           <span class="persona-bar-label">Partner:</span>
@@ -24,6 +24,8 @@
       </header>
       <main>
         <section class="left">
+          <!-- Phase 8: Conversation = record of what was said; Active = last statement from MandarinOS -->
+          <h2 class="conversation-heading">Conversation</h2>
           <div class="controls">
             <label for="frameSelect" class="frame-label">Frame:</label>
             <select id="frameSelect">
@@ -37,11 +39,10 @@
               <button id="changeTopicBtn" type="button" title="Switch to another topic (bridge)">Change topic</button>
               <button id="startFreshBtn" type="button" title="Clear all memory and start as a new learner">↺ Clear memory</button>
               <button id="challengeModeBtn" type="button" title="Toggle Challenge / Test Mode — hides scaffolding by default">Challenge Mode</button>
+              <button id="endSessionBtn" type="button" title="End this session and see your scorecard" onclick="window.endSession && window.endSession()">End Session</button>
             </div>
           </div>
 
-          <!-- Phase 8: Conversation = record of what was said; Active = last statement from MandarinOS -->
-          <h2>Conversation</h2>
           <div id="rememberedFacts" class="remembered-facts muted" style="display:none;" aria-live="polite"></div>
           <div class="conversation-panel">
             <div id="transcriptPanel" class="transcript-panel" role="log" aria-label="Record of what was said">
@@ -78,6 +79,8 @@
                 <button id="playQuestionBtn" type="button" class="play-question-speaker" title="Speak the question" aria-label="Play question">🔊</button>
                 <button id="hintBtn" class="play-question-speaker hint-icon-btn" style="display:none;" title="Show hints" aria-label="Hint">?</button>
               </div>
+              <!-- Always-visible English translation for the active partner sentence -->
+              <div id="frameEnglish" class="frame-english" style="display:none;"></div>
               <!-- Phase 11C: discoverable fact (shown once per engine after depth threshold) -->
               <div id="partnerFactLine" class="partner-fact-line" style="display:none;"></div>
               <div id="hintPinyin"  class="hint-row hint-pinyin"  style="display:none;"></div>
@@ -97,7 +100,10 @@
                 </div>
                 <div id="engTranslateResult" class="eng-translate-result" style="display:none;">
                   <button id="speakTranslationBtn" type="button" class="eng-speak-btn" title="Hear pronunciation">🔊</button>
-                  <span id="engTranslatedZh" class="eng-translated-zh"></span>
+                  <div class="eng-translated-block">
+                    <div id="engTranslatedZh" class="eng-translated-zh"></div>
+                    <div id="engTranslatedPy" class="eng-translated-py" style="display:none;"></div>
+                  </div>
                   <button id="useTranslationBtn" type="button" class="eng-use-btn">Use this ↑</button>
                 </div>
               </div>
@@ -127,13 +133,22 @@
             <div id="cardBody"></div>
           </div>
           <div id="noCard" class="nocard">No card opened</div>
-          <h2>Trace</h2>
-          <pre id="trace" class="trace">(no trace)</pre>
+          <!-- Session Scorecard — populated by endSession(); shows placeholder during conversation -->
+          <div class="scorecard-panel-inline">
+            <h2>Session Scorecard</h2>
+            <div id="scorecardContent" class="scorecard-placeholder">Complete the session to see your scorecard.</div>
+          </div>
+
+          <!-- Trace: collapsed by default, fully functional when expanded -->
+          <details id="traceDetails" class="trace-details">
+            <summary class="trace-summary">Show Trace</summary>
+            <pre id="trace" class="trace">(no trace)</pre>
+          </details>
         </aside>
       </main>
     </div>
     <style>
-      section.left { overflow: visible; }
+      section.left { overflow-y: auto; }
       .frame-sentence-row {
         display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
         margin-bottom: 0.5rem; min-height: 2.5rem;
@@ -278,9 +293,18 @@
         margin-top: 8px; padding: 10px 12px;
         background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px;
       }
+      .eng-translated-block {
+        flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+      }
       .eng-translated-zh {
-        flex: 1; font: 1.1rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
-        color: #166534; min-width: 0;
+        font: 1.1rem "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #166534;
+      }
+      .eng-translated-py {
+        font: 0.8rem Arial, Helvetica, sans-serif;
+        color: #4b7c5e;
+        letter-spacing: 0.01em;
+        line-height: 1.4;
       }
       .eng-speak-btn {
         flex-shrink: 0; width: 44px; height: 44px; padding: 0;
@@ -304,18 +328,19 @@
       /* Phase 11C: Persona bar — now lives in <header> */
       .persona-bar {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-        min-height: 30px;
+        min-height: 44px;
       }
       .persona-bar-label {
         font: 0.75rem Arial, Helvetica, sans-serif; color: rgba(255,255,255,0.7); white-space: nowrap;
       }
-      .persona-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+      .persona-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
       .persona-btn {
-        font: 0.85rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
-        padding: 4px 12px; border-radius: 16px;
+        font: 600 1.1rem "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        padding: 8px 16px; border-radius: 999px; min-height: 40px;
         border: 1.5px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.1); color: #fff;
         cursor: pointer; transition: border-color 0.15s, background 0.15s;
         white-space: nowrap;
+        box-sizing: border-box;
       }
       .persona-btn:hover { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.2); }
       .persona-btn.active { border-color: #7dd3fc; background: #0369a1; color: #fff; }
@@ -328,24 +353,34 @@
       .persona-btn-none.active { border-color: #9ca3af; background: #f3f4f6; color: #6b7280; }
 
       /* Phase 11C: Partner header inside active conversation panel */
+      /* Always-visible English translation below the active frame sentence */
+      .frame-english {
+        font-size: 0.82rem;
+        color: #6b7280;
+        font-style: italic;
+        margin-top: 2px;
+        margin-bottom: 4px;
+        line-height: 1.4;
+      }
+
       .partner-header {
         display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
         margin-bottom: 6px; padding-bottom: 6px;
         border-bottom: 1px solid #e5e7eb;
       }
       .partner-name-label {
-        font: 600 0.85rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        font: 600 1rem "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: #1a56db; white-space: nowrap; flex-shrink: 0;
       }
       .partner-prefix-line {
-        font: 1rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        font: 1.05rem "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: #374151; font-style: italic;
       }
 
       /* Phase 11C: Discoverable fact — shown below the frame sentence, lighter weight */
       .partner-fact-line {
         margin-top: 6px; padding: 6px 10px;
-        font: italic 0.85rem "Ma Shan Zheng", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+        font: italic 0.95rem "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: #6b7280;
         border-left: 3px solid #d1d5db;
         border-radius: 0 4px 4px 0;

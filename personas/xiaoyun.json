@@ -73,5 +73,13 @@
     "travel": "Travel is my work AND my hobby!",
     "place": "My hometown is Chengdu — one of my favourite cities.",
     "food": "I love trying local street food from different places."
+  },
+  "distance_profile": {
+    "reference": "北京",
+    "far_level": "挺远的",
+    "time": "两个多小时",
+    "transport": "飞机",
+    "zh": "成都离北京挺远的，坐飞机要两个多小时。",
+    "en": "Chengdu is quite far from Beijing — about two hours by plane."
   }
 }

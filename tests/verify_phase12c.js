@@ -22,6 +22,7 @@ function isOpenEndedFrame(frameId) {
   const fid = (frameId || "").trim();
   return new Set([
     "f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning",
+    "f_id_friends_call", "f_probe_id_nickname", "f_name_story", "f_name_story_elicit", "f_how_old",
     "f_from_where", "frame.location.live_question",
     "f_place_why_like", "f_place_like_there",
     "f_probe_place_miss", "f_probe_place_moved", "f_probe_place_stay", "f_probe_place_why_move",
@@ -40,6 +41,36 @@ const _MIXED_SCRIPT_PLACE_FRAMES = new Set([
   "f_from_where",
 ]);
 
+const _NICKNAME_CALL_FRAMES = new Set(["f_id_friends_call", "f_probe_id_nickname", "p2_id_2"]);
+
+function containsLatinNameLikeContent(text) {
+  return typeof text === "string" && /[A-Za-z]{2,}/.test(text);
+}
+
+function looksLikeNicknameCallAnswer(transcript, frameId) {
+  if (!_NICKNAME_CALL_FRAMES.has((frameId || "").trim())) return false;
+  const t = (transcript || "").trim();
+  if (!t) return false;
+  if (/叫我|大家叫我|朋友们叫我|朋友叫我/.test(t)) {
+    if (containsLatinNameLikeContent(t)) return true;
+    const afterCall = (t.split(/叫/).pop() || "").replace(/我|的|了|是|说|嘛|呀|哦|喔/g, "");
+    if ((afterCall.match(/[\u4e00-\u9fff]/g) || []).length >= 2) return true;
+  }
+  const subject = /朋友|家里人|家人|他们|他|她|大家|人们|别人/.test(t);
+  const verb = /叫|教/.test(t);
+  const me = /我/.test(t);
+  if (subject && verb && me) {
+    if (containsLatinNameLikeContent(t)) return true;
+    const stripped = t.replace(
+      /我的朋友|人们|别人|朋友|家里人|家人|他们|他|她|大家|一般|通常|都|会|叫|教|我|的|了|是|说|被|怎么|如何|么|嘛|呀|哦|喔|给|被|一般|通常/g,
+      "",
+    );
+    if ((stripped.match(/[\u4e00-\u9fff]/g) || []).length >= 2) return true;
+  }
+  if (/^[A-Za-z][A-Za-z\s.'-]{0,28}[A-Za-z]$/.test(t.trim())) return true;
+  return false;
+}
+
 function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
   const s = (text || "").trim();
   if (!s) return false;
@@ -48,7 +79,10 @@ function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
   const zhCount = zhMatches.length;
   const latinCount = (s.match(/[A-Za-z]/g) || []).length;
   if (zhCount > 0 && zhCount < 2) return false;
-  const identityOpen = new Set(["f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning"]).has(fid);
+  const identityOpen = new Set([
+    "f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning",
+    "f_id_friends_call", "f_probe_id_nickname", "f_how_old",
+  ]).has(fid);
   const placeMixedScript = _MIXED_SCRIPT_PLACE_FRAMES.has(fid);
   if (!identityOpen && !placeMixedScript && latinCount > zhCount + 2) return false;
   const norm = s.replace(/[，。！？、\s]/g, "");
@@ -77,9 +111,12 @@ function semanticSoftMatch(transcript, frameId) {
   if (/你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有没有家人)/.test(t)) return true;
   if (/(风景|山水|漂亮|好看|很美|美|空气|环境|舒服|安静|不错|挺好|海|湖|山|树|绿)/.test(t)) return true;
   if (_MIXED_SCRIPT_PLACE_FRAMES.has(fid) && /[\u4e00-\u9fff]/.test(t) && /[A-Za-z]/.test(t)) return true;
-  if (fid === "p2_id_2") {
+  if (_NICKNAME_CALL_FRAMES.has(fid)) {
+    if (looksLikeNicknameCallAnswer(t, fid)) return true;
     if (t.includes("叫我") || t.includes("大家叫")) return true;
-    if (/[\u4e00-\u9fff]/.test(t) && /[A-Za-z]/.test(t)) return true;
+    const hasZh = /[\u4e00-\u9fff]/.test(t);
+    const hasLatin = /[A-Za-z]/.test(t);
+    if (hasZh && hasLatin) return true;
   }
   if (fid === "f_food_famous_dish") {
     if (/汉堡|牛肉|羊肉|火锅|饺子|面|米饭|烤|汤|鱼|鸡|菜/.test(t)) return true;
@@ -295,6 +332,28 @@ suite("GC-5 · Sentence-strip routing rule (I-5, DOM simulation)", () => {
     return optC.style.display;
   }
   assert("soc display:none → sentenceRowVisible=false → word strip NOT hidden", simulateHiddenSoc() === "flex");
+});
+
+// ─── Identity flow tolerance (nickname / age / name-story) ───────────────────
+suite("GC-6 · Identity nickname + age acceptance (I-6)", () => {
+  const tileOpts = [{ hanzi: "朋友", kind: "SENTENCE" }];
+  const r1 = classifyUnmatchedFreeAnswerDecision("我的朋友一般叫我Raymond", tileOpts, "f_id_friends_call", 0);
+  assert("friends_call + 朋友…叫我Raymond → accept", r1.accept === true, JSON.stringify(r1));
+
+  const r2 = classifyUnmatchedFreeAnswerDecision("他们教我Raymond", tileOpts, "f_id_friends_call", 0);
+  assert("ASR 教 for 叫 + subject + 我 + Latin → accept", r2.accept === true, JSON.stringify(r2));
+
+  const r3 = classifyUnmatchedFreeAnswerDecision("Raymond", tileOpts, "f_id_friends_call", 0);
+  assert("Latin-only name on nickname frame → accept", r3.accept === true, JSON.stringify(r3));
+
+  const r4 = classifyUnmatchedFreeAnswerDecision("我是64岁了", tileOpts, "f_how_old", 0);
+  assert("age answer on f_how_old → accept", r4.accept === true, JSON.stringify(r4));
+
+  const r5 = classifyUnmatchedFreeAnswerDecision("我", tileOpts, "f_how_old", 0);
+  assert("single 我 on f_how_old → reject (incomplete)", r5.accept === false, JSON.stringify(r5));
+
+  const r6 = classifyUnmatchedFreeAnswerDecision("有一个小故事", tileOpts, "f_name_story", 0);
+  assert("name-story teaser → open-ended acceptable", r6.accept === true, JSON.stringify(r6));
 });
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

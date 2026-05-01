@@ -1255,6 +1255,28 @@
       "move_type": "ASK"
     },
     {
+      "id": "f_place_want_visit",
+      "text": "你最想去哪里？",
+      "pinyin": "nǐ zuì xiǎng qù nǎlǐ?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": [
+        "w_nali"
+      ],
+      "text_en": "Where do you most want to go?",
+      "allowed_response_roles": [
+        "SAFE",
+        "EXPAND",
+        "REPAIR"
+      ],
+      "default_next_move_types": [
+        "ANSWER"
+      ],
+      "move_type": "ASK"
+    },
+    {
       "id": "f_want_go_place",
       "text": "我想去{PLACE}。",
       "pinyin": "wǒ xiǎng qù {PLACE}.",
@@ -1566,6 +1588,51 @@
       "option_tokens": ["w_jiaren", "w_mingzi"],
       "distractor_tokens": ["w_gongzuo", "w_nali"],
       "text_en": "Oh, what's the story?",
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_place_distance_ref",
+      "text": "你那儿离那边远吗？",
+      "pinyin": "Nǐ nàr lí nàbiān yuǎn ma?",
+      "text_en": "Is your place far from there?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "distractor_tokens": ["w_beijing", "w_shanghai"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_place_distance_time",
+      "text": "从你那儿到那边要多久？",
+      "pinyin": "Cóng nǐ nàr dào nàbiān yào duō jiǔ?",
+      "text_en": "How long does it take to get there?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "distractor_tokens": ["w_beijing", "w_shanghai"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_place_distance_transport",
+      "text": "一般怎么去？",
+      "pinyin": "Yìbān zěnme qù?",
+      "text_en": "How do you usually get there?",
+      "engine": "place",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "distractor_tokens": ["w_beijing", "w_shanghai"],
       "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
       "default_next_move_types": ["ANSWER"],
       "move_type": "LOOP"

@@ -488,19 +488,33 @@ def build_frame_render_tokens(all_frames: list, cards: dict) -> dict:
 
 
 def build_cards_index(all_frames: list, render_tokens: dict) -> dict:
-    """Map word_id -> card_id for every word token across all rendered frames.
-    Indexes option_tokens AND all word tokens from render_tokens (e.g. w_ma, w_ni).
+    """Map word_id -> card_id for all authored cards (Option D: include every
+    card in cards_by_id.json regardless of frame appearance, so words like
+    安静, 近, 处 are discoverable from translated or ad-hoc text).
+    Falls back to frame-token indexing only when the cards file is absent.
     """
     by_word_id = {}
-    # Index option_tokens
+
+    # Primary: include every authored card
+    cards_path = REPO_ROOT / "tools" / "cards" / "out" / "cards_by_id.json"
+    if cards_path.is_file():
+        try:
+            all_cards = json.loads(cards_path.read_text(encoding="utf-8"))
+            for word_id in all_cards:
+                by_word_id[word_id] = word_id
+        except Exception as e:
+            print(f"[build] WARNING: could not read cards_by_id.json for index — {e}")
+
+    # Supplement: option_tokens and render_tokens from frames (catches any
+    # word_ids that live outside cards_by_id.json)
     for f in all_frames:
         for word_id in (f.get("option_tokens") or []):
             by_word_id[word_id] = word_id
-    # Index all word tokens from render output
     for frame_id, tokens in render_tokens.items():
         for tok in tokens:
             if tok.get("t") == "word" and tok.get("id"):
                 by_word_id[tok["id"]] = tok["id"]
+
     return {"by_word_id": by_word_id}
 
 
