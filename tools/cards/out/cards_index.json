@@ -210,6 +210,9 @@
     "w_jia": "w_jia",
     "w_yi_num": "w_yi_num",
     "w_xia": "w_xia",
+    "w_jin3": "w_jin3",
+    "w_chu4": "w_chu4",
+    "w_daoc": "w_daoc",
     "w_zuijin": "w_zuijin",
     "w_juede": "w_juede",
     "w_zenmeyang": "w_zenmeyang",
@@ -1086,6 +1089,15 @@
     ],
     "下": [
       "w_xia"
+    ],
+    "近": [
+      "w_jin3"
+    ],
+    "处": [
+      "w_chu4"
+    ],
+    "到处": [
+      "w_daoc"
     ],
     "最近": [
       "w_zuijin"

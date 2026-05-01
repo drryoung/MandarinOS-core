@@ -3061,6 +3061,36 @@
       ],
       "frequency_band": "very_high",
       "frame_ids": []
+    },
+    {
+      "id": "w_jin3",
+      "hanzi": "近",
+      "pinyin": "jìn",
+      "gloss_en": "close, nearby, near",
+      "pos": ["adj"],
+      "tags": ["place", "distance"],
+      "frequency_band": "high",
+      "frame_ids": ["f_place_distance_ref"]
+    },
+    {
+      "id": "w_chu4",
+      "hanzi": "处",
+      "pinyin": "chù",
+      "gloss_en": "place, location",
+      "pos": ["n"],
+      "tags": ["place"],
+      "frequency_band": "high",
+      "frame_ids": []
+    },
+    {
+      "id": "w_daoc",
+      "hanzi": "到处",
+      "pinyin": "dàochù",
+      "gloss_en": "everywhere, all around",
+      "pos": ["adv"],
+      "tags": ["place", "distance"],
+      "frequency_band": "high",
+      "frame_ids": []
     }
   ]
 }

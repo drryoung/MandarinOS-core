@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generated_at": "2026-04-10T13:41:40.861868Z",
+  "generated_at": "2026-05-01T09:49:37.246728Z",
   "cards": [
     {
       "card_id": "w_ni",
@@ -15624,6 +15624,227 @@
                 "supports_drawing_input": false,
                 "stroke_order_hint_available": false
               }
+            }
+          ]
+        }
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_jin3",
+      "content": {
+        "headword": {
+          "hanzi": "近",
+          "pinyin": "jìn",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "close, nearby, near",
+        "characters": [
+          {
+            "char": "近",
+            "role": null,
+            "strength": null,
+            "pinyin": null,
+            "meaning": null,
+            "handwriting_support": {
+              "supports_drawing_input": false,
+              "stroke_order_hint_available": false
+            }
+          }
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "近",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            }
+          ]
+        }
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_chu4",
+      "content": {
+        "headword": {
+          "hanzi": "处",
+          "pinyin": "chù",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "place, location",
+        "characters": [
+          {
+            "char": "处",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "处",
+              "role": null,
+              "strength": null,
+              "warning_missing_in_1200": true
+            }
+          ]
+        }
+      },
+      "state": {
+        "reveal_level": 0,
+        "revealed": {
+          "pinyin": false,
+          "word_composition": false,
+          "character_breakdown": false,
+          "trace_mode": false
+        }
+      },
+      "actions": [
+        {
+          "action_id": "reveal_pinyin",
+          "label": "Reveal pinyin",
+          "effects": {
+            "reveal_level": 1,
+            "revealed": {
+              "pinyin": true
+            }
+          }
+        },
+        {
+          "action_id": "reveal_characters",
+          "label": "Reveal characters",
+          "effects": {
+            "reveal_level": 3,
+            "revealed": {
+              "character_breakdown": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "card_id": "w_daoc",
+      "content": {
+        "headword": {
+          "hanzi": "到处",
+          "pinyin": "dàochù",
+          "audio": {
+            "tts": true
+          }
+        },
+        "meaning": "everywhere, all around",
+        "characters": [
+          {
+            "char": "到",
+            "role": null,
+            "strength": null,
+            "pinyin": null,
+            "meaning": null,
+            "handwriting_support": {
+              "supports_drawing_input": false,
+              "stroke_order_hint_available": false
+            }
+          },
+          {
+            "char": "处",
+            "role": null,
+            "strength": null,
+            "warning_missing_in_1200": true
+          }
+        ],
+        "word_composition": {
+          "type": "auto",
+          "characters": [
+            {
+              "char": "到",
+              "role": null,
+              "strength": null,
+              "pinyin": null,
+              "meaning": null,
+              "handwriting_support": {
+                "supports_drawing_input": false,
+                "stroke_order_hint_available": false
+              }
+            },
+            {
+              "char": "处",
+              "role": null,
+              "strength": null,
+              "warning_missing_in_1200": true
             }
           ]
         }
