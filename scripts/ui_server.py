@@ -1553,6 +1553,7 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
     if fid in (
         "f_from_where",
         "frame.location.live_question",
+        "f_live_where",   # modern ID for "你现在住在哪里？" (legacy alias above kept for compat)
         "p2_pl_1",
         "p2_pl_2",
         "p2_pl_3",
@@ -2129,6 +2130,7 @@ def _is_confusion_signal(t: str) -> bool:
     markers = (
         "啊？", "啊！", "我不懂", "有点不懂", "听不懂", "没听懂", "没懂", "不明白",
         "看不懂", "什么意思", "没太懂", "再说一遍", "慢一点", "慢一",
+        "不知道", "等一下", "我听不懂",
     )
     return any(m in s for m in markers)
 
@@ -2651,6 +2653,20 @@ _PLACE_AFFECT_CONTEXT_FRAMES: frozenset = frozenset(
 _LEARNER_SKIP_AVOID_FRAMES: frozenset = frozenset({"p2_pl_2", *tuple(_FOOD_COHERENCE_PROBES)})
 _LEARNER_SKIP_PREFER_PLACE: tuple = ("p2_pl_1", "p2_pl_4", "f_probe_place_moved", "f_probe_place_stay", "p2_pl_3")
 
+# Work frames that assume the learner disclosed a job — must not fire when the learner expressed
+# confusion (no job was actually named) because JOB slot is inferred from frame-id alone,
+# not from answer content.  The guard swaps any of these to f_work_yn on a typed confusion turn.
+_CURRENT_WORK_PROGRESSION_FRAMES: frozenset = frozenset({
+    "f_probe_work_role_detail",   # 那是什么样的工作？  — FIRST in JOB slot chain; assumes job named
+    "f_work_company",             # 你在哪个公司上班？
+    "f_probe_work_company_vibe",  # 那家公司怎么样？
+    "f_work_tenure",              # 你做这个工作多久了？
+    "f_work_where",               # 你工作在哪儿？
+    "f_probe_work_origin",        # 你怎么进入这个行业的？  — assumes entered a field
+    "f_probe_work_future",        # 以后想继续做这份工作吗？ — assumes current job
+    "f_probe_work_why_quit",      # 你为什么离开那份工作？  — assumes named job was left
+})
+
 
 def _place_thread_for_food_guard(cs: dict, last_fid: str) -> bool:
     """True if the user was answering a place/affect frame — even when last_answer.frame_id is empty."""
@@ -2675,9 +2691,14 @@ def _apply_discourse_coherence_guard(
     last_answer: Optional[dict],
     last_turn_was_answer: bool,
     learner_skip_confusion: bool,
+    typed_confusion: bool = False,
     memory: Optional[dict],
 ) -> Optional[str]:
-    """Swap incoherent next-frame picks (food probe after place emotion; food after learner skip)."""
+    """Swap incoherent next-frame picks (food probe after place emotion; food after learner skip).
+
+    typed_confusion: True when the learner submitted a typed answer that is a confusion signal
+    (e.g. '我不明白').  Treated like learner_skip_confusion for the work-progression guard.
+    """
     if not chosen or not _frames_by_id:
         return chosen
     recent_set = set(recent or [])
@@ -2708,6 +2729,13 @@ def _apply_discourse_coherence_guard(
         for alt in ("p2_pl_1", "p2_pl_4"):
             if alt not in recent_set and alt in _frames_by_id and _deps_ok(alt):
                 return alt
+
+    # 1b) Typed confusion signal on a work-progression frame — swap to the soft yes/no entry.
+    # Covers typed answers ("我不明白") that never set the client-side learner_skip_confusion flag.
+    # Only fires for frames that explicitly assume current employment; leaves other work frames alone.
+    if (learner_skip_confusion or typed_confusion) and chosen in _CURRENT_WORK_PROGRESSION_FRAMES:
+        if "f_work_yn" in _frames_by_id and "f_work_yn" not in recent_set:
+            return "f_work_yn"
 
     # 2) Food probe after place/affect context — user wasn't talking about food.
     if chosen in _FOOD_COHERENCE_PROBES and _place_thread_for_food_guard(cs, last_fid):
@@ -3966,6 +3994,17 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_file(REPO_ROOT / rel, path)
             return
 
+        if path == "/api/memory":
+            learner_id = (qs.get("learner_id", ["default_learner"])[0] or "default_learner").strip()
+            mem = (_lm_load(learner_id) if _lm_load and learner_id else None) or {}
+            data = json.dumps({"ok": True, "learner_id": learner_id, "memory": mem}, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
         if path.startswith("/runtime/"):
             file_path = RUNTIME_DIR / path[len("/runtime/"):]
         elif path.startswith("/data/"):
@@ -4283,7 +4322,17 @@ class Handler(BaseHTTPRequestHandler):
                 # Load deduplication state: last 2 reaction texts used this session.
                 _recent_reactions: List[str] = list(cs.get("recent_reactions") or [])
                 # Default traces — overwritten if their respective code paths run this turn.
-                _sel_trace: dict = {"final_frame_source": "not_computed"}
+                _sel_trace: dict = {
+                    "final_frame_source": "not_computed",
+                    # Diagnostic fields for answer text tracing.
+                    # asr_raw_text: the raw string the client sent (submitted_text field).
+                    # accepted_text: what the server actually uses for slot/selector decisions.
+                    # Compare these to diagnose whether collapse to keyword happened client-side or server-side.
+                    "asr_raw_text": (
+                        (last_answer.get("submitted_text") or "") if isinstance(last_answer, dict) else ""
+                    ) if last_turn_was_answer else "",
+                    "accepted_text": answer_text,  # computed above from submitted_text / selected_option_hanzi
+                }
                 # Closing move guards — set inside the selection block; defaulted here so the
                 # closing-move check at the end of selection is always safe to reference.
                 _late_session_mode = False
@@ -4357,10 +4406,10 @@ class Handler(BaseHTTPRequestHandler):
                                     _frag = _submitted[_ps + len(_patt_start):]
                                     if _patt_end:
                                         _pe = _frag.find(_patt_end)
-                                        if 0 < _pe <= 6:
+                                        if 0 < _pe <= 20:
                                             _city = _frag[:_pe]
                                             break
-                                    elif _frag and len(_frag) <= 6:
+                                    elif _frag and len(_frag) <= 20:
                                         _city = _frag.rstrip("。，！？")
                                         break
                         if _city:
@@ -4371,12 +4420,26 @@ class Handler(BaseHTTPRequestHandler):
                         if _name and len(_name) <= 6:
                             _echo_candidate = f"{_name}！"
                             _echo_triggered_by = "NAME"
-                    elif "DISH" in slot_names and _submitted and len(_submitted) <= 8:
-                        _echo_candidate = f"哦，{_submitted}！"
-                        _echo_triggered_by = "DISH"
-                    elif "TRAVEL" in slot_names and _submitted and len(_submitted) <= 8:
-                        _echo_candidate = f"哦，{_submitted}！"
-                        _echo_triggered_by = "TRAVEL"
+                    elif "DISH" in slot_names:
+                        # Prefer submitted_text (full ASR sentence); fall back to selected_option_hanzi
+                        # so the echo works even when only a tap/option value was sent.
+                        _dish_text = _submitted
+                        if not _dish_text and isinstance(last_answer, dict):
+                            _dish_text = (last_answer.get("selected_option_hanzi") or "").strip().rstrip(
+                                "。，！？、…·\u3002\uff0c\uff01\uff1f.!?, "
+                            )
+                        if _dish_text and len(_dish_text) <= 20:
+                            _echo_candidate = f"哦，{_dish_text}！"
+                            _echo_triggered_by = "DISH"
+                    elif "TRAVEL" in slot_names:
+                        _travel_text = _submitted
+                        if not _travel_text and isinstance(last_answer, dict):
+                            _travel_text = (last_answer.get("selected_option_hanzi") or "").strip().rstrip(
+                                "。，！？、…·\u3002\uff0c\uff01\uff1f.!?, "
+                            )
+                        if _travel_text and len(_travel_text) <= 20:
+                            _echo_candidate = f"哦，{_travel_text}！"
+                            _echo_triggered_by = "TRAVEL"
                     elif "COMPANY" in slot_names:
                         _co = (_mem.get("job_company") or _mem.get("company") or "").strip()
                         if not _co and _submitted and 2 <= len(_submitted) <= 12:
@@ -4544,9 +4607,24 @@ class Handler(BaseHTTPRequestHandler):
 
                 _counter_reply_pinyin = _resolve_counter_reply_pinyin(_counter_reply) if _counter_reply else ""
 
-                # Retired pivot: if the user just said they are retired, ask what they used to do.
+                # ── Work-state detection ─────────────────────────────────────────
+                # Uses submitted_text; answer_text (which also covers selected options) was
+                # already computed above, but retirement/confusion checks are text-only signals.
                 _last_user_text = (last_answer or {}).get("submitted_text", "") if last_turn_was_answer else ""
-                _user_is_retired = "退休" in _last_user_text and "p2_wk_retired" not in recent
+
+                # Retired / not currently working: extended set beyond just "退休".
+                # Routes to p2_wk_retired ("你以前做什么工作？") which is safe for all cases.
+                _RETIRED_OR_NONWORKING_SIGNALS = (
+                    "退休", "不工作了", "不上班了", "没有工作", "现在不工作", "不上班",
+                )
+                _user_is_retired = (
+                    any(sig in _last_user_text for sig in _RETIRED_OR_NONWORKING_SIGNALS)
+                    and "p2_wk_retired" not in recent
+                )
+
+                # Note: work-confusion routing (typed "我不明白" after a work question) is handled by
+                # _apply_discourse_coherence_guard (branch 1b) rather than here, keeping selector-level
+                # work-state detection limited to retirement/employment status signals only.
 
                 # Partner curiosity: prefer loop when triggered and depth allows, but avoid weak loop frames if possible
                 chosen = None
@@ -4558,7 +4636,10 @@ class Handler(BaseHTTPRequestHandler):
                     chosen = "p2_wk_retired"
                     chosen_turn_type = "question"
                     listening_move_selected = "retired_pivot"
-                    listening_move_reason = "user said retired"
+                    listening_move_reason = "user non-working or retired"
+                    _sel_trace["retired_signal_detected"] = True
+                    _sel_trace["work_eligible"] = False
+                    _sel_trace["work_followup_suppressed_reason"] = "user_not_working"
                 elif force_food_followup:
                     chosen = _pick_slot_followup_frame_id(
                         current_engine, ["DISH"], recent, memory, exchange_count=exchange_count,
@@ -5189,6 +5270,11 @@ class Handler(BaseHTTPRequestHandler):
                 # Discourse coherence must run *after* move_type filter + Phase 12C — those passes can
                 # bridge to food (place→food is first in _BRIDGE_TARGETS) and undo an earlier fix.
                 if chosen:
+                    _typed_confusion = (
+                        last_turn_was_answer
+                        and not user_asked_question
+                        and _is_confusion_signal(answer_text)
+                    )
                     chosen = _apply_discourse_coherence_guard(
                         chosen,
                         cs=cs,
@@ -5196,6 +5282,7 @@ class Handler(BaseHTTPRequestHandler):
                         last_answer=last_answer,
                         last_turn_was_answer=last_turn_was_answer,
                         learner_skip_confusion=(cs.get("learner_skip_confusion") is True),
+                        typed_confusion=_typed_confusion,
                         memory=memory,
                     )
                 if chosen:

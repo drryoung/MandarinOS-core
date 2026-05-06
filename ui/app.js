@@ -1248,12 +1248,6 @@ function getHintButtonLabel(level, levelHasContent) {
  * @param {HTMLElement|null} [optionPanelEl] When provided, hints are rendered inside this panel (for option ? click).
  */
 function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl) {
-  // Challenge Mode: suppress hint button and all hint rows until text is revealed (helpLevel >= 3)
-  if (_challenge.active && _challenge.helpLevel < 3) {
-    const hintBtn = document.getElementById("hintBtn");
-    if (hintBtn) hintBtn.style.display = "none";
-    return;
-  }
   const hintBtn     = document.getElementById("hintBtn");
   const hintPinyin  = document.getElementById("hintPinyin");
   const hintMeaning = document.getElementById("hintMeaning");
@@ -1261,6 +1255,12 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
 
   if (!hintAffordance?.visible) {
     if (hintBtn) hintBtn.style.display = "none";
+    // Clear stale pinyin/English from the previous turn so they don't persist when
+    // the new frame has no hint data (e.g. a short closing statement like "这样啊。").
+    if (hintPinyin) { hintPinyin.textContent = ""; hintPinyin.style.display = "none"; }
+    if (hintMeaning) { hintMeaning.textContent = ""; hintMeaning.style.display = "none"; }
+    if (hintEtymEl) { hintEtymEl.innerHTML = ""; hintEtymEl.style.display = "none"; }
+    hint_cascade_state = { level: 0, turn_uid: null };
     return;
   }
 
@@ -1352,7 +1352,7 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
       }
     }
     if (hintMeaning) {
-      if (level >= 1 && sentenceHint.text_en) {
+      if (level >= 2 && sentenceHint.text_en) {
         hintMeaning.textContent = sentenceHint.text_en;
         hintMeaning.style.display = "block";
       } else {
@@ -2271,6 +2271,10 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
  * Listen for speech (zh-CN) and try to match to current options. Resolves with { transcript, matchedOption }.
  * Uses Web Speech API; if unavailable or error, resolves with transcript "" and matchedOption null.
  */
+// Milliseconds of silence after the last detected speech before the turn ends.
+// Increase this to give learners more time to construct sentences.
+const SPEECH_SILENCE_MS = 3000;
+
 function listenForResponse(options, timeoutMs) {
   return new Promise((resolve) => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2287,63 +2291,99 @@ function listenForResponse(options, timeoutMs) {
     const postCancelDelayMs = 380;
 
     const rec = new SpeechRecognition();
-    rec.continuous = false;
+    // continuous=true keeps the mic open across pauses so we control when the turn ends
+    // via SPEECH_SILENCE_MS rather than the browser's built-in ~1 s VAD cutoff.
+    rec.continuous = true;
     rec.lang = "zh-CN";
     rec.interimResults = true;
     let finalTranscript = "";
+    let lastConf = null;
     let resolved = false;
-    let tid = null;
-    function done(transcript, matchedOption, asrConfidence) {
+    let silenceTid = null;
+    let wallClockTid = null;
+    let speechStarted = false;
+    // Wall-clock budget once speech has begun — gives slow learners time to complete sentences.
+    const SPEECH_ACTIVE_MAX_MS = 13000;
+
+    // ── finish(reason): single guarded submission point ─────────────────────
+    // Called by the silence timer, wall-clock timer, or onend (backup).
+    // Whichever fires first wins; all subsequent calls are no-ops.
+    function finish(reason) {
       if (resolved) return;
       resolved = true;
+      console.log(`[ASR] finish: reason=${reason}, transcript="${finalTranscript}"`);
+      if (silenceTid) { clearTimeout(silenceTid); silenceTid = null; }
+      if (wallClockTid) { clearTimeout(wallClockTid); wallClockTid = null; }
       try { rec.abort(); } catch (_) {}
-      if (tid) clearTimeout(tid);
-      const ac = typeof asrConfidence === "number" && !Number.isNaN(asrConfidence) ? asrConfidence : null;
-      resolve({
-        transcript: transcript || finalTranscript || "",
-        matchedOption: matchedOption ?? null,
-        asr_confidence: ac,
-      });
+      const matched = matchTranscriptToOption(finalTranscript, options || []);
+      const ac = typeof lastConf === "number" && !Number.isNaN(lastConf) ? lastConf : null;
+      resolve({ transcript: finalTranscript, matchedOption: matched ?? null, asr_confidence: ac });
     }
+
+    function resetSilenceTimer() {
+      if (resolved) return;
+      if (silenceTid) clearTimeout(silenceTid);
+      // Fire finish() directly — no dependency on rec.stop() → onend chain.
+      silenceTid = setTimeout(() => {
+        console.log(`[ASR] silence timeout fired, transcript="${finalTranscript}"`);
+        finish("silence");
+      }, SPEECH_SILENCE_MS);
+    }
+
     rec.onresult = (e) => {
-      const last = e.results[e.results.length - 1];
-      const item = last.isFinal ? last[0] : (last.length ? last[0] : null);
-      if (item) {
-        const t = (item.transcript || "").trim();
-        const conf = typeof item.confidence === "number" ? item.confidence : null;
-        if (last.isFinal) {
-          finalTranscript = t;
-          const matched = matchTranscriptToOption(t, options || []);
-          done(t, matched, conf);
-        } else {
-          finalTranscript = t;
+      // On first speech: swap the short "never-spoke" wall-clock for a longer active-speech cap.
+      if (!speechStarted) {
+        speechStarted = true;
+        if (wallClockTid) { clearTimeout(wallClockTid); wallClockTid = null; }
+        wallClockTid = setTimeout(() => {
+          console.log("[ASR] active-speech wall-clock fired");
+          finish("wall_clock_active");
+        }, SPEECH_ACTIVE_MAX_MS);
+        console.log(`[ASR] speech started — active wall-clock set to ${SPEECH_ACTIVE_MAX_MS}ms`);
+      }
+
+      // Append only NEW final segments using resultIndex (prevents re-reading old ones).
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          const seg = e.results[i][0];
+          finalTranscript += seg.transcript;
+          if (typeof seg.confidence === "number") lastConf = seg.confidence;
+          console.log(`[ASR] onresult isFinal: "${seg.transcript}" → accumulated: "${finalTranscript}"`);
         }
       }
+      finalTranscript = finalTranscript.trim();
+      // Reset silence timer on every speech event so mid-sentence pauses don't end the turn.
+      resetSilenceTimer();
     };
+
+    // onend is a backup: fires if rec.stop() / rec.abort() is called or browser ends on its own.
     rec.onend = () => {
-      if (resolved) return;
-      const matched = matchTranscriptToOption(finalTranscript, options || []);
-      done(finalTranscript, matched, null);
+      console.log(`[ASR] onend fired, transcript="${finalTranscript}"`);
+      finish("onend");
     };
+
     rec.onerror = (e) => {
-      if (e.error === "no-speech" && finalTranscript) {
-        const matched = matchTranscriptToOption(finalTranscript, options || []);
-        done(finalTranscript, matched, null);
-      } else {
-        done(finalTranscript || "", null, null);
-      }
+      console.log(`[ASR] onerror: ${e.error}`);
+      if (e.error === "aborted") return;    // expected when finish() calls rec.abort()
+      if (e.error === "no-speech") return;  // let silence/onend handle the empty-speech case
+      finish("error");
     };
+
     setTimeout(() => {
       if (resolved) return;
-      tid = setTimeout(() => {
-        const matched = matchTranscriptToOption(finalTranscript, options || []);
-        done(finalTranscript, matched, null);
+      // Wall-clock limit: only fires if the learner never speaks at all.
+      wallClockTid = setTimeout(() => {
+        console.log("[ASR] wall-clock timeout fired");
+        finish("wall_clock");
       }, timeoutMs);
+      // Silence timer starts immediately — covers "user never speaks" before wall-clock fires.
+      resetSilenceTimer();
       try {
         rec.start();
-        emitUITrace({ type: "SPEECH_LISTEN_START", timestamp: new Date().toISOString(), payload: { lang: "zh-CN" } });
+        emitUITrace({ type: "SPEECH_LISTEN_START", timestamp: new Date().toISOString(), payload: { lang: "zh-CN", silence_ms: SPEECH_SILENCE_MS } });
       } catch (err) {
-        done("", null, null);
+        console.log(`[ASR] rec.start() error: ${err}`);
+        finish("start_error");
       }
     }, postCancelDelayMs);
   });
@@ -2362,10 +2402,17 @@ function syncPartnerHeaderWhenFrameSentenceIsPrimary() {
   else _updatePartnerHeader("", "", "");
 }
 
-/** Show or clear the always-visible English translation below the active frame sentence. */
+/** Show or clear the English translation below the active frame sentence.
+ *  In challenge mode the English is intentionally hidden until the learner clicks ? twice;
+ *  it is revealed there via #hintMeaning, not this element. */
 function _setFrameEnglish(enText) {
   const el = document.getElementById("frameEnglish");
   if (!el) return;
+  if (_challenge.active) {
+    el.textContent = "";
+    el.style.display = "none";
+    return;
+  }
   const t = (enText || "").trim();
   el.textContent = t;
   el.style.display = t ? "block" : "none";
@@ -4609,6 +4656,46 @@ function _cancelProbeAutoAdvance() {
 }
 
 /**
+ * Render the learner memory object into the #rememberedFacts banner.
+ * Pass an empty / null object to clear and hide the banner.
+ * Called on page load, after each run_turn response, and after clearing memory.
+ */
+function _renderMemoryBanner(mem) {
+  const el = document.getElementById("rememberedFacts");
+  if (!el) return;
+  const m = (mem && typeof mem === "object") ? mem : {};
+  const LABELS = [
+    ["learner_name", "Name"],
+    ["hometown",     "From"],
+    ["lives_in",     "Lives in"],
+    ["job_or_study", "Job"],
+    ["family",       "Family"],
+    ["favourite_food","Fav food"],
+  ];
+  const parts = LABELS
+    .map(([key, label]) => m[key] ? `${label}: ${m[key]}` : null)
+    .filter(Boolean);
+  if (parts.length > 0) {
+    el.textContent = "Memory — " + parts.join(" · ");
+    el.style.display = "";
+  } else {
+    el.textContent = "Memory — empty";
+    el.style.display = "";
+  }
+}
+
+/** Fetch current learner memory from the server and update the banner immediately. */
+async function _refreshMemoryBanner() {
+  try {
+    const res = await fetch("/api/memory?learner_id=default_learner");
+    if (res.ok) {
+      const data = await res.json();
+      _renderMemoryBanner(data.memory || {});
+    }
+  } catch (_) {}
+}
+
+/**
  * Reset all session state and clear learner memory on the server, then restart from the greeting.
  * Called by the "Start Fresh" button so the app treats the user as a first-time learner.
  */
@@ -4665,11 +4752,7 @@ async function startFreshLearner() {
   window._mediumProbeFiredEngines = [];
 
   // Clear the "Remembered:" facts banner
-  const rememberedEl = document.getElementById("rememberedFacts");
-  if (rememberedEl) {
-    rememberedEl.textContent = "";
-    rememberedEl.style.display = "none";
-  }
+  _renderMemoryBanner({});
 
   // Clear the transcript so the slate looks visually fresh
   const transcriptEl = document.getElementById("transcript");
@@ -5083,18 +5166,8 @@ async function _runTurnInner(isNext = false, opts = {}) {
   window._currentTurnUid = turnUid;
   renderOptions(tapOptions, frameId);
   // Phase 10 Step 7: show remembered facts when server sends learner_memory (cross-session continuity)
-  const rememberedEl = document.getElementById("rememberedFacts");
-  if (rememberedEl && data.learner_memory && typeof data.learner_memory === "object") {
-    const m = data.learner_memory;
-    const parts = [m.learner_name, m.hometown, m.lives_in, m.job_or_study, m.family, m.favourite_food].filter(Boolean);
-    if (parts.length > 0) {
-      rememberedEl.textContent = "Remembered: " + parts.join(", ");
-      rememberedEl.style.display = "";
-    } else {
-      rememberedEl.style.display = "none";
-    }
-  } else if (rememberedEl) {
-    rememberedEl.style.display = "none";
+  if (data.learner_memory && typeof data.learner_memory === "object") {
+    _renderMemoryBanner(data.learner_memory);
   }
 
   // Sentence-level response options (answers + recovery row)
@@ -5161,6 +5234,14 @@ async function _runTurnInner(isNext = false, opts = {}) {
     const _newBtn = _hintBtn.cloneNode(true);
     _hintBtn.parentNode.replaceChild(_newBtn, _hintBtn);
     _newBtn.addEventListener("click", () => {
+      // Challenge mode: first ? click reveals Chinese characters; subsequent clicks
+      // cascade through pinyin → English as normal.
+      if (_challenge.active && _challenge.helpLevel < 3) {
+        _challengeRevealText();
+        emitUITrace({ type: "HINT_ADVANCED", timestamp: new Date().toISOString(),
+          payload: { frame_id: frameId, level: "challenge_reveal", turn_uid: hint_cascade_state.turn_uid || turnUid } });
+        return;
+      }
       hint_cascade_state.level = getNextHintLevel(hint_cascade_state.level);
       const currentTurnUid = hint_cascade_state.turn_uid || turnUid;
       const currentAffordance = window._currentHintAffordance || hintAffordance;
@@ -5246,6 +5327,10 @@ cardPanel.addEventListener("click", (e) => {
 
 // defaults
 window.addEventListener("load", async () => {
+  // Show current memory state immediately — before the user clicks Start,
+  // so they can see if a previous session left data and clear it if needed.
+  _refreshMemoryBanner();
+
   // Phase 6: load render tokens and cards index in parallel with existing loads
   await Promise.all([
     loadPackFramesIntoDropdown(),
@@ -5350,9 +5435,9 @@ window.addEventListener("load", async () => {
       renderTranscript();
       const saidText = (matchedOption.hanzi || "").trim();
       _trackUserTextSignals(saidText);
-      // If the SPOKEN text (not the matched card) contained a turn-around phrase, preserve it
-      // as submitted_text so the server can detect the counter-question.  Without this, the
-      // "你呢" part of "我喜欢工作，你呢？" is swallowed when an option card matched the first part.
+      // Always preserve the full raw ASR transcript as submitted_text so the server has
+      // access to the complete sentence for echo building, memory capture, and slot decisions.
+      // Without this, "有很多好吃的东西" matching option "好吃" would collapse to "好吃" on the server.
       const _spokenRaw = (transcript || "").trim();
       const _spokenHasTurnAround = _spokenRaw && (
         /^(那?你呢|你怎么想|为什么这么问|为什么这样问|换我问|那你|你来问)/.test(_spokenRaw)
@@ -5360,8 +5445,10 @@ window.addEventListener("load", async () => {
         || /[，。！]?(那?你呢|你怎么想|为什么这么问)[？?]?$/.test(_spokenRaw)
         || /你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(_spokenRaw)
       );
-      const _spokenSubmitted = _spokenHasTurnAround
-        ? (_spokenRaw.endsWith("？") || _spokenRaw.endsWith("?") ? _spokenRaw : _spokenRaw + "？")
+      // Add "？" for turn-around so the server detects the counter-question correctly.
+      // For all other speech, send the transcript verbatim.
+      const _spokenSubmitted = _spokenRaw
+        ? (_spokenHasTurnAround && !(/[？?]$/.test(_spokenRaw)) ? _spokenRaw + "？" : _spokenRaw)
         : undefined;
       window._lastAnswer = {
         frame_id: frameId,
@@ -5613,6 +5700,9 @@ function _resetChallengeHelpState() {
   _challenge.helpLevel = 0;
   _challenge.recoveryCount = 0;
   document.body.classList.remove("challenge-text-revealed");
+  // Reset hint cascade so pinyin/English from the previous turn never carry over
+  // into the new turn's hidden-text state.
+  hint_cascade_state = { level: 0, turn_uid: null };
 }
 
 function _challengeRevealText() {

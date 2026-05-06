@@ -519,6 +519,20 @@
       "move_type": "LOOP"
     },
     {
+      "id": "f_work_yn",
+      "text": "你现在工作吗？",
+      "pinyin": "nǐ xiànzài gōngzuò ma?",
+      "text_en": "Do you work at the moment?",
+      "engine": "work",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_gongzuo"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "OPEN"
+    },
+    {
       "id": "p2_wk_2",
       "text": "这份工作难吗？",
       "pinyin": "zhè fèn gōngzuò nán ma?",

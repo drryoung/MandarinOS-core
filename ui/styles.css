@@ -922,6 +922,29 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
   line-height: 1.35;
 }
 
+/* ── Memory banner (#rememberedFacts) ────────────────────────────────────── */
+/* Always visible — shows what the server remembers about the learner.
+   Displayed before the first turn so learners can clear stale data. */
+.remembered-facts {
+  font-size: 0.78rem;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 10px;
+  margin: 4px 0 6px;
+  line-height: 1.4;
+}
+
+/* ── Active-sentence English translation (#frameEnglish) ─────────────────── */
+.frame-english {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-top: 3px;
+  line-height: 1.35;
+  padding-left: 2px;
+}
+
 /* ── Trace toggle ─────────────────────────────────────────────────────────── */
 .trace-details {
   margin-top: 16px;
