@@ -971,6 +971,27 @@ _SLOT_FOLLOWUP_PREFERENCES: dict = {
                 "f_probe_work_origin", "f_probe_work_future", "f_probe_work_why_quit"],
 }
 
+# ── Depth-before-bridge anchor map ───────────────────────────────────────────────────────────────
+# Maps open-ended "opener" frame IDs to a priority list of same-engine depth follow-up frames.
+# When the learner gives a substantive answer to an anchor frame (destination, dish, hobby, etc.)
+# the selector forces ONE same-engine follow-up before allowing ladder advancement or bridging.
+# First available unseen frame in the list wins. Deduplication uses the `recent` turn log.
+_DEPTH_ANCHOR_FRAMES: dict = {
+    # Travel: destination/place answers → why-want-to-go or what's-special follow-up
+    "f_want_go_where":        ["f_travel_why_want_go", "f_travel_special", "f_travel_why_interesting"],
+    "f_travel_where":         ["f_travel_special", "f_probe_travel_why_fav", "f_travel_why_interesting"],
+    "f_want_go_place":        ["f_travel_why_want_go", "f_travel_special", "f_travel_why_interesting"],
+    "f_place_travel":         ["f_travel_special", "f_travel_why_interesting"],
+    # Food: named dish answers → why-good or how-made
+    "f_food_what_good":       ["f_food_why_good", "f_probe_food_make"],
+    "f_food_famous_dish":     ["f_food_why_good"],
+    # Hobby: named hobby → best part / origin
+    "f_what_hobby":           ["f_hobby_best_part", "f_probe_hobby_origin"],
+    "f_like_do_what":         ["f_hobby_best_part", "f_probe_hobby_origin"],
+    # Family: named closest person → together / influence
+    "f_probe_family_closest": ["f_probe_family_together", "f_probe_family_influence"],
+}
+
 # ── Response-seeded bridge engine queue ──────────────────────────────────────────────────────────
 # Maps a disclosed slot to the engine that should be seeded for future bridging.
 # When the learner mentions content that belongs to another engine, that engine is queued
@@ -4305,6 +4326,22 @@ class Handler(BaseHTTPRequestHandler):
                     and "TRAVEL" in slot_names
                     and _has_strong_travel_signal(answer_text)
                 )
+                # Depth-before-bridge: when the learner gives a substantive answer to a specific
+                # open-ended "anchor" frame (destination, dish, hobby, closest family member),
+                # force ONE same-engine depth follow-up before ladder advancement or bridging.
+                # Only fires when the frame is in _DEPTH_ANCHOR_FRAMES and the answer is non-trivial.
+                _recent_fid_set = set(recent or [])
+                force_depth_followup_frame = None
+                if (last_turn_was_answer
+                        and not user_asked_question
+                        and last_answer_fid in _DEPTH_ANCHOR_FRAMES
+                        and answer_text
+                        and len(answer_text.replace(" ", "")) >= 2):
+                    for _dfc in _DEPTH_ANCHOR_FRAMES[last_answer_fid]:
+                        if _dfc in _frames_by_id and _dfc not in _recent_fid_set:
+                            force_depth_followup_frame = _dfc
+                            break
+
                 # Phase 13B: accumulate seeded bridge engines from this turn's disclosures.
                 if last_turn_was_answer and answer_text:
                     _new_seeds = _infer_cross_engine_seeds(slot_names, answer_text, current_engine, last_fid=last_answer_fid)
@@ -4721,6 +4758,16 @@ class Handler(BaseHTTPRequestHandler):
                     _sel_trace["retired_signal_detected"] = True
                     _sel_trace["work_eligible"] = False
                     _sel_trace["work_followup_suppressed_reason"] = "user_not_working"
+                elif force_depth_followup_frame:
+                    chosen = force_depth_followup_frame
+                    chosen_turn_type = "loop_question"
+                    listening_move_selected = "loop_question"
+                    listening_move_reason = f"depth_before_bridge_{last_answer_fid}"
+                    pending_listening_move = False
+                    listening_wait_turns = 0
+                    _sel_trace["depth_followup_forced"] = True
+                    _sel_trace["depth_followup_anchor"] = last_answer_fid
+                    print(f"[depth_followup] anchor={last_answer_fid} → {chosen}", flush=True)
                 elif force_food_followup:
                     chosen = _pick_slot_followup_frame_id(
                         current_engine, ["DISH"], recent, memory, exchange_count=exchange_count,

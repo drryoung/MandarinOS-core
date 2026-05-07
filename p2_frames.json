@@ -2077,6 +2077,20 @@
       "move_type": "LOOP"
     },
     {
+      "id": "f_travel_why_want_go",
+      "text": "你为什么想去那里？",
+      "pinyin": "nǐ wèishénme xiǎng qù nàlǐ?",
+      "text_en": "Why do you want to go there?",
+      "engine": "travel",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_weishenme", "w_yinwei"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
       "id": "f_efc_family_work",
       "text": "你{ENTITY}做什么工作？",
       "pinyin": "nǐ {ENTITY} zuò shénme gōngzuò?",
