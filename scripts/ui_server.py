@@ -1445,7 +1445,17 @@ def _looks_food_related_answer(text: str) -> bool:
 def _looks_travel_related_answer(text: str) -> bool:
     if not text:
         return False
-    cues = ("去过", "想去", "旅行", "旅游", "国家", "城市", "机票", "景点", "出国")
+    cues = (
+        # Explicit travel vocabulary — these carry travel intent in any context
+        "去过", "想去", "旅行", "旅游", "国家", "机票", "景点", "出国",
+        # Travel-verb patterns specific enough not to fire on school/errands:
+        # "会去" alone is too generic ("我会去学校"); require it in travel frame context.
+        # "去过" above already catches past-tense travel.
+        "打算去", "计划去",
+        # NOTE: country/city names intentionally OMITTED — "中国" in "我是中国人" is origin,
+        # not travel. Only the explicit travel frames list triggers TRAVEL slot for destination
+        # answers (handled via _infer_slot_names_from_answer explicit frame check).
+    )
     return any(c in text for c in cues)
 
 
@@ -1548,7 +1558,11 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
         slots.append("COMPANY")
     if fid in ("f_food_what_good", "f_food_tasty", "f_food_like_spicy", "f_food_famous_dish", "f_food_expensive"):
         slots.append("DISH")
-    if fid in ("f_travel_where", "f_want_go_where", "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4"):
+    if fid in (
+        "f_travel_where", "f_want_go_where",
+        "f_place_travel",   # 你会去别的地方吗？ — place-engine but travel-destination answer expected
+        "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4",
+    ):
         slots.append("TRAVEL")
     if fid in (
         "f_from_where",
@@ -1588,7 +1602,21 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
     elif fid == "p2_pl_2" and "DISH" not in slots:
         # p2_pl_2 asks about food in {CITY}; treat answers as dish/topic-bearing by default.
         slots.insert(0, "DISH")
-    if _looks_travel_related_answer(txt) and "TRAVEL" not in slots and not _is_identity_frame:
+    # Soft-chain TRAVEL only when the learner is already in a travel/place context.
+    # Prevents "我喜欢中国" on "你是哪里人？" from injecting a TRAVEL slot and causing
+    # a premature bridge to the travel engine.
+    _TRAVEL_SOFT_CHAIN_FRAMES = frozenset({
+        "f_place_travel", "f_travel_where", "f_want_go_where", "f_want_go_place",
+        "f_from_where", "frame.location.live_question",
+        "p2_pl_1", "p2_pl_2", "p2_pl_3", "p2_pl_4", "p2_pl_ext1",
+        "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4",
+    })
+    _in_travel_context = (
+        fid in _TRAVEL_SOFT_CHAIN_FRAMES
+        or (fid or "").startswith("f_travel")
+        or (fid or "").startswith("p2_tr")
+    )
+    if _looks_travel_related_answer(txt) and "TRAVEL" not in slots and not _is_identity_frame and _in_travel_context:
         slots.insert(0, "TRAVEL")
 
     # Deduplicate preserving order.
@@ -4322,16 +4350,24 @@ class Handler(BaseHTTPRequestHandler):
                 # Load deduplication state: last 2 reaction texts used this session.
                 _recent_reactions: List[str] = list(cs.get("recent_reactions") or [])
                 # Default traces — overwritten if their respective code paths run this turn.
+                _has_submitted_text = isinstance(last_answer, dict) and bool((last_answer.get("submitted_text") or "").strip())
+                _has_selected_hanzi = isinstance(last_answer, dict) and bool((last_answer.get("selected_option_hanzi") or "").strip())
                 _sel_trace: dict = {
                     "final_frame_source": "not_computed",
-                    # Diagnostic fields for answer text tracing.
-                    # asr_raw_text: the raw string the client sent (submitted_text field).
-                    # accepted_text: what the server actually uses for slot/selector decisions.
-                    # Compare these to diagnose whether collapse to keyword happened client-side or server-side.
+                    # Answer-path diagnostics — compare these to spot client-side collapse.
+                    "input_mode": (
+                        "asr" if _has_submitted_text and _has_selected_hanzi
+                        else ("typed" if _has_submitted_text else ("option_tap" if _has_selected_hanzi else "none"))
+                    ) if last_turn_was_answer else "none",
                     "asr_raw_text": (
                         (last_answer.get("submitted_text") or "") if isinstance(last_answer, dict) else ""
                     ) if last_turn_was_answer else "",
-                    "accepted_text": answer_text,  # computed above from submitted_text / selected_option_hanzi
+                    "accepted_text": answer_text,
+                    "current_frame_id": (last_answer.get("frame_id") or "") if isinstance(last_answer, dict) else "",
+                    "food_answer_detected": _looks_food_related_answer(answer_text) if answer_text else False,
+                    "food_answer_rejected_reason": None,  # filled in below if food slot rejected
+                    "travel_answer_detected": _looks_travel_related_answer(answer_text) if answer_text else False,
+                    "normalized_answer": answer_text,
                 }
                 # Closing move guards — set inside the selection block; defaulted here so the
                 # closing-move check at the end of selection is always safe to reference.
@@ -4622,6 +4658,35 @@ class Handler(BaseHTTPRequestHandler):
                     and "p2_wk_retired" not in recent
                 )
 
+                # ASR near-homophone retirement guard.
+                # 退休 (tuìxiū) and 推销 (tuīxiāo) sound similar; ASR frequently mishears one as
+                # the other.  When a short answer to a work-entry question ends with a "了"-terminated
+                # near-homophone we ask for explicit clarification rather than assuming a job.
+                # Scoped tightly: work-entry frames only, short answers, 了-completion marker required,
+                # "在推销" excluded (unambiguously active sales phrasing).
+                _RETIRE_NEAR_HOMOPHONES = ("推销了", "推休了", "退修了", "推消了", "退消了")
+                _WORK_ENTRY_FRAMES_FOR_GUARD = frozenset({
+                    "f_what_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5",
+                })
+                _needs_retire_clarify = (
+                    last_turn_was_answer and not user_asked_question
+                    and not _user_is_retired       # real signal already caught above
+                    and last_answer_fid in _WORK_ENTRY_FRAMES_FOR_GUARD
+                    and len(answer_text) <= 8
+                    and any(answer_text.rstrip("。！？").endswith(p) for p in _RETIRE_NEAR_HOMOPHONES)
+                    and "在推销" not in answer_text  # clearly "doing sales now" → not a retirement
+                    and "f_work_retire_clarify" not in recent
+                )
+
+                # After clarification frame: user confirms they are retired.
+                _RETIREMENT_CONFIRMATION = ("是", "对", "没错", "退休", "我退")
+                _retire_confirmed_after_clarify = (
+                    last_turn_was_answer and not user_asked_question
+                    and last_answer_fid == "f_work_retire_clarify"
+                    and any(sig in answer_text for sig in _RETIREMENT_CONFIRMATION)
+                    and "p2_wk_retired" not in recent
+                )
+
                 # Note: work-confusion routing (typed "我不明白" after a work question) is handled by
                 # _apply_discourse_coherence_guard (branch 1b) rather than here, keeping selector-level
                 # work-state detection limited to retirement/employment status signals only.
@@ -4632,7 +4697,23 @@ class Handler(BaseHTTPRequestHandler):
                 loop_attempted = False
                 listening_move_selected = "none"
                 listening_move_reason = ""
-                if _user_is_retired:
+                if _retire_confirmed_after_clarify:
+                    chosen = "p2_wk_retired"
+                    chosen_turn_type = "question"
+                    listening_move_selected = "retired_pivot"
+                    listening_move_reason = "user confirmed retirement after homophone clarify"
+                    _sel_trace["retired_signal_detected"] = True
+                    _sel_trace["retire_confirmed_via_clarify"] = True
+                    _sel_trace["work_eligible"] = False
+                    _sel_trace["work_followup_suppressed_reason"] = "user_confirmed_retired"
+                elif _needs_retire_clarify:
+                    chosen = "f_work_retire_clarify"
+                    chosen_turn_type = "question"
+                    listening_move_selected = "retire_clarify"
+                    listening_move_reason = "ASR near-homophone retirement guard fired"
+                    _sel_trace["retire_homophone_guard"] = True
+                    _sel_trace["work_followup_suppressed_reason"] = "asr_homophone_retire_guard"
+                elif _user_is_retired:
                     chosen = "p2_wk_retired"
                     chosen_turn_type = "question"
                     listening_move_selected = "retired_pivot"

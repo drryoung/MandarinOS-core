@@ -91,6 +91,8 @@
                 <button id="showOptionsBtn" class="action-ladder-btn" type="button" title="Toggle suggested responses" aria-label="Toggle suggested responses">Suggested responses</button>
                 <div id="reverseActionsRow" class="reverse-actions-row"></div>
               </div>
+              <!-- Listening state indicator: driven by _setListenState() in app.js, no Chinese text -->
+              <div id="listenStatus" class="listen-status" data-state="idle" aria-live="polite"></div>
               <!-- English input panel: type OR speak English, get a Chinese translation suggestion -->
               <div id="engInputPanel" class="eng-input-panel">
                 <div class="eng-input-row">

@@ -60,7 +60,8 @@
       "priority": 200,
       "core_set": true,
       "routing_group": "HOLD",
-      "always_surface": true
+      "always_surface": true,
+      "speaker": "learner"
     },
     {
       "id": "wo_xiang_xiang",
@@ -73,7 +74,8 @@
       "move_type": "REPAIR",
       "response_role": "SAFE",
       "repair_kind": "buffer",
-      "priority": 85
+      "priority": 85,
+      "speaker": "learner"
     },
     {
       "id": "zai_shuo_yi_bian",

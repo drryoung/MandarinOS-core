@@ -1991,9 +1991,11 @@ function getRecoveryPhraseForNotUnderstood(avoidPhraseId = null, precomputedCont
   const data = recoveryPhrasesRuntime || window._recoveryPhrases;
   // Phase 12D: partner auto-selects only from CORE_RECOVERY_SET + EXIT (好吧).
   // Non-core phrases (e.g. 可以简单说吗？, 换个话题吧) are excluded from auto-selection.
+  // Phrases marked speaker:"learner" (等一下, 我想想) are learner-owned pause/buffer phrases —
+  // the app must not say them when signalling misunderstanding; they remain in the learner panel.
   // The full list is still used for explicit_recovery_match (ASR recognition of learner speech).
   const phrases = learnerRecoveryPhrases(data).filter(
-    (p) => p.always_surface === true || p.routing_group === "EXIT"
+    (p) => (p.always_surface === true || p.routing_group === "EXIT") && p.speaker !== "learner"
   );
   if (!data || phrases.length === 0) {
     const recovery_trace = {
@@ -2023,7 +2025,22 @@ function getRecoveryPhraseForNotUnderstood(avoidPhraseId = null, precomputedCont
       frame_id: null,
       repeat_repair_count: window._consecutiveNotUnderstood || 0,
     });
-  return selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId });
+  const selected = selectRecoveryPhrase(ctx, { phrases, data, avoidPhraseId });
+  // Hard block: these are learner-owned pause phrases that must never be emitted
+  // by the app as a misunderstanding response, regardless of runtime data state.
+  const _LEARNER_PAUSE_PHRASES = new Set(["等一下", "等一等", "等等"]);
+  if (_LEARNER_PAUSE_PHRASES.has((selected.hanzi || "").trim())) {
+    console.warn("[recovery] blocked learner-owned phrase:", selected.hanzi, "— using fallback");
+    return phrases.find((p) => p.id === "a") || phrases.find((p) => p.hanzi === "啊？") || {
+      id: "a_fallback",
+      hanzi: "啊？",
+      pinyin: "a?",
+      text_en: "Huh?",
+      recovery_action: "soft",
+      recovery_trace: selected.recovery_trace,
+    };
+  }
+  return selected;
 }
 
 /** Normalize for match: trim, collapse spaces, remove common punctuation. */
@@ -2092,10 +2109,11 @@ function isOpenEndedFrame(frameId) {
     // Identity (incl. nickname + name-story questions — free-text answers common)
     "f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning",
     "f_id_friends_call", "f_probe_id_nickname", "f_name_story", "f_name_story_elicit", "f_how_old",
-    // Place — life-quality, local character, and leisure questions are all open
+    // Place — life-quality, local character, leisure, and travel questions are all open
     "f_from_where", "frame.location.live_question",
     "f_place_why_like", "f_place_like_there",
     "f_probe_place_miss", "f_probe_place_moved", "f_probe_place_stay", "f_probe_place_why_move",
+    "f_place_travel",  // 你会去别的地方吗？ — any destination answer is valid
     "p2_pl_1", "p2_pl_ext1", "p2_pl_3", "p2_pl_4",
     // Family — open questions that invite any free answer
     "f_have_family", "f_have_siblings", "p2_fa_1", "p2_fa_2", "p2_fa_5",
@@ -2198,6 +2216,21 @@ function semanticSoftMatch(transcript, frameId) {
   if (/你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(t)) return true;
   // Scenery / place-quality free answers (often unmatched to word tiles)
   if (/(风景|山水|漂亮|好看|很美|美|空气|环境|舒服|安静|不错|挺好|海|湖|山|树|绿)/.test(t)) return true;
+  // Travel destination answers — scoped to frames where "going somewhere" is the actual question.
+  // Prevents "中国" / "会去" from triggering travel matching on identity or origin questions.
+  const _TRAVEL_DEST_FRAMES = new Set([
+    "f_place_travel",      // 你会去别的地方吗？
+    "f_travel_where",      // 你去过哪里？
+    "f_want_go_where",     // 你想去哪里？
+    "f_want_go_place",     // 你想去的地方
+    "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4",
+  ]);
+  if (_TRAVEL_DEST_FRAMES.has(fid) || /^(f_travel|p2_tr)/.test(fid)) {
+    // Travel-verb patterns: "我会去中国", "我要去日本", "我打算去欧洲"
+    if (/会去|要去|去过|打算去|计划去/.test(t)) return true;
+    // Country / region names are only valid destination signals inside travel frames
+    if (/(中国|日本|英国|美国|法国|德国|澳大利亚|加拿大|欧洲|亚洲|新西兰|香港|台湾|韩国|东南亚|泰国|印度|新加坡|越南|意大利|西班牙)/.test(t)) return true;
+  }
   // Foreign city / region names in Latin (Christchurch is longer than Dunedin — same rule as identity mixed-script).
   if (_MIXED_SCRIPT_PLACE_FRAMES.has(fid) && /[\u4e00-\u9fff]/.test(t) && /[A-Za-z]/.test(t)) return true;
   // Identity: how people call you — tolerate ASR / mixed-script name answers.
@@ -2208,10 +2241,13 @@ function semanticSoftMatch(transcript, frameId) {
     const hasLatin = /[A-Za-z]/.test(t);
     if (hasZh && hasLatin) return true;
   }
-  // Famous dish: accept concrete food nouns and valid "don't know/no famous dish" replies.
-  if (fid === "f_food_famous_dish") {
-    if (/汉堡|牛肉|羊肉|火锅|饺子|面|米饭|烤|汤|鱼|鸡|菜/.test(t)) return true;
-    if (/不知道|没有|不清楚/.test(t)) return true;
+  // Food frames: accept food nouns combined with any evaluator, and standalone good/bad evaluators.
+  // Covers: "羊肉不错", "饺子很好吃", "面条挺好", "这里的羊肉不错", "有很多好吃的东西".
+  const _FOOD_FRAMES = new Set(["f_food_what_good", "f_food_tasty", "f_food_famous_dish", "f_food_like_spicy", "f_food_expensive"]);
+  if (_FOOD_FRAMES.has(fid)) {
+    if (/羊肉|牛肉|猪肉|鸡肉|鱼|面|饺子|火锅|米饭|汤|菜|包子|烤|粥|寿司|蛋糕|海鲜|蔬菜|水果/.test(t)) return true;
+    if (/不错|好吃|很好|好香|很香|挺好|非常好|很棒|好喝|很甜|很辣|很鲜|好吃的/.test(t)) return true;
+    if (/不知道|没有|不清楚|都行|随便/.test(t)) return true;
   }
   // Family frequency: accept natural free responses about seeing family.
   if (fid === "p2_fa_2") {
@@ -2275,6 +2311,29 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
 // Increase this to give learners more time to construct sentences.
 const SPEECH_SILENCE_MS = 3000;
 
+// ── Listening state indicator ────────────────────────────────────────────────
+// Drives #listenStatus through: idle → listening → waiting → processing → idle.
+// No Chinese text — system feedback is always in English for clarity.
+function _setListenState(state) {
+  const el = document.getElementById("listenStatus");
+  if (!el) return;
+  el.dataset.state = state;
+  switch (state) {
+    case "listening":
+      el.innerHTML = '<span class="listen-icon">🎙️</span><span>Listening…</span>';
+      break;
+    case "waiting":
+      el.innerHTML = '<span class="listen-icon">🎙️</span><span>Keep speaking or pause to finish</span>';
+      break;
+    case "processing":
+      el.innerHTML = '<span class="listen-spinner"></span><span>Processing…</span>';
+      break;
+    default:
+      el.innerHTML = "";
+      break;
+  }
+}
+
 function listenForResponse(options, timeoutMs) {
   return new Promise((resolve) => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2301,6 +2360,7 @@ function listenForResponse(options, timeoutMs) {
     let resolved = false;
     let silenceTid = null;
     let wallClockTid = null;
+    let waitingTid = null;   // transitions indicator to "waiting" ~800ms after last speech event
     let speechStarted = false;
     // Wall-clock budget once speech has begun — gives slow learners time to complete sentences.
     const SPEECH_ACTIVE_MAX_MS = 13000;
@@ -2312,8 +2372,10 @@ function listenForResponse(options, timeoutMs) {
       if (resolved) return;
       resolved = true;
       console.log(`[ASR] finish: reason=${reason}, transcript="${finalTranscript}"`);
-      if (silenceTid) { clearTimeout(silenceTid); silenceTid = null; }
-      if (wallClockTid) { clearTimeout(wallClockTid); wallClockTid = null; }
+      if (silenceTid)  { clearTimeout(silenceTid);  silenceTid  = null; }
+      if (wallClockTid){ clearTimeout(wallClockTid); wallClockTid = null; }
+      if (waitingTid)  { clearTimeout(waitingTid);  waitingTid  = null; }
+      _setListenState("processing");
       try { rec.abort(); } catch (_) {}
       const matched = matchTranscriptToOption(finalTranscript, options || []);
       const ac = typeof lastConf === "number" && !Number.isNaN(lastConf) ? lastConf : null;
@@ -2352,6 +2414,12 @@ function listenForResponse(options, timeoutMs) {
         }
       }
       finalTranscript = finalTranscript.trim();
+      // Show "Listening…" while speech is active; after 800ms of silence switch to "waiting".
+      _setListenState("listening");
+      if (waitingTid) clearTimeout(waitingTid);
+      waitingTid = setTimeout(() => {
+        if (!resolved) _setListenState("waiting");
+      }, 1400);
       // Reset silence timer on every speech event so mid-sentence pauses don't end the turn.
       resetSilenceTimer();
     };
@@ -2380,6 +2448,7 @@ function listenForResponse(options, timeoutMs) {
       resetSilenceTimer();
       try {
         rec.start();
+        _setListenState("listening");
         emitUITrace({ type: "SPEECH_LISTEN_START", timestamp: new Date().toISOString(), payload: { lang: "zh-CN", silence_ms: SPEECH_SILENCE_MS } });
       } catch (err) {
         console.log(`[ASR] rec.start() error: ${err}`);
@@ -4807,6 +4876,8 @@ async function runTurn(isNext = false, opts = {}) {
 }
 
 async function _runTurnInner(isNext = false, opts = {}) {
+  // Clear any lingering listening indicator now that the partner is about to respond.
+  _setListenState("idle");
   // Challenge Mode: reset per-turn help state before rendering begins
   if (_challenge.active) _resetChallengeHelpState();
   const selected = frameSelect.value;
@@ -5431,14 +5502,16 @@ window.addEventListener("load", async () => {
         const toSelect = optionsContainer.querySelector(`.option-panel[data-card-id="${(matchedOption.card_id || "").replace(/"/g, "")}"]`);
         if (toSelect) toSelect.classList.add("selected");
       }
-      addTranscriptEntry("user", (matchedOption.hanzi || "").trim(), { text_en: matchedOption.meaning || "" });
-      renderTranscript();
-      const saidText = (matchedOption.hanzi || "").trim();
-      _trackUserTextSignals(saidText);
-      // Always preserve the full raw ASR transcript as submitted_text so the server has
-      // access to the complete sentence for echo building, memory capture, and slot decisions.
-      // Without this, "有很多好吃的东西" matching option "好吃" would collapse to "好吃" on the server.
+      // When spoken transcript is longer than the partially-matched word option, use the full
+      // transcript as the canonical answer. This prevents "羊肉不错" (spoken) from collapsing to
+      // "不错" (the matched 2-char word tile) in both the transcript display and TTS playback.
+      // The matched option is still used for word-card highlighting only.
       const _spokenRaw = (transcript || "").trim();
+      const _matchedHanzi = (matchedOption.hanzi || "").trim();
+      const saidText = (_spokenRaw.length > _matchedHanzi.length) ? _spokenRaw : _matchedHanzi;
+      addTranscriptEntry("user", saidText, { text_en: matchedOption.meaning || "" });
+      renderTranscript();
+      _trackUserTextSignals(saidText);
       const _spokenHasTurnAround = _spokenRaw && (
         /^(那?你呢|你怎么想|为什么这么问|为什么这样问|换我问|那你|你来问)/.test(_spokenRaw)
         || _spokenRaw === "你呢"
@@ -5611,9 +5684,13 @@ window.addEventListener("load", async () => {
       timestamp: new Date().toISOString(),
       payload: {
         transcript,
+        answer_rejected_reason: unmatchedDecision.reason,
         unmatched_decision_reason: unmatchedDecision.reason,
         frame_id: frameId,
         unmatched_count: unmatchedCount + 1,
+        recovery_phrase_selected: phrase.hanzi || null,
+        recovery_phrase_id: phrase.id || null,
+        repair_phrase_source: "getRecoveryPhraseForNotUnderstood",
         recovery_trigger_reason: phrase.recovery_trace?.recovery_trigger_reason,
         repair_kind: phrase.recovery_trace?.repair_kind,
         asr_confidence_band: phrase.recovery_trace?.asr_confidence_band,
