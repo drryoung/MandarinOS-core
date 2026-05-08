@@ -483,3 +483,37 @@ Updated: 2026-03-29 (extensibility + 12C/12D alignment integrated)
 - **Hybrid AI layer:** see Section 12 above; prerequisite is a robust structured engine; not a substitute for 12C–12D layers.
 
 END.
+
+---
+
+## Regression Discipline (MANDATORY)
+
+MandarinOS must not lose previously working behaviors when implementing new changes.
+
+**Rule:**
+Every bug fix or behavioral improvement MUST be protected by a regression test.
+
+All regression behaviors are defined in:
+**`docs/MANDARINOS_REGRESSION_LOCK.md`**
+
+These tests must be checked whenever modifying:
+- selector logic
+- ASR handling
+- recovery/repair logic
+- semantic matching
+- conversation flow
+
+**Required steps after any such change:**
+1. Identify which regression cases in `docs/MANDARINOS_REGRESSION_LOCK.md` are affected
+2. Verify they still pass: `python tests/test_golden_regression.py`
+3. Add a new test case if new behavior is introduced
+
+**Do NOT:**
+- Fix a bug without protecting it
+- Change selector logic without checking cross-engine impact
+- Add broad matching rules without scoping them to the relevant frame set
+- Change ASR handling without re-validating conversation flow
+
+**Principle:**
+MandarinOS is a conversation system.
+Stability of interaction patterns is more important than speed of adding new features.

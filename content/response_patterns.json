@@ -14,8 +14,8 @@
           "en": "People call me ___."
         },
         {
-          "zh": "我有个中文名，叫___。",
-          "py": "Wǒ yǒu gè Zhōngwén míng, jiào ___.",
+          "zh": "我有中文名，叫___。",
+          "py": "Wǒ yǒu Zhōngwén míng, jiào ___.",
           "en": "I have a Chinese name — it's ___."
         }
       ]
@@ -34,9 +34,9 @@
           "en": "Just call me ___."
         },
         {
-          "zh": "没有外号，叫全名就好。",
-          "py": "Méiyǒu wàihào, jiào quán míng jiù hǎo.",
-          "en": "No nickname — full name is fine."
+          "zh": "叫全名就好。",
+          "py": "Jiào quán míng jiù hǎo.",
+          "en": "Full name is fine."
         }
       ]
     },
@@ -49,9 +49,9 @@
           "en": "It's a bit complicated."
         },
         {
-          "zh": "有正面的意思，代表美好的东西。",
-          "py": "Yǒu zhèngmiàn de yìsi, dàibiǎo měihǎo de dōngxi.",
-          "en": "A positive meaning — represents something good."
+          "zh": "有好的意思。",
+          "py": "Yǒu hǎo de yìsi.",
+          "en": "It has a good meaning."
         },
         {
           "zh": "我不太清楚。",
@@ -94,9 +94,9 @@
           "en": "My dad chose it."
         },
         {
-          "zh": "是我自己选的，家人同意了。",
-          "py": "Shì wǒ zìjǐ xuǎn de, jiārén tóngyì le.",
-          "en": "I chose it myself — family agreed."
+          "zh": "是我自己选的。",
+          "py": "Shì wǒ zìjǐ xuǎn de.",
+          "en": "I chose it myself."
         }
       ]
     },
@@ -264,14 +264,14 @@
           "en": "I love hot pot most."
         },
         {
-          "zh": "我很喜欢面食，特别是饺子。",
-          "py": "Wǒ hěn xǐhuān miànshí, tèbié shì jiǎozi.",
-          "en": "I love noodles and dumplings especially."
+          "zh": "我最喜欢饺子！",
+          "py": "Wǒ zuì xǐhuān jiǎozi!",
+          "en": "I love dumplings most."
         },
         {
-          "zh": "我喜欢家里的菜，妈妈做的最好。",
-          "py": "Wǒ xǐhuān jiālǐ de cài, māma zuò de zuì hǎo.",
-          "en": "I like home cooking — mum's is the best."
+          "zh": "我喜欢家里的菜！",
+          "py": "Wǒ xǐhuān jiālǐ de cài!",
+          "en": "I like home cooking."
         }
       ]
     },
@@ -279,19 +279,19 @@
       "key": "好吃吗",
       "options": [
         {
-          "zh": "很好吃！我很推荐。",
-          "py": "Hěn hǎochī! Wǒ hěn tuījiàn.",
-          "en": "Very delicious! I highly recommend it."
+          "zh": "很好吃！你也试试！",
+          "py": "Hěn hǎochī! Nǐ yě shìshi!",
+          "en": "Very delicious — you should try it!"
         },
         {
-          "zh": "还可以，值得试试。",
-          "py": "Hái kěyǐ, zhídé shì shi.",
-          "en": "It's alright — worth trying."
+          "zh": "还可以！",
+          "py": "Hái kěyǐ!",
+          "en": "It's alright!"
         },
         {
-          "zh": "有一点特别，可能要习惯。",
-          "py": "Yǒu yīdiǎn tèbié, kěnéng yào xíguàn.",
-          "en": "A bit unusual — might take getting used to."
+          "zh": "有一点特别。",
+          "py": "Yǒu yīdiǎn tèbié.",
+          "en": "It's a bit unusual."
         }
       ]
     },
@@ -309,9 +309,9 @@
           "en": "There's lots of good food!"
         },
         {
-          "zh": "很难说，每样都好吃！",
-          "py": "Hěn nán shuō, měi yàng dōu hǎochī!",
-          "en": "Hard to say — everything is delicious!"
+          "zh": "每样都好吃！",
+          "py": "Měi yàng dōu hǎochī!",
+          "en": "Everything is delicious!"
         }
       ]
     },
@@ -359,19 +359,19 @@
       "key": "贵不贵",
       "options": [
         {
-          "zh": "不贵，很划算。",
-          "py": "Bù guì, hěn huásuàn.",
-          "en": "Not expensive — great value."
+          "zh": "不贵！很划算。",
+          "py": "Bù guì! Hěn huásuàn.",
+          "en": "Not expensive! Great value."
         },
         {
-          "zh": "有一点贵，但值得。",
-          "py": "Yǒu yīdiǎn guì, dàn zhídé.",
+          "zh": "有一点贵，但是值得。",
+          "py": "Yǒu yīdiǎn guì, dànshì zhídé.",
           "en": "A bit pricey, but worth it."
         },
         {
-          "zh": "看地方，有贵有便宜。",
-          "py": "Kàn dìfāng, yǒu guì yǒu piányí.",
-          "en": "Depends on the place — varies."
+          "zh": "看地方。",
+          "py": "Kàn dìfāng.",
+          "en": "Depends on the place."
         }
       ]
     },
@@ -439,19 +439,19 @@
       "key": "想去哪",
       "options": [
         {
-          "zh": "我想去欧洲，历史很丰富。",
-          "py": "Wǒ xiǎng qù Ōuzhōu, lìshǐ hěn fēngfù.",
-          "en": "I want to go to Europe — very rich history."
+          "zh": "我想去欧洲！",
+          "py": "Wǒ xiǎng qù Ōuzhōu!",
+          "en": "I want to go to Europe!"
         },
         {
-          "zh": "我想去日本，喜欢那里的文化。",
-          "py": "Wǒ xiǎng qù Rìběn, xǐhuān nàlǐ de wénhuà.",
-          "en": "I want to go to Japan — I love the culture."
+          "zh": "我想去日本！喜欢那里。",
+          "py": "Wǒ xiǎng qù Rìběn! Xǐhuān nàlǐ.",
+          "en": "I want to go to Japan — I like it there."
         },
         {
-          "zh": "我想去没去过的地方，越远越好。",
-          "py": "Wǒ xiǎng qù méi qùguò de dìfāng, yuè yuǎn yuè hǎo.",
-          "en": "Somewhere I've never been — the farther the better."
+          "zh": "我想去没去过的地方！",
+          "py": "Wǒ xiǎng qù méi qùguò de dìfāng!",
+          "en": "Somewhere I've never been."
         }
       ]
     },
@@ -464,14 +464,14 @@
           "en": "Japan left the deepest impression."
         },
         {
-          "zh": "欧洲，那里的文化很有意思。",
-          "py": "Ōuzhōu, nàlǐ de wénhuà hěn yǒuyìsi.",
-          "en": "Europe — the culture is very interesting."
+          "zh": "欧洲！很有意思。",
+          "py": "Ōuzhōu! Hěn yǒuyìsi.",
+          "en": "Europe! Very interesting."
         },
         {
-          "zh": "很难说，每个地方都不一样。",
-          "py": "Hěn nán shuō, měi gè dìfāng dōu bù yīyàng.",
-          "en": "Hard to say — every place is different."
+          "zh": "每个地方都不一样！",
+          "py": "Měi gè dìfāng dōu bù yīyàng!",
+          "en": "Every place is different!"
         }
       ]
     },
@@ -484,13 +484,13 @@
           "en": "Usually with friends."
         },
         {
-          "zh": "两种都有，看去哪里。",
-          "py": "Liǎng zhǒng dōu yǒu, kàn qù nǎlǐ.",
-          "en": "Both — depends on where."
+          "zh": "两种都有！",
+          "py": "Liǎng zhǒng dōu yǒu!",
+          "en": "Both!"
         },
         {
-          "zh": "我喜欢自己去，比较自由。",
-          "py": "Wǒ xǐhuān zìjǐ qù, bǐjiào zìyóu.",
+          "zh": "我喜欢自己去！比较自由。",
+          "py": "Wǒ xǐhuān zìjǐ qù! Bǐjiào zìyóu.",
           "en": "I prefer going alone — more freedom."
         }
       ]
@@ -504,14 +504,14 @@
           "en": "I love eating local food most."
         },
         {
-          "zh": "我喜欢走路，发现新地方。",
-          "py": "Wǒ xǐhuān zǒulù, fāxiàn xīn dìfāng.",
-          "en": "I like walking and discovering new places."
+          "zh": "我喜欢走路！发现新地方。",
+          "py": "Wǒ xǐhuān zǒulù! Fāxiàn xīn dìfāng.",
+          "en": "I like walking — discovering new places."
         },
         {
-          "zh": "我喜欢和当地人聊天，了解文化。",
-          "py": "Wǒ xǐhuān hé dāngdì rén liáotiān, liǎojiě wénhuà.",
-          "en": "I like chatting with locals — learning about the culture."
+          "zh": "我喜欢和当地人聊天！",
+          "py": "Wǒ xǐhuān hé dāngdì rén liáotiān!",
+          "en": "I like chatting with locals."
         }
       ]
     },
@@ -519,19 +519,19 @@
       "key": "好玩的",
       "options": [
         {
-          "zh": "有很多特色的小店和街道。",
-          "py": "Yǒu hěn duō tèsè de xiǎodiàn hé jiēdào.",
-          "en": "Lots of unique shops and streets."
+          "zh": "有很多好玩的小店！",
+          "py": "Yǒu hěn duō hǎowán de xiǎodiàn!",
+          "en": "Lots of fun little shops."
         },
         {
-          "zh": "当地的食物很好吃，值得试试。",
-          "py": "Dāngdì de shíwù hěn hǎochī, zhídé shì shi.",
-          "en": "The local food is great — worth trying."
+          "zh": "当地的食物很好吃！",
+          "py": "Dāngdì de shíwù hěn hǎochī!",
+          "en": "The local food is really good."
         },
         {
-          "zh": "风景很美，特别适合走路探索。",
-          "py": "Fēngjǐng hěn měi, tèbié shìhé zǒulù tànsuǒ.",
-          "en": "Beautiful scenery — great for exploring on foot."
+          "zh": "风景很美！可以走路。",
+          "py": "Fēngjǐng hěn měi! Kěyǐ zǒulù.",
+          "en": "Beautiful scenery — great for walking."
         }
       ]
     },
@@ -579,9 +579,9 @@
       "key": "和家人一起做",
       "options": [
         {
-          "zh": "一起吃饭，聊聊天。",
-          "py": "Yīqǐ chīfàn, liáo liáo tiān.",
-          "en": "Have meals together and chat."
+          "zh": "一起吃饭。",
+          "py": "Yīqǐ chīfàn.",
+          "en": "Have meals together."
         },
         {
           "zh": "一起看电影。",
@@ -589,9 +589,9 @@
           "en": "Watch movies together."
         },
         {
-          "zh": "一起旅行，这对我们来说很重要。",
-          "py": "Yīqǐ lǚxíng, zhè duì wǒmen lái shuō hěn zhòngyào.",
-          "en": "Travel together — that's very important to us."
+          "zh": "一起旅行！很重要。",
+          "py": "Yīqǐ lǚxíng! Hěn zhòngyào.",
+          "en": "Travel together — very important."
         }
       ]
     },
@@ -604,14 +604,14 @@
           "en": "I love it! It's interesting."
         },
         {
-          "zh": "还可以，有好有坏。",
-          "py": "Hái kěyǐ, yǒu hǎo yǒu huài.",
-          "en": "It's alright, has its ups and downs."
+          "zh": "有好有坏。",
+          "py": "Yǒu hǎo yǒu huài.",
+          "en": "Has its ups and downs."
         },
         {
-          "zh": "不太喜欢，但是没办法。",
-          "py": "Bù tài xǐhuān, dànshì méi bànfǎ.",
-          "en": "Not really, but what can you do."
+          "zh": "不太喜欢。",
+          "py": "Bù tài xǐhuān.",
+          "en": "Not really."
         }
       ]
     },
@@ -624,14 +624,14 @@
           "en": "Because I get to help people."
         },
         {
-          "zh": "因为有成就感。",
-          "py": "Yīnwèi yǒu chéngjiùgǎn.",
-          "en": "Because it's fulfilling."
+          "zh": "因为做完了很开心。",
+          "py": "Yīnwèi zuò wán le hěn kāixīn.",
+          "en": "Because finishing feels great."
         },
         {
-          "zh": "其实我也不确定，但是习惯了。",
-          "py": "Qíshí wǒ yě bù quèdìng, dànshì xíguàn le.",
-          "en": "Honestly not sure, but I'm used to it now."
+          "zh": "习惯了。",
+          "py": "Xíguàn le.",
+          "en": "Just used to it."
         }
       ]
     },
@@ -684,9 +684,9 @@
           "en": "Working with colleagues is fun."
         },
         {
-          "zh": "完成工作很有成就感。",
-          "py": "Wánchéng gōngzuò hěn yǒu chéngjiùgǎn.",
-          "en": "Finishing tasks feels rewarding."
+          "zh": "完成工作很开心！",
+          "py": "Wánchéng gōngzuò hěn kāixīn!",
+          "en": "Finishing work feels great."
         },
         {
           "zh": "没有特别的事。",
@@ -704,14 +704,14 @@
           "en": "I like reading."
         },
         {
-          "zh": "我喜欢运动，特别是跑步。",
-          "py": "Wǒ xǐhuān yùndòng, tèbié shì pǎobù.",
-          "en": "I like sport, especially running."
+          "zh": "我喜欢跑步！",
+          "py": "Wǒ xǐhuān pǎobù!",
+          "en": "I like running."
         },
         {
-          "zh": "我喜欢旅行，探索新的地方。",
-          "py": "Wǒ xǐhuān lǚxíng, tànsuǒ xīn dìfāng.",
-          "en": "I like travelling and exploring new places."
+          "zh": "我喜欢旅行！发现新地方。",
+          "py": "Wǒ xǐhuān lǚxíng! Fāxiàn xīn dìfāng.",
+          "en": "I love travelling — discovering new places."
         }
       ]
     },
@@ -729,9 +729,9 @@
           "en": "I like sport."
         },
         {
-          "zh": "我喜欢和朋友出去，发现新地方。",
-          "py": "Wǒ xǐhuān hé péngyǒu chūqù, fāxiàn xīn dìfāng.",
-          "en": "I like going out with friends and discovering new places."
+          "zh": "我喜欢和朋友出去！",
+          "py": "Wǒ xǐhuān hé péngyǒu chūqù!",
+          "en": "I like going out with friends."
         }
       ]
     },
@@ -749,9 +749,9 @@
           "en": "OK, not too busy."
         },
         {
-          "zh": "最近有点忙，事情比较多。",
-          "py": "Zuìjìn yǒudiǎn máng, shìqing bǐjiào duō.",
-          "en": "Lately a bit busy — quite a lot going on."
+          "zh": "最近有点忙。",
+          "py": "Zuìjìn yǒudiǎn máng.",
+          "en": "Lately a bit busy."
         }
       ]
     },
@@ -759,8 +759,8 @@
       "key": "在哪个公司",
       "options": [
         {
-          "zh": "我在一家外资公司。",
-          "py": "Wǒ zài yījiā wàizī gōngsī.",
+          "zh": "我在外国公司上班。",
+          "py": "Wǒ zài wàiguó gōngsī shàngbān.",
           "en": "I work at a foreign company."
         },
         {
@@ -784,14 +784,14 @@
           "en": "In the city centre."
         },
         {
-          "zh": "在家工作，比较灵活。",
-          "py": "Zài jiā gōngzuò, bǐjiào línghuó.",
-          "en": "I work from home — pretty flexible."
+          "zh": "在家工作！比较自由。",
+          "py": "Zài jiā gōngzuò! Bǐjiào zìyóu.",
+          "en": "I work from home — pretty free."
         },
         {
-          "zh": "在公司办公室，每天通勤。",
-          "py": "Zài gōngsī bàngōngshì, měitiān tōngqín.",
-          "en": "In an office — I commute every day."
+          "zh": "在公司上班。",
+          "py": "Zài gōngsī shàngbān.",
+          "en": "In an office."
         }
       ]
     },
@@ -809,8 +809,8 @@
           "en": "Not long — only a year or two."
         },
         {
-          "zh": "很久了，从毕业就开始了。",
-          "py": "Hěn jiǔ le, cóng bìyè jiù kāishǐ le.",
+          "zh": "很久了！从毕业开始。",
+          "py": "Hěn jiǔ le! Cóng bìyè kāishǐ.",
           "en": "A long time — since I graduated."
         }
       ]
@@ -829,9 +829,9 @@
           "en": "I studied this field."
         },
         {
-          "zh": "其实是一个意外，说来话长。",
-          "py": "Qíshí shì yīgè yìwài, shuō lái huà cháng.",
-          "en": "Actually by accident — it's a long story."
+          "zh": "其实是偶然的。说来话长！",
+          "py": "Qíshí shì ǒurán de. Shuō lái huà cháng!",
+          "en": "Actually by chance. It's a long story!"
         }
       ]
     },
@@ -839,9 +839,9 @@
       "key": "当时想做的工作",
       "options": [
         {
-          "zh": "是的，一直是我的梦想。",
-          "py": "Shì de, yīzhí shì wǒ de mèngxiǎng.",
-          "en": "Yes, it's always been my dream."
+          "zh": "一直是我的梦想！",
+          "py": "Yīzhí shì wǒ de mèngxiǎng!",
+          "en": "It's always been my dream."
         },
         {
           "zh": "不是，当时没想这么多。",
@@ -849,9 +849,9 @@
           "en": "No, I didn't think about it much back then."
         },
         {
-          "zh": "有一点，不过没想太多。",
-          "py": "Yǒu yīdiǎn, bùguò méi xiǎng tài duō.",
-          "en": "Sort of — but I didn't think too much about it."
+          "zh": "有一点。",
+          "py": "Yǒu yīdiǎn.",
+          "en": "Sort of."
         }
       ]
     },
@@ -864,14 +864,14 @@
           "en": "Yes, I love it."
         },
         {
-          "zh": "不确定，看情况。",
-          "py": "Bù quèdìng, kàn qíngkuàng.",
-          "en": "Not sure, depends on how things go."
+          "zh": "看情况。",
+          "py": "Kàn qíngkuàng.",
+          "en": "Depends how things go."
         },
         {
-          "zh": "不，我想换一个方向。",
-          "py": "Bù, wǒ xiǎng huàn yīgè fāngxiàng.",
-          "en": "No, I want to try something different."
+          "zh": "不，我想换个工作。",
+          "py": "Bù, wǒ xiǎng huàn gè gōngzuò.",
+          "en": "No — I want to change jobs."
         }
       ]
     },
@@ -884,14 +884,14 @@
           "en": "I like solving problems best."
         },
         {
-          "zh": "和同事合作的时候。",
-          "py": "Hé tóngshì hézuò de shíhòu.",
-          "en": "When collaborating with colleagues."
+          "zh": "跟同事一起做事！",
+          "py": "Gēn tóngshì yīqǐ zuò shì!",
+          "en": "Working together with colleagues!"
         },
         {
-          "zh": "看到成果的时候，很有成就感。",
-          "py": "Kàn dào chéngguǒ de shíhòu, hěn yǒu chéngjiùgǎn.",
-          "en": "Seeing results — very fulfilling."
+          "zh": "看到做好了！很开心。",
+          "py": "Kàndào zuò hǎo le! Hěn kāixīn.",
+          "en": "Seeing it done — very satisfying."
         }
       ]
     },
@@ -899,18 +899,18 @@
       "key": "最难的部分",
       "options": [
         {
-          "zh": "时间管理最难。",
-          "py": "Shíjiān guǎnlǐ zuì nán.",
-          "en": "Time management is the hardest."
+          "zh": "管好时间最难。",
+          "py": "Guǎn hǎo shíjiān zuì nán.",
+          "en": "Managing time well is the hardest."
         },
         {
-          "zh": "有时候客户不好沟通。",
-          "py": "Yǒushíhou kèhù bù hǎo gōutōng.",
-          "en": "Sometimes clients are hard to deal with."
+          "zh": "有时候说不清楚。",
+          "py": "Yǒushíhou shuō bu qīngchǔ.",
+          "en": "Sometimes it's hard to explain."
         },
         {
-          "zh": "要平衡工作和生活，不容易。",
-          "py": "Yào pínghéng gōngzuò hé shēnghuó, bù róngyì.",
+          "zh": "工作和生活，很难平衡。",
+          "py": "Gōngzuò hé shēnghuó, hěn nán pínghéng.",
           "en": "Balancing work and life — not easy."
         }
       ]
@@ -919,9 +919,9 @@
       "key": "推荐年轻人做",
       "options": [
         {
-          "zh": "推荐，很有前途。",
-          "py": "Tuījiàn, hěn yǒu qiántú.",
-          "en": "Yes — great prospects."
+          "zh": "推荐！以后机会多。",
+          "py": "Tuījiàn! Yǐhòu jīhuì duō.",
+          "en": "Yes — lots of opportunities ahead."
         },
         {
           "zh": "要看每个人的情况。",
@@ -929,9 +929,9 @@
           "en": "Depends on the person."
         },
         {
-          "zh": "推荐，但要有热情才行。",
-          "py": "Tuījiàn, dàn yào yǒu rèqíng cái xíng.",
-          "en": "Yes, but you need real passion."
+          "zh": "推荐！但是要喜欢才行。",
+          "py": "Tuījiàn! Dànshì yào xǐhuān cái xíng.",
+          "en": "Yes — but you have to really like it."
         }
       ]
     },
@@ -959,9 +959,9 @@
       "key": "收入怎么样",
       "options": [
         {
-          "zh": "还可以，不算太高。",
-          "py": "Hái kěyǐ, bù suàn tài gāo.",
-          "en": "Alright — not too high."
+          "zh": "不算太高。",
+          "py": "Bù suàn tài gāo.",
+          "en": "Not too high."
         },
         {
           "zh": "比较稳定。",
@@ -969,9 +969,9 @@
           "en": "Pretty stable."
         },
         {
-          "zh": "够用就好，不太在意。",
-          "py": "Gòu yòng jiù hǎo, bù tài zàiyì.",
-          "en": "Enough is fine — I don't focus on it."
+          "zh": "够用就好。",
+          "py": "Gòu yòng jiù hǎo.",
+          "en": "Enough is fine."
         }
       ]
     },
@@ -984,14 +984,14 @@
           "en": "In a small city."
         },
         {
-          "zh": "离这里不太远，大概两三个小时。",
-          "py": "Lí zhèlǐ bù tài yuǎn, dàgài liǎng sān gè xiǎoshí.",
-          "en": "Not too far — about two or three hours away."
+          "zh": "大概两三个小时。",
+          "py": "Dàgài liǎng sān gè xiǎoshí.",
+          "en": "About two or three hours away."
         },
         {
-          "zh": "在农村，很安静，和城市不一样。",
-          "py": "Zài nóngcūn, hěn ānjìng, hé chéngshì bù yīyàng.",
-          "en": "In the countryside — very quiet, quite different from the city."
+          "zh": "在农村，很安静。",
+          "py": "Zài nóngcūn, hěn ānjìng.",
+          "en": "In the countryside — very quiet."
         }
       ]
     },
@@ -1004,14 +1004,14 @@
           "en": "Yes — I love travelling."
         },
         {
-          "zh": "偶尔会，不太常去。",
-          "py": "Ǒu'ěr huì, bù tài cháng qù.",
-          "en": "Occasionally — not that often."
+          "zh": "偶尔会。",
+          "py": "Ǒu'ěr huì.",
+          "en": "Occasionally."
         },
         {
-          "zh": "想去，但工作太忙，没时间。",
-          "py": "Xiǎng qù, dàn gōngzuò tài máng, méi shíjiān.",
-          "en": "Would like to, but work is too busy — no time."
+          "zh": "想去！但是工作太忙。",
+          "py": "Xiǎng qù! Dànshì gōngzuò tài máng.",
+          "en": "Would like to — but work's too busy."
         }
       ]
     },
@@ -1029,9 +1029,9 @@
           "en": "I live alone."
         },
         {
-          "zh": "我跟妻子和父母住在一起。",
-          "py": "Wǒ gēn qīzi hé fùmǔ zhù zài yīqǐ.",
-          "en": "I live with my wife and parents."
+          "zh": "跟老婆和爸爸妈妈住。",
+          "py": "Gēn lǎopó hé bàba māma zhù.",
+          "en": "With my wife and parents."
         }
       ]
     },
@@ -1049,9 +1049,9 @@
           "en": "Because my family is here."
         },
         {
-          "zh": "因为我喜欢这里的生活节奏。",
-          "py": "Yīnwèi wǒ xǐhuān zhèlǐ de shēnghuó jiézòu.",
-          "en": "Because I love the pace of life here."
+          "zh": "因为我喜欢这里！",
+          "py": "Yīnwèi wǒ xǐhuān zhèlǐ!",
+          "en": "Because I love it here."
         }
       ]
     },
@@ -1069,8 +1069,8 @@
           "en": "Only a few years."
         },
         {
-          "zh": "很久了，我在这里长大的。",
-          "py": "Hěn jiǔ le, wǒ zài zhèlǐ zhǎng dà de.",
+          "zh": "很久了！我在这里长大的。",
+          "py": "Hěn jiǔ le! Wǒ zài zhèlǐ zhǎng dà de.",
           "en": "A long time — I grew up here."
         }
       ]
@@ -1084,14 +1084,14 @@
           "en": "Yes, sometimes I miss it a lot."
         },
         {
-          "zh": "不太想，现在这里也很好。",
-          "py": "Bù tài xiǎng, xiànzài zhèlǐ yě hěn hǎo.",
-          "en": "Not really — it's great here now."
+          "zh": "不太想。这里挺好的。",
+          "py": "Bù tài xiǎng. Zhèlǐ tǐng hǎo de.",
+          "en": "Not really — it's good here."
         },
         {
-          "zh": "会想念，特别是家人和食物。",
-          "py": "Huì xiǎngniàn, tèbié shì jiārén hé shíwù.",
-          "en": "Yes, especially family and the food."
+          "zh": "会想念！特别是家人。",
+          "py": "Huì xiǎngniàn! Tèbié shì jiārén.",
+          "en": "Yes — especially family."
         }
       ]
     },
@@ -1099,19 +1099,19 @@
       "key": "长期住",
       "options": [
         {
-          "zh": "应该会，已经习惯了。",
-          "py": "Yīnggāi huì, yǐjīng xíguàn le.",
-          "en": "Probably — I'm used to it now."
+          "zh": "应该会！习惯了。",
+          "py": "Yīnggāi huì! Xíguàn le.",
+          "en": "Probably — used to it now."
         },
         {
-          "zh": "不确定，也许会回老家。",
-          "py": "Bù quèdìng, yěxǔ huì huí lǎojiā.",
-          "en": "Not sure — might go back home."
+          "zh": "也许会回老家。",
+          "py": "Yěxǔ huì huí lǎojiā.",
+          "en": "Might go back home."
         },
         {
-          "zh": "是的，我很喜欢这里的生活。",
-          "py": "Shì de, wǒ hěn xǐhuān zhèlǐ de shēnghuó.",
-          "en": "Yes — I love life here."
+          "zh": "是的！很喜欢这里。",
+          "py": "Shì de! Hěn xǐhuān zhèlǐ.",
+          "en": "Yes — I love it here."
         }
       ]
     },
@@ -1124,13 +1124,13 @@
           "en": "In my thirties."
         },
         {
-          "zh": "快四十了，时间过得真快。",
-          "py": "Kuài sìshí le, shíjiān guò de zhēn kuài.",
+          "zh": "快四十了！时间真快。",
+          "py": "Kuài sìshí le! Shíjiān zhēn kuài.",
           "en": "Almost forty — time flies."
         },
         {
-          "zh": "才二十出头，还年轻！",
-          "py": "Cái èrshí chū tóu, hái niánqīng!",
+          "zh": "才二十出头！还年轻！",
+          "py": "Cái èrshí chū tóu! Hái niánqīng!",
           "en": "Only in my early twenties — still young!"
         }
       ]
@@ -1144,14 +1144,14 @@
           "en": "In their thirties."
         },
         {
-          "zh": "比我大几岁，我们年纪差不多。",
-          "py": "Bǐ wǒ dà jǐ suì, wǒmen niánjì chàbuduō.",
-          "en": "A few years older than me — close in age."
+          "zh": "比我大几岁，差不多。",
+          "py": "Bǐ wǒ dà jǐ suì, chàbuduō.",
+          "en": "A few years older — close in age."
         },
         {
-          "zh": "已经六十多了，年纪不小了。",
-          "py": "Yǐjīng liùshí duō le, niánjì bù xiǎo le.",
-          "en": "Already in their sixties — getting on in years."
+          "zh": "已经六十多了！",
+          "py": "Yǐjīng liùshí duō le!",
+          "en": "Already in their sixties."
         }
       ]
     },
@@ -1169,9 +1169,9 @@
           "en": "Lives in another city."
         },
         {
-          "zh": "住在老家，离我比较远。",
-          "py": "Zhù zài lǎojiā, lí wǒ bǐjiào yuǎn.",
-          "en": "Lives back home — quite far from me."
+          "zh": "在老家，挺远的。",
+          "py": "Zài lǎojiā, tǐng yuǎn de.",
+          "en": "Back home — pretty far."
         }
       ]
     },
@@ -1199,8 +1199,8 @@
       "key": "对你最重要",
       "options": [
         {
-          "zh": "当然是父母。",
-          "py": "Dāngrán shì fùmǔ.",
+          "zh": "当然是爸爸妈妈。",
+          "py": "Dāngrán shì bàba māma.",
           "en": "My parents, of course."
         },
         {
@@ -1209,9 +1209,9 @@
           "en": "I think it's my children."
         },
         {
-          "zh": "是我老婆，她支持我做的一切。",
-          "py": "Shì wǒ lǎopó, tā zhīchí wǒ zuò de yīqiè.",
-          "en": "My wife — she supports everything I do."
+          "zh": "是我老婆！她很支持我。",
+          "py": "Shì wǒ lǎopó! Tā hěn zhīchí wǒ.",
+          "en": "My wife — she really supports me."
         }
       ]
     },
@@ -1229,9 +1229,9 @@
           "en": "Mainly tea leaves."
         },
         {
-          "zh": "我收藏老物件，喜欢有历史的东西。",
-          "py": "Wǒ shōucáng lǎo wùjiàn, xǐhuān yǒu lìshǐ de dōngxi.",
-          "en": "I collect antiques — I like things with history."
+          "zh": "我收藏老物件！",
+          "py": "Wǒ shōucáng lǎo wùjiàn!",
+          "en": "I collect antiques."
         }
       ]
     },
@@ -1244,14 +1244,14 @@
           "en": "Usually at home."
         },
         {
-          "zh": "有时候在外面，有时候在家。",
-          "py": "Yǒushíhou zài wàimiàn, yǒushíhou zài jiā.",
-          "en": "Sometimes outside, sometimes at home."
+          "zh": "两种都有。",
+          "py": "Liǎng zhǒng dōu yǒu.",
+          "en": "Both."
         },
         {
-          "zh": "喜欢去公园，环境好一点。",
-          "py": "Xǐhuān qù gōngyuán, huánjìng hǎo yīdiǎn.",
-          "en": "I like going to the park — better environment."
+          "zh": "喜欢去公园！空气好。",
+          "py": "Xǐhuān qù gōngyuán! Kōngqì hǎo.",
+          "en": "I like going to the park — fresh air."
         }
       ]
     },
@@ -1269,9 +1269,9 @@
           "en": "On weekends I like to go out for a walk."
         },
         {
-          "zh": "周末很少有空，经常有事。",
-          "py": "Zhōumò hěn shǎo yǒu kòng, jīngcháng yǒu shì.",
-          "en": "Rarely have free time on weekends — always something going on."
+          "zh": "周末很少有空。",
+          "py": "Zhōumò hěn shǎo yǒu kòng.",
+          "en": "I rarely have free time on weekends."
         }
       ]
     },
@@ -1284,14 +1284,14 @@
           "en": "About three or four years ago."
         },
         {
-          "zh": "从学生时代就开始了。",
-          "py": "Cóng xuésheng shídài jiù kāishǐ le.",
-          "en": "Started since my student days."
+          "zh": "上学的时候开始。",
+          "py": "Shàngxué de shíhou kāishǐ.",
+          "en": "Started when I was in school."
         },
         {
-          "zh": "很久了，已经记不太清楚了。",
-          "py": "Hěn jiǔ le, yǐjīng jì bu tài qīngchǔ le.",
-          "en": "A long time ago — I can't remember exactly."
+          "zh": "很久了！记不太清楚了。",
+          "py": "Hěn jiǔ le! Jì bu tài qīngchǔ le.",
+          "en": "A long time ago — can't quite remember."
         }
       ]
     },
@@ -1309,9 +1309,9 @@
           "en": "About ten years."
         },
         {
-          "zh": "从小就开始了，很难说多久。",
-          "py": "Cóng xiǎo jiù kāishǐ le, hěn nán shuō duō jiǔ.",
-          "en": "Since childhood — hard to say how long."
+          "zh": "从小就开始了！",
+          "py": "Cóng xiǎo jiù kāishǐ le!",
+          "en": "Since I was little."
         }
       ]
     },
@@ -1329,9 +1329,9 @@
           "en": "A friend brought me along to try it."
         },
         {
-          "zh": "是偶然的机会，没想到这么喜欢。",
-          "py": "Shì ǒurán de jīhuì, méi xiǎngdào zhème xǐhuān.",
-          "en": "A chance opportunity — didn't expect to like it so much."
+          "zh": "是偶然的！",
+          "py": "Shì ǒurán de!",
+          "en": "By chance!"
         }
       ]
     },
@@ -1349,9 +1349,9 @@
           "en": "A friend introduced me to it."
         },
         {
-          "zh": "慢慢喜欢上的，说不清楚。",
-          "py": "Màn man xǐhuān shàng de, shuō bu qīngchǔ.",
-          "en": "Gradually came to like it — hard to say exactly why."
+          "zh": "慢慢喜欢上的。",
+          "py": "Màn man xǐhuān shàng de.",
+          "en": "Gradually came to like it."
         }
       ]
     },
@@ -1369,9 +1369,9 @@
           "en": "I can meet new people."
         },
         {
-          "zh": "让我忘记工作的压力。",
-          "py": "Ràng wǒ wàngjì gōngzuò de yālì.",
-          "en": "It helps me forget work stress."
+          "zh": "让我开心！",
+          "py": "Ràng wǒ kāixīn!",
+          "en": "It makes me happy."
         }
       ]
     },
@@ -1384,14 +1384,14 @@
           "en": "Of course! Very important."
         },
         {
-          "zh": "有一点，让我开心。",
-          "py": "Yǒu yīdiǎn, ràng wǒ kāixīn.",
-          "en": "Somewhat — it makes me happy."
+          "zh": "让我开心。",
+          "py": "Ràng wǒ kāixīn.",
+          "en": "It makes me happy."
         },
         {
-          "zh": "非常重要，少了它不行。",
-          "py": "Fēicháng zhòngyào, shǎo le tā bù xíng.",
-          "en": "Very important — I can't do without it."
+          "zh": "很重要！没有不行。",
+          "py": "Hěn zhòngyào! Méiyǒu bù xíng.",
+          "en": "Very important — can't do without it."
         }
       ]
     },
@@ -1409,9 +1409,9 @@
           "en": "Often with friends."
         },
         {
-          "zh": "两种都有，看心情。",
-          "py": "Liǎng zhǒng dōu yǒu, kàn xīnqíng.",
-          "en": "Both — depends on my mood."
+          "zh": "看心情。",
+          "py": "Kàn xīnqíng.",
+          "en": "Depends on my mood."
         }
       ]
     },
@@ -1444,14 +1444,14 @@
           "en": "Yes! Quite an interesting one."
         },
         {
-          "zh": "有一点，但不太复杂。",
-          "py": "Yǒu yīdiǎn, dàn bù tài fùzá.",
-          "en": "A bit of one — not too complicated."
+          "zh": "有一点。",
+          "py": "Yǒu yīdiǎn.",
+          "en": "A little."
         },
         {
-          "zh": "没有特别的，就是家人取的。",
-          "py": "Méiyǒu tèbié de, jiùshì jiārén qǔ de.",
-          "en": "Nothing special — family just chose it."
+          "zh": "就是家人取的。",
+          "py": "Jiùshì jiārén qǔ de.",
+          "en": "Family just chose it."
         }
       ]
     },
@@ -1459,9 +1459,9 @@
       "key": "喜欢自己的名字",
       "options": [
         {
-          "zh": "挺喜欢的，有意思。",
-          "py": "Tǐng xǐhuān de, yǒuyìsi.",
-          "en": "Quite like it — it's interesting."
+          "zh": "挺喜欢的！",
+          "py": "Tǐng xǐhuān de!",
+          "en": "I quite like it!"
         },
         {
           "zh": "还可以，习惯了。",
@@ -1489,9 +1489,9 @@
           "en": "It's fine — I'm just used to it."
         },
         {
-          "zh": "朋友说好听，我自己没感觉。",
-          "py": "Péngyǒu shuō hǎotīng, wǒ zìjǐ méi gǎnjué.",
-          "en": "Friends say so — I don't really feel it myself."
+          "zh": "朋友说好听！我没感觉。",
+          "py": "Péngyǒu shuō hǎotīng! Wǒ méi gǎnjué.",
+          "en": "Friends say so — I can't really tell."
         }
       ]
     },
@@ -1499,19 +1499,19 @@
       "key": "喜欢吃辣",
       "options": [
         {
-          "zh": "非常喜欢！越辣越好。",
-          "py": "Fēicháng xǐhuān! Yuè là yuè hǎo.",
+          "zh": "很喜欢！辣的最好！",
+          "py": "Hěn xǐhuān! Là de zuì hǎo!",
           "en": "Love it! The spicier the better."
         },
         {
-          "zh": "还好，不太辣的可以。",
-          "py": "Hái hǎo, bù tài là de kěyǐ.",
-          "en": "It's OK — not too spicy is fine."
+          "zh": "不太辣的还行。",
+          "py": "Bù tài là de hái xíng.",
+          "en": "Not too spicy is fine."
         },
         {
-          "zh": "不太喜欢，吃辣会不舒服。",
-          "py": "Bù tài xǐhuān, chī là huì bù shūfu.",
-          "en": "Not really — spicy makes me feel unwell."
+          "zh": "不太喜欢辣的。",
+          "py": "Bù tài xǐhuān là de.",
+          "en": "I don't really like spicy food."
         }
       ]
     },
@@ -1524,9 +1524,9 @@
           "en": "A bit sweet and a bit salty."
         },
         {
-          "zh": "味道很浓，很有特色。",
-          "py": "Wèidào hěn nóng, hěn yǒu tèsè.",
-          "en": "Strong flavour — very distinctive."
+          "zh": "味道很特别。",
+          "py": "Wèidào hěn tèbié.",
+          "en": "Very distinctive flavour."
         },
         {
           "zh": "有点辣，但是很好吃。",
@@ -1544,14 +1544,14 @@
           "en": "Yes — I make it often."
         },
         {
-          "zh": "会一点，但不太好。",
-          "py": "Huì yīdiǎn, dàn bù tài hǎo.",
-          "en": "A bit, but not very well."
+          "zh": "会一点。",
+          "py": "Huì yīdiǎn.",
+          "en": "A little."
         },
         {
-          "zh": "不太会，比较难。",
-          "py": "Bù tài huì, bǐjiào nán.",
-          "en": "Not really — it's quite hard."
+          "zh": "不太会。",
+          "py": "Bù tài huì.",
+          "en": "Not really."
         }
       ]
     },
@@ -1564,14 +1564,14 @@
           "en": "Yes — mum used to make it often."
         },
         {
-          "zh": "有时候，节日的时候会吃。",
-          "py": "Yǒushíhou, jiérì de shíhou huì chī.",
-          "en": "Sometimes — especially at festivals."
+          "zh": "节日的时候会吃。",
+          "py": "Jiérì de shíhou huì chī.",
+          "en": "Sometimes, during festivals."
         },
         {
-          "zh": "不太多，那时候不常见。",
-          "py": "Bù tài duō, nà shíhou bù cháng jiàn.",
-          "en": "Not much — it wasn't common back then."
+          "zh": "那时候不常见。",
+          "py": "Nà shíhou bù cháng jiàn.",
+          "en": "It wasn't common back then."
         }
       ]
     },
@@ -1584,13 +1584,13 @@
           "en": "Of course! It's quite simple."
         },
         {
-          "zh": "可以，但需要一些材料。",
-          "py": "Kěyǐ, dàn xūyào yīxiē cáiliào.",
-          "en": "Sure, but you'll need some ingredients."
+          "zh": "可以！需要材料。",
+          "py": "Kěyǐ! Xūyào cáiliào.",
+          "en": "Sure! You'll need ingredients."
         },
         {
-          "zh": "我自己也不太会，一起学吧！",
-          "py": "Wǒ zìjǐ yě bù tài huì, yīqǐ xué ba!",
+          "zh": "我也不太会！一起学吧！",
+          "py": "Wǒ yě bù tài huì! Yīqǐ xué ba!",
           "en": "I'm not great at it either — let's learn together!"
         }
       ]
@@ -1604,14 +1604,14 @@
           "en": "Yes! I loved it there."
         },
         {
-          "zh": "还没去过，但很想去。",
-          "py": "Hái méi qùguò, dàn hěn xiǎng qù.",
-          "en": "Not yet, but I'd love to."
+          "zh": "还没去！很想去。",
+          "py": "Hái méi qù! Hěn xiǎng qù.",
+          "en": "Not yet — I'd love to!"
         },
         {
-          "zh": "去过一次，想再去。",
-          "py": "Qùguò yīcì, xiǎng zài qù.",
-          "en": "Once — I'd like to go again."
+          "zh": "去过！很想再去。",
+          "py": "Qùguò! Hěn xiǎng zài qù.",
+          "en": "Yes! I'd love to go again."
         }
       ]
     },
@@ -1619,19 +1619,19 @@
       "key": "那次旅行怎么样",
       "options": [
         {
-          "zh": "非常好！印象很深。",
-          "py": "Fēicháng hǎo! Yìnxiàng hěn shēn.",
-          "en": "Excellent! Left a deep impression."
+          "zh": "很好！印象很深。",
+          "py": "Hěn hǎo! Yìnxiàng hěn shēn.",
+          "en": "Great! Left a deep impression."
         },
         {
-          "zh": "还不错，有些地方很特别。",
-          "py": "Hái búcuò, yǒuxiē dìfāng hěn tèbié.",
-          "en": "Pretty good — some parts were really special."
+          "zh": "还不错！有些地方很特别。",
+          "py": "Hái búcuò! Yǒuxiē dìfāng hěn tèbié.",
+          "en": "Pretty good — some parts were special."
         },
         {
-          "zh": "有点累，但值得。",
-          "py": "Yǒudiǎn lèi, dàn zhídé.",
-          "en": "A bit tiring, but worth it."
+          "zh": "有点累。但值得！",
+          "py": "Yǒudiǎn lèi. Dàn zhídé!",
+          "en": "A bit tiring. But worth it!"
         }
       ]
     },
@@ -1639,18 +1639,18 @@
       "key": "最难忘",
       "options": [
         {
-          "zh": "去欧洲那次，见了很多新东西。",
-          "py": "Qù Ōuzhōu nà cì, jiàn le hěn duō xīn dōngxi.",
-          "en": "The Europe trip — so many new things."
+          "zh": "去欧洲那次！",
+          "py": "Qù Ōuzhōu nà cì!",
+          "en": "The Europe trip!"
         },
         {
-          "zh": "第一次出国的时候，印象很深。",
-          "py": "Dì yīcì chūguó de shíhou, yìnxiàng hěn shēn.",
-          "en": "My first time abroad — left a deep impression."
+          "zh": "第一次出国！印象很深。",
+          "py": "Dì yīcì chūguó! Yìnxiàng hěn shēn.",
+          "en": "My first time going abroad — left a deep impression."
         },
         {
-          "zh": "最近去的那次，比较特别。",
-          "py": "Zuìjìn qù de nà cì, bǐjiào tèbié.",
+          "zh": "最近那次！比较特别。",
+          "py": "Zuìjìn nà cì! Bǐjiào tèbié.",
           "en": "The most recent one — pretty special."
         }
       ]
@@ -1659,19 +1659,19 @@
       "key": "最喜欢哪次旅行",
       "options": [
         {
-          "zh": "去日本那次，喜欢那里的文化。",
-          "py": "Qù Rìběn nà cì, xǐhuān nàlǐ de wénhuà.",
-          "en": "The Japan trip — I loved the culture."
+          "zh": "去日本那次！喜欢那里。",
+          "py": "Qù Rìběn nà cì! Xǐhuān nàlǐ.",
+          "en": "The Japan trip — I loved it there."
         },
         {
-          "zh": "第一次长途旅行，很难忘。",
-          "py": "Dì yīcì cháng tú lǚxíng, hěn nán wàng.",
+          "zh": "第一次出远门！很难忘。",
+          "py": "Dì yīcì chū yuǎn mén! Hěn nán wàng.",
           "en": "My first long trip — very memorable."
         },
         {
-          "zh": "很难说，每次都有好的部分。",
-          "py": "Hěn nán shuō, měi cì dōu yǒu hǎo de bùfen.",
-          "en": "Hard to say — every trip had its highlights."
+          "zh": "很难说！每次都不一样。",
+          "py": "Hěn nán shuō! Měi cì dōu bù yīyàng.",
+          "en": "Hard to say — every trip is different."
         }
       ]
     },
@@ -1679,19 +1679,19 @@
       "key": "有什么特别",
       "options": [
         {
-          "zh": "文化很有特色。",
-          "py": "Wénhuà hěn yǒu tèsè.",
-          "en": "The culture is very distinctive."
+          "zh": "很特别。",
+          "py": "Hěn tèbié.",
+          "en": "Very special."
         },
         {
-          "zh": "当地的食物很好吃，很有名。",
-          "py": "Dāngdì de shíwù hěn hǎochī, hěn yǒumíng.",
-          "en": "The local food is great and famous."
+          "zh": "当地的食物很好吃！",
+          "py": "Dāngdì de shíwù hěn hǎochī!",
+          "en": "The local food is really good."
         },
         {
-          "zh": "风景很美，和别的地方不一样。",
-          "py": "Fēngjǐng hěn měi, hé bié de dìfāng bù yīyàng.",
-          "en": "Beautiful scenery — different from other places."
+          "zh": "风景很美！很特别。",
+          "py": "Fēngjǐng hěn měi! Hěn tèbié.",
+          "en": "Beautiful scenery — very special."
         }
       ]
     },
@@ -1719,19 +1719,19 @@
       "key": "工作还是玩",
       "options": [
         {
-          "zh": "是去玩的，难得的假期。",
-          "py": "Shì qù wán de, nán de de jiàqī.",
+          "zh": "是去玩的！难得的假期。",
+          "py": "Shì qù wán de! Nán de de jiàqī.",
           "en": "Going for fun — a rare holiday."
         },
         {
-          "zh": "工作去的，但也有时间游览。",
-          "py": "Gōngzuò qù de, dàn yě yǒu shíjiān yóulǎn.",
-          "en": "For work, but had time to sightsee."
+          "zh": "工作去的。也有空玩！",
+          "py": "Gōngzuò qù de. Yě yǒu kòng wán!",
+          "en": "For work — had time to enjoy too."
         },
         {
-          "zh": "两个都有，工作和旅游结合。",
-          "py": "Liǎng gè dōu yǒu, gōngzuò hé lǚyóu jiéhé.",
-          "en": "Both — combined work and travel."
+          "zh": "两个都有！",
+          "py": "Liǎng gè dōu yǒu!",
+          "en": "Both."
         }
       ]
     },
@@ -1739,18 +1739,18 @@
       "key": "为什么喜欢那",
       "options": [
         {
-          "zh": "因为那里的文化很有意思。",
-          "py": "Yīnwèi nàlǐ de wénhuà hěn yǒuyìsi.",
-          "en": "Because the culture there is fascinating."
+          "zh": "因为那里很有意思！",
+          "py": "Yīnwèi nàlǐ hěn yǒuyìsi!",
+          "en": "Because it's very interesting there."
         },
         {
-          "zh": "因为食物很好吃，景色也很美。",
-          "py": "Yīnwèi shíwù hěn hǎochī, jǐngsè yě hěn měi.",
-          "en": "Because the food is great and the scenery beautiful."
+          "zh": "食物好吃，风景也很美。",
+          "py": "Shíwù hǎochī, fēngjǐng yě hěn měi.",
+          "en": "Good food and beautiful scenery."
         },
         {
-          "zh": "第一次去，什么都觉得新鲜。",
-          "py": "Dì yīcì qù, shénme dōu juéde xīnxiān.",
+          "zh": "第一次去！什么都新鲜。",
+          "py": "Dì yīcì qù! Shénme dōu xīnxiān.",
           "en": "First time there — everything felt fresh."
         }
       ]
@@ -1759,19 +1759,19 @@
       "key": "特别的意义",
       "options": [
         {
-          "zh": "让我学到很多东西。",
-          "py": "Ràng wǒ xuédào hěn duō dōngxi.",
-          "en": "I learned a lot from it."
+          "zh": "那次很特别！",
+          "py": "Nà cì hěn tèbié!",
+          "en": "That time was very special!"
         },
         {
-          "zh": "那次让我更了解自己。",
-          "py": "Nà cì ràng wǒ gèng liǎojiě zìjǐ.",
-          "en": "It helped me understand myself better."
+          "zh": "就是很难忘。",
+          "py": "Jiùshì hěn nán wàng.",
+          "en": "Just very memorable."
         },
         {
-          "zh": "说不清楚，就是很难忘。",
-          "py": "Shuō bu qīngchǔ, jiùshì hěn nán wàng.",
-          "en": "Hard to explain — just very memorable."
+          "zh": "很难忘！",
+          "py": "Hěn nán wàng!",
+          "en": "Very memorable."
         }
       ]
     },
@@ -1799,19 +1799,19 @@
       "key": "为什么有意思",
       "options": [
         {
-          "zh": "因为那里的文化很不一样。",
-          "py": "Yīnwèi nàlǐ de wénhuà hěn bù yīyàng.",
-          "en": "Because the culture is so different."
+          "zh": "因为那里很不一样！",
+          "py": "Yīnwèi nàlǐ hěn bù yīyàng!",
+          "en": "Because it's so different there."
         },
         {
-          "zh": "有很多新鲜的东西可以发现。",
-          "py": "Yǒu hěn duō xīnxiān de dōngxi kěyǐ fāxiàn.",
-          "en": "So many new things to discover."
+          "zh": "有很多新鲜的东西！",
+          "py": "Yǒu hěn duō xīnxiān de dōngxi!",
+          "en": "There are so many new things."
         },
         {
-          "zh": "说不清楚，去了就知道。",
-          "py": "Shuō bu qīngchǔ, qù le jiù zhīdào.",
-          "en": "Hard to explain — you'd have to go yourself."
+          "zh": "去了就知道！",
+          "py": "Qù le jiù zhīdào!",
+          "en": "You'd have to go and see!"
         }
       ]
     },
@@ -1819,19 +1819,19 @@
       "key": "哪个地方最有意思",
       "options": [
         {
-          "zh": "日本，文化很特别。",
-          "py": "Rìběn, wénhuà hěn tèbié.",
-          "en": "Japan — very distinctive culture."
+          "zh": "日本，很特别。",
+          "py": "Rìběn, hěn tèbié.",
+          "en": "Japan — very special."
         },
         {
-          "zh": "欧洲，历史很丰富。",
-          "py": "Ōuzhōu, lìshǐ hěn fēngfù.",
-          "en": "Europe — very rich history."
+          "zh": "欧洲！历史很多。",
+          "py": "Ōuzhōu! Lìshǐ hěn duō.",
+          "en": "Europe — lots of history."
         },
         {
-          "zh": "每个地方都有意思，很难选。",
-          "py": "Měi gè dìfāng dōu yǒuyìsi, hěn nán xuǎn.",
-          "en": "Every place is interesting — hard to choose."
+          "zh": "每个地方都有意思！",
+          "py": "Měi gè dìfāng dōu yǒuyìsi!",
+          "en": "Every place is interesting."
         }
       ]
     },
@@ -1839,9 +1839,9 @@
       "key": "为什么喜欢那儿",
       "options": [
         {
-          "zh": "因为那里的生活很方便。",
-          "py": "Yīnwèi nàlǐ de shēnghuó hěn fāngbiàn.",
-          "en": "Because life there is very convenient."
+          "zh": "那里生活很方便！",
+          "py": "Nàlǐ shēnghuó hěn fāngbiàn!",
+          "en": "Life there is so convenient!"
         },
         {
           "zh": "因为那里的人很友好。",
@@ -1849,9 +1849,9 @@
           "en": "Because the people there are very friendly."
         },
         {
-          "zh": "因为有很多我喜欢的食物和地方。",
-          "py": "Yīnwèi yǒu hěn duō wǒ xǐhuān de shíwù hé dìfāng.",
-          "en": "Because of all the food and places I love."
+          "zh": "食物好吃，人也很好！",
+          "py": "Shíwù hǎochī, rén yě hěn hǎo!",
+          "en": "Good food and friendly people."
         }
       ]
     },
@@ -1864,14 +1864,14 @@
           "en": "Haven't decided yet."
         },
         {
-          "zh": "想去旅行，放松一下。",
-          "py": "Xiǎng qù lǚxíng, fàngsōng yīxià.",
-          "en": "Want to travel — relax a bit."
+          "zh": "想去旅行！",
+          "py": "Xiǎng qù lǚxíng!",
+          "en": "I want to travel!"
         },
         {
-          "zh": "有一些计划，但还不确定。",
-          "py": "Yǒu yīxiē jìhuà, dàn hái bù quèdìng.",
-          "en": "Have some plans, but not certain yet."
+          "zh": "还不确定。",
+          "py": "Hái bù quèdìng.",
+          "en": "Not sure yet."
         }
       ]
     },
@@ -1889,9 +1889,9 @@
           "en": "Next week works better."
         },
         {
-          "zh": "我最近比较忙，稍后再约吧。",
-          "py": "Wǒ zuìjìn bǐjiào máng, shāo hòu zài yuē ba.",
-          "en": "I've been quite busy — let's schedule later."
+          "zh": "最近比较忙，以后再约！",
+          "py": "Zuìjìn bǐjiào máng, yǐhòu zài yuē!",
+          "en": "I've been busy lately — let's arrange later."
         }
       ]
     },
@@ -1904,14 +1904,14 @@
           "en": "I think it's pretty good."
         },
         {
-          "zh": "有一点意思，但不确定。",
-          "py": "Yǒu yīdiǎn yìsi, dàn bù quèdìng.",
-          "en": "Somewhat interesting — not sure."
+          "zh": "有一点意思。",
+          "py": "Yǒu yīdiǎn yìsi.",
+          "en": "Somewhat interesting."
         },
         {
-          "zh": "说不太清楚，还在想。",
-          "py": "Shuō bù tài qīngchǔ, hái zài xiǎng.",
-          "en": "Hard to say — still thinking about it."
+          "zh": "还在想。",
+          "py": "Hái zài xiǎng.",
+          "en": "Still thinking."
         }
       ]
     },
@@ -1994,8 +1994,7 @@
           "en": "Interesting."
         }
       ]
-    }
-  ,
+    },
     {
       "key": "离那边远吗",
       "options": [

@@ -977,11 +977,15 @@ _SLOT_FOLLOWUP_PREFERENCES: dict = {
 # the selector forces ONE same-engine follow-up before allowing ladder advancement or bridging.
 # First available unseen frame in the list wins. Deduplication uses the `recent` turn log.
 _DEPTH_ANCHOR_FRAMES: dict = {
-    # Travel: destination/place answers → why-want-to-go or what's-special follow-up
+    # Travel: depth anchors only fire after specific destination questions.
+    # f_place_travel ("你会去别的地方吗？") is a broad-intent frame — its answer should route to
+    # f_want_go_where ("你最想去哪里？"), not directly to a depth question.
+    # Depth fires only after f_want_go_where / f_want_go_place / f_travel_where (city/province),
+    # and after f_travel_narrow_city which is the Tier-2 narrowing step.
     "f_want_go_where":        ["f_travel_why_want_go", "f_travel_special", "f_travel_why_interesting"],
     "f_travel_where":         ["f_travel_special", "f_probe_travel_why_fav", "f_travel_why_interesting"],
     "f_want_go_place":        ["f_travel_why_want_go", "f_travel_special", "f_travel_why_interesting"],
-    "f_place_travel":         ["f_travel_special", "f_travel_why_interesting"],
+    "f_travel_narrow_city":   ["f_travel_why_want_go", "f_travel_special"],
     # Food: named dish answers → why-good or how-made
     "f_food_what_good":       ["f_food_why_good", "f_probe_food_make"],
     "f_food_famous_dish":     ["f_food_why_good"],
@@ -1499,6 +1503,150 @@ def _has_strong_travel_signal(text: str) -> bool:
     if not text:
         return False
     return any(kw in text for kw in _STRONG_TRAVEL_SIGNALS)
+
+
+# ── Travel destination answer validation ──────────────────────────────────────────────────────────
+# Used to catch ASR-garbled destination answers (e.g. "刚吃" instead of "甘肃") so they are
+# never echoed as valid content and always route to a clarification question.
+
+# Frame IDs that expect the learner to name a specific destination.
+_DESTINATION_QUESTION_FRAMES: frozenset = frozenset({
+    "f_want_go_where", "f_travel_where", "f_want_go_place", "f_travel_narrow_city",
+})
+
+# (confused_string, likely_intended) pairs — scoped to travel destination context only.
+_TRAVEL_ASR_NEAR_MATCHES: list = [
+    ("刚吃", "甘肃"), ("刚出", "甘肃"), ("干肃", "甘肃"), ("甘书", "甘肃"), ("甘树", "甘肃"),
+    ("出中国", "去中国"), ("会出中国", "会去中国"),
+]
+
+
+def _is_valid_destination_answer(text: str) -> bool:
+    """True if text contains a recognised place entity or a clear non-destination travel phrase."""
+    if not text:
+        return False
+    return (
+        any(e in text for e in _TRAVEL_SUBREGIONS | _TRAVEL_COUNTRIES)
+        or any(c in text for c in ("旅行", "旅游", "出国", "想去旅"))
+    )
+
+
+def _detect_travel_asr_near_match(text: str) -> Optional[str]:
+    """Return the likely intended destination string when text contains a known ASR confusion."""
+    if not text:
+        return None
+    for confused, intended in _TRAVEL_ASR_NEAR_MATCHES:
+        if confused in text:
+            return intended
+    return None
+
+
+# ── Answer-specificity detectors (used by depth-before-bridge rule) ───────────────────────────────
+# Each detector returns True when the answer names a CONCRETE entity — a destination, dish,
+# activity, or family member — specific enough to warrant a depth follow-up ("why / tell me more").
+# A broad answer ("有很多好吃的", "我喜欢运动") returns False → normal ladder handles narrowing.
+#
+# Travel uses a three-tier system:
+#   Tier 1 — Depth-ready  : province / city / specific region  → "你为什么想去那里？"
+#   Tier 2 — Country-level: 中国 / 日本 / 美国 etc.            → "你想去哪个城市？" (narrowing)
+#   Tier 3 — Broad        : 我想旅行 / 我会去别的地方           → normal ladder
+
+# Tier 1: provinces, autonomous regions, and cities → depth-ready
+_TRAVEL_SUBREGIONS: frozenset = frozenset({
+    # Provinces / autonomous regions / SARs
+    "北京", "上海", "广东", "江苏", "浙江", "四川", "重庆", "云南", "西藏", "新疆",
+    "甘肃", "青海", "福建", "山东", "广西", "贵州", "湖南", "湖北", "陕西", "山西",
+    "河南", "河北", "内蒙古", "辽宁", "吉林", "黑龙江", "安徽", "江西", "海南", "宁夏",
+    "台湾", "香港", "澳门",
+    # Cities
+    "苏州", "杭州", "成都", "深圳", "广州", "南京", "西安", "青岛", "厦门",
+    "武汉", "昆明", "天津", "大连", "哈尔滨", "长沙", "郑州", "沈阳",
+})
+
+# Tier 2: country-level destinations → narrowing ("which city?") rather than depth ("why?")
+_TRAVEL_COUNTRIES: frozenset = frozenset({
+    "中国", "日本", "法国", "英国", "美国", "德国", "澳大利亚", "新西兰", "韩国", "泰国",
+    "新加坡", "意大利", "西班牙", "加拿大", "越南", "印度",
+    "欧洲", "亚洲", "东南亚",
+})
+
+_FOOD_SPECIFIC_ENTITIES: frozenset = frozenset({
+    "羊肉", "牛肉", "猪肉", "鸡肉", "鱼", "饺子", "包子", "面条", "米饭",
+    "火锅", "烤鸭", "汤", "粥", "海鲜", "蔬菜", "水果", "寿司", "烧烤",
+    "蛋糕", "面包", "炒饭", "拌面", "螺蛳粉", "臭豆腐", "小笼包",
+    "豆腐", "排骨", "虾", "螃蟹", "烤串", "手抓饭", "煎饼",
+})
+
+_HOBBY_SPECIFIC_ENTITIES: frozenset = frozenset({
+    "网球", "游泳", "跑步", "画画", "唱歌", "跳舞", "读书", "看书",
+    "爬山", "钓鱼", "下棋", "写字", "摄影", "烹饪", "做饭", "旅行",
+    "健身", "瑜伽", "打球", "踢球", "骑车", "滑雪", "登山", "羽毛球",
+    "乒乓球", "篮球", "足球", "排球", "高尔夫", "冲浪", "编织", "园艺",
+})
+
+_FAMILY_SPECIFIC_MEMBERS: frozenset = frozenset({
+    "老婆", "妻子", "老公", "丈夫", "先生", "妈妈", "爸爸", "母亲", "父亲",
+    "哥哥", "弟弟", "姐姐", "妹妹", "儿子", "女儿", "孩子", "爷爷", "奶奶",
+    "外公", "外婆", "祖父", "祖母",
+})
+
+
+def _is_depth_ready_travel_answer(text: str) -> bool:
+    """Tier 1: True when answer names a province, city, or sub-country region (depth-ready)."""
+    return bool(text) and any(e in text for e in _TRAVEL_SUBREGIONS)
+
+
+def _is_country_level_travel_answer(text: str) -> bool:
+    """Tier 2: True when answer names a country but NOT a more specific sub-region."""
+    if not text:
+        return False
+    return any(c in text for c in _TRAVEL_COUNTRIES) and not _is_depth_ready_travel_answer(text)
+
+
+def _is_specific_food_entity(text: str) -> bool:
+    """True if answer names a concrete dish or food item."""
+    return bool(text) and any(e in text for e in _FOOD_SPECIFIC_ENTITIES)
+
+
+def _is_specific_hobby_entity(text: str) -> bool:
+    """True if answer names a specific activity (not just 运动/玩/爱好 generically)."""
+    return bool(text) and any(e in text for e in _HOBBY_SPECIFIC_ENTITIES)
+
+
+def _is_specific_family_entity(text: str) -> bool:
+    """True if answer names a specific family member (not just 家人/家里人 generically)."""
+    return bool(text) and any(e in text for e in _FAMILY_SPECIFIC_MEMBERS)
+
+
+# Maps each depth-anchor frame to its Tier-1 (depth-ready) specificity detector.
+# Depth follow-up fires ONLY when this detector returns True.
+_DEPTH_ANCHOR_SPECIFICITY: dict = {
+    "f_want_go_where":        _is_depth_ready_travel_answer,
+    "f_travel_where":         _is_depth_ready_travel_answer,
+    "f_want_go_place":        _is_depth_ready_travel_answer,
+    "f_travel_narrow_city":   _is_depth_ready_travel_answer,  # city/province → depth; country → broad
+    "f_food_what_good":       _is_specific_food_entity,
+    "f_food_famous_dish":     _is_specific_food_entity,
+    "f_what_hobby":           _is_specific_hobby_entity,
+    "f_like_do_what":         _is_specific_hobby_entity,
+    "f_probe_family_closest": _is_specific_family_entity,
+}
+
+# Maps each depth-anchor frame to its Tier-2 (country-level / mid-specific) detector.
+# When Tier-2 fires, the selector picks from _DEPTH_NARROWING_FRAMES instead of depth candidates.
+_DEPTH_NARROW_SPECIFICITY: dict = {
+    "f_want_go_where":  _is_country_level_travel_answer,
+    "f_travel_where":   _is_country_level_travel_answer,
+    "f_want_go_place":  _is_country_level_travel_answer,
+}
+
+# Narrowing candidates for Tier-2 answers (country-level).
+# Frame f_travel_narrow_city asks "你想去哪个城市？" to draw out a sub-country destination.
+_DEPTH_NARROWING_FRAMES: dict = {
+    "f_want_go_where":  ["f_travel_narrow_city", "f_travel_which_best"],
+    "f_travel_where":   ["f_travel_narrow_city", "f_travel_which_best"],
+    "f_want_go_place":  ["f_travel_narrow_city", "f_travel_which_best"],
+}
 
 
 def _is_unscripted_substantive_answer(last_answer: Optional[dict], slot_names: List[str]) -> bool:
@@ -3839,6 +3987,32 @@ _GLOSS_CACHE: dict = {}
 _GLOSS_CACHE_MAX = 600
 
 
+# MandarinOS-style EN gloss normalizer (ZH → EN direction).
+# Fixes misleading literal translations produced by machine engines
+# (e.g. physical-distance idioms glossed as emotional closeness).
+_EN_GLOSS_FIXES: list[tuple] = [
+    # "nearest / closest" in physical-distance phrasing when it means emotional
+    (re.compile(r"\bnearest to (my |the )?(wife|husband|mom|dad|mother|father|parents|family)\b", re.I),
+     lambda m: f"closest to {m.group(1) or ''}{m.group(2)}"),
+    (re.compile(r"\bclosest to (my |the )?(wife|spouse)\b", re.I),
+     lambda m: f"closest to {m.group(1) or ''}wife"),
+    # Formal family-member words that machine translators may not convert
+    (re.compile(r"\bspouse\b", re.I), "wife/husband"),
+]
+
+
+def _naturalize_en_gloss(en: str) -> str:
+    """Apply MandarinOS-style post-processing to a ZH→EN machine gloss."""
+    s = (en or "").strip()
+    for fix in _EN_GLOSS_FIXES:
+        pattern, replacement = fix
+        if callable(replacement):
+            s = pattern.sub(replacement, s)
+        else:
+            s = pattern.sub(replacement, s)
+    return s
+
+
 def _gloss_translate_zh_to_en(text: str) -> Optional[str]:
     """Best-effort machine translation for transcript lines. Requires `deep-translator` (pip)."""
     t = (text or "").strip()
@@ -3853,7 +4027,7 @@ def _gloss_translate_zh_to_en(text: str) -> Optional[str]:
 
         out = GoogleTranslator(source="zh-CN", target="en").translate(t)
         if out and str(out).strip():
-            s = str(out).strip()
+            s = _naturalize_en_gloss(str(out).strip())
             if len(_GLOSS_CACHE) >= _GLOSS_CACHE_MAX:
                 _GLOSS_CACHE.clear()
             _GLOSS_CACHE[t] = s
@@ -4306,6 +4480,16 @@ class Handler(BaseHTTPRequestHandler):
                     else ""
                 )
                 answer_text = _answer_text_from_last_answer(last_answer) if last_turn_was_answer else ""
+                # Pending destination confirmation: check if last turn offered a near-match
+                # clarification ("你是说甘肃吗？") and this turn is an affirmation.
+                _pending_dest = (cs.get("pending_dest_candidate") or "").strip() if isinstance(cs, dict) else ""
+                _is_dest_confirmation = (
+                    bool(_pending_dest)
+                    and last_turn_was_answer
+                    and not user_asked_question
+                    and last_answer_fid == "f_travel_dest_generic_clarify"
+                    and any(c in (answer_text or "") for c in ("是", "对", "嗯", "好", "对的", "是的", "对啊"))
+                )
                 force_food_followup = last_turn_was_answer and (not user_asked_question) and (
                     last_answer_fid == "p2_pl_2" or _looks_food_related_answer(answer_text)
                 )
@@ -4326,10 +4510,25 @@ class Handler(BaseHTTPRequestHandler):
                     and "TRAVEL" in slot_names
                     and _has_strong_travel_signal(answer_text)
                 )
-                # Depth-before-bridge: when the learner gives a substantive answer to a specific
-                # open-ended "anchor" frame (destination, dish, hobby, closest family member),
-                # force ONE same-engine depth follow-up before ladder advancement or bridging.
-                # Only fires when the frame is in _DEPTH_ANCHOR_FRAMES and the answer is non-trivial.
+                # Destination answer validation: detect garbled/invalid destination answers
+                # (e.g. ASR "刚吃" instead of "甘肃") BEFORE the echo slot and depth-rule run,
+                # so invalid text is never echoed and never depth-followed.
+                _invalid_dest_answer = False
+                _travel_asr_candidate = None
+                if last_turn_was_answer and last_answer_fid in _DESTINATION_QUESTION_FRAMES and answer_text:
+                    _travel_asr_candidate = _detect_travel_asr_near_match(answer_text)
+                    if not _travel_asr_candidate and not _is_valid_destination_answer(answer_text):
+                        _invalid_dest_answer = True
+                    _sel_trace["entity_validation_failed"] = _invalid_dest_answer
+                    _sel_trace["fuzzy_candidate"] = _travel_asr_candidate
+
+                # Depth-before-bridge: three-tier specificity check.
+                # Tier 1 (depth-ready — province/city/named dish/specific hobby/named person):
+                #   → pick from _DEPTH_ANCHOR_FRAMES  ("你为什么想去那里？")
+                # Tier 2 (country-level — 中国/日本/美国):
+                #   → pick from _DEPTH_NARROWING_FRAMES ("你想去哪个城市？")
+                # Tier 3 (broad — 我想旅行 / 有很多好吃的):
+                #   → fall through to normal ladder/slot narrowing
                 _recent_fid_set = set(recent or [])
                 force_depth_followup_frame = None
                 if (last_turn_was_answer
@@ -4337,7 +4536,21 @@ class Handler(BaseHTTPRequestHandler):
                         and last_answer_fid in _DEPTH_ANCHOR_FRAMES
                         and answer_text
                         and len(answer_text.replace(" ", "")) >= 2):
-                    for _dfc in _DEPTH_ANCHOR_FRAMES[last_answer_fid]:
+                    _depth_fn  = _DEPTH_ANCHOR_SPECIFICITY.get(last_answer_fid)
+                    _narrow_fn = _DEPTH_NARROW_SPECIFICITY.get(last_answer_fid)
+                    if (_depth_fn is None) or _depth_fn(answer_text):
+                        # Tier 1: specific entity → depth follow-up
+                        _candidates = _DEPTH_ANCHOR_FRAMES[last_answer_fid]
+                        _sel_trace["depth_followup_tier"] = "depth"
+                    elif _narrow_fn and _narrow_fn(answer_text):
+                        # Tier 2: country-level → narrowing follow-up
+                        _candidates = _DEPTH_NARROWING_FRAMES.get(last_answer_fid, [])
+                        _sel_trace["depth_followup_tier"] = "narrow"
+                    else:
+                        # Tier 3: broad answer → normal ladder
+                        _candidates = []
+                        _sel_trace["depth_followup_skipped"] = "broad_answer"
+                    for _dfc in _candidates:
                         if _dfc in _frames_by_id and _dfc not in _recent_fid_set:
                             force_depth_followup_frame = _dfc
                             break
@@ -4504,7 +4717,8 @@ class Handler(BaseHTTPRequestHandler):
                         if _dish_text and len(_dish_text) <= 20:
                             _echo_candidate = f"哦，{_dish_text}！"
                             _echo_triggered_by = "DISH"
-                    elif "TRAVEL" in slot_names:
+                    elif "TRAVEL" in slot_names and not _invalid_dest_answer:
+                        # Guard: suppress echo when destination answer was flagged as invalid/garbled.
                         _travel_text = _submitted
                         if not _travel_text and isinstance(last_answer, dict):
                             _travel_text = (last_answer.get("selected_option_hanzi") or "").strip().rstrip(
@@ -4758,6 +4972,32 @@ class Handler(BaseHTTPRequestHandler):
                     _sel_trace["retired_signal_detected"] = True
                     _sel_trace["work_eligible"] = False
                     _sel_trace["work_followup_suppressed_reason"] = "user_not_working"
+                elif _is_dest_confirmation:
+                    # User confirmed the fuzzy near-match ("你是说甘肃吗？" → "对") —
+                    # proceed to depth follow-up as if they had named that destination.
+                    chosen = "f_travel_why_want_go"
+                    chosen_turn_type = "loop_question"
+                    listening_move_selected = "loop_question"
+                    listening_move_reason = f"dest_confirmed_{_pending_dest}"
+                    pending_listening_move = False
+                    listening_wait_turns = 0
+                    _sel_trace["fuzzy_candidate_confirmed"] = _pending_dest
+                    print(f"[dest_confirm] '{_pending_dest}' confirmed → depth follow-up", flush=True)
+                elif _travel_asr_candidate or _invalid_dest_answer:
+                    # Invalid or garbled destination answer: route to clarification instead
+                    # of echoing bad text or jumping to depth/bridge.
+                    chosen = "f_travel_dest_generic_clarify"
+                    chosen_turn_type = "question"
+                    listening_move_selected = "travel_dest_clarify"
+                    listening_move_reason = "travel_asr_near_match" if _travel_asr_candidate else "invalid_dest_answer"
+                    pending_listening_move = False
+                    listening_wait_turns = 0
+                    _sel_trace["fuzzy_clarification_prompted"] = bool(_travel_asr_candidate)
+                    _sel_trace["bridge_suppressed_reason"] = "dest_validation_failed"
+                    if _travel_asr_candidate:
+                        print(f"[dest_validate] ASR near-match '{_travel_asr_candidate}' in '{answer_text[:20]}' → clarify", flush=True)
+                    else:
+                        print(f"[dest_validate] no valid entity in '{answer_text[:20]}' → clarify", flush=True)
                 elif force_depth_followup_frame:
                     chosen = force_depth_followup_frame
                     chosen_turn_type = "loop_question"
@@ -5536,6 +5776,23 @@ class Handler(BaseHTTPRequestHandler):
                 "system_note":         "phase7.4 static options",
                 "sentence_options":    _build_sentence_options(frame_rec, memory),
             }
+            # Travel ASR near-match: override frame_text with candidate-specific question
+            # ("你是说甘肃吗？") when a near-match was detected, and persist/clear the
+            # pending_dest_candidate in state so the next turn can detect a confirmation.
+            _trav_cand  = locals().get("_travel_asr_candidate")   # may be None if not in selector path
+            _dest_conf  = locals().get("_is_dest_confirmation", False)
+            _pend_dest  = locals().get("_pending_dest", "")
+            if _trav_cand and frame_id == "f_travel_dest_generic_clarify":
+                response["frame_text"]    = f"你是说{_trav_cand}吗？"
+                response["frame_pinyin"]  = f"nǐ shì shuō {_trav_cand} ma?"
+                response["frame_text_en"] = f"Did you mean {_trav_cand}?"
+                response.setdefault("state_update", {})
+                response["state_update"]["pending_dest_candidate"] = _trav_cand
+            elif _pend_dest:
+                # Candidate existed but we're on a different frame — clear it.
+                response.setdefault("state_update", {})
+                response["state_update"]["pending_dest_candidate"] = None
+
             # Phase 13A: slot substitution — fill {CITY}/{PLACE}/[CITY] from learner memory
             _needs_city_slot = (
                 any(tok in (response.get("frame_text") or "") for tok in ("{CITY}", "{PLACE}"))

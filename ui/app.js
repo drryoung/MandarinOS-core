@@ -2117,6 +2117,10 @@ function isOpenEndedFrame(frameId) {
     "p2_pl_1", "p2_pl_ext1", "p2_pl_3", "p2_pl_4",
     // Family — open questions that invite any free answer
     "f_have_family", "f_have_siblings", "p2_fa_1", "p2_fa_2", "p2_fa_5",
+    // Family member / living-with questions: "爸爸妈妈老婆" / "我老婆" are valid free answers
+    "f_live_with_who", "p2_fa_live_with", "f_probe_family_closest",
+    // Family activity: "吃饭", "一起出去" etc. are valid free answers
+    "p2_fa_activity", "f_probe_family_together",
     // Work — retirement / job description can be anything
     "f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2",
     // Hobby — "what are your hobbies" is inherently open
@@ -2124,6 +2128,8 @@ function isOpenEndedFrame(frameId) {
     "f_difficult_ma", "f_recommend_ma", "p2_hb_1", "p2_hb_2",
     // Food & travel
     "f_food_what_good", "f_travel_where", "f_want_go_where",
+    // Travel narrowing frames: city/province answers are valid free answers
+    "f_travel_narrow_city", "f_travel_dest_generic_clarify",
   ]).has(fid);
 }
 
@@ -2219,10 +2225,12 @@ function semanticSoftMatch(transcript, frameId) {
   // Travel destination answers — scoped to frames where "going somewhere" is the actual question.
   // Prevents "中国" / "会去" from triggering travel matching on identity or origin questions.
   const _TRAVEL_DEST_FRAMES = new Set([
-    "f_place_travel",      // 你会去别的地方吗？
-    "f_travel_where",      // 你去过哪里？
-    "f_want_go_where",     // 你想去哪里？
-    "f_want_go_place",     // 你想去的地方
+    "f_place_travel",              // 你会去别的地方吗？
+    "f_travel_where",              // 你去过哪里？
+    "f_want_go_where",             // 你想去哪里？
+    "f_want_go_place",             // 你想去的地方
+    "f_travel_narrow_city",        // 你想去哪个城市？ (narrowing step)
+    "f_travel_dest_generic_clarify", // 那你说的是哪里？ (clarification)
     "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4",
   ]);
   if (_TRAVEL_DEST_FRAMES.has(fid) || /^(f_travel|p2_tr)/.test(fid)) {
@@ -2252,6 +2260,22 @@ function semanticSoftMatch(transcript, frameId) {
   // Family frequency: accept natural free responses about seeing family.
   if (fid === "p2_fa_2") {
     if (/(家人|妈妈|爸爸|父母)/.test(t) && /(天|周|月|常|每天|经常|周末)/.test(t)) return true;
+  }
+  // Family member / living-with frames: accept any answer naming a family relationship.
+  // Covers: "爸爸妈妈老婆", "我老婆", "家里人", "我和父母", "妻子孩子" etc.
+  const _FAMILY_MEMBER_FRAMES = new Set([
+    "f_live_with_who", "p2_fa_live_with", "f_probe_family_closest", "f_probe_family_together",
+    "f_probe_family_influence",
+  ]);
+  if (_FAMILY_MEMBER_FRAMES.has(fid)) {
+    if (/(老婆|妻子|老公|丈夫|先生|妈妈|爸爸|母亲|父亲|父母|哥哥|弟弟|姐姐|妹妹|儿子|女儿|孩子|家人|家里|爷爷|奶奶|外公|外婆)/.test(t)) return true;
+    if (/(一个人|自己住|单独住|独居|和.*一起住|跟.*住)/.test(t)) return true;
+  }
+  // Family activity frames: accept any activity as a valid answer.
+  // Covers: "吃饭", "一起出去", "我们最喜欢吃饭", "散步", etc.
+  const _FAMILY_ACTIVITY_FRAMES = new Set(["p2_fa_activity", "f_probe_family_together"]);
+  if (_FAMILY_ACTIVITY_FRAMES.has(fid)) {
+    if (/[\u4e00-\u9fff]{2,}/.test(t)) return true;  // any 2+ Chinese chars is a valid activity answer
   }
   // Work "why like this job": accept reason-like content.
   if (fid === "p2_wk_1") {
@@ -6072,6 +6096,183 @@ async function submitDiscoveryQuestion(q) {
   renderDiscoveryPanel(remaining, null);
 }
 
+// ── MandarinOS-style ZH naturalizer ─────────────────────────────────────────
+// Shared post-processor applied to every EN→ZH translation output.
+// Converts formal/written vocabulary to spoken/learner-friendly equivalents
+// and fixes structural patterns that are misleading in context.
+//
+// Add new entries to _ZH_VOCAB_PAIRS as they are discovered.
+// Longer / more-specific patterns MUST appear before shorter ones.
+const _ZH_VOCAB_PAIRS = [
+  // Multi-character formal → spoken (order matters: longer first)
+  ["父母亲",   "爸爸妈妈"],
+  ["父母",     "爸爸妈妈"],
+  ["祖父母",   "爷爷奶奶"],
+  ["丈夫",     "老公"],
+  ["妻子",     "老婆"],
+  ["父亲",     "爸爸"],
+  ["母亲",     "妈妈"],
+  ["祖父",     "爷爷"],
+  ["祖母",     "奶奶"],
+  ["兄弟姐妹", "兄弟姐妹"],   // already fine, keep for completeness
+  ["家庭成员", "家人"],
+  ["配偶",     "老公/老婆"],
+];
+
+/**
+ * Returns true when the English source text implies emotional / relational
+ * closeness rather than physical distance, so we can safely rewrite
+ * "离 X 最近" → "跟 X 最亲近".
+ */
+function _isEmotionalClosenessContext(sourceEn) {
+  const s = (sourceEn || "").toLowerCase();
+  if (!/(closest to|close to|close with|emotionally close)/.test(s)) return false;
+  // Physical-distance cues rule it out
+  if (/(live near|walk|drive|travel|km|mile|store|shop|school|office|distance|building|block)/.test(s)) return false;
+  return true;
+}
+
+/**
+ * Normalize a machine-translated ZH string to MandarinOS learner-natural style.
+ *
+ * @param {string} zh        Raw ZH from translation API.
+ * @param {string} sourceEn  Original English input (used for context detection).
+ * @returns {string}         Naturalized ZH.
+ */
+function naturalizeZhTranslation(zh, sourceEn) {
+  if (!zh) return zh;
+  let s = zh;
+
+  // 1. Vocabulary substitution (formal/written → spoken/natural)
+  for (const [formal, spoken] of _ZH_VOCAB_PAIRS) {
+    s = s.split(formal).join(spoken);
+  }
+
+  // 2. Structural fix: "离 X 最近" → "跟 X 最亲近" in relational context only
+  if (_isEmotionalClosenessContext(sourceEn)) {
+    s = s.replace(/离(.{1,6}?)最近/g, "跟$1最亲近");
+    // Also catch "和 X 最近" (less common but possible)
+    s = s.replace(/和(.{1,6}?)最近([，。！？]|$)/g, "和$1最亲近$2");
+  }
+
+  return s;
+}
+
+// ── MandarinOS translation override map ──────────────────────────────────────
+// High-confidence EN→ZH overrides for frequent conversational phrases.
+// These are checked BEFORE calling any external translation API, guaranteeing
+// learner-natural output for the most important expressions.
+//
+// Rules:
+//  • Keys are lowercase, no leading/trailing whitespace.
+//  • Punctuation is stripped during lookup (see _lookupTranslationOverride).
+//  • Keep this map SMALL — only add phrases where the API consistently fails
+//    or where exact natural Chinese is business-critical.
+//  • Values are already naturalized; naturalizeZhTranslation is NOT re-applied.
+//
+// Sections: family closeness · family members · work / retirement · daily life
+const TRANSLATION_OVERRIDES = {
+  // ── Emotional closeness ────────────────────────────────────────────────────
+  "i am closest to my wife":           "我跟我老婆最亲近",
+  "i'm closest to my wife":            "我跟我老婆最亲近",
+  "i am closest to my husband":        "我跟我老公最亲近",
+  "i'm closest to my husband":         "我跟我老公最亲近",
+  "i am closest to my mother":         "我跟我妈妈最亲近",
+  "i'm closest to my mother":          "我跟我妈妈最亲近",
+  "i am closest to my mom":            "我跟我妈妈最亲近",
+  "i'm closest to my mom":             "我跟我妈妈最亲近",
+  "i am closest to my father":         "我跟我爸爸最亲近",
+  "i'm closest to my father":          "我跟我爸爸最亲近",
+  "i am closest to my dad":            "我跟我爸爸最亲近",
+  "i'm closest to my dad":             "我跟我爸爸最亲近",
+  "i am closest to my parents":        "我跟爸爸妈妈最亲近",
+  "i'm closest to my parents":         "我跟爸爸妈妈最亲近",
+  "i am closest to my children":       "我跟我孩子们最亲近",
+  "i am closest to my son":            "我跟我儿子最亲近",
+  "i am closest to my daughter":       "我跟我女儿最亲近",
+  // ── Who I live with ───────────────────────────────────────────────────────
+  "i live with my wife":               "我跟我老婆一起住",
+  "i live with my husband":            "我跟我老公一起住",
+  "i live with my parents":            "我跟爸爸妈妈一起住",
+  "i live with my parents and wife":   "我跟爸爸妈妈和老婆一起住",
+  "i live alone":                      "我一个人住",
+  "i live by myself":                  "我一个人住",
+  // ── Family members ────────────────────────────────────────────────────────
+  "my wife":                           "我老婆",
+  "my husband":                        "我老公",
+  "my mother":                         "我妈妈",
+  "my mom":                            "我妈妈",
+  "my father":                         "我爸爸",
+  "my dad":                            "我爸爸",
+  "my parents":                        "我爸爸妈妈",
+  "my children":                       "我的孩子们",
+  "my son":                            "我儿子",
+  "my daughter":                       "我女儿",
+  "my family":                         "我家人",
+  // ── Work & retirement ─────────────────────────────────────────────────────
+  "i am retired":                      "我退休了",
+  "i'm retired":                       "我退休了",
+  "i retired":                         "我退休了",
+  "i have retired":                    "我退休了",
+  "i don't work":                      "我不工作",
+  "i don't work anymore":              "我不工作了",
+  "i no longer work":                  "我不工作了",
+  "i used to be a teacher":            "我以前是老师",
+  "i used to work as a teacher":       "我以前是老师",
+  "i used to be a doctor":             "我以前是医生",
+  "i used to be an engineer":          "我以前是工程师",
+  "i work as a teacher":               "我是老师",
+  "i am a teacher":                    "我是老师",
+  "i am a doctor":                     "我是医生",
+  "i am an engineer":                  "我是工程师",
+  "i am a student":                    "我是学生",
+  "i am studying":                     "我在读书",
+  // ── Identity / origin ─────────────────────────────────────────────────────
+  "i am from guangzhou":               "我是广州人",
+  "i am from guangdong":               "我是广东人",
+  "i am from beijing":                 "我是北京人",
+  "i am from shanghai":                "我是上海人",
+  "i am from china":                   "我是中国人",
+  "i am originally from guangzhou":    "我老家在广州",
+  "my hometown is guangzhou":          "我老家在广州",
+  // ── Daily life / food ─────────────────────────────────────────────────────
+  "i like lamb":                       "我喜欢羊肉",
+  "lamb is delicious":                 "羊肉很好吃",
+  "lamb is good":                      "羊肉不错",
+  "the food here is good":             "这里的东西很好吃",
+  "the food here is delicious":        "这里的东西很好吃",
+  "i like to eat together with family":"我喜欢跟家人一起吃饭",
+  "i enjoy eating with my family":     "我喜欢跟家人一起吃饭",
+  "my mother is not well":             "我妈妈身体不太好",
+  "my mom is not well":                "我妈妈身体不太好",
+  "my mother is sick":                 "我妈妈身体不好",
+};
+
+/**
+ * Normalise an English string for override lookup:
+ * lowercase, trim, collapse whitespace, strip trailing punctuation.
+ */
+function _normalizeEnForOverride(s) {
+  return (s || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[.!?,;:]+$/, "")
+    .trim();
+}
+
+/**
+ * Return a MandarinOS-curated Chinese translation if the input matches a
+ * known high-quality override, otherwise return null.
+ *
+ * @param {string} englishInput  Raw English text from the user.
+ * @returns {string|null}        Override ZH string, or null if no match.
+ */
+function _lookupTranslationOverride(englishInput) {
+  const key = _normalizeEnForOverride(englishInput);
+  return TRANSLATION_OVERRIDES[key] ?? null;
+}
+
 // ── English → Chinese translation panel ─────────────────────────────────────
 (function setupEngTranslationPanel() {
   const engInput       = document.getElementById("engInput");
@@ -6129,12 +6330,27 @@ async function submitDiscoveryQuestion(q) {
     translateBtn.textContent = "…";
     engResult.style.display = "none";
     if (engTranslatedPy) { engTranslatedPy.textContent = ""; engTranslatedPy.style.display = "none"; }
+
+    // ── Priority 1: curated override map (instant, no API call) ──────────────
+    const override = _lookupTranslationOverride(text);
+    if (override) {
+      _renderTranslationTokens(override);
+      _setTranslationPinyin(override);
+      engResult.style.display = "flex";
+      ttsSpeak({ text: override, lang: "zh-CN" });
+      translateBtn.disabled = false;
+      translateBtn.textContent = "Translate";
+      return;
+    }
+
+    // ── Priority 2: external API + naturalizer post-processing ───────────────
     try {
       const url = "https://api.mymemory.translated.net/get?q=" +
                   encodeURIComponent(text) + "&langpair=en%7Czh";
       const res = await fetch(url);
       const data = await res.json();
-      const zh = (data?.responseData?.translatedText || "").trim();
+      const rawZh = (data?.responseData?.translatedText || "").trim();
+      const zh = naturalizeZhTranslation(rawZh, text);
       if (zh && zh !== text) {
         _renderTranslationTokens(zh);
         _setTranslationPinyin(zh);

@@ -2091,6 +2091,34 @@
       "move_type": "LOOP"
     },
     {
+      "id": "f_travel_dest_generic_clarify",
+      "text": "那你说的是哪里？",
+      "pinyin": "nà nǐ shuō de shì nǎlǐ?",
+      "text_en": "So which place did you mean?",
+      "engine": "travel",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
+      "id": "f_travel_narrow_city",
+      "text": "你想去哪个城市？",
+      "pinyin": "nǐ xiǎng qù nǎge chéngshì?",
+      "text_en": "Which city do you want to go to?",
+      "engine": "travel",
+      "difficulty": 1,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": ["w_nali"],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
       "id": "f_efc_family_work",
       "text": "你{ENTITY}做什么工作？",
       "pinyin": "nǐ {ENTITY} zuò shénme gōngzuò?",
