@@ -919,6 +919,15 @@ _CLOSING_REACTIONS: list = [
     ("这样挺好。", "Zhèyàng tǐng hǎo.", "That sounds good."),
 ]
 
+# Used instead of _CLOSING_REACTIONS when the learner's answer has emotional / health signals
+# (不好, 生病, 累, 重要…). Appends a short spoken follow-up so the conversation doesn't end
+# on an acknowledgement-only line after a personal disclosure.
+_CLOSING_REACTIONS_EMOTIONAL: list = [
+    ("这样啊。现在怎么样？", "Zhèyàng a. Xiànzài zěnmeyàng?", "I see. How is it now?"),
+    ("这样啊。还好吗？", "Zhèyàng a. Hái hǎo ma?", "I see. Are you okay?"),
+    ("这样啊。严重吗？", "Zhèyàng a. Yánzhòng ma?", "I see. Is it serious?"),
+]
+
 # Oxygen selection by context (engine or slot). Only surface 1–2 when gating conditions fire.
 _OXYGEN_IDS_BY_ENGINE: dict = {
     "place":  ["zenmeyang", "nali"],
@@ -1426,6 +1435,22 @@ _CURIOSITY_PROBE_FRAMES: dict = {
     ],
 }
 
+# Micro-probe pool: very short curiosity probes (为什么？哪里？怎么样？什么时候？).
+# Fire occasionally after valid slot-name answers even when interest is not "high" and chain < 2.
+# Engine mapping determines which probe fits best; "why" is the universal fallback.
+_MICRO_PROBE_BY_ENGINE: dict = {
+    "identity": ["f_micro_probe_why"],
+    "place":    ["f_micro_probe_where", "f_micro_probe_why"],
+    "work":     ["f_micro_probe_how", "f_micro_probe_why"],
+    "hobby":    ["f_micro_probe_how", "f_micro_probe_why"],
+    "travel":   ["f_micro_probe_when", "f_micro_probe_why"],
+    "family":   ["f_micro_probe_why"],
+    "food":     ["f_micro_probe_how", "f_micro_probe_why"],
+}
+_MICRO_PROBE_FRAME_IDS: frozenset = frozenset({
+    "f_micro_probe_why", "f_micro_probe_where", "f_micro_probe_how", "f_micro_probe_when"
+})
+
 # Phase 12E: keyword → targeted discovery question shown at the top of the discovery panel
 # when the persona's counter_reply contains a recognisable topic keyword.
 # Each entry: (keywords_tuple, zh_question, en_hint)
@@ -1515,9 +1540,10 @@ _DESTINATION_QUESTION_FRAMES: frozenset = frozenset({
 })
 
 # (confused_string, likely_intended) pairs — scoped to travel destination context only.
+# Ordered longest-first so more specific patterns match before substrings do.
 _TRAVEL_ASR_NEAR_MATCHES: list = [
-    ("刚吃", "甘肃"), ("刚出", "甘肃"), ("干肃", "甘肃"), ("甘书", "甘肃"), ("甘树", "甘肃"),
-    ("出中国", "去中国"), ("会出中国", "会去中国"),
+    ("刚刚出", "甘肃"), ("刚吃", "甘肃"), ("刚出", "甘肃"), ("干肃", "甘肃"), ("甘书", "甘肃"), ("甘树", "甘肃"),
+    ("吃中国", "去中国"), ("出中国", "去中国"), ("会出中国", "会去中国"),
 ]
 
 
@@ -1646,6 +1672,51 @@ _DEPTH_NARROWING_FRAMES: dict = {
     "f_want_go_where":  ["f_travel_narrow_city", "f_travel_which_best"],
     "f_travel_where":   ["f_travel_narrow_city", "f_travel_which_best"],
     "f_want_go_place":  ["f_travel_narrow_city", "f_travel_which_best"],
+}
+
+
+# ── Depth-trigger follow-up ───────────────────────────────────────────────────────────────────
+# Detects emotional, planning, and relationship signals in learner answers.
+# When triggered and no entity-level anchor (force_depth_followup_frame) applies, the selector
+# stays in the same engine and asks one short follow-up instead of switching topics.
+# Budget: at most 2 consecutive depth-trigger follow-ups per topic (tracked via cs state).
+_DEPTH_TRIGGER_EMOTIONAL: frozenset = frozenset(["不好", "累", "生病", "开心", "喜欢", "重要"])
+_DEPTH_TRIGGER_PLANS:     frozenset = frozenset(["想去", "会去", "打算"])
+_DEPTH_TRIGGER_RELATIONS: frozenset = frozenset(["老婆", "家人", "最亲近"])
+
+
+def _detect_depth_trigger(text: str) -> Optional[str]:
+    """Return trigger category ('emotional', 'plan', 'relationship') or None."""
+    if not text:
+        return None
+    if any(s in text for s in _DEPTH_TRIGGER_EMOTIONAL):
+        return "emotional"
+    if any(s in text for s in _DEPTH_TRIGGER_PLANS):
+        return "plan"
+    if any(s in text for s in _DEPTH_TRIGGER_RELATIONS):
+        return "relationship"
+    return None
+
+
+# (trigger_category, engine) → ordered list of candidate frame IDs.
+# Only frames confirmed present in p2_frames.json are listed.
+# First unseen frame wins; if none available, falls through to normal ladder.
+_DEPTH_TRIGGER_ENGINE_FRAMES: dict = {
+    ("emotional", "work"):       ["f_probe_work_best", "f_probe_work_why_quit", "f_probe_work_dream"],
+    ("emotional", "hobby"):      ["f_probe_hobby_origin", "f_probe_hobby_social"],
+    ("emotional", "travel"):     ["f_probe_travel_why_fav", "f_travel_why_want_go"],
+    ("emotional", "family"):     ["f_probe_family_influence", "f_probe_family_together"],
+    ("emotional", "food"):       ["f_probe_food_childhood", "f_probe_food_make"],
+    ("emotional", "place"):      ["f_probe_emotional_checkin", "f_probe_place_miss", "f_probe_place_stay"],
+    ("plan",      "travel"):     ["f_travel_why_want_go", "f_probe_travel_why_fav"],
+    ("plan",      "work"):       ["f_probe_work_future", "f_probe_work_dream"],
+    ("plan",      "hobby"):      ["f_probe_hobby_origin"],
+    ("plan",      "family"):     ["f_probe_family_together"],
+    ("plan",      "place"):      ["f_probe_place_stay"],
+    ("relationship", "family"):  ["f_probe_family_together", "f_probe_family_influence"],
+    ("relationship", "work"):    ["f_probe_family_together"],
+    ("relationship", "hobby"):   ["f_probe_family_together"],
+    ("relationship", "place"):   ["f_probe_family_together"],
 }
 
 
@@ -1822,6 +1893,19 @@ def _stable_gate(seed: str) -> int:
 # Story/context connectors signal the user is sharing something personal, not just naming a fact.
 _NOVELTY_STORY_MARKERS = (
     "以前", "从小", "记得", "那时候", "有一次", "小时候", "当时", "后来", "长大", "曾经",
+)
+
+# Work place-only signals: institution / location names that, WITHOUT a role marker,
+# indicate the learner named a place rather than a job role.
+# Used to suppress the enthusiastic work reaction before clarification is established.
+_WORK_PLACE_ONLY_SIGNALS: tuple = (
+    "大学", "学校", "公司", "医院", "银行", "政府", "研究所",
+)
+# Role markers that make a work answer semantically clear — even alongside a place name.
+# "我在医院工作" is clear; "医院" alone is not.
+_WORK_ROLE_MARKERS: tuple = (
+    "老师", "教授", "讲师", "工程师", "医生", "护士", "经理", "研究员",
+    "职员", "员工", "主任", "主管", "总裁", "导师", "工作",
 )
 
 # Notable job/role keywords: if a JOB slot answer contains any of these,
@@ -2827,6 +2911,26 @@ def _pick_curiosity_probe_frame(
         if entry.get("interest_min") == "high" and interest_level != "high":
             continue
         return fid
+    return None
+
+
+def _pick_micro_probe(engine: str, recent: list) -> Optional[str]:
+    """Return a short micro-probe frame id (为什么？哪里？etc.) or None if rate-limited.
+
+    Rate limit: no probe if one fired in the last 2 frames (prevents chaining).
+    Falls back to 'f_micro_probe_why' (universal) if engine has no specific pool entry.
+    """
+    recent_list = recent or []
+    # Rate limit: don't fire if any micro-probe was used in last 2 turns
+    for fid in recent_list[-2:]:
+        if fid in _MICRO_PROBE_FRAME_IDS:
+            return None
+    engine_norm = (engine or "").strip().lower()
+    pool = _MICRO_PROBE_BY_ENGINE.get(engine_norm, ["f_micro_probe_why"])
+    recent_set = set(recent_list)
+    for candidate in pool:
+        if candidate not in recent_set:
+            return candidate
     return None
 
 
@@ -4510,6 +4614,9 @@ class Handler(BaseHTTPRequestHandler):
                     and "TRAVEL" in slot_names
                     and _has_strong_travel_signal(answer_text)
                 )
+                # Early sentinel: some code below writes to _sel_trace before the full init.
+                # Initialize empty here; the full dict replaces it a few lines later.
+                _sel_trace: dict = {}
                 # Destination answer validation: detect garbled/invalid destination answers
                 # (e.g. ASR "刚吃" instead of "甘肃") BEFORE the echo slot and depth-rule run,
                 # so invalid text is never echoed and never depth-followed.
@@ -4519,8 +4626,7 @@ class Handler(BaseHTTPRequestHandler):
                     _travel_asr_candidate = _detect_travel_asr_near_match(answer_text)
                     if not _travel_asr_candidate and not _is_valid_destination_answer(answer_text):
                         _invalid_dest_answer = True
-                    _sel_trace["entity_validation_failed"] = _invalid_dest_answer
-                    _sel_trace["fuzzy_candidate"] = _travel_asr_candidate
+                    pass  # trace fields set in _sel_trace init below
 
                 # Depth-before-bridge: three-tier specificity check.
                 # Tier 1 (depth-ready — province/city/named dish/specific hobby/named person):
@@ -4569,6 +4675,70 @@ class Handler(BaseHTTPRequestHandler):
                 if _efc_entity_value:
                     _efc_entity_state = {"type": "family", "value": _efc_entity_value}
                 _efc_active = bool(_efc_entity_state.get("value"))
+
+                # Depth-trigger follow-up: detect emotional / plan / relationship signals.
+                # Does not fire when: entity-level anchor already applies, or the 2-follow-up
+                # per-topic budget is exhausted.
+                # EFC guard: only suppress when we are IN the family engine (where EFC can
+                # actually run). In other engines, a family mention alongside an emotional signal
+                # (e.g. "我妈妈的身体不好") still deserves a depth follow-up.
+                _depth_trigger_category = None
+                depth_trigger_followup_frame = None
+                _depth_trigger_budget = int(cs.get("depth_trigger_followup_count") or 0) if isinstance(cs, dict) else 0
+                _efc_blocks_depth_trigger = _efc_active and (current_engine or "").strip().lower() == "family"
+                if (last_turn_was_answer
+                        and not user_asked_question
+                        and force_depth_followup_frame is None
+                        and not _efc_blocks_depth_trigger
+                        and answer_text
+                        and _depth_trigger_budget < 2):
+                    _depth_trigger_category = _detect_depth_trigger(answer_text)
+                    if _depth_trigger_category:
+                        _engine_key_dt = (current_engine or "").strip().lower()
+                        _dt_candidates = _DEPTH_TRIGGER_ENGINE_FRAMES.get((_depth_trigger_category, _engine_key_dt), [])
+                        for _dtf in _dt_candidates:
+                            if _dtf in _frames_by_id and _dtf not in _recent_fid_set:
+                                depth_trigger_followup_frame = _dtf
+                                break
+                        print(
+                            f"[depth_trigger] cat={_depth_trigger_category} engine={_engine_key_dt}"
+                            f" budget={_depth_trigger_budget} → {depth_trigger_followup_frame}",
+                            flush=True,
+                        )
+
+                # Micro-probe eligibility: short follow-up probe (为什么？哪里？etc.) for slot-based answers.
+                # Fires in two later gates (Step 3b in main block, and fallback loop gate).
+                # Eligibility: slot_names present, answer ≥ 4 chars, no depth trigger, no confusion.
+                _micro_probe_eligible: bool = (
+                    last_turn_was_answer
+                    and not user_asked_question
+                    and bool(slot_names)
+                    and len(answer_text or "") >= 4
+                    and not _depth_trigger_category
+                    and not force_depth_followup_frame
+                    and not _is_confusion_signal(answer_text)
+                    and answer_text not in ("不知道", "还好", "一般", "好", "嗯", "可以")
+                )
+                _micro_probe_candidate: Optional[str] = None
+                _micro_probe_block_reason: Optional[str] = None
+                if _micro_probe_eligible:
+                    _micro_probe_candidate = _pick_micro_probe(current_engine, list(recent or []))
+                    if _micro_probe_candidate is None:
+                        _micro_probe_eligible = False
+                        _micro_probe_block_reason = "micro_probe_rate_limited"
+                elif not last_turn_was_answer:
+                    _micro_probe_block_reason = "not_last_turn_answer"
+                elif not slot_names:
+                    _micro_probe_block_reason = "no_slot_names"
+                elif len(answer_text or "") < 4:
+                    _micro_probe_block_reason = "answer_too_short"
+                elif _depth_trigger_category:
+                    _micro_probe_block_reason = "depth_trigger_active"
+                elif force_depth_followup_frame:
+                    _micro_probe_block_reason = "force_depth_followup_active"
+                elif _is_confusion_signal(answer_text):
+                    _micro_probe_block_reason = "confusion_signal"
+
                 interest_score = 0
                 interest_level = "low"
                 _interest_novelty_hit = False
@@ -4600,6 +4770,8 @@ class Handler(BaseHTTPRequestHandler):
                 # Load deduplication state: last 2 reaction texts used this session.
                 _recent_reactions: List[str] = list(cs.get("recent_reactions") or [])
                 # Default traces — overwritten if their respective code paths run this turn.
+                _repair_attempt_count   = 0  # updated in repair escalation block below
+                _repair_escalation_level = 0
                 _has_submitted_text = isinstance(last_answer, dict) and bool((last_answer.get("submitted_text") or "").strip())
                 _has_selected_hanzi = isinstance(last_answer, dict) and bool((last_answer.get("selected_option_hanzi") or "").strip())
                 _sel_trace: dict = {
@@ -4618,6 +4790,18 @@ class Handler(BaseHTTPRequestHandler):
                     "food_answer_rejected_reason": None,  # filled in below if food slot rejected
                     "travel_answer_detected": _looks_travel_related_answer(answer_text) if answer_text else False,
                     "normalized_answer": answer_text,
+                    # Work-retirement detection fields (set to True in the relevant paths below).
+                    "work_retirement_detected": False,
+                    "work_retirement_asr_correction": False,
+                    "work_retirement_followup_used": False,
+                    # Travel destination validation fields (computed above, now safely referenced here).
+                    "entity_validation_failed": _invalid_dest_answer,
+                    "fuzzy_candidate": _travel_asr_candidate,
+                    "travel_asr_near_miss": bool(_travel_asr_candidate),
+                    "travel_asr_target": _travel_asr_candidate,
+                    # Repair escalation (updated after counter_reply block)
+                    "repair_attempt_count": 0,
+                    "repair_escalation_level": 0,
                 }
                 # Closing move guards — set inside the selection block; defaulted here so the
                 # closing-move check at the end of selection is always safe to reference.
@@ -4781,6 +4965,32 @@ class Handler(BaseHTTPRequestHandler):
                         _rxn_trace["composition_mode"] = "stance_only"
                 # ─────────────────────────────────────────────────────────────────────────────
 
+                # Work place-only reaction guard: suppress praise when the learner named an
+                # institution (大学, 医院…) without a role marker (老师, 医生…).
+                # "中国的大学" should not trigger "真了不起！" before the work is clarified.
+                # Does not affect the slot followup (f_probe_work_role_detail still fires).
+                if (
+                    reaction_prefix_text
+                    and (current_engine or "").strip().lower() == "work"
+                    and last_turn_was_answer
+                    and answer_text
+                    and any(m in answer_text for m in _WORK_PLACE_ONLY_SIGNALS)
+                    and not any(m in answer_text for m in _WORK_ROLE_MARKERS)
+                ):
+                    reaction_prefix_text = ""
+                    _rxn_trace["composition_mode"] = "suppressed_work_place_only"
+
+                # Emotional depth trigger: suppress the generic stance reaction entirely so
+                # tonally wrong praise (很好！) never precedes empathetic follow-ups like 现在怎么样？
+                # The follow-up question itself carries the empathy.
+                if (
+                    reaction_prefix_text
+                    and _depth_trigger_category == "emotional"
+                    and last_turn_was_answer
+                ):
+                    reaction_prefix_text = ""
+                    _rxn_trace["composition_mode"] = "suppressed_emotional_depth_trigger"
+
                 # User-question override (spec-friendly, no schema changes):
                 # if the user asked a question (counter-question), return the persona's answer
                 # as a dedicated `counter_reply` field so the client can display/TTS it
@@ -4892,7 +5102,38 @@ class Handler(BaseHTTPRequestHandler):
                     _counter_reply = _persona_deflect("generic", _counter_reply)
                     _counter_reply_en = _persona_deflect_en(_counter_reply)
 
+                # ── Repair escalation ───────────────────────────────────────────
+                # When the learner repeatedly signals confusion (啊？ / 我不懂 / etc.),
+                # escalate the partner's repair phrase rather than looping the same response.
+                # Uses recent_confusion_count (already in scope from cs) as the attempt counter.
+                # Level 1 (count==1): short acknowledgment — let existing flow handle naturally.
+                # Level 2 (count==2): explicit repeat request "再说一遍可以吗？"
+                # Level 3+ (count>=3): candidate-specific clarification or simple request.
+                _repair_attempt_count  = recent_confusion_count  # already read from cs above
+                _repair_escalation_level = min(_repair_attempt_count, 3) if _repair_attempt_count else 0
+                if (
+                    last_turn_was_answer
+                    and _is_confusion_signal(answer_text)
+                    and _repair_attempt_count >= 2
+                ):
+                    if _repair_attempt_count == 2:
+                        _counter_reply    = "再说一遍可以吗？"
+                        _counter_reply_en = "Could you say that again?"
+                    else:
+                        # Level 3+: use last-detected travel candidate if available,
+                        # else a generic simplification request.
+                        _repair_cand = locals().get("_travel_asr_candidate") or None
+                        if _repair_cand:
+                            _counter_reply    = f"你是说\u201c{_repair_cand}\u201d吗？"
+                            _counter_reply_en = f"Did you mean \u201c{_repair_cand}\u201d?"
+                        else:
+                            _counter_reply    = "你可以再说简单一点吗？"
+                            _counter_reply_en = "Can you say that more simply?"
+
                 _counter_reply_pinyin = _resolve_counter_reply_pinyin(_counter_reply) if _counter_reply else ""
+                # Sync repair trace into first _sel_trace (used when priority branches set chosen).
+                _sel_trace["repair_attempt_count"]   = _repair_attempt_count
+                _sel_trace["repair_escalation_level"] = _repair_escalation_level
 
                 # ── Work-state detection ─────────────────────────────────────────
                 # Uses submitted_text; answer_text (which also covers selected options) was
@@ -4910,12 +5151,16 @@ class Handler(BaseHTTPRequestHandler):
                 )
 
                 # ASR near-homophone retirement guard.
-                # 退休 (tuìxiū) and 推销 (tuīxiāo) sound similar; ASR frequently mishears one as
-                # the other.  When a short answer to a work-entry question ends with a "了"-terminated
-                # near-homophone we ask for explicit clarification rather than assuming a job.
-                # Scoped tightly: work-entry frames only, short answers, 了-completion marker required,
-                # "在推销" excluded (unambiguously active sales phrasing).
-                _RETIRE_NEAR_HOMOPHONES = ("推销了", "推休了", "退修了", "推消了", "退消了")
+                # 退休 (tuìxiū) sounds similar to several ASR transcriptions:
+                #   推销 (tuīxiāo) — "sales" — the original guard case.
+                #   退烧 (tuìshāo) — "fever broke" — makes no sense as a job answer; almost
+                #     certainly ASR for 退休 when given in response to a work-entry question.
+                # When a short answer ends with a near-homophone we ask for explicit clarification
+                # rather than assuming an active job.
+                # Scoped tightly: work-entry frames only, short answers, 了-completion or exact
+                # stem match, "在推销" excluded (unambiguously active sales phrasing).
+                _RETIRE_NEAR_HOMOPHONES = ("推销了", "推休了", "退修了", "推消了", "退消了",
+                                           "退烧了", "退烧")
                 _WORK_ENTRY_FRAMES_FOR_GUARD = frozenset({
                     "f_what_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5",
                 })
@@ -4948,6 +5193,8 @@ class Handler(BaseHTTPRequestHandler):
                 loop_attempted = False
                 listening_move_selected = "none"
                 listening_move_reason = ""
+                depth_trigger_detected = bool(_depth_trigger_category)
+                depth_trigger_followup_used = False
                 if _retire_confirmed_after_clarify:
                     chosen = "p2_wk_retired"
                     chosen_turn_type = "question"
@@ -4957,6 +5204,8 @@ class Handler(BaseHTTPRequestHandler):
                     _sel_trace["retire_confirmed_via_clarify"] = True
                     _sel_trace["work_eligible"] = False
                     _sel_trace["work_followup_suppressed_reason"] = "user_confirmed_retired"
+                    _sel_trace["work_retirement_detected"] = True
+                    _sel_trace["work_retirement_followup_used"] = True
                 elif _needs_retire_clarify:
                     chosen = "f_work_retire_clarify"
                     chosen_turn_type = "question"
@@ -4964,6 +5213,9 @@ class Handler(BaseHTTPRequestHandler):
                     listening_move_reason = "ASR near-homophone retirement guard fired"
                     _sel_trace["retire_homophone_guard"] = True
                     _sel_trace["work_followup_suppressed_reason"] = "asr_homophone_retire_guard"
+                    _sel_trace["work_retirement_detected"] = True
+                    _sel_trace["work_retirement_asr_correction"] = True
+                    _sel_trace["work_retirement_followup_used"] = True
                 elif _user_is_retired:
                     chosen = "p2_wk_retired"
                     chosen_turn_type = "question"
@@ -4972,6 +5224,8 @@ class Handler(BaseHTTPRequestHandler):
                     _sel_trace["retired_signal_detected"] = True
                     _sel_trace["work_eligible"] = False
                     _sel_trace["work_followup_suppressed_reason"] = "user_not_working"
+                    _sel_trace["work_retirement_detected"] = True
+                    _sel_trace["work_retirement_followup_used"] = True
                 elif _is_dest_confirmation:
                     # User confirmed the fuzzy near-match ("你是说甘肃吗？" → "对") —
                     # proceed to depth follow-up as if they had named that destination.
@@ -5008,6 +5262,19 @@ class Handler(BaseHTTPRequestHandler):
                     _sel_trace["depth_followup_forced"] = True
                     _sel_trace["depth_followup_anchor"] = last_answer_fid
                     print(f"[depth_followup] anchor={last_answer_fid} → {chosen}", flush=True)
+                elif depth_trigger_followup_frame:
+                    # Emotional / plan / relationship signal detected — stay on topic with one
+                    # short follow-up question rather than switching engines.
+                    chosen = depth_trigger_followup_frame
+                    chosen_turn_type = "loop_question"
+                    listening_move_selected = "loop_question"
+                    listening_move_reason = f"depth_trigger_{_depth_trigger_category}"
+                    pending_listening_move = False
+                    listening_wait_turns = 0
+                    depth_trigger_followup_used = True
+                    _sel_trace["depth_trigger_followup_used"] = True
+                    _sel_trace["depth_trigger_category"] = _depth_trigger_category
+                    print(f"[depth_trigger] {_depth_trigger_category} → {chosen} (budget={_depth_trigger_budget + 1})", flush=True)
                 elif force_food_followup:
                     chosen = _pick_slot_followup_frame_id(
                         current_engine, ["DISH"], recent, memory, exchange_count=exchange_count,
@@ -5142,7 +5409,9 @@ class Handler(BaseHTTPRequestHandler):
                         "ladder": None,
                         "probe_eligible": False,
                         "probe_chosen": None,
+                        "probe_used": False,
                         "probe_suppressed_reason": None,
+                        "probe_block_reason": _micro_probe_block_reason,
                         "bridge_considered": False,
                         "bridge_rejected_reason": None,
                         "final_frame_source": None,
@@ -5155,6 +5424,13 @@ class Handler(BaseHTTPRequestHandler):
                         "late_session_mode": _late_session_mode,
                         "late_session_cross_engine_penalty_applied": _late_session_cross_engine_penalty_applied,
                         "visited_engine_count": _visited_engine_count,
+                        "depth_trigger_detected": depth_trigger_detected,
+                        "depth_trigger_category": _depth_trigger_category,
+                        "depth_trigger_followup_used": depth_trigger_followup_used,
+                        "repair_attempt_count": _repair_attempt_count,
+                        "repair_escalation_level": _repair_escalation_level,
+                        "micro_probe_eligible": _micro_probe_eligible,
+                        "micro_probe_candidate": _micro_probe_candidate,
                     }
                     if pending_listening_move or force_listening or chain_exceeded:
                         seed_base = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/interest"
@@ -5170,18 +5446,40 @@ class Handler(BaseHTTPRequestHandler):
                         # Phase 12E: use decayed interest for curiosity depth cap (raw level still drives listening/reaction)
                         _curiosity_cap = _max_curiosity_cap_for_interest(_interest_decayed_level)
                         if curiosity_depth < _curiosity_cap and has_curiosity_signal:
-                            # Step 1: slot followup — strongest local signal
-                            chosen = _pick_slot_followup_frame_id(
-                                current_engine, slot_names, recent, memory, exchange_count=exchange_count,
-                                answer_text=answer_text, last_answer_fid=last_answer_fid,
-                                same_engine_chain_count=same_engine_chain_count,
-                                _trace=_sel_trace,
-                            )
-                            if chosen is not None:
+                            # Step 0b: micro-probe probabilistic gate (~30% of eligible turns).
+                            # Fires before slot-followup so short probes (为什么？哪里？etc.) appear
+                            # occasionally even when slot-followup frames are available.
+                            # Rate limited to 1 probe per 2 turns via _pick_micro_probe().
+                            if (
+                                _micro_probe_candidate
+                                and not depth_trigger_followup_used
+                                and not depth_trigger_detected
+                            ):
+                                _mp_gate_seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/mp"
+                                if _stable_gate(_mp_gate_seed) < 300:  # ~30% probability
+                                    chosen = _micro_probe_candidate
+                                    chosen_turn_type = "loop_question"
+                                    listening_move_selected = "loop_question"
+                                    listening_move_reason = "micro_probe"
+                                    pending_listening_move = False
+                                    listening_wait_turns = 0
+                                    _sel_trace["probe_eligible"] = True
+                                    _sel_trace["probe_used"] = True
+                                    _sel_trace["probe_chosen"] = chosen
+                                    _sel_trace["probe_path"] = "micro_probe_gate"
+                            # Step 1: slot followup — strongest local signal (skipped if micro-probe fired)
+                            if chosen is None:
+                                chosen = _pick_slot_followup_frame_id(
+                                    current_engine, slot_names, recent, memory, exchange_count=exchange_count,
+                                    answer_text=answer_text, last_answer_fid=last_answer_fid,
+                                    same_engine_chain_count=same_engine_chain_count,
+                                    _trace=_sel_trace,
+                                )
+                            if chosen is not None and _sel_trace.get("probe_path") != "micro_probe_gate":
                                 chosen = _maybe_frame_order_priority(
                                     current_engine, chosen, recent, memory, answer_text, last_answer_fid,
                                 )
-                            _sel_trace["slot_followup"] = chosen
+                            _sel_trace["slot_followup"] = chosen if _sel_trace.get("probe_path") != "micro_probe_gate" else None
                             # Step 2: frame ladder — default spine when no slot followup
                             _ladder_chosen = None
                             if chosen is None:
@@ -5219,7 +5517,9 @@ class Handler(BaseHTTPRequestHandler):
                                 and _engine_norm_for_probe not in medium_probe_fired_engines
                             )
                             _probe_eligible = _high_probe_eligible or _medium_probe_eligible
-                            _sel_trace["probe_eligible"] = _probe_eligible
+                            # Only overwrite probe_eligible if a micro-probe hasn't already claimed it.
+                            if not _sel_trace.get("probe_used"):
+                                _sel_trace["probe_eligible"] = _probe_eligible
                             if _probe_eligible:
                                 _probe_interest = _interest_decayed_level if _high_probe_eligible else "medium"
                                 _probe = _pick_curiosity_probe_frame(current_engine, _probe_interest, memory, recent)
@@ -5248,6 +5548,25 @@ class Handler(BaseHTTPRequestHandler):
                                 listening_move_reason = "interest_policy"
                                 pending_listening_move = False
                                 listening_wait_turns = 0
+                        # Step 3b: micro-probe — short follow-up (为什么？哪里？etc.) for slot-based answers.
+                        # Fires when: slot_names present, no depth trigger, no existing probe chosen, not rate-limited.
+                        # Priority: lower than existing probes (Step 3), higher than bridge (Step 4).
+                        if (
+                            chosen is None
+                            and _micro_probe_candidate
+                            and not depth_trigger_followup_used
+                            and not depth_trigger_detected
+                        ):
+                            chosen = _micro_probe_candidate
+                            chosen_turn_type = "loop_question"
+                            listening_move_selected = "loop_question"
+                            listening_move_reason = "micro_probe"
+                            pending_listening_move = False
+                            listening_wait_turns = 0
+                            _sel_trace["probe_eligible"] = True
+                            _sel_trace["probe_used"] = True
+                            _sel_trace["probe_chosen"] = chosen
+                            _sel_trace["probe_path"] = "micro_probe_main"
                         # Only default to bridge when curiosity had no viable frame.
                         # Depth guard: never fire a chain_exceeded bridge when we just entered a
                         # fresh engine and frames remain — the high chain count is from the
@@ -5292,6 +5611,24 @@ class Handler(BaseHTTPRequestHandler):
                         # Phase 12E: probe frame before falling back to generic ladder
                         if chosen is None and _interest_decayed_level in ("medium", "high"):
                             chosen = _pick_curiosity_probe_frame(current_engine, _interest_decayed_level, memory, recent)
+                        # Micro-probe fallback: short curiosity probe (为什么？哪里？etc.) when slot_names present.
+                        # Fires here (inside loop block) when no existing probe was selected.
+                        if (
+                            chosen is None
+                            and _micro_probe_candidate
+                            and not depth_trigger_followup_used
+                            and not depth_trigger_detected
+                        ):
+                            chosen = _micro_probe_candidate
+                            chosen_turn_type = "loop_question"
+                            pending_listening_move = False
+                            listening_wait_turns = 0
+                            listening_move_selected = "loop_question"
+                            listening_move_reason = "micro_probe"
+                            _sel_trace["probe_eligible"] = True
+                            _sel_trace["probe_used"] = True
+                            _sel_trace["probe_chosen"] = chosen
+                            _sel_trace["probe_path"] = "micro_probe_loop"
                         if chosen is None:
                             # Fall back: next ladder frame, but avoid known weak loop frames if we have alternatives in engine
                             chosen = _select_next_frame_ladder_avoiding(
@@ -5408,6 +5745,10 @@ class Handler(BaseHTTPRequestHandler):
                     and _cm_remaining_weak
                     and last_turn_was_answer
                     and (not user_asked_question)
+                    # Depth trigger guard: if the answer contained emotional / plan /
+                    # relationship signals, keep the conversation alive — don't close
+                    # mid-disclosure just because the engine is nearly exhausted.
+                    and not depth_trigger_detected
                 )
                 # Preemptible trigger: chosen frame is declared weak for late session;
                 # suppress it and close instead. No engine-exhaustion requirement.
@@ -5426,7 +5767,15 @@ class Handler(BaseHTTPRequestHandler):
                     _closing_reason = "meaningful_answer_no_next_move"
                     _cl_trigger = "preemptible" if _cm_preemptible else ("extended" if _cm_extended else "original")
                     _cl_seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/closing"
-                    _cl_zh, _cl_py, _cl_en = _pick_closing_reaction(_cl_seed)
+                    # When the answer had emotional / health signals, use a warmer closing that
+                    # includes a spoken follow-up question rather than a bare acknowledgement.
+                    if _depth_trigger_category == "emotional":
+                        _cl_zh, _cl_py, _cl_en = (
+                            _stable_pick(_CLOSING_REACTIONS_EMOTIONAL, _cl_seed)
+                            or _CLOSING_REACTIONS_EMOTIONAL[0]
+                        )
+                    else:
+                        _cl_zh, _cl_py, _cl_en = _pick_closing_reaction(_cl_seed)
                     print(f"[CLOSING] trigger={_cl_trigger} late_session={_cm_late_session} "
                           f"preempted={_closing_preempted_frame!r} engine={current_engine} text={_cl_zh!r}", flush=True)
                     _closing_response = {
@@ -5523,7 +5872,19 @@ class Handler(BaseHTTPRequestHandler):
                 # Runs AFTER all Phase 10.5 logic and identity coherence gate.
                 # Only changes `chosen` when a tagged alternative in the allowed transition set exists.
                 _mt_filter_debug: dict = {}
-                if last_answer_fid and chosen:
+                # High-priority selector choices (retirement clarification, travel dest
+                # clarification, depth anchors) must never be overridden by the move_type
+                # filter — their structural purpose overrides transition preferences.
+                _mt_filter_exempt = (
+                    listening_move_selected in (
+                        "retire_clarify", "retired_pivot",
+                        "travel_dest_clarify", "dest_confirmed",
+                        "depth_anchor", "efc",
+                    )
+                    or listening_move_reason == "micro_probe"
+                    or (chosen in _MICRO_PROBE_FRAME_IDS)
+                )
+                if last_answer_fid and chosen and not _mt_filter_exempt:
                     _engine_for_filter = (current_engine or "").strip().lower()
                     _mt_filter_debug = _apply_move_type_filter(
                         chosen=chosen,
@@ -5715,6 +6076,7 @@ class Handler(BaseHTTPRequestHandler):
                     and current_engine_norm
                     and chosen_engine_norm != current_engine_norm
                     and exchange_count >= 1
+                    and not depth_trigger_followup_used  # depth-trigger empathy frames are not bridges
                 ):
                     bridge_seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine_norm}->{chosen_engine_norm}"
                     bridge_prefix_text = _stable_pick(_BRIDGE_PREFIXES, bridge_seed) or "顺便问一下，"
@@ -5783,9 +6145,9 @@ class Handler(BaseHTTPRequestHandler):
             _dest_conf  = locals().get("_is_dest_confirmation", False)
             _pend_dest  = locals().get("_pending_dest", "")
             if _trav_cand and frame_id == "f_travel_dest_generic_clarify":
-                response["frame_text"]    = f"你是说{_trav_cand}吗？"
+                response["frame_text"]    = f"你是说\u201c{_trav_cand}\u201d吗？"
                 response["frame_pinyin"]  = f"nǐ shì shuō {_trav_cand} ma?"
-                response["frame_text_en"] = f"Did you mean {_trav_cand}?"
+                response["frame_text_en"] = f"Did you mean \u201c{_trav_cand}\u201d?"
                 response.setdefault("state_update", {})
                 response["state_update"]["pending_dest_candidate"] = _trav_cand
             elif _pend_dest:
@@ -5878,9 +6240,21 @@ class Handler(BaseHTTPRequestHandler):
                 if reaction_prefix_text:
                     # Keep it lightweight: prepend only if the next frame is a question (avoid double-reactive turns)
                     # Phase 12D: also block if reaction_prefix_text is itself a question — producing "Q1？Q2？" is confusing.
+                    # Clarification moves (retire_clarify, etc.) must not be prefixed with enthusiasm — it sounds wrong.
                     _reaction_is_question = "？" in reaction_prefix_text
-                    if "？" in (frame_rec.get("text") or "") and not _reaction_is_question:
-                        response["frame_text"] = f"{reaction_prefix_text}{response['frame_text']}"
+                    _clarify_move = listening_move_selected in ("retire_clarify", "retired_pivot", "travel_dest_clarify")
+                    if "？" in (frame_rec.get("text") or "") and not _reaction_is_question and not _clarify_move:
+                        _ft = response["frame_text"]
+                        # Dedup: strip leading discourse marker from frame_text when reaction already has one.
+                        # Prevents "哦，真有意思！哦，是什么故事？" → "哦，真有意思！是什么故事？"
+                        _DM_PREFIXES = ("哦，", "哦！", "啊，", "啊！", "嗯，", "嗯！", "呀，", "呀！", "唉，")
+                        _rxn_has_dm = any(dm[:1] in reaction_prefix_text for dm in _DM_PREFIXES)
+                        if _rxn_has_dm:
+                            for _dm in _DM_PREFIXES:
+                                if _ft.startswith(_dm):
+                                    _ft = _ft[len(_dm):]
+                                    break
+                        response["frame_text"] = f"{reaction_prefix_text}{_ft}"
                         response["system_note"] = "phase10.5 reaction_micro_layer"
                         response["reaction_used_fallback"] = bool(reaction_used_fallback)
                 if bridge_prefix_text and "？" in (frame_rec.get("text") or ""):
@@ -6039,6 +6413,11 @@ class Handler(BaseHTTPRequestHandler):
                 response["same_slot_chain_count"] = int(same_slot_chain_count)
                 response["last_focus_slot"] = last_focus_slot
                 response["last_user_text"] = last_user_text
+                # Depth-trigger follow-up budget: increment when a trigger follow-up was used this
+                # turn; reset to 0 otherwise (no trigger, or trigger fired but no frame found).
+                response["depth_trigger_followup_count"] = (
+                    _depth_trigger_budget + 1 if depth_trigger_followup_used else 0
+                )
                 # Phase 13B: return updated seeded bridge queue for client round-trip.
                 # Remove the engine just visited so it doesn't loop back immediately.
                 _chosen_engine_for_seed = (frame_rec_chosen.get("engine") or "").strip().lower()

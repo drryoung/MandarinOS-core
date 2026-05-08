@@ -203,6 +203,7 @@ if (typeof window._recoveryPromptsByFrame === "undefined") window._recoveryPromp
 if (typeof window._loopCountInEngine    === "undefined") window._loopCountInEngine    = 0;
 if (typeof window._enginesVisited       === "undefined") window._enginesVisited        = ["identity"];
 if (typeof window._recentConfusionCount === "undefined") window._recentConfusionCount  = 0;
+if (typeof window._repairAttemptCount   === "undefined") window._repairAttemptCount   = 0;
 if (typeof window._seededBridgeEngines  === "undefined") window._seededBridgeEngines   = [];
 if (typeof window._mediumProbeFiredEngines === "undefined") window._mediumProbeFiredEngines = [];
 if (typeof window._lastRepairKind       === "undefined") window._lastRepairKind         = null;
@@ -4215,6 +4216,7 @@ function renderOptions(options, frameId) {
       if (opt.kind !== "RECOVERY" && opt.kind !== "RECOVERY_PANEL") {
         window._consecutiveNotUnderstood = 0;
         window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
+        window._repairAttemptCount = 0;    // valid answer resets server-side repair escalation
         window._lastRepairKind = null; window._prevRepairKind = null;
         hideDiscoveryPanel();  // user answered partner's question — exit discovery mode
         window._pendingFrameText = null;
@@ -4938,6 +4940,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
       engines_visited: Array.isArray(window._enginesVisited) ? window._enginesVisited : ["identity"],
       recent_confusion_count: window._recentConfusionCount || 0,
       last_counter_reply: window._lastCounterReply || "",
+      repair_attempt_count: window._repairAttemptCount || 0,
       // EFC: entity follow-up chain state — round-tripped so server can continue the chain
       efc_entity: window._efcEntity || null,
       efc_depth:  window._efcDepth  || 0,
@@ -5114,6 +5117,8 @@ async function _runTurnInner(isNext = false, opts = {}) {
       window._efcEntity = data.state_update.efc_entity;
     if (data.state_update.efc_depth !== undefined)
       window._efcDepth = data.state_update.efc_depth;
+    if (data.state_update.repair_attempt_count !== undefined)
+      window._repairAttemptCount = data.state_update.repair_attempt_count;
   }
   if (Array.isArray(window._recentFrameIds)) {
     window._recentFrameIds.push(frameId);
