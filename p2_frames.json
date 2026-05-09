@@ -1299,6 +1299,20 @@
       "move_type": "LOOP"
     },
     {
+      "id": "f_identity_name_clarify_soft",
+      "text": "你是说你的中文名字听起来像英文名字吗？",
+      "pinyin": "nǐ shì shuō nǐ de zhōngwén míngzi tīng qǐlái xiàng yīngwén míngzi ma?",
+      "text_en": "Do you mean your Chinese name sounds like an English name?",
+      "engine": "identity",
+      "difficulty": 2,
+      "slots": [],
+      "speaker": "partner",
+      "option_tokens": [],
+      "allowed_response_roles": ["SAFE", "EXPAND", "REPAIR"],
+      "default_next_move_types": ["ANSWER"],
+      "move_type": "LOOP"
+    },
+    {
       "id": "f_probe_place_moved",
       "text": "你在那里住了多久了？",
       "pinyin": "nǐ zài nàlǐ zhù le duō jiǔ le?",

@@ -922,6 +922,74 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
   line-height: 1.35;
 }
 
+/* ── Scorecard reflection section (.sc-reflection) ──────────────────────── */
+/* Shown at the top of #scorecardContent, above the metric rows.
+   Shares .ab-section / .ab-section-title / .ab-list styles with the old
+   dashboard — only the wrapper and headline are new here. */
+.sc-reflection {
+  margin-bottom: 14px;
+}
+.sc-reflection-headline {
+  font-size: 0.97rem;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+.sc-divider {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 0 0 14px;
+}
+
+/* ── Ability Dashboard (#abilityDashboard) ──────────────────────────────── */
+/* Kept for reference; the element is no longer rendered in the conversation
+   window. Reflection now lives exclusively in the scorecard panel. */
+.ability-dashboard {
+  display: none !important;   /* guard: prevent accidental re-introduction */
+}
+.ab-header {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 8px;
+}
+.ab-headline {
+  font-size: 0.97rem;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+.ab-section {
+  margin-bottom: 12px;
+}
+.ab-section:last-child { margin-bottom: 0; }
+.ab-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 5px;
+}
+.ab-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ab-list li {
+  color: #1e293b;
+  line-height: 1.55;
+  padding: 1px 0;
+}
+.ab-list li::before {
+  content: "• ";
+  color: #cbd5e1;
+}
+
 /* ── Memory banner (#rememberedFacts) ────────────────────────────────────── */
 /* Always visible — shows what the server remembers about the learner.
    Displayed before the first turn so learners can clear stale data. */

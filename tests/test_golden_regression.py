@@ -342,6 +342,88 @@ def test_work_asr_retire_near_miss() -> None:
           fid not in FORBIDDEN_WORK, f"frame_id='{fid}'")
 
 
+def test_work_retire_near_miss_tuixiaole() -> None:
+    """[T13] 我退校了 after 你做什么工作？ → retirement clarification, NOT occupation follow-up."""
+    print("\n[INTEGRATION] T13 — Work: near-miss 退校了 → f_work_retire_clarify")
+    FORBIDDEN_WORK = {
+        "f_work_company", "f_work_tenure", "f_work_where",
+        "f_probe_work_company_vibe", "f_probe_work_role_detail",
+        "p2_wk_2", "p2_wk_3",
+    }
+    resp = api_run_turn(
+        make_answer("f_what_work", "我退校了"),
+        make_cs(engine="work"),
+    )
+    if resp is None:
+        skip("T13", "server not available"); return
+
+    fid   = resp.get("frame_id", "")
+    text  = resp.get("frame_text", "")
+    trace = resp.get("selector_trace", {})
+    check("frame_id == f_work_retire_clarify",
+          fid == "f_work_retire_clarify", f"frame_id='{fid}' text='{text[:50]}'")
+    check("frame_text contains 退休",
+          "退休" in text, f"got '{text}'")
+    check("frame_id is NOT a current-job frame",
+          fid not in FORBIDDEN_WORK, f"frame_id='{fid}'")
+    check("selector_trace.near_miss_guard_fired == True",
+          trace.get("near_miss_guard_fired") is True, str(trace.get("near_miss_guard_fired")))
+    check("selector_trace.near_miss_intended == '退休'",
+          trace.get("near_miss_intended") == "退休", str(trace.get("near_miss_intended")))
+
+
+def test_work_retire_near_miss_tuixuele() -> None:
+    """[T14] 我退学了 after 你做什么工作？ → retirement clarification, NOT occupation follow-up."""
+    print("\n[INTEGRATION] T14 — Work: near-miss 退学了 → f_work_retire_clarify")
+    FORBIDDEN_WORK = {
+        "f_work_company", "f_work_tenure", "f_work_where",
+        "f_probe_work_company_vibe", "f_probe_work_role_detail",
+        "p2_wk_2", "p2_wk_3",
+    }
+    resp = api_run_turn(
+        make_answer("p2_wk_1", "我退学了"),
+        make_cs(engine="work"),
+    )
+    if resp is None:
+        skip("T14", "server not available"); return
+
+    fid   = resp.get("frame_id", "")
+    text  = resp.get("frame_text", "")
+    trace = resp.get("selector_trace", {})
+    check("frame_id == f_work_retire_clarify",
+          fid == "f_work_retire_clarify", f"frame_id='{fid}' text='{text[:50]}'")
+    check("frame_text contains 退休",
+          "退休" in text, f"got '{text}'")
+    check("frame_id is NOT a current-job frame",
+          fid not in FORBIDDEN_WORK, f"frame_id='{fid}'")
+    check("near_miss_guard_fired in trace",
+          trace.get("near_miss_guard_fired") is True, str(trace.get("near_miss_guard_fired")))
+
+
+def test_work_retirement_suppresses_occupation_followup() -> None:
+    """[T15] After retirement confirmed (p2_wk_retired in recent), generic job questions suppressed."""
+    print("\n[INTEGRATION] T15 — Work: confirmed retirement → no occupation follow-up")
+    FORBIDDEN_OCCUPATION = {
+        "f_work_company", "f_work_tenure", "f_work_where",
+        "f_probe_work_company_vibe", "f_probe_work_role_detail",
+        "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5",
+    }
+    # Simulate a turn after retirement was confirmed: p2_wk_retired already asked.
+    resp = api_run_turn(
+        make_answer("p2_wk_retired", "我以前是老师"),
+        make_cs(engine="work", recent=["p2_wk_retired"]),
+    )
+    if resp is None:
+        skip("T15", "server not available"); return
+
+    fid  = resp.get("frame_id", "")
+    text = resp.get("frame_text", "")
+    check("frame_id is NOT an active-job occupation frame",
+          fid not in FORBIDDEN_OCCUPATION, f"frame_id='{fid}' text='{text[:50]}'")
+    check("frame_text does NOT assume current employment (公司/上班)",
+          "公司" not in text and "上班" not in text, f"text='{text[:60]}'")
+
+
 def test_family_live_with_acceptance() -> None:
     """[T12] 爸爸妈妈老婆 after 你跟谁一起住？ → sensible family follow-up."""
     print("\n[INTEGRATION] T12 — Family: 爸爸妈妈老婆 → accepted, not travel/work jump")
@@ -392,6 +474,61 @@ def test_family_activity_acceptance() -> None:
     check("Server returns a frame (no crash)", bool(fid))
     check("Next frame is NOT from travel/food/work domain",
           fid not in WRONG_ENGINES, f"frame_id='{fid}'")
+
+
+def test_meaningful_imperfect_name_story_stay() -> None:
+    """[T16] Messy multi-component name answer → clarify frame, NOT age question."""
+    print("\n[INTEGRATION] T16 — Identity: complex name answer → f_identity_name_clarify_soft")
+    FORBIDDEN_FRAMES = {
+        "f_how_old",           # 你多大了？ — premature engine progression
+        "f_want_go_where",     # travel engine — wrong engine
+        "f_what_work",         # work engine — wrong engine
+    }
+    resp = api_run_turn(
+        make_answer(
+            "f_ask_you_name",
+            "我叫杨理名李毛的李国民的名朋友叫我Raymond家里人叫我rimant我广东名字英文名字",
+        ),
+        make_cs(engine="identity", extra={"same_engine_chain_count": 2}),
+    )
+    if resp is None:
+        skip("T16", "server not available"); return
+
+    fid   = resp.get("frame_id", "")
+    text  = resp.get("frame_text", "")
+    trace = resp.get("selector_trace", {})
+    check("frame_id == f_identity_name_clarify_soft",
+          fid == "f_identity_name_clarify_soft", f"frame_id='{fid}' text='{text[:60]}'")
+    check("frame_text contains 英文名字",
+          "英文名字" in text, f"got '{text}'")
+    check("frame_id is NOT a premature-progression frame",
+          fid not in FORBIDDEN_FRAMES, f"frame_id='{fid}'")
+    check("selector_trace.meaningful_imperfect_fired == True",
+          trace.get("meaningful_imperfect_fired") is True,
+          str(trace.get("meaningful_imperfect_fired")))
+
+
+def test_meaningful_imperfect_clarify_trigger() -> None:
+    """[T17] Partial sentence with Cantonese/English name keywords → clarify + trace flag."""
+    print("\n[INTEGRATION] T17 — Identity: keyword-rich partial answer → f_identity_name_clarify_soft")
+    resp = api_run_turn(
+        make_answer("f_ask_you_name", "我广东名字英文名字"),
+        make_cs(engine="identity", extra={"same_engine_chain_count": 1}),
+    )
+    if resp is None:
+        skip("T17", "server not available"); return
+
+    fid   = resp.get("frame_id", "")
+    text  = resp.get("frame_text", "")
+    trace = resp.get("selector_trace", {})
+    check("frame_id == f_identity_name_clarify_soft",
+          fid == "f_identity_name_clarify_soft", f"frame_id='{fid}' text='{text[:60]}'")
+    check("selector_trace.meaningful_imperfect_fired == True",
+          trace.get("meaningful_imperfect_fired") is True,
+          str(trace.get("meaningful_imperfect_fired")))
+    check("selector_trace.block_engine_switch_once == True",
+          trace.get("block_engine_switch_once") is True,
+          str(trace.get("block_engine_switch_once")))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -502,9 +639,14 @@ def main() -> None:
         test_travel_asr_garble_clarify()
         test_work_retirement_safe()
         test_work_asr_retire_near_miss()
+        test_work_retire_near_miss_tuixiaole()
+        test_work_retire_near_miss_tuixuele()
+        test_work_retirement_suppresses_occupation_followup()
         test_family_live_with_acceptance()
         test_family_closest_acceptance()
         test_family_activity_acceptance()
+        test_meaningful_imperfect_name_story_stay()
+        test_meaningful_imperfect_clarify_trigger()
 
     # Summary
     total  = len(_results)

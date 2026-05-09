@@ -204,6 +204,17 @@ if (typeof window._loopCountInEngine    === "undefined") window._loopCountInEngi
 if (typeof window._enginesVisited       === "undefined") window._enginesVisited        = ["identity"];
 if (typeof window._recentConfusionCount === "undefined") window._recentConfusionCount  = 0;
 if (typeof window._repairAttemptCount   === "undefined") window._repairAttemptCount   = 0;
+// Phase L1: learner observation counters — observation only, no behavior changes.
+// Reset on startFreshLearner. Updated from signal hooks throughout app.js.
+if (typeof window._learnerObs === "undefined") window._learnerObs = {
+  turns_observed:    0,
+  hint_clicks:       0,
+  word_clicks:       0,
+  recovery_uses:     0,
+  successful_answers:0,
+  asr_rejections:    0,
+  mirror_uses:       0,   // user clicked a mirror/user-led question
+};
 if (typeof window._seededBridgeEngines  === "undefined") window._seededBridgeEngines   = [];
 if (typeof window._mediumProbeFiredEngines === "undefined") window._mediumProbeFiredEngines = [];
 if (typeof window._lastRepairKind       === "undefined") window._lastRepairKind         = null;
@@ -391,6 +402,7 @@ function _positionMicroGlossNearEl(tokenEl) {
  * @param {string} [insightSource] e.g. active_sentence, option:0
  */
 function _openWordInsightPopover(tokenEl, wordId, surfaceText, insightSource) {
+  window._learnerObs.word_clicks++;           // Phase L1 observation
   const mg = document.getElementById("microGloss");
   const headwordEl = document.getElementById("microGlossHeadword");
   const bodyEl = document.getElementById("microGlossBody");
@@ -3859,6 +3871,7 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
       _tracker._pendingRecovery = true;
       emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
         payload: { frame_id: frameId, card_id: "recovery:" + (phrase.id || ""), kind: "RECOVERY" } });
+      window._learnerObs.recovery_uses++;     // Phase L1 observation
       targetContainer.querySelectorAll(".option-panel").forEach((p) => p.classList.remove("selected"));
       panel.classList.add("selected");
       const userText = (phrase.hanzi || "").trim();
@@ -4596,6 +4609,7 @@ async function runDirectionTurn(intent) {
  * Sends the question to the server, shows the persona's answer, then offers further mirror questions.
  */
 async function runMirrorTurn(zh, en, topic) {
+  window._learnerObs.mirror_uses++;             // Phase L1 observation
   _cancelProbeAutoAdvance();
   hideSentenceOptions();
   const userText = (zh || "").trim();
@@ -4845,6 +4859,10 @@ async function startFreshLearner() {
   // Phase 13B: seeded bridge queue reset on new session
   window._seededBridgeEngines    = [];
   window._mediumProbeFiredEngines = [];
+  // Phase L1: reset learner observation counters on fresh session
+  window._learnerObs = { turns_observed: 0, hint_clicks: 0, word_clicks: 0,
+                         recovery_uses: 0, successful_answers: 0, asr_rejections: 0,
+                         mirror_uses: 0 };
 
   // Clear the "Remembered:" facts banner
   _renderMemoryBanner({});
@@ -5090,7 +5108,9 @@ async function _runTurnInner(isNext = false, opts = {}) {
   // "Next"-driven advances and bridge/probe auto-advances do not set last_turn_was_answer.
   if (opts?.last_turn_was_answer === true) {
     _tracker.total_turns++;
+    window._learnerObs.successful_answers++;  // Phase L1 observation
   }
+  window._learnerObs.turns_observed++;        // Phase L1: every server response = one observed turn
   // Track every engine ID returned by the server (includes recovery-driven advances).
   if (engineId) _tracker.engines_used.add(engineId.toLowerCase());
   // _pendingRecovery: check whether this turn was routed to a real frame.
@@ -5108,6 +5128,15 @@ async function _runTurnInner(isNext = false, opts = {}) {
   // Phase 9.1: update conversation state from response so Next has correct state
   window._currentEngineId = engineId;
   window._lastPartnerFrameId = frameId;
+  // Post-closing-move flag: enables mirror fallback in showOptionsBtn when no normal options exist.
+  // Set only when the server fires a soft-close reaction (e.g. "明白了"). Cleared on every other turn
+  // so it cannot bleed into normal conversation turns.
+  window._isPostClosingMove = (frameId === "closing_move" || data.closing_move === true);
+  if (window._isPostClosingMove) {
+    window._closingMoveEngine = engineId || window._currentEngineId;
+    // Reflection is now shown in the scorecard panel only (via renderScorecard).
+    // It is NOT rendered in the conversation window at closing_move.
+  }
   // Merge state_update fields
   if (data.state_update && typeof data.state_update === "object") {
     if (data.state_update.last_counter_reply !== undefined)
@@ -5304,6 +5333,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
       force_bridge: opts.force_bridge === true,
       recent_confusion_count: window._recentConfusionCount || 0,
       arc_transition_reason: data.arc_state?.transition_reason ?? null,
+      learner_state: _computeLearnerState(),   // Phase L1 observation — trace only
     },
   });
   // Legacy probe state: store for runProbeTurn compatibility but don't render separately
@@ -5334,6 +5364,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
     const _newBtn = _hintBtn.cloneNode(true);
     _hintBtn.parentNode.replaceChild(_newBtn, _hintBtn);
     _newBtn.addEventListener("click", () => {
+      window._learnerObs.hint_clicks++;       // Phase L1 observation
       // Challenge mode: first ? click reveals Chinese characters; subsequent clicks
       // cascade through pinyin → English as normal.
       if (_challenge.active && _challenge.helpLevel < 3) {
@@ -5694,7 +5725,8 @@ window.addEventListener("load", async () => {
       return;
     }
     // Not understood: update conversation with what we heard and partner's recovery (Phase 9: improve decision so reasonable answers aren't treated as not understood)
-    _tracker.unmatched_responses++; // unmatchedDecision.accept === false
+    _tracker.unmatched_responses++;             // unmatchedDecision.accept === false
+    window._learnerObs.asr_rejections++;        // Phase L1 observation
     const _frameRecShown = frameId ? (window._recoveryPromptsByFrame?.[frameId] || 0) : 0;
     const recoveryCtx = computeRecoveryTriggerContext({
       transcript: saidTrimmed,
@@ -5862,6 +5894,13 @@ if (showOptionsBtn) showOptionsBtn.addEventListener("click", () => {
     if (!isVisible) legacyContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
   }
+  // Additive post-closing-move fallback: show mirror/user-led questions after a terminal
+  // acknowledgement (e.g. "明白了"). Only activates when both containers are already empty
+  // AND the server signalled a closing move — never fires during normal active conversation.
+  if (window._isPostClosingMove) {
+    _showPostCloseMirrorOptions();
+    return;
+  }
   console.info("[app] showOptionsBtn: no suggested responses available for this turn");
 });
 const startFreshBtn = document.getElementById("startFreshBtn");
@@ -5870,6 +5909,220 @@ if (startFreshBtn) startFreshBtn.addEventListener("click", () => {
     startFreshLearner();
   }
 });
+// ── Phase L1: Ability Dashboard ─────────────────────────────────────────────
+/**
+ * Build a session-level ability summary from accumulated observation counters.
+ * Pure data — no DOM changes. Returns { capability_lines, progress_lines,
+ * next_steps, internal_state }. Observation only; no effect on conversation.
+ */
+function _buildAbilitySummary() {
+  const obs          = window._learnerObs || {};
+  const successCount = obs.successful_answers || 0;
+  const hintCount    = obs.hint_clicks        || 0;
+  const repairCount  = window._repairAttemptCount || 0;
+  const mirrorCount  = obs.mirror_uses        || 0;
+  const turns        = obs.turns_observed     || 0;
+
+  // ── capability_lines ──────────────────────────────────────────────────────
+  const capability_lines = [];
+  if (successCount >= 3) capability_lines.push("Answer basic questions about yourself");
+  if (successCount >= 5) capability_lines.push("Handle short conversations");
+  if (mirrorCount  >= 1) capability_lines.push("Ask simple follow-up questions");
+  if (capability_lines.length === 0) capability_lines.push("Starting to respond to simple questions");
+
+  // ── progress_lines ────────────────────────────────────────────────────────
+  // Scope: capability confidence + emotional reinforcement only.
+  // Hint usage, participation counts, and recovery counts belong to the scorecard.
+  const progress_lines = [];
+  if (successCount >= 3) progress_lines.push("You answered several questions");
+  if (repairCount >= 3)  progress_lines.push("You worked through understanding — keep going");
+  if (progress_lines.length === 0 && turns > 0)
+    progress_lines.push("You showed up and tried — that's the start");
+
+  // ── next_steps (max 2) ────────────────────────────────────────────────────
+  const next_steps = [];
+  if (mirrorCount === 0)    next_steps.push("Try asking a question back");
+  if (successCount >= 3)    next_steps.push("Try a longer answer next time");
+  if (successCount >= 5 && next_steps.length < 2)
+    next_steps.push("Try talking about your work or daily life");
+  if (next_steps.length === 0) next_steps.push("Try answering a question in Chinese");
+  const capped_next = next_steps.slice(0, 2);
+
+  // ── headline (one encouraging summary line) ───────────────────────────────
+  let headline;
+  if (successCount >= 5 && mirrorCount >= 1)
+    headline = "You're starting to handle real conversations.";
+  else if (successCount >= 5)
+    headline = "You're getting comfortable answering in Chinese.";
+  else if (successCount >= 3)
+    headline = "You're building confidence with simple conversations.";
+  else
+    headline = "You're starting to respond in Chinese.";
+
+  const summary = {
+    headline,
+    capability_lines,
+    progress_lines,
+    next_steps: capped_next,
+    internal_state: { success_count: successCount, hint_count: hintCount,
+                      repair_count: repairCount,   mirror_count: mirrorCount },
+  };
+  console.log("[ability_summary]", summary);
+  return summary;
+}
+
+/**
+ * GUARD — Reflection must not render inside the conversation window.
+ * All reflection content is now rendered by renderScorecard() in the scorecard panel.
+ *
+ * This function is kept as a named no-op so existing references do not throw.
+ * Any call here is a bug: log a warning and block rendering.
+ *
+ * trace field: reflection_render_blocked_in_conversation = true
+ */
+function _renderAbilityDashboard() {
+  console.warn(
+    "[reflection_guard] _renderAbilityDashboard() called — blocked.",
+    "Reflection must only render via renderScorecard() in the scorecard panel.",
+    { reflection_render_blocked_in_conversation: true }
+  );
+  // Do NOT render anything in the conversation window.
+}
+// Expose for console inspection and external test scripts.
+window._buildAbilitySummary  = _buildAbilitySummary;
+window._renderAbilityDashboard = _renderAbilityDashboard;
+
+// ── Phase L1: Learner state observation layer ────────────────────────────────
+/**
+ * Compute a lightweight observational learner state snapshot from accumulated
+ * signal counters. Observation only — no behavior change anywhere in the app.
+ *
+ * Returns a plain object suitable for inclusion in emitUITrace payloads or
+ * console inspection via window._computeLearnerState().
+ *
+ * Level thresholds are intentionally loose; they will be calibrated in Phase L2
+ * once real session data is available.
+ */
+function _computeLearnerState() {
+  const obs = window._learnerObs || {};
+  const t   = Math.max(obs.turns_observed || 0, 1);  // avoid div/0
+
+  const hint_rate     = (obs.hint_clicks      || 0) / t;
+  const recovery_rate = (obs.recovery_uses    || 0) / t;
+  const word_rate     = (obs.word_clicks      || 0) / t;
+  const success_rate  = (obs.successful_answers || 0) / t;
+  const asr_rate      = (obs.asr_rejections   || 0) / t;
+  const repair_now    = window._repairAttemptCount        || 0;
+  const confused_now  = window._consecutiveNotUnderstood  || 0;
+  const turns         = obs.turns_observed || 0;
+
+  const reasons = [];
+  let level      = "unknown";
+  let confidence = "low";
+
+  if (turns < 3) {
+    reasons.push("insufficient_data");
+  } else if (hint_rate > 0.5 || recovery_rate > 0.35 || asr_rate > 0.4 || (confused_now >= 2 && turns < 8)) {
+    level = "P1_fragile";
+    if (hint_rate     > 0.5)                      reasons.push("high_hint_rate");
+    if (recovery_rate > 0.35)                     reasons.push("high_recovery_rate");
+    if (asr_rate      > 0.4)                      reasons.push("high_asr_rejection_rate");
+    if (confused_now >= 2)                        reasons.push("consecutive_confusion");
+  } else if (success_rate > 0.6 && hint_rate < 0.15 && recovery_rate < 0.15 && asr_rate < 0.15) {
+    level = "P2_early";
+    reasons.push("high_success_rate");
+    if (word_rate  > 0.2) reasons.push("active_word_exploration");
+    if (hint_rate  < 0.1) reasons.push("low_hint_dependency");
+  } else {
+    level = "P1_stable";
+    if (success_rate  > 0.4)  reasons.push("moderate_success_rate");
+    if (hint_rate     < 0.5)  reasons.push("manageable_hint_rate");
+    if (word_rate     > 0.1)  reasons.push("some_word_exploration");
+  }
+
+  confidence = turns >= 10 ? "high" : turns >= 5 ? "medium" : "low";
+
+  return {
+    // Raw counters
+    turns_observed:     turns,
+    hint_clicks:        obs.hint_clicks       || 0,
+    word_clicks:        obs.word_clicks       || 0,
+    recovery_uses:      obs.recovery_uses     || 0,
+    successful_answers: obs.successful_answers || 0,
+    asr_rejections:     obs.asr_rejections    || 0,
+    // Live window state (snapshot)
+    current_repair_count:   repair_now,
+    current_confused_count: confused_now,
+    current_engine:         window._currentEngineId || "unknown",
+    challenge_active:       !!(window._challenge?.active),
+    // Provisional level estimate
+    estimated_level_candidate: level,
+    confidence,
+    reasons,
+  };
+}
+// Expose for browser console and external test scripts (ES module scope not on window by default).
+window._computeLearnerState = _computeLearnerState;
+
+// ── Post-close mirror fallback ───────────────────────────────────────────────
+/**
+ * Additive fallback only for the terminal-acknowledgement state (window._isPostClosingMove === true).
+ * Fetches mirror/user-led questions from the server, or uses a hardcoded starter set if the fetch
+ * fails. Renders via the SAME renderSentenceOptions path used during active conversation
+ * (line 4586 pattern) so speaker, ?, and word-insight all work correctly.
+ *
+ * Do NOT call this during normal conversation turns — it is guarded by window._isPostClosingMove.
+ */
+async function _showPostCloseMirrorOptions() {
+  const FALLBACK_MIRROR = [
+    { zh: "你呢？",          py: "nǐ ne?",                  en: "How about you?",          topic: "general"  },
+    { zh: "你叫什么名字？",  py: "nǐ jiào shénme míngzì?",  en: "What's your name?",       topic: "identity" },
+    { zh: "你住在哪儿？",    py: "nǐ zhù zài nǎr?",         en: "Where do you live?",      topic: "place"    },
+    { zh: "你做什么工作？",  py: "nǐ zuò shénme gōngzuò?",  en: "What kind of work do you do?", topic: "work" },
+  ];
+
+  let mirrorOpts = null;
+  try {
+    const engine = window._closingMoveEngine || window._currentEngineId || "identity";
+    const res = await fetch("/api/run_turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        direction_intent: "mirror",
+        conversation_state: {
+          session_id: window._sessionId,
+          current_engine: engine,
+          last_partner_frame_id: window._lastPartnerFrameId ?? null,
+          recent_frame_ids: Array.isArray(window._recentFrameIds) ? window._recentFrameIds : [],
+        },
+        persona_id: window._partnerId || window._personaId || null,
+      }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      if (Array.isArray(d.mirror_options) && d.mirror_options.length > 0) {
+        mirrorOpts = d.mirror_options;
+      }
+    }
+  } catch (_) { /* fall through to hardcoded fallback */ }
+
+  const opts = mirrorOpts || FALLBACK_MIRROR;
+
+  // Render via the existing sentence-options path (same as mid-conversation mirror rendering).
+  // opts with a `topic` field → runMirrorTurn click handler; no `topic` → submitted as answer.
+  renderSentenceOptions(opts, null);
+
+  const soc = document.getElementById("sentenceOptionsContainer");
+  if (soc) {
+    soc.style.display = "flex";
+    setUiMode("RESPOND");
+    soc.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+// Expose on window so browser console validation and test scripts can call it directly.
+// app.js is an ES module — module-scope functions are not automatically on window.
+window._showPostCloseMirrorOptions = _showPostCloseMirrorOptions;
+
 // ── Discovery panel: "You interview the persona" mode ───────────────────────
 /**
  * Render clickable "Ask them:" cards so the learner can interview the persona
@@ -6498,6 +6751,51 @@ function renderScorecard(response) {
   content.innerHTML = "";
   content.classList.remove("scorecard-placeholder");
 
+  // ── Reflection section (top of scorecard) ──────────────────────────────
+  // Render headline + capability / progress / next-step lines above metrics.
+  // Data comes from _buildAbilitySummary() — the same source previously used
+  // by _renderAbilityDashboard(). Only the render location has changed.
+  const summary = _buildAbilitySummary();
+  const reflDiv = document.createElement("div");
+  reflDiv.className = "sc-reflection";
+
+  const headlineEl = document.createElement("div");
+  headlineEl.className = "sc-reflection-headline";
+  headlineEl.textContent = summary.headline;
+  reflDiv.appendChild(headlineEl);
+
+  const reflSections = [
+    { title: "What you can do now", lines: summary.capability_lines },
+    { title: "Recent progress",     lines: summary.progress_lines   },
+    { title: "Next step",           lines: summary.next_steps       },
+  ];
+  reflSections.forEach(({ title, lines }) => {
+    if (!lines || lines.length === 0) return;
+    const sec = document.createElement("div");
+    sec.className = "ab-section";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "ab-section-title";
+    titleEl.textContent = title;
+    sec.appendChild(titleEl);
+
+    const ul = document.createElement("ul");
+    ul.className = "ab-list";
+    lines.forEach((line) => {
+      const li = document.createElement("li");
+      li.textContent = line;
+      ul.appendChild(li);
+    });
+    sec.appendChild(ul);
+    reflDiv.appendChild(sec);
+  });
+  content.appendChild(reflDiv);
+
+  // Visual divider between reflection and performance metrics
+  const divider = document.createElement("hr");
+  divider.className = "sc-divider";
+  content.appendChild(divider);
+
   // Mode badge
   const modeBadge = document.createElement("div");
   modeBadge.className = "sc-mode-badge";
@@ -6606,6 +6904,8 @@ async function endSession() {
   }
 
   console.log("[endSession] scorecard result:", result);
+  // renderScorecard now includes the ability reflection section at the top.
+  // _renderAbilityDashboard() is intentionally NOT called here.
   if (result?.ok) renderScorecard(result);
   return result;
 }

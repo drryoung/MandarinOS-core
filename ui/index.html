@@ -31,8 +31,6 @@
             <select id="frameSelect">
               <!-- populated by loadPackFramesIntoDropdown -->
             </select>
-            <!-- empty cell keeps column 1 clear so buttons align under the dropdown -->
-            <span></span>
             <div class="controls-btn-row">
               <button id="runBtn" class="run-btn">Start</button>
               <button id="nextBtn" type="button" title="Next question (same topic)">Next</button>
@@ -66,6 +64,8 @@
               </div>
               <div id="replayStatus" class="replay-status" style="display:none;" aria-live="polite"></div>
               <div id="transcriptContent" class="transcript-content"></div>
+              <!-- Reflection moved to scorecard panel (renderScorecard in app.js).
+                   Conversation window must not contain evaluation or learning guidance. -->
             </div>
             <div class="current-turn">
               <div class="current-turn-label">Active conversation — last statement</div>
@@ -537,14 +537,13 @@
         width: 100%;
         /* grid-column: 2, grid-row: 1 — auto-placed */
       }
-      /* Empty spacer holds col 1 of row 2 so buttons start under the dropdown */
-      .controls > span { display: block; }
       .controls-btn-row {
-        /* grid-column: 2, grid-row: 2 — auto-placed */
+        grid-column: 1 / -1;  /* span both columns — starts flush with the left edge */
         display: flex;
-        flex-wrap: nowrap;   /* keep all buttons on a single row */
+        flex-wrap: wrap;
+        justify-content: flex-start;
         gap: 6px;
-        overflow-x: auto;    /* safety net on very narrow screens */
+        overflow-x: visible;
         align-items: center;
       }
       /* Start button: green outline as primary action */

@@ -1567,6 +1567,155 @@ def _detect_travel_asr_near_match(text: str) -> Optional[str]:
     return None
 
 
+# ── Cross-engine near-miss answer guard ──────────────────────────────────────────────────────────
+#
+# Before the selector picks a normal follow-up it checks whether the learner's answer is a
+# known near-miss (ASR transcription error or semantically incompatible answer) for the current
+# question type.  If so, it prefers clarification over continuation.
+#
+# To extend: add a new dict to _NEAR_MISS_GUARD_TABLE.  No selector changes needed.
+# Travel destination near-misses are handled separately by _TRAVEL_ASR_NEAR_MATCHES because they
+# generate dynamic clarification text; entries here use a fixed clarify frame.
+_NEAR_MISS_GUARD_TABLE: list = [
+    {
+        # Work engine: 退休 (tuìxiū) is commonly transcribed as phonetically similar strings.
+        # Any of these in response to a work-entry question should trigger retirement clarification
+        # rather than an occupation follow-up.
+        "near_miss_strings": [
+            # NEW — phonetically close to 退休:
+            "退校了", "退校",           # tuìxiào — "withdrew from school"
+            "退学了", "退学",           # tuìxué  — "dropped out of school"
+            # Pre-existing homophones (migrated from inline selector):
+            "推销了", "推休了",
+            "退修了", "推消了", "退消了",
+            "退烧了", "退烧",           # tuìshāo — "fever broke" — not a job
+        ],
+        "eligible_frames": frozenset({
+            "f_what_work", "p2_wk_1", "p2_wk_2",
+            "p2_wk_3", "p2_wk_4", "p2_wk_5",
+        }),
+        "clarify_frame_id": "f_work_retire_clarify",
+        "intended":          "退休",
+        "exclude_if":        ["在推销"],   # unambiguously active sales phrasing → not retirement
+        "max_answer_length": 12,           # longer answers are unlikely to be pure near-misses
+    },
+    # ── Future entries ────────────────────────────────────────────────────────────────────────────
+    # Family: semantic incompatibility detection (e.g. place name as answer to family question)
+    #   needs separate design — reserved for Phase 2.
+    # Hobby: no strong ASR near-misses identified yet; extend when examples are collected.
+]
+
+
+def _detect_near_miss_answer(
+    answer_text: str,
+    last_fid: str,
+    recent_frames: list,
+) -> "tuple[str, str] | None":
+    """
+    Check answer_text against _NEAR_MISS_GUARD_TABLE.
+
+    Returns (clarify_frame_id, intended_display_string) when a guard fires,
+    or None when the answer passes all registered guards.
+
+    Design: add entries to _NEAR_MISS_GUARD_TABLE for new engines/cases.
+    The selector calls this once; no per-engine inline checks are needed.
+    """
+    stripped = answer_text.strip("。！？")
+    for guard in _NEAR_MISS_GUARD_TABLE:
+        if last_fid not in guard.get("eligible_frames", frozenset()):
+            continue
+        ml = guard.get("max_answer_length")
+        if ml and len(answer_text) > ml:
+            continue
+        if guard.get("clarify_frame_id") in recent_frames:
+            continue
+        if any(ex in answer_text for ex in guard.get("exclude_if", [])):
+            continue
+        if any(nm in stripped for nm in guard.get("near_miss_strings", [])):
+            return (guard["clarify_frame_id"], guard["intended"])
+    return None
+
+
+# ── Meaningful-imperfect answer guard ────────────────────────────────────────────────────────────
+#
+# Fires when the learner gives a rich, complex, or multi-component answer that is NOT a known
+# ASR near-miss and NOT broken (so repair doesn't fire), but IS messy enough that normal
+# topic progression would skip over useful clarification.
+#
+# Canonical example:
+#   Q: 你叫什么名字？
+#   A: "我叫杨理名李毛的李国民的名 朋友叫我Raymond 我广东名字英文名字"
+#   → system should clarify 你是说你的中文名字听起来像英文名字吗？
+#     instead of progressing to 你多大了？
+#
+# Design: add a dict per engine to _MEANINGFUL_IMPERFECT_GUARDS.
+# Each entry defines: eligible_frames, engine-specific keywords, min_answer_length,
+# min_same_engine_chain, and the clarify_frame_id to select.
+# No selector edits needed for new entries — only extend this table.
+
+_MEANINGFUL_IMPERFECT_GUARDS: list = [
+    {
+        # Identity/name engine: answers mentioning Cantonese, English-name complexity, or
+        # dialect-name ambiguity.  These are valid but need soft clarification before advancing.
+        "eligible_frames": frozenset({
+            "f_ask_you_name",          # p1 — primary name question
+            "p2_id_2",                 # 大家一般怎么叫你？
+            "p2_id_4",                 # 你觉得你的名字怎么样？
+            "p2_id_5",                 # 这个名字有故事吗？
+            "f_name_story",            # 你名字有什么故事吗？
+            "f_id_friends_call",       # 朋友一般怎么叫你？
+            "f_probe_id_nickname",     # 家里人怎么叫你？
+        }),
+        "keywords": ["广东", "英文名字", "英文名", "粤语", "方言", "中文名", "外国名字"],
+        "clarify_frame_id": "f_identity_name_clarify_soft",
+        "min_answer_length": 8,       # rich/complex answers tend to be longer
+        "min_keywords_present": 1,    # one keyword is sufficient
+        "min_same_engine_chain": 1,   # must already be inside identity engine
+    },
+    # ── Future entries ───────────────────────────────────────────────────────────────────────────
+    # Work engine: messy job descriptions mentioning multiple roles or place-only answers
+    #   reserved for Phase 2 — need cleaner heuristics.
+    # Place engine: partial addresses or multi-city answers
+    #   reserved for Phase 2.
+]
+
+
+def _detect_meaningful_imperfect_answer(
+    answer_text: str,
+    last_fid: str,
+    recent_frames: list,
+    same_engine_chain_count: int = 0,
+) -> dict:
+    """
+    Check answer_text against _MEANINGFUL_IMPERFECT_GUARDS.
+
+    Returns {"should_clarify": True, "clarify_frame_id": <str>} when a guard fires,
+    or {"should_clarify": False, "clarify_frame_id": None} otherwise.
+
+    Fires only for rich, meaningful answers that contain engine-specific keywords
+    but are complex enough to warrant soft clarification before topic progression.
+    Does NOT fire for: ASR near-misses (handled by _detect_near_miss_answer),
+    broken/repair answers (handled by discourse coherence guard).
+
+    Design: add entries to _MEANINGFUL_IMPERFECT_GUARDS for new engines/cases.
+    """
+    for guard in _MEANINGFUL_IMPERFECT_GUARDS:
+        if last_fid not in guard.get("eligible_frames", frozenset()):
+            continue
+        if len(answer_text) < guard.get("min_answer_length", 8):
+            continue
+        if same_engine_chain_count < guard.get("min_same_engine_chain", 1):
+            continue
+        if guard.get("clarify_frame_id") in recent_frames:
+            continue   # already showed this clarification
+        keywords = guard.get("keywords", [])
+        hits = sum(1 for kw in keywords if kw in answer_text)
+        if hits < guard.get("min_keywords_present", 1):
+            continue
+        return {"should_clarify": True, "clarify_frame_id": guard["clarify_frame_id"]}
+    return {"should_clarify": False, "clarify_frame_id": None}
+
+
 # ── Answer-specificity detectors (used by depth-before-bridge rule) ───────────────────────────────
 # Each detector returns True when the answer names a CONCRETE entity — a destination, dish,
 # activity, or family member — specific enough to warrant a depth follow-up ("why / tell me more").
@@ -5150,28 +5299,28 @@ class Handler(BaseHTTPRequestHandler):
                     and "p2_wk_retired" not in recent
                 )
 
-                # ASR near-homophone retirement guard.
-                # 退休 (tuìxiū) sounds similar to several ASR transcriptions:
-                #   推销 (tuīxiāo) — "sales" — the original guard case.
-                #   退烧 (tuìshāo) — "fever broke" — makes no sense as a job answer; almost
-                #     certainly ASR for 退休 when given in response to a work-entry question.
-                # When a short answer ends with a near-homophone we ask for explicit clarification
-                # rather than assuming an active job.
-                # Scoped tightly: work-entry frames only, short answers, 了-completion or exact
-                # stem match, "在推销" excluded (unambiguously active sales phrasing).
-                _RETIRE_NEAR_HOMOPHONES = ("推销了", "推休了", "退修了", "推消了", "退消了",
-                                           "退烧了", "退烧")
-                _WORK_ENTRY_FRAMES_FOR_GUARD = frozenset({
-                    "f_what_work", "p2_wk_1", "p2_wk_2", "p2_wk_3", "p2_wk_4", "p2_wk_5",
-                })
-                _needs_retire_clarify = (
-                    last_turn_was_answer and not user_asked_question
-                    and not _user_is_retired       # real signal already caught above
-                    and last_answer_fid in _WORK_ENTRY_FRAMES_FOR_GUARD
-                    and len(answer_text) <= 8
-                    and any(answer_text.rstrip("。！？").endswith(p) for p in _RETIRE_NEAR_HOMOPHONES)
-                    and "在推销" not in answer_text  # clearly "doing sales now" → not a retirement
-                    and "f_work_retire_clarify" not in recent
+                # Near-miss answer guard — delegates to _NEAR_MISS_GUARD_TABLE +
+                # _detect_near_miss_answer() defined near _TRAVEL_ASR_NEAR_MATCHES.
+                # Covers all registered near-miss cases across engines (currently: work retirement).
+                # To add new near-miss types, extend _NEAR_MISS_GUARD_TABLE; no selector edit needed.
+                _near_miss_result = (
+                    _detect_near_miss_answer(answer_text, last_answer_fid, recent)
+                    if (last_turn_was_answer and not user_asked_question and not _user_is_retired)
+                    else None
+                )
+                _needs_retire_clarify    = _near_miss_result is not None
+                _near_miss_clarify_frame = _near_miss_result[0] if _near_miss_result else None
+                _near_miss_intended      = _near_miss_result[1] if _near_miss_result else None
+
+                # Meaningful-imperfect answer guard — fires for rich, multi-component answers
+                # that contain engine-specific keywords but are too complex for normal progression.
+                # Only runs when near-miss guard did NOT fire (avoids double-processing).
+                _meaningful_imperfect = (
+                    _detect_meaningful_imperfect_answer(
+                        answer_text, last_answer_fid, recent, same_engine_chain_count
+                    )
+                    if (last_turn_was_answer and not user_asked_question and not _needs_retire_clarify)
+                    else {"should_clarify": False, "clarify_frame_id": None}
                 )
 
                 # After clarification frame: user confirms they are retired.
@@ -5207,15 +5356,18 @@ class Handler(BaseHTTPRequestHandler):
                     _sel_trace["work_retirement_detected"] = True
                     _sel_trace["work_retirement_followup_used"] = True
                 elif _needs_retire_clarify:
-                    chosen = "f_work_retire_clarify"
+                    chosen = _near_miss_clarify_frame   # from _NEAR_MISS_GUARD_TABLE
                     chosen_turn_type = "question"
-                    listening_move_selected = "retire_clarify"
-                    listening_move_reason = "ASR near-homophone retirement guard fired"
-                    _sel_trace["retire_homophone_guard"] = True
-                    _sel_trace["work_followup_suppressed_reason"] = "asr_homophone_retire_guard"
-                    _sel_trace["work_retirement_detected"] = True
-                    _sel_trace["work_retirement_asr_correction"] = True
-                    _sel_trace["work_retirement_followup_used"] = True
+                    listening_move_selected = "near_miss_clarify"
+                    listening_move_reason = f"near-miss guard fired: intended={_near_miss_intended!r}"
+                    _sel_trace["near_miss_guard_fired"]    = True
+                    _sel_trace["near_miss_intended"]       = _near_miss_intended
+                    _sel_trace["near_miss_clarify_frame"]  = chosen
+                    _sel_trace["retire_homophone_guard"]   = True   # backward-compat for existing tests
+                    _sel_trace["work_followup_suppressed_reason"] = "near_miss_guard"
+                    _sel_trace["work_retirement_detected"]        = True
+                    _sel_trace["work_retirement_asr_correction"]  = True
+                    _sel_trace["work_retirement_followup_used"]   = True
                 elif _user_is_retired:
                     chosen = "p2_wk_retired"
                     chosen_turn_type = "question"
@@ -5275,6 +5427,19 @@ class Handler(BaseHTTPRequestHandler):
                     _sel_trace["depth_trigger_followup_used"] = True
                     _sel_trace["depth_trigger_category"] = _depth_trigger_category
                     print(f"[depth_trigger] {_depth_trigger_category} → {chosen} (budget={_depth_trigger_budget + 1})", flush=True)
+                elif _meaningful_imperfect["should_clarify"]:
+                    # Rich, multi-component answer with engine-specific keywords:
+                    # prefer soft clarification over normal topic progression or engine switch.
+                    chosen = _meaningful_imperfect["clarify_frame_id"]
+                    chosen_turn_type = "question"
+                    listening_move_selected = "meaningful_imperfect_clarify"
+                    listening_move_reason = f"meaningful_imperfect: complex answer → {chosen}"
+                    pending_listening_move = False
+                    listening_wait_turns = 0
+                    _sel_trace["meaningful_imperfect_fired"] = True
+                    _sel_trace["meaningful_imperfect_clarify_frame"] = chosen
+                    _sel_trace["block_engine_switch_once"] = True
+                    print(f"[meaningful_imperfect] complex answer in '{last_answer_fid}' → {chosen}", flush=True)
                 elif force_food_followup:
                     chosen = _pick_slot_followup_frame_id(
                         current_engine, ["DISH"], recent, memory, exchange_count=exchange_count,
@@ -6048,6 +6213,14 @@ class Handler(BaseHTTPRequestHandler):
                             f"(need {_ENGINE_TRANSITION_MIN_DWELL.get((current_engine, _chosen_fr_eng), '?')},"
                             f" have {same_engine_chain_count})"
                         )
+
+                # Block-engine-switch-once guard: when meaningful_imperfect_fired, any bridge
+                # that snuck through the dwell guard is also suppressed for this single turn.
+                # Ensures the clarify frame is actually delivered before the engine exits.
+                if chosen and listening_move_selected == "bridge" and _sel_trace.get("block_engine_switch_once"):
+                    chosen = None
+                    listening_move_selected = "none"
+                    _sel_trace["bridge_rejected_reason"] = "block_engine_switch_once"
 
                 frame_id = chosen
                 frame_rec_chosen = _frames_by_id.get(frame_id, {})
