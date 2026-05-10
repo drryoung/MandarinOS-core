@@ -476,6 +476,133 @@ def test_family_activity_acceptance() -> None:
           fid not in WRONG_ENGINES, f"frame_id='{fid}'")
 
 
+def test_reflection_signal_detection() -> None:
+    """[STATIC] T-Ref — Reflection signal detection rules (app.js, static checks).
+
+    A. '我是新西兰人你呢' triggers question_count (你呢 is always a question).
+    B. If question_count > 0, next_steps must not include 'Try asking a question back'.
+    C. '我以前是大学的老师' counts as extended (以前 marker).
+    D. '现在很好啦现在好很多' counts as extended (现在 marker).
+    E. _pendingRepairPrompt set on ASR rejection, cleared after answer; identical
+       retry does NOT inflate recovery_resilience_count.
+    F. _buildAbilitySummary uses all three new signals.
+    G. False-positive guard: '我不知道怎么说' must NOT count as a question
+       (怎么in declarative clause).
+    H. '二十年' counts as extended (Chinese numeral + 年 duration pattern).
+    I. Graded language: extendedCount==1 → 'started adding' vs >=2 → 'more detailed'.
+    J. resilCount==1 → 'kept going' vs >=2 → 'worked through' in progress_lines.
+    K. Headline tightened: 'natural conversation flow' requires resilCount >= 2.
+    """
+    print("\n[STATIC] T-Ref — Reflection signal detection (app.js static checks)")
+    app_js = ROOT / "ui" / "app.js"
+    src = app_js.read_text(encoding="utf-8")
+
+    # ── A: 你呢 always counted ───────────────────────────────────────────────
+    check(
+        "A: '你呢' is always counted as a question",
+        '"你呢"' in src and "hasYouNe" in src,
+    )
+    check(
+        "A: question_count incremented in _trackUserTextSignals",
+        "window._learnerObs.question_count++" in src,
+    )
+
+    # ── B: question_count > 0 suppresses suggestion ─────────────────────────
+    check(
+        "B: next_steps guard uses questionCount === 0",
+        "questionCount === 0" in src,
+    )
+
+    # ── C & D: temporal markers in EXTEND_MARKERS ────────────────────────────
+    check(
+        "C: '以前' in EXTEND_MARKERS",
+        '"以前"' in src,
+    )
+    check(
+        "D: '现在' in EXTEND_MARKERS",
+        '"现在"' in src,
+    )
+    check(
+        "C/D: extended_answer_count incremented in _trackUserTextSignals",
+        "extended_answer_count++" in src,
+    )
+
+    # ── E: repair-resilience flag + identity guard ────────────────────────────
+    check(
+        "E: _pendingRepairPrompt set to true on ASR rejection",
+        "window._pendingRepairPrompt" in src and "= true;" in src,
+    )
+    check(
+        "E: _lastRepairSubmittedText stored on rejection",
+        "window._lastRepairSubmittedText = saidTrimmed" in src,
+    )
+    check(
+        "E: identical-retry guard in _trackUserTextSignals",
+        "window._lastRepairSubmittedText" in src
+        and "_lastRepairSubmittedText" in src,
+    )
+    check(
+        "E: recovery_resilience_count incremented only on differing answer",
+        "recovery_resilience_count++" in src,
+    )
+
+    # ── F: _buildAbilitySummary uses all new signals ──────────────────────────
+    check("F: reads question_count",           "obs.question_count" in src)
+    check("F: reads extended_answer_count",    "obs.extended_answer_count" in src)
+    check("F: reads recovery_resilience_count","obs.recovery_resilience_count" in src)
+    check("F: extendedCount >= 2 varies next_steps", "extendedCount >= 2" in src)
+
+    # ── G: false-positive guard (structural check required for question words) ─
+    # The key is that question words need isStructuralQ (not just length alone).
+    check(
+        "G: isStructuralQ gate present for question words",
+        "isStructuralQ" in src and "hasQWord" in src,
+    )
+    check(
+        "G: shortIntPattern requires starts-with check (不 '我' guard)",
+        "shortIntPattern" in src and "/^[你他她这那]/" in src,
+    )
+
+    # ── H: duration pattern covers '二十年' ───────────────────────────────────
+    check(
+        "H: _DURATION_ANSWER_PAT covers Chinese numeral + 年",
+        "_DURATION_ANSWER_PAT" in src and "二三四五六七八九十" in src,
+    )
+
+    # ── I: graded extended language ─────────────────────────────────────────
+    check(
+        "I: extendedCount === 1 → 'started adding more detail'",
+        "You started adding more detail" in src,
+    )
+    check(
+        "I: extendedCount >= 2 → 'gave more detailed answers'",
+        "You gave more detailed answers" in src,
+    )
+
+    # ── J: graded resilience language ────────────────────────────────────────
+    check(
+        "J: resilCount === 1 → 'kept going after a misunderstanding'",
+        "You kept going after a misunderstanding" in src,
+    )
+    check(
+        "J: resilCount >= 2 → 'worked through misunderstandings'",
+        "You worked through misunderstandings" in src,
+    )
+
+    # ── K: headline requires resilCount >= 2 ────────────────────────────────
+    check(
+        "K: headline 'natural conversation flow' requires resilCount >= 2",
+        "resilCount >= 2" in src,
+    )
+
+    # ── Internal consistency ─────────────────────────────────────────────────
+    check("question_count reset in startFreshLearner",          "question_count: 0" in src)
+    check("extended_answer_count reset in startFreshLearner",   "extended_answer_count: 0" in src)
+    check("recovery_resilience_count reset in startFreshLearner","recovery_resilience_count: 0" in src)
+    check("_lastRepairSubmittedText reset in startFreshLearner",
+          "window._lastRepairSubmittedText = " in src)
+
+
 def test_meaningful_imperfect_name_story_stay() -> None:
     """[T16] Messy multi-component name answer → clarify frame, NOT age question."""
     print("\n[INTEGRATION] T16 — Identity: complex name answer → f_identity_name_clarify_soft")
@@ -610,6 +737,143 @@ def test_translation_naturalizer() -> None:
     )
 
 
+def test_semantic_extraction() -> None:
+    """[STATIC] T-Sem — Semantic extraction, topic persistence, and clarification (app.js).
+
+    Verifies:
+    A. _DURATION_ANSWER_PAT hoisted to module level + used in isLikelyUnderstandableFreeAnswer.
+    B. isOpenEndedFrame includes duration frames (f_work_tenure, p2_hb_5) and emotional
+       check-in frame (f_probe_emotional_checkin).
+    C. semanticSoftMatch handles duration frames, family-health, and name-statement frames.
+    D. _detectSemanticCategory function covers all 7 required categories.
+    E. _SEMANTIC_CLARIFICATION_PHRASES and _getSemanticClarification exist with correct entries.
+    F. classifyUnmatchedFreeAnswerDecision has topic-persistence semantic accept logic.
+    G. Not-understood path uses _displayPhrase with semantic_clarify_used in emitUITrace.
+    """
+    src_path = (
+        Path(__file__).resolve().parent.parent / "ui" / "app.js"
+    )
+    src = src_path.read_text(encoding="utf-8")
+
+    # ── A: _DURATION_ANSWER_PAT module-level ─────────────────────────────────
+    check(
+        "A1: _DURATION_ANSWER_PAT declared at module level",
+        "const _DURATION_ANSWER_PAT" in src,
+    )
+    check(
+        "A2: isLikelyUnderstandableFreeAnswer uses _DURATION_ANSWER_PAT for early-return",
+        "_DURATION_ANSWER_PAT.test(s)" in src,
+    )
+    check(
+        "A3: _trackUserTextSignals uses module-level _DURATION_ANSWER_PAT (not local DURATION_PAT)",
+        "_DURATION_ANSWER_PAT.test(text)" in src and "const DURATION_PAT" not in src,
+    )
+
+    # ── B: isOpenEndedFrame additions ────────────────────────────────────────
+    check(
+        "B1: f_work_tenure in isOpenEndedFrame",
+        '"f_work_tenure"' in src,
+    )
+    check(
+        "B2: p2_hb_5 in isOpenEndedFrame",
+        '"p2_hb_5"' in src,
+    )
+    check(
+        "B3: f_probe_emotional_checkin in isOpenEndedFrame",
+        '"f_probe_emotional_checkin"' in src,
+    )
+
+    # ── C: semanticSoftMatch additions ───────────────────────────────────────
+    check(
+        "C1: _DURATION_FRAMES used in semanticSoftMatch",
+        "_DURATION_FRAMES" in src,
+    )
+    check(
+        "C2: family health patterns in semanticSoftMatch",
+        "好多了|好很多|好一点|不好|生病|康复" in src,
+    )
+    check(
+        "C3: _NAME_STATEMENT_FRAMES in semanticSoftMatch",
+        "_NAME_STATEMENT_FRAMES" in src,
+    )
+
+    # ── D: _detectSemanticCategory ───────────────────────────────────────────
+    check(
+        "D1: _detectSemanticCategory function exists",
+        "function _detectSemanticCategory" in src,
+    )
+    check(
+        "D2: name category detection (我叫/英文名/Latin)",
+        "我叫|名字|英文名|[A-Za-z]{3,}" in src,
+    )
+    check(
+        "D3: duration category detection uses _DURATION_ANSWER_PAT",
+        "_DURATION_ANSWER_PAT.test(t)" in src,
+    )
+    check(
+        "D4: family_health category detection",
+        '"family_health"' in src,
+    )
+    check(
+        "D5: work_status category detection",
+        '"work_status"' in src,
+    )
+    check(
+        "D6: location category detection",
+        '"location"' in src,
+    )
+
+    # ── E: Semantic clarification templates ──────────────────────────────────
+    check(
+        "E1: _SEMANTIC_CLARIFICATION_PHRASES object exists",
+        "_SEMANTIC_CLARIFICATION_PHRASES" in src,
+    )
+    check(
+        "E2: _getSemanticClarification function exists",
+        "function _getSemanticClarification" in src,
+    )
+    check(
+        "E3: name clarification phrase present",
+        "你是说你的英文名字吗？" in src,
+    )
+    check(
+        "E4: duration clarification phrase present",
+        "大概多少年了？" in src,
+    )
+    check(
+        "E5: family_health clarification phrase present",
+        "现在好一点了吗？" in src,
+    )
+    check(
+        "E6: work_status clarification phrase present",
+        "你是说你已经退休了吗？" in src,
+    )
+
+    # ── F: Topic-persistence semantic accept ─────────────────────────────────
+    check(
+        "F1: topic_persistence_semantic reason in classifyUnmatchedFreeAnswerDecision",
+        "topic_persistence_semantic" in src,
+    )
+    check(
+        "F2: topic persistence guard checks unmatchedCount >= 2",
+        ">= 2 && _detectSemanticCategory" in src,
+    )
+
+    # ── G: Not-understood path uses _displayPhrase ───────────────────────────
+    check(
+        "G1: _semCategory detected in not-understood path",
+        "_detectSemanticCategory(saidTrimmed)" in src,
+    )
+    check(
+        "G2: _displayPhrase used for addTranscriptEntry (partner)",
+        "addTranscriptEntry(\"partner\", _displayPhrase.hanzi" in src,
+    )
+    check(
+        "G3: semantic_clarify_used emitted in trace",
+        "semantic_clarify_used" in src,
+    )
+
+
 def main() -> None:
     static_only = "--static-only" in sys.argv
 
@@ -622,6 +886,8 @@ def main() -> None:
     test_required_frames_exist()
     test_depth_anchor_completeness()
     test_translation_naturalizer()
+    test_reflection_signal_detection()
+    test_semantic_extraction()
 
     # Integration tests — require a running server
     if static_only:

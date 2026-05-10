@@ -60,6 +60,10 @@ const _tracker = {
 };
 window._sessionTracker = _tracker;
 
+// Duration answer pattern — used in acceptance logic, semantic detection, and tracking.
+// Matches "20年", "5天", "二十年", "三个月" (Arabic or Chinese numeral + 年/月/天).
+const _DURATION_ANSWER_PAT = /\d+[年月天]|[一二三四五六七八九十百千万零两][年月天]/;
+
 /**
  * Record question and depth signals from a single accepted user turn.
  * Called once per submitted answer; each turn counts at most once for each dimension.
@@ -67,11 +71,68 @@ window._sessionTracker = _tracker;
  */
 function _trackUserTextSignals(text) {
   if (!text || typeof text !== "string") return;
-  const QUESTION_MARKERS = ["吗", "什么", "怎么", "为什么", "哪里", "谁", "你呢"];
-  // 想 and 希望 are broad markers; included as specified in the scoring spec.
-  const DEPTH_MARKERS   = ["因为", "所以", "觉得", "但是", "其实", "对我来说", "最喜欢", "想", "希望"];
-  if (QUESTION_MARKERS.some(m => text.includes(m))) _tracker.questions_asked++;
-  if (DEPTH_MARKERS.some(m => text.includes(m)))    _tracker.depth_responses++;
+
+  // ── Question detection ─────────────────────────────────────────────────────
+  // A sentence is a question only when it carries an interrogative structure —
+  // not just because it contains a question word used in a declarative clause.
+  //
+  // Structural tests (any one is sufficient alone):
+  //   hasMa           — contains the yes/no particle 吗
+  //   endsWithQmark   — ends with ASCII ? or fullwidth ？
+  //   shortIntPattern — ≤10 chars AND starts with 你/他/她/这/那
+  //
+  // Question words (什么, 哪…, 谁, 为什么, 怎么, 几, 多少, 多久) are only counted
+  // when AT LEAST ONE structural test also passes — this prevents declarative
+  // clauses like "我不知道怎么说" or "我想去哪里都可以" from being counted.
+  //
+  // 你呢 (reciprocal "and you?") is always a question regardless of length.
+  const QUESTION_WORDS = ["什么", "哪里", "哪儿", "哪个", "谁", "为什么", "怎么", "几", "多少", "多久"];
+  const textTrimmed    = text.trim();
+  const hasMa          = text.includes("吗");
+  const hasYouNe       = text.includes("你呢");
+  const endsWithQmark  = /[?？]$/.test(textTrimmed);
+  const hasQWord       = QUESTION_WORDS.some(m => text.includes(m));
+  // Short interrogative pattern: ≤10 chars AND subject-initial (你/他/她/这/那)
+  const shortIntPattern = textTrimmed.length <= 10 && /^[你他她这那]/.test(textTrimmed);
+  const isStructuralQ   = hasMa || endsWithQmark || shortIntPattern;
+  const isQuestion      = hasYouNe || hasMa || endsWithQmark || (hasQWord && isStructuralQ);
+
+  if (isQuestion) {
+    _tracker.questions_asked++;
+    window._learnerObs.question_count++;
+  }
+
+  // ── Depth markers (scorecard depth_responses counter — unchanged) ──────────
+  const DEPTH_MARKERS = ["因为", "所以", "觉得", "但是", "其实", "对我来说", "最喜欢", "想", "希望"];
+  if (DEPTH_MARKERS.some(m => text.includes(m))) _tracker.depth_responses++;
+
+  // ── Extended answer detection ──────────────────────────────────────────────
+  // "Extended" = carries temporal / relational / causal / quantitative context,
+  // or is long enough to contain meaningful extra information, or uses duration /
+  // comparison patterns that indicate the learner elaborated.
+  const EXTEND_MARKERS   = ["以前", "现在", "已经", "因为", "所以", "但是", "还", "和", "跟", "一起"];
+  // Duration: "20年", "二十年", "3个月" — Arabic or Chinese numeral + time unit
+  const COMPARISON_PAT   = /好多了|好很多|好一点|更好|比以前|进步|改善/;
+  const isExtended = text.length > 8
+                  || EXTEND_MARKERS.some(m => text.includes(m))
+                  || _DURATION_ANSWER_PAT.test(text)
+                  || COMPARISON_PAT.test(text);
+  if (isExtended) window._learnerObs.extended_answer_count++;
+
+  // ── Recovery resilience ────────────────────────────────────────────────────
+  // Count only when:
+  //   (a) the previous turn ended with a repair prompt, AND
+  //   (b) this submission differs from what was previously rejected
+  //       (identical retries are persistence, not resilience).
+  // Cleared after the first answer so the counter increments at most once
+  // per repair sequence.
+  if (window._pendingRepairPrompt) {
+    if (text !== (window._lastRepairSubmittedText || "")) {
+      window._learnerObs.recovery_resilience_count++;
+    }
+    window._pendingRepairPrompt      = false;
+    window._lastRepairSubmittedText  = "";
+  }
 }
 
 function addTranscriptEntry(role, textZh, extras = {}) {
@@ -207,18 +268,23 @@ if (typeof window._repairAttemptCount   === "undefined") window._repairAttemptCo
 // Phase L1: learner observation counters — observation only, no behavior changes.
 // Reset on startFreshLearner. Updated from signal hooks throughout app.js.
 if (typeof window._learnerObs === "undefined") window._learnerObs = {
-  turns_observed:    0,
-  hint_clicks:       0,
-  word_clicks:       0,
-  recovery_uses:     0,
-  successful_answers:0,
-  asr_rejections:    0,
-  mirror_uses:       0,   // user clicked a mirror/user-led question
+  turns_observed:           0,
+  hint_clicks:              0,
+  word_clicks:              0,
+  recovery_uses:            0,
+  successful_answers:       0,
+  asr_rejections:           0,
+  mirror_uses:              0,   // user clicked a mirror/user-led question
+  question_count:           0,   // questions detected in any user text (typed or spoken)
+  extended_answer_count:    0,   // answers with length or connector markers
+  recovery_resilience_count: 0,  // times user answered again after a repair prompt
 };
 if (typeof window._seededBridgeEngines  === "undefined") window._seededBridgeEngines   = [];
 if (typeof window._mediumProbeFiredEngines === "undefined") window._mediumProbeFiredEngines = [];
 if (typeof window._lastRepairKind       === "undefined") window._lastRepairKind         = null;
 if (typeof window._prevRepairKind       === "undefined") window._prevRepairKind         = null;
+if (typeof window._pendingRepairPrompt  === "undefined") window._pendingRepairPrompt    = false;
+if (typeof window._lastRepairSubmittedText === "undefined") window._lastRepairSubmittedText = "";
 if (typeof window._lastAcceptedFreeTranscript === "undefined") window._lastAcceptedFreeTranscript = "";
 if (typeof window._lastAcceptedFreeTranscriptAt === "undefined") window._lastAcceptedFreeTranscriptAt = 0;
 if (typeof window._lastAcceptedFreeFrameId === "undefined") window._lastAcceptedFreeFrameId = "";
@@ -2136,13 +2202,19 @@ function isOpenEndedFrame(frameId) {
     "p2_fa_activity", "f_probe_family_together",
     // Work — retirement / job description can be anything
     "f_what_work", "f_like_work", "p2_wk_1", "p2_wk_2",
+    // Work duration: "20年", "很多年" are valid answers here
+    "f_work_tenure",
     // Hobby — "what are your hobbies" is inherently open
     "f_what_hobby", "f_often_do", "f_like_do_what", "f_weekend_do",
     "f_difficult_ma", "f_recommend_ma", "p2_hb_1", "p2_hb_2",
+    // Hobby duration (how long have you done this)
+    "p2_hb_5",
     // Food & travel
     "f_food_what_good", "f_travel_where", "f_want_go_where",
     // Travel narrowing frames: city/province answers are valid free answers
     "f_travel_narrow_city", "f_travel_dest_generic_clarify",
+    // Emotional / health check-in: "现在怎么样？" — any meaningful reply is valid
+    "f_probe_emotional_checkin",
   ]).has(fid);
 }
 
@@ -2188,6 +2260,8 @@ function looksLikeNicknameCallAnswer(transcript, frameId) {
 function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
   const s = (text || "").trim();
   if (!s) return false;
+  // Duration answers: "20年", "5天" — zhCount=1 fails the < 2 guard below, but these are valid.
+  if (_DURATION_ANSWER_PAT.test(s)) return true;
   const fid = (frameId || "").trim();
   const zhMatches = s.match(/[\u4e00-\u9fff]/g) || [];
   const zhCount = zhMatches.length;
@@ -2219,6 +2293,45 @@ function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
     if (!hasPlaceCue) return false;
   }
   return s.length >= 2;
+}
+
+/**
+ * Detect the semantic intent category of user input using keyword clusters.
+ * Called AFTER semanticSoftMatch returns false — if we can identify *what* the
+ * learner is trying to say, we route to targeted clarification instead of generic
+ * repair (啊？). Returns a category string or null.
+ *
+ * Categories: "name" | "food" | "duration" | "family_health" | "family" |
+ *             "work_status" | "location"
+ */
+function _detectSemanticCategory(text) {
+  const t = (text || "").trim();
+  if (!t) return null;
+  if (/我叫|名字|英文名|[A-Za-z]{3,}/.test(t)) return "name";
+  if (/吃|喜欢吃|牛肉|羊肉|好吃|食物/.test(t)) return "food";
+  if (_DURATION_ANSWER_PAT.test(t) || /很多年|几年|很久/.test(t)) return "duration";
+  if (/身体|健康|好多了|好很多|好一点|不好|生病|康复/.test(t)) return "family_health";
+  if (/爸爸|妈妈|太太|家人|老婆|父母|家里/.test(t)) return "family";
+  if (/退休|以前.*工作|以前是|做.*工作/.test(t)) return "work_status";
+  if (/住在|搬到|搬来/.test(t)) return "location";
+  return null;
+}
+
+/** Targeted clarification phrases indexed by semantic category.
+ *  Displayed instead of generic 啊？ when intent is detectable but answer is too noisy to accept. */
+const _SEMANTIC_CLARIFICATION_PHRASES = {
+  name:          { hanzi: "你是说你的英文名字吗？",     pinyin: "nǐ shì shuō nǐ de yīngwén míngzi ma?",   text_en: "Do you mean your English name?" },
+  food:          { hanzi: "你最喜欢吃什么？",           pinyin: "nǐ zuì xǐhuān chī shénme?",              text_en: "What do you like eating most?" },
+  duration:      { hanzi: "大概多少年了？",             pinyin: "dàgài duōshǎo nián le?",                 text_en: "About how many years?" },
+  family_health: { hanzi: "现在好一点了吗？",           pinyin: "xiànzài hǎo yīdiǎn le ma?",              text_en: "Is it a bit better now?" },
+  family:        { hanzi: "是说你的家人吗？",           pinyin: "shì shuō nǐ de jiārén ma?",              text_en: "Are you talking about your family?" },
+  work_status:   { hanzi: "你是说你已经退休了吗？",     pinyin: "nǐ shì shuō nǐ yǐjīng tuìxiū le ma?",   text_en: "Do you mean you've retired?" },
+  location:      { hanzi: "你是说一个城市吗？",         pinyin: "nǐ shì shuō yīgè chéngshì ma?",          text_en: "Are you referring to a city?" },
+};
+
+/** Returns the targeted clarification phrase object for the given category, or null. */
+function _getSemanticClarification(category) {
+  return _SEMANTIC_CLARIFICATION_PHRASES[category] || null;
 }
 
 function semanticSoftMatch(transcript, frameId) {
@@ -2294,6 +2407,20 @@ function semanticSoftMatch(transcript, frameId) {
   if (fid === "p2_wk_1") {
     if (/(因为|为了|可以|能|学|帮助|工资|时间|喜欢)/.test(t)) return true;
   }
+  // Duration tenure: "20年", "5年", "很多年" for work or hobby duration frames.
+  // isLikelyUnderstandableFreeAnswer returns false for "20年" (zhCount=1); catch it here.
+  const _DURATION_FRAMES = new Set(["f_work_tenure", "p2_hb_5"]);
+  if (_DURATION_FRAMES.has(fid) && (_DURATION_ANSWER_PAT.test(t) || /很多年|几年|很久|多年/.test(t))) return true;
+  // Family health / emotional check-in: accept any meaningful response to "now how is it?".
+  if (fid === "f_probe_emotional_checkin") {
+    if (/身体|健康|好多了|好很多|好一点|不好|生病|康复|恢复|没事了|好转|现在好/.test(t)) return true;
+    if (/[\u4e00-\u9fff]{3,}/.test(t)) return true;  // 3+ Chinese chars is a valid "how is it now?" reply
+  }
+  // Name-statement frames: "我叫X" / "英文名" / Latin name in frames asking the learner's name.
+  const _NAME_STATEMENT_FRAMES = new Set(["f_ask_you_name", "p2_id_4", "p2_id_5", "f_name_story", "f_name_story_elicit"]);
+  if (_NAME_STATEMENT_FRAMES.has(fid)) {
+    if (/我叫|名字是|英文名|[A-Za-z]{2,}/.test(t)) return true;
+  }
   return false;
 }
 
@@ -2333,6 +2460,12 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
   if (semantic) return { accept: true, reason: "semantic_soft_match" };
   // One-strike fallback: after one repair attempt, accept any substantive Chinese answer
   if ((unmatchedCount || 0) >= 1 && understandable) return { accept: true, reason: "one_strike_substantive_fallback" };
+  // Topic persistence: after 2+ rejections, accept if a semantic category is detectable —
+  // the learner is clearly trying to answer on-topic, even if phrasing is too garbled for
+  // the stricter understandability check above.
+  if ((unmatchedCount || 0) >= 2 && _detectSemanticCategory(transcript)) {
+    return { accept: true, reason: "topic_persistence_semantic" };
+  }
   if (openEnded && understandable) return { accept: true, reason: "open_ended_understandable" };
   if (hasStructuredSlots && understandable) return { accept: true, reason: "slot_frame_understandable" };
   if (openEnded && !understandable) return { accept: false, reason: "open_ended_low_confidence" };
@@ -4862,7 +4995,10 @@ async function startFreshLearner() {
   // Phase L1: reset learner observation counters on fresh session
   window._learnerObs = { turns_observed: 0, hint_clicks: 0, word_clicks: 0,
                          recovery_uses: 0, successful_answers: 0, asr_rejections: 0,
-                         mirror_uses: 0 };
+                         mirror_uses: 0, question_count: 0, extended_answer_count: 0,
+                         recovery_resilience_count: 0 };
+  window._pendingRepairPrompt     = false;
+  window._lastRepairSubmittedText = "";
 
   // Clear the "Remembered:" facts banner
   _renderMemoryBanner({});
@@ -5727,6 +5863,8 @@ window.addEventListener("load", async () => {
     // Not understood: update conversation with what we heard and partner's recovery (Phase 9: improve decision so reasonable answers aren't treated as not understood)
     _tracker.unmatched_responses++;             // unmatchedDecision.accept === false
     window._learnerObs.asr_rejections++;        // Phase L1 observation
+    window._pendingRepairPrompt     = true;          // next user text = recovery attempt (recovery_resilience_count)
+    window._lastRepairSubmittedText = saidTrimmed;   // store rejected text so identical retries don't count
     const _frameRecShown = frameId ? (window._recoveryPromptsByFrame?.[frameId] || 0) : 0;
     const recoveryCtx = computeRecoveryTriggerContext({
       transcript: saidTrimmed,
@@ -5740,6 +5878,21 @@ window.addEventListener("load", async () => {
     const lastRecoveryId = window._lastRecoveryPhraseId || null;
     const phrase = getRecoveryPhraseForNotUnderstood(lastRecoveryId, recoveryCtx);
 
+    // Semantic clarification override: if we can detect the learner's intent, use a
+    // targeted question instead of generic repair (啊？). This applies from the very
+    // first rejection — generic repair only fires when NO semantic signal is detectable.
+    const _semCategory    = _detectSemanticCategory(saidTrimmed);
+    const _semClarifyData = _semCategory ? _getSemanticClarification(_semCategory) : null;
+    const _displayPhrase  = _semClarifyData
+      ? Object.assign({}, phrase, {
+          hanzi:           _semClarifyData.hanzi,
+          pinyin:          _semClarifyData.pinyin,
+          text_en:         _semClarifyData.text_en,
+          recovery_action: "soft",   // stay in RESPOND; do not auto-advance turn
+          id:              "sem_clarify_" + _semCategory,
+        })
+      : phrase;
+
     emitUITrace({
       type: "SPEECH_NOT_UNDERSTOOD",
       timestamp: new Date().toISOString(),
@@ -5749,8 +5902,8 @@ window.addEventListener("load", async () => {
         unmatched_decision_reason: unmatchedDecision.reason,
         frame_id: frameId,
         unmatched_count: unmatchedCount + 1,
-        recovery_phrase_selected: phrase.hanzi || null,
-        recovery_phrase_id: phrase.id || null,
+        recovery_phrase_selected: _displayPhrase.hanzi || null,
+        recovery_phrase_id: _displayPhrase.id || null,
         repair_phrase_source: "getRecoveryPhraseForNotUnderstood",
         recovery_trigger_reason: phrase.recovery_trace?.recovery_trigger_reason,
         repair_kind: phrase.recovery_trace?.repair_kind,
@@ -5759,6 +5912,8 @@ window.addEventListener("load", async () => {
         frame_recovery_shown_before: _frameRecShown,
         explicit_recovery_phrase_id: phrase.recovery_trace?.explicit_recovery_phrase_id,
         asr_confidence: phrase.recovery_trace?.asr_confidence,
+        semantic_category: _semCategory || null,
+        semantic_clarify_used: !!_semClarifyData,
       },
     });
     if (frameId) window._unmatchedByFrame[frameId] = unmatchedCount + 1;
@@ -5766,37 +5921,37 @@ window.addEventListener("load", async () => {
       window._recoveryPromptsByFrame[frameId] = _frameRecShown + 1;
     }
     addTranscriptEntry("user", (transcript && transcript.trim()) ? transcript.trim() : "[couldn't understand]");
-    window._lastRecoveryPhraseId = phrase.id;
-    addTranscriptEntry("partner", phrase.hanzi, {
-      text_en: phrase.text_en || "",
-      pinyin: phrase.pinyin || "",
+    window._lastRecoveryPhraseId = _displayPhrase.id;
+    addTranscriptEntry("partner", _displayPhrase.hanzi, {
+      text_en: _displayPhrase.text_en || "",
+      pinyin: _displayPhrase.pinyin || "",
     });
     renderTranscript();
-    const recoverySegments = (phrase.hanzi || "").split("").map((c) => ({ t: c }));
-    setActivePartnerStatement(phrase.hanzi, "recovery", recoverySegments);
+    const recoverySegments = (_displayPhrase.hanzi || "").split("").map((c) => ({ t: c }));
+    setActivePartnerStatement(_displayPhrase.hanzi, "recovery", recoverySegments);
     window._sentenceHint = {
-      pinyin: fillSentenceHintPinyin(phrase.hanzi, phrase.pinyin),
-      text_en: phrase.text_en,
-      etymology: phrase.etymology || "",
+      pinyin: fillSentenceHintPinyin(_displayPhrase.hanzi, _displayPhrase.pinyin),
+      text_en: _displayPhrase.text_en,
+      etymology: _displayPhrase.etymology || "",
     };
-    _setFrameEnglish(phrase.text_en);
+    _setFrameEnglish(_displayPhrase.text_en);
     lastClickedWordId = null;
     window.lastClickedWordId = null;
     hint_cascade_state = { level: 0, turn_uid: "recovery" };
     renderHintAffordance({ visible: true }, "recovery", "tap");
-    if (phrase.recovery_action === "next_turn") {
+    if (_displayPhrase.recovery_action === "next_turn") {
       window._consecutiveNotUnderstood = 0;
       if (frameId) delete window._recoveryPromptsByFrame[frameId];
       setUiMode("READ");
       ttsSpeak({
-        text: phrase.hanzi,
+        text: _displayPhrase.hanzi,
         lang: "zh-CN",
         onEvent: (e) => {
           if (e?.payload?.completed) runTurn(true, { prefer_bridge: true });
         },
       });
     } else {
-      ttsSpeak({ text: phrase.hanzi, lang: "zh-CN" });
+      ttsSpeak({ text: _displayPhrase.hanzi, lang: "zh-CN" });
       setUiMode("RESPOND");
     }
   });
@@ -5917,40 +6072,63 @@ if (startFreshBtn) startFreshBtn.addEventListener("click", () => {
  */
 function _buildAbilitySummary() {
   const obs          = window._learnerObs || {};
-  const successCount = obs.successful_answers || 0;
-  const hintCount    = obs.hint_clicks        || 0;
-  const repairCount  = window._repairAttemptCount || 0;
-  const mirrorCount  = obs.mirror_uses        || 0;
-  const turns        = obs.turns_observed     || 0;
+  const successCount = obs.successful_answers      || 0;
+  const hintCount    = obs.hint_clicks             || 0;
+  const repairCount  = window._repairAttemptCount  || 0;
+  // Combined question signal: typed/spoken questions + mirror-button clicks
+  const questionCount = (obs.question_count || 0) + (obs.mirror_uses || 0);
+  const extendedCount = obs.extended_answer_count   || 0;
+  const resilCount    = obs.recovery_resilience_count || 0;
+  const turns         = obs.turns_observed          || 0;
 
   // ── capability_lines ──────────────────────────────────────────────────────
   const capability_lines = [];
   if (successCount >= 3) capability_lines.push("Answer basic questions about yourself");
   if (successCount >= 5) capability_lines.push("Handle short conversations");
-  if (mirrorCount  >= 1) capability_lines.push("Ask simple follow-up questions");
+  if (questionCount >= 1) capability_lines.push("Ask simple follow-up questions");
   if (capability_lines.length === 0) capability_lines.push("Starting to respond to simple questions");
 
   // ── progress_lines ────────────────────────────────────────────────────────
-  // Scope: capability confidence + emotional reinforcement only.
-  // Hint usage, participation counts, and recovery counts belong to the scorecard.
+  // Scope: capability + emotional reinforcement only.
+  // Hint usage and participation counts belong to the scorecard.
   const progress_lines = [];
   if (successCount >= 3) progress_lines.push("You answered several questions");
-  if (repairCount >= 3)  progress_lines.push("You worked through understanding — keep going");
+  // Graded extended-answer lines
+  if (extendedCount >= 2)      progress_lines.push("You gave more detailed answers");
+  else if (extendedCount === 1) progress_lines.push("You started adding more detail");
+  // Graded recovery-resilience lines
+  if (resilCount >= 2)          progress_lines.push("You worked through misunderstandings");
+  else if (resilCount === 1)    progress_lines.push("You kept going after a misunderstanding");
+  // Generic repair line only when no specific resilience signal is present
+  if (repairCount >= 3 && resilCount === 0)
+    progress_lines.push("You worked through understanding — keep going");
   if (progress_lines.length === 0 && turns > 0)
     progress_lines.push("You showed up and tried — that's the start");
 
   // ── next_steps (max 2) ────────────────────────────────────────────────────
   const next_steps = [];
-  if (mirrorCount === 0)    next_steps.push("Try asking a question back");
-  if (successCount >= 3)    next_steps.push("Try a longer answer next time");
+  // Never suggest asking questions if the learner already asked one
+  if (questionCount === 0) next_steps.push("Try asking a question back");
+  // Prefer connector-linking advice when learner already gives extended answers
+  if (extendedCount >= 2) {
+    next_steps.push("Try linking two ideas with 因为 / 但是 / 所以");
+  } else if (successCount >= 3) {
+    next_steps.push("Try a longer answer next time");
+  }
+  // Repair-heavy session: suggest simplification
+  if (repairCount >= 3 && next_steps.length < 2)
+    next_steps.push("Try saying the same idea in a shorter way first");
+  // General advancement suggestion when slots remain
   if (successCount >= 5 && next_steps.length < 2)
     next_steps.push("Try talking about your work or daily life");
   if (next_steps.length === 0) next_steps.push("Try answering a question in Chinese");
   const capped_next = next_steps.slice(0, 2);
 
-  // ── headline (one encouraging summary line) ───────────────────────────────
+  // ── headline ──────────────────────────────────────────────────────────────
   let headline;
-  if (successCount >= 5 && mirrorCount >= 1)
+  if (questionCount >= 1 && (extendedCount >= 2 || resilCount >= 2))
+    headline = "You're starting to handle more natural conversation flow.";
+  else if (successCount >= 5 && questionCount >= 1)
     headline = "You're starting to handle real conversations.";
   else if (successCount >= 5)
     headline = "You're getting comfortable answering in Chinese.";
@@ -5964,8 +6142,14 @@ function _buildAbilitySummary() {
     capability_lines,
     progress_lines,
     next_steps: capped_next,
-    internal_state: { success_count: successCount, hint_count: hintCount,
-                      repair_count: repairCount,   mirror_count: mirrorCount },
+    internal_state: {
+      success_count:    successCount,
+      hint_count:       hintCount,
+      repair_count:     repairCount,
+      question_count:   questionCount,
+      extended_count:   extendedCount,
+      resil_count:      resilCount,
+    },
   };
   console.log("[ability_summary]", summary);
   return summary;
