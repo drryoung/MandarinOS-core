@@ -3269,6 +3269,99 @@ def _pick_contextual_discovery_hint(counter_reply: str) -> Optional[dict]:
     return None
 
 
+# ── Persona-aware discovery question selection ─────────────────────────────
+# Maps discoverable_facts / voice_lines field keys → mirror topic keys they support.
+# Only maps a fact key to topics where _mirror_persona_stub actually reads that key
+# — so every entry is guaranteed to produce a persona answer the learner can unlock.
+_FACT_KEY_TO_TOPICS: dict = {
+    "place_from":      frozenset({"place_from", "place_like"}),  # place_from backs place_like too
+    "place":           frozenset({"place_special", "place_like"}),
+    "food":            frozenset({"food_fav", "food_local"}),
+    "work":            frozenset({"work_what", "work_like"}),
+    "work_company":    frozenset({"work_company"}),
+    "work_origin":     frozenset({"work_origin"}),
+    "travel_where":    frozenset({"travel_where"}),
+    "travel":          frozenset({"travel_memorable"}),
+    "travel_with":     frozenset({"travel_with"}),
+    "family":          frozenset({"family_size", "family_siblings"}),
+    "family_size":     frozenset({"family_size"}),
+    "family_siblings": frozenset({"family_siblings"}),
+    "family_live":     frozenset({"family_live"}),
+    "hobby":           frozenset({"hobby_what", "hobby_duration"}),
+    "hobby_best":      frozenset({"hobby_best"}),
+    "hobby_origin":    frozenset({"hobby_origin"}),
+    "identity":        frozenset({"name_meaning", "name_story", "name_giver"}),
+}
+
+# Per-engine: the single mirror topic that most directly unlocks a concrete persona fact.
+# Used to prefer a specific question from the engine bank over whichever happens to be first.
+_ENGINE_DISCOVERY_OPENER_TOPIC: dict = {
+    "place":    "place_like",     # "你喜欢你的家乡吗？" → vl["place"] / profile.hometown
+    "food":     "food_fav",       # "你最喜欢吃什么？"   → discoverable_facts["food"]
+    "work":     "work_like",      # "你喜欢你的工作吗？" → vl["work_like"] / graceful fallback
+    "travel":   "travel_fav",     # "你最喜欢哪个地方？" → discoverable_facts["travel_where"]
+    "family":   "family_size",    # "你家里有几个人？"   → discoverable_facts["family_size"]
+    "hobby":    "hobby_what",     # "你喜欢做什么？"     → discoverable_facts["hobby"]
+    "identity": "name_meaning",   # "你的名字有什么意思？" → discoverable_facts["identity"]
+}
+
+# Maps fact keys → engine names (for richness counting)
+_FACT_KEY_ENGINE: dict = {
+    "place_from": "place",  "place": "place",
+    "food": "food",
+    "work": "work",         "work_company": "work",    "work_origin": "work",
+    "travel_where": "travel", "travel": "travel",     "travel_with": "travel",
+    "family": "family",     "family_size": "family",   "family_siblings": "family",
+                            "family_live": "family",
+    "hobby": "hobby",       "hobby_best": "hobby",     "hobby_origin": "hobby",
+    "identity": "identity",
+}
+
+_DISCOVERY_ENGINE_ORDER = ["place", "work", "food", "travel", "family", "hobby", "identity"]
+
+
+def _persona_backed_topics(persona: Optional[dict]) -> frozenset:
+    """Return mirror topic keys that the persona can answer with concrete content.
+    Used to bias discovery question ordering toward questions that unlock real facts.
+    """
+    if not persona:
+        return frozenset()
+    facts = persona.get("discoverable_facts") or {}
+    vl    = persona.get("voice_lines") or {}
+    backed: set = set()
+    for key, topics in _FACT_KEY_TO_TOPICS.items():
+        if (facts.get(key) or "").strip():
+            backed.update(topics)
+    # voice_lines back their natural topics too
+    _VL_KEY_TOPICS = {
+        "work":   {"work_what", "work_like"},
+        "food":   {"food_fav"},
+        "travel": {"travel_where"},
+        "hobby":  {"hobby_what"},
+        "place":  {"place_like"},
+    }
+    for vk, topics in _VL_KEY_TOPICS.items():
+        if (vl.get(vk) or "").strip():
+            backed.update(topics)
+    return frozenset(backed)
+
+
+def _persona_rich_engines(persona: Optional[dict]) -> list:
+    """Return engine names sorted by how many non-empty discoverable_facts keys they have.
+    Biases cross-engine supplement questions toward engines the persona can answer most fully.
+    """
+    if not persona:
+        return list(_DISCOVERY_ENGINE_ORDER)
+    facts  = persona.get("discoverable_facts") or {}
+    counts: dict = {}
+    for k, v in facts.items():
+        if v:
+            eng = _FACT_KEY_ENGINE.get(k)
+            if eng:
+                counts[eng] = counts.get(eng, 0) + 1
+    return sorted(_DISCOVERY_ENGINE_ORDER, key=lambda e: -counts.get(e, 0))
+
+
 def _max_curiosity_cap_for_interest(interest_level: str) -> int:
     """Phase 12E: return max consecutive curiosity depth allowed for this interest level.
 
@@ -3555,6 +3648,11 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
             zh = _first_clause(fact) if fact else "那里有一些很有意思的地方，有机会去看看。"
             return (zh, _fact_en("place"))
         if topic == "place_from":
+            # Prefer a persona-supplied place_from fact over the generic template —
+            # lets persona JSONs carry "direct answer + concrete detail" for this topic.
+            specific = (facts.get("place_from") or "").strip()
+            if specific:
+                return (specific, facts_en.get("place_from") or "")
             zh = f"我是{city_home}人，从小在那里长大。" if city_home else (vl.get("place") or "我是中国人。")
             en = f"I'm from {city_home} — I grew up there." if city_home else _vl_en("place")
             return (zh, en)
@@ -3582,6 +3680,10 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         if topic == "travel_with":
             specific = (facts.get("travel_with") or "").strip()
             return (specific or "一般跟朋友或者家人一起。", _fact_en("travel_with"))
+        # travel_where / travel_fav: prefer explicit fact key (avoids 、-list truncation)
+        specific_tw = (facts.get("travel_where") or "").strip()
+        if specific_tw:
+            return (specific_tw, facts_en.get("travel_where") or _fact_en("travel"))
         zh = _first_clause(fact) if fact else "我去过几个城市，最喜欢有美食的地方。"
         return (zh, _fact_en("travel"))
 
@@ -3589,8 +3691,11 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
     if topic in ("work_what", "work_like", "work_duration", "work_platform", "work_company", "work_origin"):
         fact = (facts.get("work") or "").strip()
         if topic == "work_like":
-            zh_vl = vl.get("work") or ""
-            return (zh_vl or "挺喜欢的，虽然有时候很忙。", _vl_en("work"))
+            # Prefer a dedicated sentiment line; never return the job-description line
+            # (voice_lines.work) since that answers "what" not "do you enjoy it".
+            zh_vl = (vl.get("work_like") or "").strip()
+            en_vl = (vl_en.get("work_like") or "").strip()
+            return (zh_vl or "挺喜欢的，虽然有时候很忙。", en_vl or "I quite like it, though it can get busy.")
         if topic == "work_duration":
             depth = _nth_clause(fact, 1) if fact else ""
             return (depth or "已经做了几年了，越做越有意思。", "")
@@ -3603,6 +3708,10 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         if topic == "work_origin":
             specific = (facts.get("work_origin") or "").strip()
             return (specific or "大学毕业后就开始做这个，慢慢越来越喜欢。", _fact_en("work_origin"))
+        # work_what: prefer voice_lines.work (the persona's "what do you do" line) over
+        # _first_clause, which truncates rich facts at the first comma and loses the detail.
+        if vl.get("work"):
+            return (vl["work"], _vl_en("work"))
         if fact:
             return (_first_clause(fact), _fact_en("work"))
         job = profile.get("occupation") or ""
@@ -5140,6 +5249,21 @@ class Handler(BaseHTTPRequestHandler):
                     reaction_prefix_text = ""
                     _rxn_trace["composition_mode"] = "suppressed_emotional_depth_trigger"
 
+                # Multi-destination reaction: learner listed 3+ places in a single travel/place answer.
+                # Override whatever stance was generated with an enthusiastic acknowledgment.
+                _MULTI_DEST_PAT = re.compile(
+                    r'美国|英国|法国|中国|日本|韩国|新西兰|澳大利亚|欧洲|泰国|印度|新加坡|越南|'
+                    r'意大利|西班牙|德国|加拿大|台湾|香港|北京|上海|广州|成都|巴黎|伦敦|纽约'
+                )
+                if (
+                    last_turn_was_answer and answer_text
+                    and (current_engine or "").strip().lower() in ("travel", "place")
+                    and len(set(_MULTI_DEST_PAT.findall(answer_text))) >= 3
+                ):
+                    reaction_prefix_text = "哇，你去过很多地方！"
+                    reaction_used_fallback = False
+                    _rxn_trace["composition_mode"] = "multi_destination_ack"
+
                 # User-question override (spec-friendly, no schema changes):
                 # if the user asked a question (counter-question), return the persona's answer
                 # as a dedicated `counter_reply` field so the client can display/TTS it
@@ -5168,13 +5292,19 @@ class Handler(BaseHTTPRequestHandler):
                 _new_mirror_engine = ""
 
                 if last_turn_was_answer:
-                    _lex_ct = _lexical_definition_reply(_last_text_for_counter) if _last_text_for_counter else None
+                    # Lexical definition: skip for genuine user questions about the persona.
+                    # "你做什么工作啊？" must not trigger vocabulary explanation; it should reach
+                    # the mirror-lookup path so the persona answers with its own work description.
+                    _lex_ct = _lexical_definition_reply(_last_text_for_counter) if (
+                        _last_text_for_counter and not user_asked_question
+                    ) else None
                     if _lex_ct:
                         _counter_result = _lex_ct
                     elif (
                         _prev_counter_reply
                         and _last_text_for_counter
                         and _is_confusion_signal(_last_text_for_counter)
+                        and not user_asked_question  # genuine questions skip confusion escalation
                         and _cs_mirror_topic  # only escalate if a mirror answer was active
                     ):
                         # ── Mirror confusion escalation ladder ───────────────────────────────
@@ -5200,6 +5330,7 @@ class Handler(BaseHTTPRequestHandler):
                         _prev_counter_reply
                         and _last_text_for_counter
                         and _is_confusion_signal(_last_text_for_counter)
+                        and not user_asked_question  # genuine questions skip confusion escalation
                         and not _cs_mirror_topic  # no active mirror — use existing generic path
                     ):
                         _counter_result = _confusion_recovery_reply(
@@ -6463,16 +6594,73 @@ class Handler(BaseHTTPRequestHandler):
                 if user_asked_question and _counter_reply:
                     _disc_eng = (current_engine or engine_id or "").strip().lower()
                     _disc_pool: list = list(_MIRROR_QUESTIONS_BY_ENGINE.get(_disc_eng) or [])
-                    # Supplement with up to 1 question from adjacent engines so there's always variety
-                    for _adj in ("place", "work", "family", "hobby", "food", "travel", "identity"):
-                        if _adj != _disc_eng and len(_disc_pool) < 3:
-                            _adj_qs = _MIRROR_QUESTIONS_BY_ENGINE.get(_adj) or []
-                            if _adj_qs:
-                                _disc_pool.append(_adj_qs[0])
+
+                    # Persona-aware cross-engine supplement.
+                    # Instead of a fixed "place, work, family…" iteration, we use
+                    # _persona_rich_engines to rank engines by how much content the
+                    # persona can actually answer, then pick the opener question for
+                    # each engine that best unlocks a concrete fact.
+                    _backed_topics  = _persona_backed_topics(persona)
+                    _rich_engines   = _persona_rich_engines(persona)
+                    # Topics seen in recent turns (echoed back via conversation_state).
+                    _seen_topics: set = set(cs.get("recently_seen_disc_topics") or []) if isinstance(cs, dict) else set()
+                    for _adj in _rich_engines:
+                        if len(_disc_pool) >= 4:
+                            # Pool of 4 is enough — final trim + sort happen below
+                            break
+                        if _adj == _disc_eng:
+                            continue
+                        _adj_qs = _MIRROR_QUESTIONS_BY_ENGINE.get(_adj) or []
+                        _opener_topic = _ENGINE_DISCOVERY_OPENER_TOPIC.get(_adj)
+                        _best_q: Optional[dict] = None
+                        # 1. Best: opener question for this engine, not seen recently
+                        if _opener_topic:
+                            _best_q = next(
+                                (q for q in _adj_qs
+                                 if q.get("topic") == _opener_topic and q.get("topic") not in _seen_topics),
+                                None,
+                            )
+                        # 2. Fallback: any backed-topic question for this engine, not seen recently
+                        if not _best_q:
+                            _best_q = next(
+                                (q for q in _adj_qs
+                                 if q.get("topic") in _backed_topics and q.get("topic") not in _seen_topics),
+                                None,
+                            )
+                        # 3. Final fallback: first question in bank not seen recently
+                        if not _best_q:
+                            _best_q = next(
+                                (q for q in _adj_qs if q.get("topic") not in _seen_topics),
+                                _adj_qs[0] if _adj_qs else None,
+                            )
+                        if _best_q and len(_disc_pool) < 4:
+                            _disc_pool.append(_best_q)
+
+                    # Reorder: backed-topic questions float to the top so the client's
+                    # slice(0, 2) almost always shows the most fact-rich questions first.
+                    _disc_pool.sort(key=lambda q: (0 if q.get("topic") in _backed_topics else 1))
+
+                    # Deduplicate by topic (keep first occurrence after sort)
+                    _seen_q_topics: set = set()
+                    _disc_pool_dedup: list = []
+                    for _q in _disc_pool:
+                        _qt = _q.get("topic") or _q.get("zh", "")
+                        if _qt not in _seen_q_topics:
+                            _seen_q_topics.add(_qt)
+                            _disc_pool_dedup.append(_q)
+                    _disc_pool = _disc_pool_dedup
+
                     if _disc_pool:
                         response["discovery_questions"] = _disc_pool[:3]
                         response["user_led"] = True
-                        print(f"[blue_panel_debug] SHOWN (discovery) | engine={_disc_eng!r} | {len(_disc_pool[:3])} card(s)")
+                        # Track shown topics so they're deprioritised on the next turn
+                        _shown_topics = [q.get("topic") for q in _disc_pool[:3] if q.get("topic")]
+                        response.setdefault("state_update", {})["recently_seen_disc_topics"] = _shown_topics
+                        _backed_count = sum(1 for q in _disc_pool[:3] if q.get("topic") in _backed_topics)
+                        print(
+                            f"[blue_panel_debug] SHOWN (discovery) | engine={_disc_eng!r} | "
+                            f"backed={_backed_count}/{len(_disc_pool[:3])} | {len(_disc_pool[:3])} card(s)"
+                        )
                     else:
                         print(f"[blue_panel_debug] NOT SHOWN | reason=no_mirror_questions_for_engine | engine={_disc_eng!r}")
                     # Phase 12E: prepend one targeted hint based on keywords in the persona's reply

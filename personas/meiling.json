@@ -15,7 +15,7 @@
   "voice_lines": {
     "identity": "我叫美玲。",
     "family": "我非常重视家人之间的联系。",
-    "work": "我是一名美术老师。",
+    "work": "我是美术老师，在西安一所中学已经教了八年了。",
     "hobby": "我喜欢练书法和品茶。",
     "travel": "我喜欢去有历史文化的地方旅行。",
     "place": "我在西安土生土长。",
@@ -24,11 +24,13 @@
   "discoverable_facts": {
     "identity": "美玲这个名字是我妈妈取的，她很喜欢梅花，所以取了'美'字。",
     "family": "我和父母住在同一个小区，每天都能见面，感情很好。",
+    "place_from": "我是西安人，从小在那里长大。西安有很多有名的小吃，凉皮和肉夹馍是我从小吃到大的味道。",
     "family_size": "我家就三口人——我和爸妈。",
     "family_siblings": "我是独生女，没有兄弟姐妹。",
     "family_live": "我和父母住在同一个小区，每天都能见面，感情很好。",
     "work": "我在西安一所中学教书，教的是初中美术，已经教了八年了。",
     "hobby": "我练书法有十几年了，写的是楷书，最喜欢欧体的风格。",
+    "travel_where": "我去过北京和苏州，最喜欢苏州的园林，感觉非常有诗意。",
     "travel": "我去过北京、苏州、成都，最喜欢苏州的园林，感觉非常有诗意。",
     "place": "西安有很多历史遗迹，兵马俑、大雁塔都在我家附近，我觉得住在这里很自豪。",
     "food": "我最喜欢西安的凉皮和肉夹馍，这是我从小吃到大的味道。",
@@ -51,6 +53,7 @@
   "discoverable_facts_en": {
     "identity": "My mum chose the name Meiling for me.",
     "family": "I live in the same compound as my parents.",
+    "place_from": "I'm from Xi'an — I grew up there. Xi'an is famous for its street food; cold noodles and pork burgers are what I've eaten since childhood.",
     "family_size": "Just the three of us — me and my parents.",
     "family_siblings": "I'm an only child — no brothers or sisters.",
     "family_live": "I live in the same compound as my parents, so we see each other every day.",
@@ -61,6 +64,7 @@
     "hobby_best": "Calligraphy at its best is total focus — the outside world disappears, just the brush and paper.",
     "hobby_origin": "My middle school teacher had exceptional calligraphy — I started practising with him and got completely hooked.",
     "travel": "I've been to Beijing.",
+    "travel_where": "I've been to Beijing and Suzhou — Suzhou's classical gardens are my favourite, very poetic.",
     "travel_with": "Usually with friends or family — I love sharing what I discover at historical sites. Alone feels a bit less meaningful.",
     "place": "Xi'an has many historical sites.",
     "food": "My favourites are Xi'an cold noodles and pork burgers."
@@ -68,7 +72,7 @@
   "voice_lines_en": {
     "identity": "My name is Meiling.",
     "family": "I place great importance on staying connected with family.",
-    "work": "I'm an art teacher.",
+    "work": "I'm an art teacher — I've been teaching at a middle school in Xi'an for eight years.",
     "hobby": "I enjoy practising calligraphy and drinking tea.",
     "travel": "I love travelling to places with history and culture.",
     "place": "I grew up in Xi'an.",

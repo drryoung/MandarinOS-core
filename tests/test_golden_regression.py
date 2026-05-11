@@ -874,6 +874,428 @@ def test_semantic_extraction() -> None:
     )
 
 
+def test_interaction_intelligence() -> None:
+    """[STATIC] T-IQ — Interaction intelligence: emotional vocab, place tracking, vague-ref anchoring.
+
+    Verifies:
+    A. isOpenEndedFrame includes travel-why and travel-depth frames.
+    B. classifyUnmatchedFreeAnswerDecision has emotional vocab acceptance.
+    C. window._lastMentionedPlace tracked from accepted free answers.
+    D. _anchorVagueReferences function exists and replaces 在那儿/在那里.
+    E. fallbackText in runTurn uses _anchorVagueReferences.
+    F. ui_server.py has multi-destination reaction detection.
+    """
+    js_path = Path(__file__).resolve().parent.parent / "ui" / "app.js"
+    srv_path = Path(__file__).resolve().parent.parent / "scripts" / "ui_server.py"
+    src = js_path.read_text(encoding="utf-8")
+    srv = srv_path.read_text(encoding="utf-8")
+
+    # ── A: isOpenEndedFrame additions ────────────────────────────────────────
+    check(
+        "A1: f_travel_why_want_go in isOpenEndedFrame",
+        '"f_travel_why_want_go"' in src,
+    )
+    check(
+        "A2: p2_tr_3 in isOpenEndedFrame",
+        '"p2_tr_3"' in src,
+    )
+    check(
+        "A3: p2_tr_4 in isOpenEndedFrame",
+        '"p2_tr_4"' in src,
+    )
+    check(
+        "A4: f_probe_hobby_origin in isOpenEndedFrame",
+        '"f_probe_hobby_origin"' in src,
+    )
+
+    # ── B: Emotional vocab acceptance ────────────────────────────────────────
+    check(
+        "B1: emotional_vocab_match reason in classifyUnmatchedFreeAnswerDecision",
+        "emotional_vocab_match" in src,
+    )
+    check(
+        "B2: 开心 in emotional vocab pattern",
+        "开心" in src and "emotional_vocab_match" in src,
+    )
+    check(
+        "B3: hasStructuredSlots guard on emotional vocab",
+        "!hasStructuredSlots" in src,
+    )
+
+    # ── C: window._lastMentionedPlace tracking ───────────────────────────────
+    check(
+        "C1: window._lastMentionedPlace assigned on accepted answer",
+        "window._lastMentionedPlace = _newAnchorPlace" in src,
+    )
+    check(
+        "C2: 甘肃 in place anchor list",
+        "'甘肃'" in src,
+    )
+
+    # ── D: _anchorVagueReferences function ───────────────────────────────────
+    check(
+        "D1: _anchorVagueReferences function exists",
+        "function _anchorVagueReferences" in src,
+    )
+    check(
+        "D2: replaces 在那儿 with anchored reference",
+        "在那儿" in src and "那边" in src,
+    )
+    check(
+        "D3: replaces 在那里 with anchored reference",
+        "在那里" in src,
+    )
+
+    # ── E: Applied in runTurn ─────────────────────────────────────────────────
+    check(
+        "E1: _anchorVagueReferences applied to fallbackText in runTurn",
+        "_anchorVagueReferences(" in src and "window._lastMentionedPlace" in src,
+    )
+
+    # ── F: Multi-destination reaction in ui_server.py ────────────────────────
+    check(
+        "F1: _MULTI_DEST_PAT defined in ui_server.py",
+        "_MULTI_DEST_PAT" in srv,
+    )
+    check(
+        "F2: multi_destination_ack reaction mode",
+        "multi_destination_ack" in srv,
+    )
+    check(
+        "F3: 哇，你去过很多地方！ reaction text",
+        "哇，你去过很多地方！" in srv,
+    )
+    check(
+        "F4: threshold is 3+ places",
+        ">= 3" in srv and "multi_destination_ack" in srv,
+    )
+
+
+
+
+def test_conversation_control_refinements() -> None:
+    """
+    Static assertions for the conversation-control refinement pass.
+
+    Issue 1: "你做什么工作啊" — genuine user question must not be intercepted
+             by lexical-definition or confusion-escalation paths.
+    Issue 2: "你呢你是哪里人" mirror path preserved (existing _isTurnAround regex).
+    Issue 3: bare "哪里？" from f_micro_probe_where expanded by _anchorVagueReferences.
+    Issue 4: "哪里什么" rejected as linguistic_confusion_signal before no_options path.
+    Issue 5: "爱人" accepted in _FAMILY_MEMBER_FRAMES semantic match.
+    """
+    print("\n[STATIC] T-CCR — Conversation control refinements (app.js + ui_server.py)")
+    app_src = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+    srv_src = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+
+    # ── A: "你呢你是哪里人" still detected as _isTurnAround ────────────────
+    check(
+        "A: _isTurnAround regex covers 你是哪里人",
+        "你是哪里人" in app_src and "_isTurnAround" in app_src,
+    )
+
+    # ── B: Issue 1 — user_asked_question guards added to server ────────────
+    check(
+        "B1: lexical definition skipped when user_asked_question (server)",
+        "not user_asked_question" in srv_src
+        and "_lexical_definition_reply(_last_text_for_counter) if (" in srv_src,
+    )
+    check(
+        "B2: first confusion elif guarded by not user_asked_question",
+        srv_src.count("and not user_asked_question  # genuine questions skip confusion") >= 2,
+    )
+
+    # ── C: Issue 3 — _anchorVagueReferences expands bare "哪里？" ──────────
+    check(
+        "C1: _anchorVagueReferences handles standalone 哪里？",
+        '=== "哪里？"' in app_src or "=== '哪里？'" in app_src,
+    )
+    check(
+        "C2: _anchorVagueReferences expands 哪里？ after reaction exclamation",
+        "哪里[?？]" in app_src and "你是说在哪里？" in app_src,
+    )
+    check(
+        "C3: place-anchored expansion uses 你是说{place}吗？",
+        "你是说${place}吗？" in app_src or "你是说" in app_src,
+    )
+
+    # ── D: Issue 4 — linguistic confusion signal before no_options ─────────
+    check(
+        "D1: _isLinguisticConfusion variable declared",
+        "_isLinguisticConfusion" in app_src,
+    )
+    check(
+        "D2: 哪里什么 in confusion signal pattern",
+        "哪里什么" in app_src,
+    )
+    check(
+        "D3: linguistic_confusion_signal rejection fires before no_options check",
+        app_src.index("linguistic_confusion_signal") < app_src.index("no_options"),
+    )
+    check(
+        "D4: _detectSemanticCategory detects 哪里 prefix as location",
+        "^哪里" in app_src and "location" in app_src,
+    )
+
+    # ── E: Issue 5 — 爱人 in family semantic match ─────────────────────────
+    check(
+        "E1: 爱人 in _FAMILY_MEMBER_FRAMES regex",
+        "爱人" in app_src and "_FAMILY_MEMBER_FRAMES" in app_src,
+    )
+    check(
+        "E2: family semantic match regex contains 爱人 alongside 老婆/妻子",
+        "老婆|妻子|老公|丈夫|先生|爱人" in app_src,
+    )
+    check(
+        "E3: _detectSemanticCategory family includes 爱人",
+        "爱人" in app_src and 'return "family"' in app_src,
+    )
+
+    # ── F: Place anchor list uses 泰国 not a space-prefixed English word ───
+    check(
+        "F: _PLACE_ANCHOR_LIST uses 泰国 (not typo ' Thailand')",
+        "'泰国'" in app_src and "' Thailand'" not in app_src,
+    )
+
+    # ── G: Context-anchored confusion recovery (哪里什么 after 哪里？) ────
+    check(
+        "G1: _buildWhereRestatement function exists",
+        "_buildWhereRestatement" in app_src,
+    )
+    check(
+        "G2: _lastPartnerTurnText tracked at frame-display point",
+        "window._lastPartnerTurnText = fallbackText" in app_src,
+    )
+    check(
+        "G3: _prevWasWherePrompt + _isEchoConfusion gate drives context restatement",
+        "_prevWasWherePrompt" in app_src and "_isEchoConfusion" in app_src
+        and "_buildWhereRestatement" in app_src,
+    )
+
+
+def test_persona_depth_enrichment() -> None:
+    """
+    Static assertions for the persona-depth enrichment pass.
+
+    Checks that each persona JSON now contains the new data fields that power
+    richer mirror answers for place_from, travel_where, and work_what topics —
+    and that the server routing logic has been updated to read them.
+    """
+    print("\n[STATIC] T-PDE — Persona depth enrichment (personas/*.json + ui_server.py)")
+    srv_src = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    PERSONAS_DIR = ROOT / "personas"
+
+    persona_ids = ["meiling", "xiaoming", "jianguo", "xiaoyun", "zhiyuan"]
+
+    # ── A: server routing checks new keys before falling through ────────────
+    check(
+        "A1: place_from topic checks facts.get('place_from') before template",
+        "facts.get(\"place_from\")" in srv_src or "facts.get('place_from')" in srv_src,
+    )
+    check(
+        "A2: travel_where topic checks facts.get('travel_where') before _first_clause",
+        "facts.get(\"travel_where\")" in srv_src or "facts.get('travel_where')" in srv_src,
+    )
+    check(
+        "A3: work_what topic prefers vl.get('work') over _first_clause",
+        "vl.get(\"work\")" in srv_src or "vl.get('work')" in srv_src,
+    )
+
+    # ── B: every persona has place_from and travel_where facts ──────────────
+    for pid in persona_ids:
+        fp = PERSONAS_DIR / f"{pid}.json"
+        data = json.loads(fp.read_text(encoding="utf-8"))
+        facts = data.get("discoverable_facts") or {}
+        vl    = data.get("voice_lines") or {}
+        check(
+            f"B-{pid}: discoverable_facts.place_from present",
+            bool(facts.get("place_from")),
+        )
+        check(
+            f"C-{pid}: discoverable_facts.travel_where present",
+            bool(facts.get("travel_where")),
+        )
+        check(
+            f"D-{pid}: voice_lines.work is non-empty",
+            bool(vl.get("work")),
+        )
+
+    # ── E: spot-check richer content (concrete detail, not just job title) ──
+    meiling = json.loads((PERSONAS_DIR / "meiling.json").read_text(encoding="utf-8"))
+    check(
+        "E1: meiling place_from mentions Xi'an food (凉皮 or 肉夹馍 or 小吃)",
+        any(w in (meiling["discoverable_facts"].get("place_from") or "")
+            for w in ["凉皮", "肉夹馍", "小吃", "面食"]),
+    )
+    check(
+        "E2: meiling voice_lines.work contains teaching duration detail (八年 or 多年)",
+        any(w in (meiling["voice_lines"].get("work") or "")
+            for w in ["八年", "多年", "年"]),
+    )
+    xiaoming = json.loads((PERSONAS_DIR / "xiaoming.json").read_text(encoding="utf-8"))
+    check(
+        "E3: xiaoming travel_where mentions Japan concretely (日本)",
+        "日本" in (xiaoming["discoverable_facts"].get("travel_where") or ""),
+    )
+    zhiyuan = json.loads((PERSONAS_DIR / "zhiyuan.json").read_text(encoding="utf-8"))
+    check(
+        "E4: zhiyuan voice_lines.work mentions subjects (数学 or 语文)",
+        any(w in (zhiyuan["voice_lines"].get("work") or "")
+            for w in ["数学", "语文", "初高中"]),
+    )
+    check(
+        "E5: zhiyuan place_from mentions Nanjing dish (鸭血粉丝 or 想念)",
+        any(w in (zhiyuan["discoverable_facts"].get("place_from") or "")
+            for w in ["鸭血粉丝", "想念", "南京"]),
+    )
+
+
+def test_discovery_question_selection() -> None:
+    """
+    Static assertions for persona-aware blue discovery question selection.
+
+    Tests:
+    A. Helper functions exist and have correct signatures.
+    B. _persona_backed_topics maps fact keys to expected mirror topics.
+    C. _persona_rich_engines respects persona content density ordering.
+    D. ENGINE_DISCOVERY_OPENER_TOPIC covers all core engines.
+    E. Discovery pool-build code uses persona helpers (not fixed list).
+    F. state_update / recently_seen_disc_topics tracking is present.
+    G. Sort-by-backed-topics is applied before slicing.
+    H. Deduplication pass is present.
+    I. Existing 你呢？ / reciprocal path is unchanged.
+    """
+    print("\n[STATIC] T-DQS — Discovery question selection (ui_server.py)")
+    src = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+
+    # ── A: helper functions exist ────────────────────────────────────────────
+    check("T-DQS A1: _persona_backed_topics defined", "def _persona_backed_topics(" in src)
+    check("T-DQS A2: _persona_rich_engines defined",  "def _persona_rich_engines(" in src)
+    check("T-DQS A3: _ENGINE_DISCOVERY_OPENER_TOPIC defined",
+          "_ENGINE_DISCOVERY_OPENER_TOPIC" in src and '"place_from"' in src)
+    check("T-DQS A4: _FACT_KEY_TO_TOPICS defined", "_FACT_KEY_TO_TOPICS" in src)
+
+    # ── B: _persona_backed_topics covers key fact categories ─────────────────
+    check("T-DQS B1: place_from backs place_from and place_like topics",
+          '"place_from":' in src and '"place_like"' in src and "_FACT_KEY_TO_TOPICS" in src)
+    check("T-DQS B2: food key maps to food_fav topic",
+          '"food_fav"' in src and "_FACT_KEY_TO_TOPICS" in src)
+    check("T-DQS B3: travel_where maps to travel_where topic",
+          '"travel_where": ' in src and 'frozenset({"travel_where"})' in src)
+    check("T-DQS B4: voice_lines.work backs work_what topic",
+          '"work_what"' in src and "_VL_KEY_TOPICS" in src)
+
+    # ── C: _persona_rich_engines ordering ───────────────────────────────────
+    check("T-DQS C1: _DISCOVERY_ENGINE_ORDER constant defined",
+          "_DISCOVERY_ENGINE_ORDER" in src)
+    check("T-DQS C2: rich_engines sorted by fact count descending",
+          "_persona_rich_engines" in src and "counts.get(e, 0)" in src)
+    check("T-DQS C3: fallback to all engines when no persona",
+          "if not persona" in src and "_DISCOVERY_ENGINE_ORDER" in src)
+
+    # ── D: opener topics cover all core engines ──────────────────────────────
+    check("T-DQS D1: place opener is place_like (curiosity upgrade)",
+          '"place":    "place_like"' in src or '"place": "place_like"' in src)
+    check("T-DQS D2: food opener is food_fav",
+          '"food":     "food_fav"' in src or '"food": "food_fav"' in src)
+    check("T-DQS D3: work opener is work_like (curiosity upgrade)",
+          '"work":     "work_like"' in src or '"work": "work_like"' in src)
+    check("T-DQS D4: travel opener is travel_fav (curiosity upgrade)",
+          '"travel":   "travel_fav"' in src or '"travel": "travel_fav"' in src)
+    check("T-DQS D5: family opener is family_size",
+          '"family":   "family_size"' in src or '"family": "family_size"' in src)
+
+    # ── E: discovery pool build uses persona helpers, not fixed list ─────────
+    check("T-DQS E1: _backed_topics assigned from _persona_backed_topics",
+          "_persona_backed_topics(persona)" in src)
+    check("T-DQS E2: _rich_engines assigned from _persona_rich_engines",
+          "_persona_rich_engines(persona)" in src)
+    check("T-DQS E3: fixed adjacent list removed from discovery block",
+          'for _adj in ("place", "work", "family", "hobby", "food", "travel", "identity")' not in src)
+    check("T-DQS E4: opener-topic preference logic present",
+          "_opener_topic = _ENGINE_DISCOVERY_OPENER_TOPIC.get(_adj)" in src)
+    check("T-DQS E5: backed-topic fallback present",
+          'q.get("topic") in _backed_topics' in src)
+
+    # ── F: recently_seen_disc_topics tracking ────────────────────────────────
+    check("T-DQS F1: recently_seen_disc_topics read from cs",
+          "recently_seen_disc_topics" in src and 'cs.get("recently_seen_disc_topics")' in src)
+    check("T-DQS F2: recently_seen_disc_topics written to state_update",
+          '"recently_seen_disc_topics"' in src and "state_update" in src)
+
+    # ── G: sort by backed topics before slice ───────────────────────────────
+    check("T-DQS G1: _disc_pool sorted by backed_topics membership",
+          "_disc_pool.sort(key=lambda q:" in src and "_backed_topics" in src)
+
+    # ── H: deduplication pass present ────────────────────────────────────────
+    check("T-DQS H1: _disc_pool_dedup list built",  "_disc_pool_dedup" in src)
+    check("T-DQS H2: topic-based dedup set present", "_seen_q_topics" in src)
+
+    # ── I: unchanged paths ───────────────────────────────────────────────────
+    check("T-DQS I1: reciprocal path still present",
+          "_RECIPROCAL_FRAME_TO_Q" in src and "SHOWN (reciprocal)" in src)
+    check("T-DQS I2: _pick_contextual_discovery_hint still called",
+          "_pick_contextual_discovery_hint(_counter_reply)" in src)
+    check("T-DQS I3: user_led flag still set", 'response["user_led"] = True' in src)
+
+    # ── J: curiosity-quality opener changes ─────────────────────────────────
+    mq_src = (ROOT / "content" / "mirror_questions.json").read_text(encoding="utf-8")
+    import json as _json
+    mq = _json.loads(mq_src)
+
+    def _bank(engine: str) -> list:
+        return mq.get("by_engine", {}).get(engine, [])
+
+    def _topics(engine: str) -> list:
+        return [q.get("topic") for q in _bank(engine)]
+
+    def _zh_for_topic(engine: str, topic: str) -> str:
+        return next((q.get("zh", "") for q in _bank(engine) if q.get("topic") == topic), "")
+
+    # J1: travel opener → travel_fav ("最喜欢"), not travel_where
+    check("T-DQS J1: travel opener topic is travel_fav",
+          '"travel":   "travel_fav"' in src or '"travel": "travel_fav"' in src)
+    check("T-DQS J2: travel_fav question contains 最喜欢",
+          "最喜欢" in _zh_for_topic("travel", "travel_fav"))
+    check("T-DQS J3: travel_where still present as fallback",
+          "travel_where" in _topics("travel"))
+
+    # J4: work opener → work_like ("喜欢你的工作"), not work_what
+    check("T-DQS J4: work opener topic is work_like",
+          '"work":     "work_like"' in src or '"work": "work_like"' in src)
+    check("T-DQS J5: work_like question contains 喜欢",
+          "喜欢" in _zh_for_topic("work", "work_like"))
+    check("T-DQS J6: work_what still present as fallback",
+          "work_what" in _topics("work"))
+
+    # J7: place opener → place_like, with hometown-specific question
+    check("T-DQS J7: place opener topic is place_like",
+          '"place":    "place_like"' in src or '"place": "place_like"' in src)
+    check("T-DQS J8: place_like question mentions 家乡",
+          "家乡" in _zh_for_topic("place", "place_like"))
+    check("T-DQS J9: place_from still present as fallback",
+          "place_from" in _topics("place"))
+
+    # J10: place_from fact backs place_like topic (extended _FACT_KEY_TO_TOPICS)
+    check("T-DQS J10: place_from backs place_like in _FACT_KEY_TO_TOPICS",
+          '"place_from":      frozenset({"place_from", "place_like"})' in src
+          or '"place_from": frozenset({"place_from", "place_like"})' in src)
+
+    # J11: work_like stub returns sentiment, not job description
+    # Verify the handler no longer reads vl.get("work") as its primary return
+    check("T-DQS J11: work_like handler prefers vl.work_like over vl.work",
+          'vl.get("work_like")' in src and
+          'topic == "work_like"' in src)
+    check("T-DQS J12: work_like graceful fallback uses 挺喜欢的",
+          "挺喜欢的，虽然有时候很忙。" in src)
+    # Confirm the bug-path (returning vl.work for work_like) is gone
+    work_like_block_start = src.find('if topic == "work_like"')
+    work_like_block_end   = src.find('\n        if topic ==', work_like_block_start + 1)
+    wl_block = src[work_like_block_start:work_like_block_end] if work_like_block_start != -1 else ""
+    check("T-DQS J13: work_like block does not return vl[work] (job description)",
+          'vl.get("work")' not in wl_block and 'vl["work"]' not in wl_block)
+
+
 def main() -> None:
     static_only = "--static-only" in sys.argv
 
@@ -888,6 +1310,10 @@ def main() -> None:
     test_translation_naturalizer()
     test_reflection_signal_detection()
     test_semantic_extraction()
+    test_interaction_intelligence()
+    test_conversation_control_refinements()
+    test_persona_depth_enrichment()
+    test_discovery_question_selection()
 
     # Integration tests — require a running server
     if static_only:

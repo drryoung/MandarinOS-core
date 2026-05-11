@@ -2211,10 +2211,14 @@ function isOpenEndedFrame(frameId) {
     "p2_hb_5",
     // Food & travel
     "f_food_what_good", "f_travel_where", "f_want_go_where",
+    // Travel depth: "why go there", "what's fun", "how was the trip" — any feeling/reason is valid
+    "f_travel_why_want_go", "p2_tr_3", "p2_tr_4",
     // Travel narrowing frames: city/province answers are valid free answers
     "f_travel_narrow_city", "f_travel_dest_generic_clarify",
     // Emotional / health check-in: "现在怎么样？" — any meaningful reply is valid
     "f_probe_emotional_checkin",
+    // Hobby probe: how/why/social follow-ups accept any explanation
+    "f_probe_hobby_origin", "f_probe_hobby_social", "f_probe_hobby_change",
   ]).has(fid);
 }
 
@@ -2311,9 +2315,11 @@ function _detectSemanticCategory(text) {
   if (/吃|喜欢吃|牛肉|羊肉|好吃|食物/.test(t)) return "food";
   if (_DURATION_ANSWER_PAT.test(t) || /很多年|几年|很久/.test(t)) return "duration";
   if (/身体|健康|好多了|好很多|好一点|不好|生病|康复/.test(t)) return "family_health";
-  if (/爸爸|妈妈|太太|家人|老婆|父母|家里/.test(t)) return "family";
+  if (/爸爸|妈妈|太太|家人|老婆|父母|家里|爱人|老公/.test(t)) return "family";
   if (/退休|以前.*工作|以前是|做.*工作/.test(t)) return "work_status";
   if (/住在|搬到|搬来/.test(t)) return "location";
+  // "哪里什么" / "哪儿什么" — learner confused about a location prompt → treat as location
+  if (/^哪里|^哪儿/.test(t)) return "location";
   return null;
 }
 
@@ -2332,6 +2338,44 @@ const _SEMANTIC_CLARIFICATION_PHRASES = {
 /** Returns the targeted clarification phrase object for the given category, or null. */
 function _getSemanticClarification(category) {
   return _SEMANTIC_CLARIFICATION_PHRASES[category] || null;
+}
+
+/**
+ * Build a context-anchored restatement for when the learner echoes back our
+ * "哪里？" / "在哪里？" probe with confusion ("哪里什么").
+ * Uses the learner's previous accepted answer as the reference so the output
+ * reads "我是问：你说「X」，是在哪里？" rather than the terse generic probe.
+ */
+function _buildWhereRestatement(prevUserText) {
+  const clipped = (prevUserText || "").trim().slice(0, 12);
+  const inner = clipped ? `你说"${clipped}"，是在哪里？` : "在哪里？";
+  return { hanzi: `我是问：${inner}`, pinyin: "", text_en: "I'm asking: where was that?" };
+}
+
+
+/**
+ * Replace ambiguous place pronouns (那儿 / 那里) with an anchored reference when
+ * a specific place was recently mentioned. Keeps partner text coherent after e.g.
+ * "我想去甘肃" → next frame "那你喜欢在那儿生活吗？" becomes "在甘肃那边生活吗？".
+ * Conservative: only rewrites "在那儿" and "在那里" patterns, not bare 那个地方.
+ *
+ * Also expands the ultra-terse micro-probe "哪里？" (f_micro_probe_where) that appears
+ * after an echo-reaction, so "哦，很好吃！哪里？" becomes "哦，很好吃！你是说在哪里？"
+ */
+function _anchorVagueReferences(text, place) {
+  if (!text) return text;
+  // The frame fires after an echo like "哦，很好吃！" making the compound too cryptic.
+  if (text.trim() === "哪里？" || text.trim() === "哪里?") {
+    return place ? `你是说${place}吗？` : "你是说在哪里？";
+  }
+  // "...！哪里？" → "...！你是说在哪里？" (anchored where possible)
+  text = text.replace(/([！!])\s*哪里[?？]\s*$/,
+    place ? `$1 你是说${place}吗？` : "$1 你是说在哪里？"
+  );
+  if (!place) return text;
+  return text
+    .replace(/在那儿/g, `在${place}那边`)
+    .replace(/在那里/g, `在${place}那边`);
 }
 
 function semanticSoftMatch(transcript, frameId) {
@@ -2394,7 +2438,7 @@ function semanticSoftMatch(transcript, frameId) {
     "f_probe_family_influence",
   ]);
   if (_FAMILY_MEMBER_FRAMES.has(fid)) {
-    if (/(老婆|妻子|老公|丈夫|先生|妈妈|爸爸|母亲|父亲|父母|哥哥|弟弟|姐姐|妹妹|儿子|女儿|孩子|家人|家里|爷爷|奶奶|外公|外婆)/.test(t)) return true;
+    if (/(老婆|妻子|老公|丈夫|先生|爱人|妈妈|爸爸|母亲|父亲|父母|哥哥|弟弟|姐姐|妹妹|儿子|女儿|孩子|家人|家里|爷爷|奶奶|外公|外婆)/.test(t)) return true;
     if (/(一个人|自己住|单独住|独居|和.*一起住|跟.*住)/.test(t)) return true;
   }
   // Family activity frames: accept any activity as a valid answer.
@@ -2456,8 +2500,17 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
   // Learner skip signal: "我不懂" / "不明白" → advance gracefully without repair loop
   if (/不懂|不明白/.test(transcript || "")) return { accept: true, reason: "learner_skip_signal" };
   if (isLexicalContentQuestion(transcript)) return { accept: true, reason: "lexical_content_question" };
+  // Linguistic confusion signal: learner echoes the frame's question word + "什么" to express
+  // confusion ("哪里什么" = "what do you mean by 'where'?"). Reject so the not-understood path
+  // fires with a targeted clarification rather than accepting and sending to the server.
+  const _isLinguisticConfusion = /^(哪里什么|哪儿什么|什么哪里|什么哪儿|哪里啊什么|哪里啊)/i.test((transcript || "").trim());
+  if (_isLinguisticConfusion) return { accept: false, reason: "linguistic_confusion_signal" };
   if (opts.length === 0) return { accept: true, reason: "no_options" };
   if (semantic) return { accept: true, reason: "semantic_soft_match" };
+  // Emotional vocabulary: feeling/enjoyment words are valid answers to "why/how" type frames
+  // regardless of whether the frame is explicitly open-ended. Guard: not a structured slot drill.
+  const _hasEmotionalVocab = /(开心|快乐|好玩|有趣|放松|舒服|满足|享受|高兴|愉快|幸福|有意思|很好玩|很舒服|很开心|让我|使我)/.test(transcript || "");
+  if (_hasEmotionalVocab && !hasStructuredSlots) return { accept: true, reason: "emotional_vocab_match" };
   // One-strike fallback: after one repair attempt, accept any substantive Chinese answer
   if ((unmatchedCount || 0) >= 1 && understandable) return { accept: true, reason: "one_strike_substantive_fallback" };
   // Topic persistence: after 2+ rejections, accept if a semantic category is detectable —
@@ -5308,7 +5361,10 @@ async function _runTurnInner(isNext = false, opts = {}) {
   }
 
   // Render frame sentence
-  const fallbackText = data.prompt_text || data.frame_text || "";
+  const fallbackText = _anchorVagueReferences(
+    data.prompt_text || data.frame_text || "",
+    window._lastMentionedPlace || ""
+  );
   setUiMode("READ");
   window._currentFrameText = (fallbackText && fallbackText.trim()) ? fallbackText.trim() : "";
   window._lastAcceptedAsrKey = "";  // reset dedup so fresh answers on new questions are accepted
@@ -5333,8 +5389,10 @@ async function _runTurnInner(isNext = false, opts = {}) {
     // Override _sentenceHint so the ? button shows the persona answer's EN, not the next question's EN.
     window._sentenceHint = { pinyin: fillSentenceHintPinyin(_counterReply, _counterReplyPinyin), text_en: _counterReplyEn };
     _setFrameEnglish(_counterReplyEn);
+    window._lastPartnerTurnText = _counterReply;
   } else {
     // No counter_reply — render the app's next question into the main frame as normal.
+    window._lastPartnerTurnText = fallbackText;
     renderFrameSentence({ id: frameId, text: fallbackText });
   }
   // Phase 8: append partner question to transcript — but only when NOT in discovery mode.
@@ -5834,6 +5892,11 @@ window.addEventListener("load", async () => {
       // Ensure trailing "？" so server _is_user_question reliably fires
       const submittedForServer = _isTurnAround && !/[？?]$/.test(saidTrimmed) ? saidTrimmed + "？" : saidTrimmed;
       _trackUserTextSignals(saidTrimmed);
+      // Track the most recently mentioned place for vague-reference anchoring in partner text.
+      // e.g. "甘肃" → later frame "那儿生活" becomes "甘肃那边生活".
+      const _PLACE_ANCHOR_LIST = ['甘肃', '中国', '美国', '英国', '法国', '日本', '韩国', '新西兰', '台湾', '香港', '澳大利亚', '北京', '上海', '广州', '成都', '欧洲', '泰国', '新加坡', '越南', '意大利', '西班牙', '德国', '加拿大'];
+      const _newAnchorPlace = _PLACE_ANCHOR_LIST.find(p => saidTrimmed.includes(p));
+      if (_newAnchorPlace) window._lastMentionedPlace = _newAnchorPlace;
       addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
       window._lastAcceptedFreeTranscript = saidTrimmed;
@@ -5882,7 +5945,15 @@ window.addEventListener("load", async () => {
     // targeted question instead of generic repair (啊？). This applies from the very
     // first rejection — generic repair only fires when NO semantic signal is detectable.
     const _semCategory    = _detectSemanticCategory(saidTrimmed);
-    const _semClarifyData = _semCategory ? _getSemanticClarification(_semCategory) : null;
+    // Context-anchored confusion recovery: if the learner echoes back our location probe
+    // ("哪里什么") AND our immediately previous turn was itself a 哪里？ clarification,
+    // rephrase with their previous answer as context so the intent is unambiguous.
+    // e.g. "我是问：你说「这里羊肉牛肉都很好吃」，是在哪里？"
+    const _prevWasWherePrompt = /哪里[?？]/.test(window._lastPartnerTurnText || "");
+    const _isEchoConfusion    = /^(哪里|哪儿)/.test(saidTrimmed.trim()) && /什么|不懂|不明白/.test(saidTrimmed);
+    const _semClarifyData = (_prevWasWherePrompt && _isEchoConfusion)
+      ? _buildWhereRestatement(window._lastAcceptedFreeTranscript)
+      : (_semCategory ? _getSemanticClarification(_semCategory) : null);
     const _displayPhrase  = _semClarifyData
       ? Object.assign({}, phrase, {
           hanzi:           _semClarifyData.hanzi,

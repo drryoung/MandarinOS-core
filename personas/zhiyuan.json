@@ -15,7 +15,7 @@
   "voice_lines": {
     "identity": "我叫志远。",
     "family": "我们家人感情很好。",
-    "work": "我是一名补习老师。",
+    "work": "我是补习老师，主要教初高中的数学和语文。",
     "hobby": "我喜欢读书和下棋。",
     "travel": "我旅行时喜欢多了解当地文化。",
     "place": "我在上海生活了很多年了。",
@@ -24,11 +24,13 @@
   "discoverable_facts": {
     "identity": "志远这个名字是我父亲取的，他希望我有远大的志向，我一直觉得这个名字是一种压力，也是动力。",
     "family": "我老家在南京，爸妈还在那边，我在上海工作，每年春节和国庆都会回去陪他们。",
+    "place_from": "我老家是南京，不过在上海工作已经好几年了。南京的鸭血粉丝汤我很想念。",
     "family_size": "我家就三口人，我和爸妈。",
     "family_siblings": "我是独生子，没有兄弟姐妹，从小就很独立。",
     "family_live": "爸妈在南京，我在上海工作，不住在一起，每年春节和国庆我会回去陪他们。",
     "work": "我主要给初中和高中学生补习数学和语文，做这行十年了，觉得教育是很有意义的工作。",
     "hobby": "我最喜欢的书是《红楼梦》，读了好几遍了，每次都有不同的感受。下棋也让我觉得很放松。",
+    "travel_where": "我去过法国和几个欧洲国家，最喜欢法国，觉得他们对历史和艺术的态度很有意思。",
     "travel": "我去过几个欧洲国家，最喜欢法国，觉得他们对历史和艺术的态度和中国有相似之处。",
     "place": "上海节奏很快，但我已经习惯了，周末去外滩或者博物馆走走，心情就会很好。",
     "food": "我觉得上海的本帮菜非常有特色，红烧肉和清蒸鱼是我最喜欢的，简单又有味道。",
@@ -51,6 +53,7 @@
   "discoverable_facts_en": {
     "identity": "The name Zhiyuan was chosen by my father.",
     "family": "My hometown is Nanjing and my parents are still there.",
+    "place_from": "My hometown is Nanjing, though I've worked in Shanghai for years. I really miss Nanjing's duck-blood vermicelli soup.",
     "family_size": "Just three of us — me and my parents.",
     "family_siblings": "I'm an only child — no siblings. I grew up quite independent.",
     "family_live": "My parents are in Nanjing and I work in Shanghai. I go back for Spring Festival and National Day.",
@@ -61,6 +64,7 @@
     "hobby_best": "The best part is being lost in another world — suddenly realising hours have passed.",
     "hobby_origin": "My family had many books and my parents loved reading — the habit came naturally, no particular story.",
     "travel": "I've been to several European countries.",
+    "travel_where": "I've been to France and a few European countries — I like France best, their attitude to culture and history is fascinating.",
     "travel_with": "Usually alone — travel is thinking time for me. I don't like big groups, though occasionally I'll invite one friend.",
     "place": "Shanghai moves fast.",
     "food": "I think Shanghai's local cuisine is very distinctive."
@@ -68,7 +72,7 @@
   "voice_lines_en": {
     "identity": "My name is Zhiyuan.",
     "family": "My family members are very close.",
-    "work": "I'm a private tutor.",
+    "work": "I'm a private tutor — I mainly teach middle and high school students maths and Chinese.",
     "hobby": "I enjoy reading and chess.",
     "travel": "I like to learn about local culture when I travel.",
     "place": "I've lived in Shanghai for many years.",

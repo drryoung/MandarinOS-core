@@ -24,11 +24,13 @@
   "discoverable_facts": {
     "identity": "建国这个名字听起来很老派，但其实我爸爸就是因为喜欢这个名字才给我取的。",
     "family": "我家里有四个兄弟姐妹，我是老二，我妈妈做菜一绝，我学厨师也是受她影响。",
+    "place_from": "我是土生土长的重庆人。重庆是山城，到处都是坡路，不过火锅一吃什么烦恼都没了。",
     "family_size": "我家人可多了，一大家子加起来十几口，每次聚餐特别热闹！",
     "family_siblings": "我家有四个兄弟姐妹，我是老二！",
     "family_live": "我们各自住，但大家都在重庆，平时也经常走动。",
     "work": "我在重庆一家川菜馆做主厨，已经做了七年了，最擅长的是麻婆豆腐和红烧肉。",
     "hobby": "我打羽毛球打了快二十年了，以前代表学校参加过比赛，现在每周至少打两次。",
+    "travel_where": "我去过成都和上海，每次旅行都要找当地最有名的餐厅吃饭。",
     "travel": "我去过成都、西安和上海，每次旅行都要去当地最有名的餐厅吃饭，这是我的旅行习惯。",
     "place": "重庆是山城，到处都是坡路，走来走去很累，但火锅一吃就什么都忘了。",
     "food": "我觉得重庆火锅是世界上最好吃的东西，没有之一，每周必吃。",
@@ -51,6 +53,7 @@
   "discoverable_facts_en": {
     "identity": "The name Jianguo sounds old-fashioned.",
     "family": "I have four siblings.",
+    "place_from": "I'm a born-and-bred Chongqing local. Chongqing is a mountain city full of slopes — but hotpot makes all your worries disappear.",
     "family_size": "Big family — over ten of us all together. Gatherings are always lively!",
     "family_siblings": "Four siblings — I'm the second oldest!",
     "family_live": "We all live separately, but everyone's in Chongqing so we see each other often.",
@@ -61,6 +64,7 @@
     "hobby_best": "A well-matched opponent — every point is tense, and afterwards you feel great.",
     "hobby_origin": "I joined the school badminton team in primary school — strict coach, but after a few years I fell in love with it.",
     "travel": "I've been to Chengdu.",
+    "travel_where": "I've been to Chengdu and Shanghai — I always hunt for the best local restaurants when I travel.",
     "travel_with": "Usually with friends — we hunt for good food together. The more the merrier!",
     "place": "Chongqing is a mountain city.",
     "food": "I think Chongqing hotpot is the best food in the world."

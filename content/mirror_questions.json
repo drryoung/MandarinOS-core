@@ -69,6 +69,14 @@
         ]
       },
       {
+        "zh": "你喜欢你的家乡吗？", "py": "nǐ xǐhuān nǐ de jiāxiāng ma?", "en": "Do you like your hometown?",
+        "kind": "SENTENCE", "topic": "place_like",
+        "paraphrases": [
+          ["你", "喜欢", "家乡"],
+          ["家乡", "喜欢"]
+        ]
+      },
+      {
         "zh": "你喜欢在那里生活吗？", "py": "nǐ xǐhuān zài nàlǐ shēnghuó ma?", "en": "Do you enjoy living there?",
         "kind": "SENTENCE", "topic": "place_like"
       },
