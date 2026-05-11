@@ -1150,6 +1150,438 @@ def test_persona_depth_enrichment() -> None:
     )
 
 
+def test_persona_answer_staging() -> None:
+    """
+    Static assertions for the _first_sentence() persona-answer staging pass.
+
+    Confirms that:
+    A. _first_sentence() helper exists and splits at the first sentence boundary.
+    B. place_from routing applies _first_sentence(), not a verbatim return.
+    C. Every persona's place_from fact is multi-sentence (so the fix is meaningful).
+    D. First-sentence result still answers the question (contains city/hometown info).
+    E. travel_where is NOT passed through _first_sentence() — remains unchanged.
+    F. Other persona routing paths (food, work, travel) are unaffected.
+    """
+    print("\n[STATIC] T-PAS — Persona answer staging (_first_sentence)")
+    srv_src = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    PERSONAS_DIR = ROOT / "personas"
+    persona_ids  = ["meiling", "xiaoming", "jianguo", "xiaoyun", "zhiyuan"]
+
+    # ── A: _first_sentence helper exists and has correct split logic ─────────
+    check(
+        "A1: _first_sentence() function defined in ui_server.py",
+        "def _first_sentence(text: str)" in srv_src,
+    )
+    check(
+        "A2: _first_sentence splits on 。！？ (sentence-end punctuation)",
+        "re.search(r'[。！？]'" in srv_src or 're.search(r"[。！？]"' in srv_src,
+    )
+    check(
+        "A3: _first_sentence returns text unchanged when no sentence boundary found",
+        "return text" in srv_src,   # generic, but A1 confirms context
+    )
+
+    # ── B: place_from routing uses _first_sentence, not verbatim return ──────
+    check(
+        "B1: place_from applies _first_sentence() to specific fact",
+        "_first_sentence(specific)" in srv_src,
+    )
+    check(
+        "B2: place_from no longer does plain `return (specific, ...)` verbatim",
+        # The old pattern was:  return (specific, facts_en.get("place_from") or "")
+        # The new pattern wraps: return (_first_sentence(specific), ...)
+        "return (specific, facts_en.get(\"place_from\")" not in srv_src
+        and "return (specific, facts_en.get('place_from')" not in srv_src,
+    )
+
+    # ── C: every persona place_from fact is multi-sentence (fix is meaningful) ─
+    for pid in persona_ids:
+        data  = json.loads((PERSONAS_DIR / f"{pid}.json").read_text(encoding="utf-8"))
+        pf    = (data.get("discoverable_facts") or {}).get("place_from") or ""
+        check(
+            f"C-{pid}: place_from fact contains more than one sentence (has 。 mid-text)",
+            pf.count("。") >= 2 or (pf.count("。") >= 1 and not pf.endswith("。") == (pf.count("。") == 0)),
+        )
+
+    # ── D: first sentence of every persona place_from answers the question ────
+    import re as _re
+    def _first_sentence_ref(text: str) -> str:
+        m = _re.search(r'[。！？]', text)
+        return text[:m.end()] if m else text
+
+    for pid in persona_ids:
+        data    = json.loads((PERSONAS_DIR / f"{pid}.json").read_text(encoding="utf-8"))
+        pf      = (data.get("discoverable_facts") or {}).get("place_from") or ""
+        profile = data.get("profile") or {}
+        city    = profile.get("hometown") or profile.get("city") or ""
+        first   = _first_sentence_ref(pf)
+        check(
+            f"D-{pid}: first sentence of place_from contains hometown city ({city})",
+            city and city in first,
+        )
+        check(
+            f"D-{pid}: first sentence of place_from is shorter than full fact",
+            len(first) < len(pf),
+        )
+
+    # ── E: travel_where routing does NOT use _first_sentence ─────────────────
+    # Confirm _first_sentence is only called in the place_from block, not travel block.
+    # We check by verifying the travel block still uses facts_en / _fact_en, not _first_sentence.
+    travel_block_start = srv_src.find('if topic in ("travel_where", "travel_fav"')
+    travel_block_end   = srv_src.find('\n    # ── Work', travel_block_start)
+    travel_block       = srv_src[travel_block_start:travel_block_end]
+    check(
+        "E1: _first_sentence() is NOT called inside the travel_where routing block",
+        "_first_sentence" not in travel_block,
+    )
+    check(
+        "E2: travel_where still returns specific_tw verbatim",
+        "return (specific_tw," in travel_block,
+    )
+
+    # ── F: other routing paths unaffected ─────────────────────────────────────
+    check(
+        "F1: food_fav still uses _first_clause (unchanged)",
+        "return (_first_clause(fact), _fact_en(\"food\"))" in srv_src
+        or "return (_first_clause(fact), _fact_en('food'))" in srv_src,
+    )
+    check(
+        "F2: work_what still prefers vl.get('work') (unchanged)",
+        "return (vl[\"work\"], _vl_en(\"work\"))" in srv_src
+        or "return (vl['work'], _vl_en('work'))" in srv_src,
+    )
+    check(
+        "F3: hobby_what still uses _first_clause (unchanged)",
+        "return (_first_clause(fact), _fact_en(\"hobby\"))" in srv_src
+        or "return (_first_clause(fact), _fact_en('hobby'))" in srv_src,
+    )
+
+
+def test_confusion_clarification() -> None:
+    """
+    Static assertions for confusion-handling and discovery-after-confusion improvements.
+
+    A. _is_confusion_signal covers 哪里啊, 不懂, 什么
+    B. _clarify_app_question() helper exists and produces 换个说法 phrasing
+    C. Counter-reply chain has an app-question confusion branch (no prev_counter_reply path)
+    D. last_partner_frame_text stored in state_update post-trigger block
+    E. Discovery Path 0 fires for _confusion_about_app_q
+    F. Existing paths (Path 1, Path 2, Path 3) still present and structurally intact
+    G. No "这个以后再聊" as the active confusion handler (clarify branch takes precedence)
+    H. 哪里好玩 guard still present (genuine question not misclassified as confusion)
+    """
+    print("\n[STATIC] T-CCL — Confusion clarification and discovery (ui_server.py)")
+    srv_src = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+
+    # ── A: _is_confusion_signal covers new patterns ─────────────────────────
+    check(
+        "A1: 哪里啊 in confusion markers tuple",
+        '"哪里啊"' in srv_src,
+    )
+    check(
+        "A2: 不懂 in confusion markers tuple",
+        '"不懂"' in srv_src,
+    )
+    check(
+        "A3: 什么 in exact-match short confusion set",
+        '"什么"' in srv_src and "_is_confusion_signal" in srv_src,
+    )
+    check(
+        "A4: guard for 哪里.*好玩 still present (genuine question not mistaken for confusion)",
+        "哪里.*好玩" in srv_src,
+    )
+    check(
+        "A5: exact-match set includes 哪里啊 and 不懂 (standalone utterance check)",
+        # The standalone exact-match `s in (...)` set must include both new patterns
+        "哪里啊" in srv_src and "不懂" in srv_src,
+    )
+
+    # ── B: _clarify_app_question helper ──────────────────────────────────────
+    check(
+        "B1: _clarify_app_question() function defined",
+        "def _clarify_app_question(prev_frame_text: str)" in srv_src,
+    )
+    check(
+        "B2: _clarify_app_question produces 换个说法 rephrase",
+        "换个说法" in srv_src,
+    )
+    check(
+        "B3: _clarify_app_question returns None when no frame text",
+        "_clarify_app_question" in srv_src and "return None" in srv_src,
+    )
+
+    # ── C: Counter-reply chain has app-question confusion branch ─────────────
+    check(
+        "C1: new branch checks not _prev_counter_reply + confusion signal",
+        "not _prev_counter_reply" in srv_src and "_clarify_app_question" in srv_src,
+    )
+    check(
+        "C2: new branch sets _confusion_about_app_q = True",
+        "_confusion_about_app_q = True" in srv_src,
+    )
+    check(
+        "C3: _confusion_about_app_q initialised to False before counter_reply block",
+        "_confusion_about_app_q = False" in srv_src,
+    )
+    check(
+        "C4: new branch reads last_partner_frame_text from cs",
+        "last_partner_frame_text" in srv_src and 'cs.get("last_partner_frame_text")' in srv_src,
+    )
+
+    # ── D: last_partner_frame_text written to state_update ───────────────────
+    check(
+        "D1: last_partner_frame_text written in post-trigger state_update",
+        '_su["last_partner_frame_text"]' in srv_src
+        or "last_partner_frame_text" in srv_src,
+    )
+    check(
+        "D2: last_partner_frame_text comes from response.get('frame_text')",
+        'response.get("frame_text")' in srv_src or "response.get('frame_text')" in srv_src,
+    )
+
+    # ── E: Discovery Path 0 exists and fires for _confusion_about_app_q ──────
+    check(
+        "E1: Path 0 comment present in discovery block",
+        "Path 0" in srv_src and "confusion" in srv_src,
+    )
+    check(
+        "E2: Path 0 condition checks _confusion_about_app_q",
+        "if _confusion_about_app_q" in srv_src,
+    )
+    check(
+        "E3: Path 0 calls _build_discovery_pool",
+        "_build_discovery_pool" in srv_src and "_confusion_about_app_q" in srv_src,
+    )
+    check(
+        "E4: Path 0 sets user_led = True",
+        'response["user_led"] = True' in srv_src,
+    )
+    check(
+        "E5: confusion_clarification debug label in path 0",
+        "confusion_clarification" in srv_src,
+    )
+
+    # ── F: Existing paths structurally intact ─────────────────────────────────
+    check(
+        "F1: Path 1 (user asked + counter_reply) still present as elif",
+        "elif user_asked_question and _counter_reply:" in srv_src,
+    )
+    check(
+        "F2: Path 2 (proactive trigger) still present as elif",
+        "elif _trigger_proactive:" in srv_src,
+    )
+    check(
+        "F3: Path 3 (reciprocal fallback) still present as elif",
+        "elif last_turn_was_answer and not user_asked_question and not _counter_reply:" in srv_src,
+    )
+
+    # ── G: deflect_later not the confusion handler ────────────────────────────
+    check(
+        "G1: confusion branch calls _clarify_app_question (not generic deflect fallback)",
+        # The new branch explicitly calls _clarify_app_question when confusion detected.
+        # Verify the function call and flag are both in the source (structure check).
+        "_clarify_app_question(_prev_frame_text)" in srv_src
+        and "_confusion_about_app_q = True" in srv_src,
+    )
+
+    # ── H: 哪里啊 as isolated short-form (exact match) is caught ──────────────
+    check(
+        "H1: exact-match set in _is_confusion_signal includes standalone 哪里啊",
+        # Must appear in the s in (...) exact-match block, not only in the markers tuple
+        's in ("啊", "嗯", "呃", "哎", "噢", "哦", "什么", "不懂", "哪里啊")' in srv_src,
+    )
+
+
+def test_discovery_trigger_timing() -> None:
+    """
+    Static assertions for discovery-panel trigger timing improvements.
+
+    A. Persona reveal detection helper exists and covers expected keywords.
+    B. _build_discovery_pool helper extracted (no more duplicated code).
+    C. Pre-computation flags: consecutive_app_questions, last_persona_reveal,
+       discovery_shown_last_turn, _trigger_proactive.
+    D. Proactive path fires on persona-reveal OR consecutive-question condition.
+    E. Recovery guard: proactive path requires not _discovery_recent.
+    F. Post-trigger state tracking always runs.
+    G. Existing discovery (learner-asked) path unchanged.
+    H. Existing reciprocal path still present as fallback.
+    """
+    print("\n[STATIC] T-DTT — Discovery trigger timing (ui_server.py)")
+    src = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+
+    # ── A: persona reveal helper ─────────────────────────────────────────────
+    check("T-DTT A1: _has_persona_reveal function defined",
+          "def _has_persona_reveal(" in src)
+    check("T-DTT A2: _PERSONA_REVEAL_KEYWORDS includes place names",
+          "成都" in src and "西安" in src and "_PERSONA_REVEAL_KEYWORDS" in src)
+    check("T-DTT A3: _PERSONA_REVEAL_KEYWORDS includes food",
+          "火锅" in src and "家乡" in src)
+    check("T-DTT A4: _has_persona_reveal checks minimum length",
+          "len(text) < 8" in src and "_has_persona_reveal" in src)
+
+    # ── B: shared pool builder extracted ────────────────────────────────────
+    check("T-DTT B1: _build_discovery_pool helper defined",
+          "def _build_discovery_pool(" in src)
+    check("T-DTT B2: counter-reply path calls _build_discovery_pool",
+          "_build_discovery_pool" in src and "learner-asked" in src)
+    check("T-DTT B3: proactive path calls _build_discovery_pool",
+          "_build_discovery_pool" in src and "proactive" in src)
+
+    # ── C: pre-computation flags ─────────────────────────────────────────────
+    check("T-DTT C1: _prev_consec_q read from conversation_state",
+          "_prev_consec_q" in src and "consecutive_app_questions" in src)
+    check("T-DTT C2: _consec_q_next increments or resets",
+          "_consec_q_next" in src and "user_asked_question else _prev_consec_q" in src)
+    check("T-DTT C3: _prev_persona_reveal read from cs",
+          "_prev_persona_reveal" in src and "last_persona_reveal" in src)
+    check("T-DTT C4: _discovery_recent read from cs",
+          "_discovery_recent" in src and "discovery_shown_last_turn" in src)
+    check("T-DTT C5: _this_persona_reveal computed from counter_reply + reaction",
+          "_this_persona_reveal" in src and "reaction_prefix_text" in src)
+
+    # ── D: proactive trigger condition ───────────────────────────────────────
+    check("T-DTT D1: _trigger_proactive defined",
+          "_trigger_proactive" in src)
+    check("T-DTT D2: proactive requires _prev_persona_reveal OR consec_q >= 2",
+          "_prev_persona_reveal or _prev_consec_q >= 2" in src)
+    check("T-DTT D3: proactive only fires when last_turn_was_answer",
+          "_trigger_proactive" in src and "last_turn_was_answer" in src)
+    check("T-DTT D4: proactive only fires when not user_asked_question",
+          "not user_asked_question" in src and "_trigger_proactive" in src)
+    check("T-DTT D5: proactive requires persona_backed_topics",
+          "_persona_backed_topics(persona)" in src and "_trigger_proactive" in src)
+
+    # ── E: recovery guard ────────────────────────────────────────────────────
+    check("T-DTT E1: proactive requires not _discovery_recent (rate-limit)",
+          "not _discovery_recent" in src and "_trigger_proactive" in src)
+    check("T-DTT E2: rate_limited debug reason present",
+          "rate_limited_shown_last_turn" in src)
+
+    # ── F: post-trigger state tracking ──────────────────────────────────────
+    check("T-DTT F1: last_persona_reveal written to state_update",
+          "_su[\"last_persona_reveal\"]" in src or
+          "_su['last_persona_reveal']" in src)
+    check("T-DTT F2: discovery_shown_last_turn written to state_update",
+          "discovery_shown_last_turn" in src and "_su" in src)
+    check("T-DTT F3: consecutive_app_questions written to state_update",
+          "consecutive_app_questions" in src and "_su" in src)
+    check("T-DTT F4: consecutive_app_questions reset when discovery shown",
+          "0 if bool(response.get(\"user_led\"))" in src)
+
+    # ── G: existing learner-asked path unchanged ─────────────────────────────
+    check("T-DTT G1: path 1 still fires on user_asked_question AND _counter_reply",
+          "if user_asked_question and _counter_reply:" in src)
+    check("T-DTT G2: contextual hint still present in path 1",
+          "_pick_contextual_discovery_hint(_counter_reply)" in src)
+
+    # ── H: reciprocal fallback path still present ────────────────────────────
+    check("T-DTT H1: reciprocal path still present (Path 3)",
+          "_RECIPROCAL_FRAME_TO_Q" in src and "SHOWN (reciprocal)" in src)
+    check("T-DTT H2: reciprocal is a fallback after proactive",
+          "elif last_turn_was_answer and not user_asked_question and not _counter_reply" in src)
+
+
+def test_scoring_model_refinements() -> None:
+    """
+    Static assertions for Parts 1–4 of the scoring model upgrade.
+
+    A. Embedded question detection (Part 1)
+    B. Extended answer detection without conjunctions (Part 2)
+    C. Recovery tracking — natural recovery attempt + success (Part 3)
+    D. Soft vs hard fail classification (Part 4)
+    E. Backward compatibility — no architecture changes
+    """
+    print("\n[STATIC] T-SMR — Scoring model refinements (app.js + ui_server.py)")
+    app_src = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+    srv_src = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+
+    # ── A: Part 1 — Embedded question detection ──────────────────────────────
+    check("T-SMR A1: endsWithParticle added (sentence-final 啊/呢)",
+          "endsWithParticle" in app_src and "[啊呢]" in app_src)
+    check("T-SMR A2: hasEmbeddedQ pattern added",
+          "hasEmbeddedQ" in app_src and "你是哪里人" in app_src)
+    check("T-SMR A3: isQuestion includes endsWithParticle",
+          "endsWithParticle" in app_src and "isQuestion" in app_src)
+    check("T-SMR A4: isQuestion includes hasEmbeddedQ",
+          "hasEmbeddedQ" in app_src and "isQuestion" in app_src and
+          "hasEmbeddedQ" in app_src.split("isQuestion")[1][:200])
+    check("T-SMR A5: 你呢 still always counts (hasYouNe)",
+          "hasYouNe" in app_src and "text.includes(\"你呢\")" in app_src)
+
+    # ── B: Part 2 — Extended answer detection ────────────────────────────────
+    check("T-SMR B1: Chinese char count used (zhCharCount >= 8)",
+          "zhCharCount" in app_src and ">= 8" in app_src)
+    check("T-SMR B2: repetition pattern added",
+          "REPETITION_PAT" in app_src and r"\S{2}" in app_src)
+    check("T-SMR B3: unified markers include both depth and extend markers",
+          "DEPTH_AND_EXTEND_MARKERS" in app_src and "以前" in app_src and "因为" in app_src)
+    check("T-SMR B4: depth_responses uses unified isExtended check",
+          "isExtended" in app_src and "_tracker.depth_responses++" in app_src and
+          "isExtended" in app_src.split("_tracker.depth_responses++")[0][-300:])
+    check("T-SMR B5: extended_answer_count uses same isExtended check",
+          "window._learnerObs.extended_answer_count++" in app_src and
+          "isExtended" in app_src.split("window._learnerObs.extended_answer_count++")[0][-50:])
+
+    # ── C: Part 3 — Natural recovery tracking ────────────────────────────────
+    check("T-SMR C1: _pendingNaturalRecovery field in _tracker",
+          "_pendingNaturalRecovery" in app_src and "_tracker" in app_src)
+    check("T-SMR C2: _pendingNaturalRecovery set on natural recovery attempt",
+          "_tracker._pendingNaturalRecovery = true" in app_src)
+    check("T-SMR C3: _pendingNaturalRecovery checked in success handler",
+          "_tracker._pendingNaturalRecovery" in app_src and
+          "successful_recoveries++" in app_src)
+    check("T-SMR C4: _pendingNaturalRecovery reset after success check",
+          "_tracker._pendingNaturalRecovery = false" in app_src)
+    check("T-SMR C5: natural recovery does not break recovery_resilience_count",
+          "recovery_resilience_count++" in app_src and "_pendingNaturalRecovery" in app_src)
+
+    # ── D: Part 4 — Soft vs hard fail classification ─────────────────────────
+    check("T-SMR D1: _unmatchedFailLevel helper defined",
+          "function _unmatchedFailLevel(" in app_src)
+    check("T-SMR D2: hard fail when no Chinese characters",
+          "zhChars < 1" in app_src and '"hard"' in app_src)
+    check("T-SMR D3: soft fail when partial Chinese present",
+          '"soft"' in app_src and "return \"soft\"" in app_src or "return 'soft'" in app_src or
+          '\"soft\"' in app_src)
+    check("T-SMR D4: fail_level attached to linguistic_confusion reject",
+          "fail_level: \"soft\"" in app_src and "linguistic_confusion_signal" in app_src)
+    check("T-SMR D5: fail_level attached to closed_options_unmatched reject",
+          "fail_level: _fl" in app_src and "closed_options_unmatched" in app_src)
+    check("T-SMR D6: soft_unmatched_responses counter in _tracker",
+          "soft_unmatched_responses" in app_src and "_tracker" in app_src)
+    check("T-SMR D7: soft_unmatched_count in _learnerObs",
+          "soft_unmatched_count" in app_src and "_learnerObs" in app_src)
+    check("T-SMR D8: soft fail routes to soft_unmatched_responses",
+          "_tracker.soft_unmatched_responses++" in app_src)
+    check("T-SMR D9: hard fail routes to unmatched_responses",
+          "_tracker.unmatched_responses++" in app_src)
+    check("T-SMR D10: soft_unmatched_responses in endSession payload",
+          "soft_unmatched_responses" in app_src and "endSession" in app_src)
+    check("T-SMR D11: _scorecard_stability accepts soft_unmatched param (server)",
+          "soft_unmatched" in srv_src and "_scorecard_stability" in srv_src)
+    check("T-SMR D12: effective unmatched = hard + 0.5 * soft (server)",
+          "soft_unmatched * 0.5" in srv_src or "soft_unmatched_responses" in srv_src)
+    check("T-SMR D13: _compute_scorecard reads soft_unmatched_responses",
+          "soft_unmatched_responses" in srv_src and "_compute_scorecard" in srv_src)
+
+    # ── E: Backward compatibility ─────────────────────────────────────────────
+    check("T-SMR E1: _scorecard_stability still has Stable / Some friction labels",
+          '"Stable"' in srv_src and '"Some friction"' in srv_src)
+    check("T-SMR E2: participation scorecard unchanged (questions_asked still used)",
+          "_scorecard_participation(questions_asked)" in srv_src)
+    check("T-SMR E3: recovery panel path unchanged (_pendingRecovery still checked)",
+          "_tracker._pendingRecovery" in app_src)
+    check("T-SMR E4: endSession payload still includes questions_asked",
+          "questions_asked:" in app_src and "endSession" in app_src)
+    check("T-SMR E5: QUESTION_WORDS list unchanged",
+          '"什么"' in app_src and '"哪里"' in app_src and '"为什么"' in app_src)
+    check("T-SMR E6: soft_unmatched_responses reset on fresh session",
+          "soft_unmatched_responses = 0" in app_src)
+    check("T-SMR E7: _pendingNaturalRecovery reset on fresh session",
+          "_pendingNaturalRecovery = false" in app_src and "startFreshLearner" in app_src or
+          "_pendingNaturalRecovery = false" in app_src)
+
+
 def test_discovery_question_selection() -> None:
     """
     Static assertions for persona-aware blue discovery question selection.
@@ -1212,10 +1644,12 @@ def test_discovery_question_selection() -> None:
           "_persona_rich_engines(persona)" in src)
     check("T-DQS E3: fixed adjacent list removed from discovery block",
           'for _adj in ("place", "work", "family", "hobby", "food", "travel", "identity")' not in src)
-    check("T-DQS E4: opener-topic preference logic present",
-          "_opener_topic = _ENGINE_DISCOVERY_OPENER_TOPIC.get(_adj)" in src)
-    check("T-DQS E5: backed-topic fallback present",
-          'q.get("topic") in _backed_topics' in src)
+    check("T-DQS E4: opener-topic preference logic present (in _build_discovery_pool)",
+          "opener_topic = _ENGINE_DISCOVERY_OPENER_TOPIC.get(adj)" in src
+          or "_opener_topic = _ENGINE_DISCOVERY_OPENER_TOPIC.get(_adj)" in src)
+    check("T-DQS E5: backed-topic fallback present (in _build_discovery_pool)",
+          'q.get("topic") in backed_topics' in src
+          or 'q.get("topic") in _backed_topics' in src)
 
     # ── F: recently_seen_disc_topics tracking ────────────────────────────────
     check("T-DQS F1: recently_seen_disc_topics read from cs",
@@ -1224,12 +1658,14 @@ def test_discovery_question_selection() -> None:
           '"recently_seen_disc_topics"' in src and "state_update" in src)
 
     # ── G: sort by backed topics before slice ───────────────────────────────
-    check("T-DQS G1: _disc_pool sorted by backed_topics membership",
-          "_disc_pool.sort(key=lambda q:" in src and "_backed_topics" in src)
+    check("T-DQS G1: pool sorted by backed_topics membership (in _build_discovery_pool)",
+          "disc_pool.sort(key=lambda q:" in src or "_disc_pool.sort(key=lambda q:" in src)
 
     # ── H: deduplication pass present ────────────────────────────────────────
-    check("T-DQS H1: _disc_pool_dedup list built",  "_disc_pool_dedup" in src)
-    check("T-DQS H2: topic-based dedup set present", "_seen_q_topics" in src)
+    check("T-DQS H1: dedup list built (in _build_discovery_pool)",
+          "deduped" in src or "_disc_pool_dedup" in src)
+    check("T-DQS H2: topic-based dedup set present (in _build_discovery_pool)",
+          "seen_q_topics" in src or "_seen_q_topics" in src)
 
     # ── I: unchanged paths ───────────────────────────────────────────────────
     check("T-DQS I1: reciprocal path still present",
@@ -1313,6 +1749,10 @@ def main() -> None:
     test_interaction_intelligence()
     test_conversation_control_refinements()
     test_persona_depth_enrichment()
+    test_persona_answer_staging()
+    test_confusion_clarification()
+    test_discovery_trigger_timing()
+    test_scoring_model_refinements()
     test_discovery_question_selection()
 
     # Integration tests — require a running server

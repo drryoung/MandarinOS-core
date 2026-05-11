@@ -2552,12 +2552,14 @@ def _is_confusion_signal(t: str) -> bool:
     if not (t or "").strip():
         return False
     s = t.strip()
-    if len(s) <= 2 and s in ("啊", "嗯", "呃", "哎", "噢", "哦"):
+    # Exact-match short confusion utterances (safe — specific enough to not false-positive)
+    if s in ("啊", "嗯", "呃", "哎", "噢", "哦", "什么", "不懂", "哪里啊"):
         return True
-    # Avoid matching 是什么 / 哪里好玩 (genuine questions)
+    # Avoid matching genuine content questions (哪里好玩 = real question, not confusion)
     if "是什么" in s or re.search(r"新西兰|哪里.*好玩|哪里.*有趣|哪里.*特别", s):
         return False
     markers = (
+        "哪里啊", "不懂",  # confusion about which place / general incomprehension
         "啊？", "啊！", "我不懂", "有点不懂", "听不懂", "没听懂", "没懂", "不明白",
         "看不懂", "什么意思", "没太懂", "再说一遍", "慢一点", "慢一",
         "不知道", "等一下", "我听不懂",
@@ -2594,6 +2596,19 @@ def _confusion_recovery_reply(t: str, prev_zh: str, seed: str = "") -> Optional[
     ]
     idx = sum(ord(c) for c in (seed + prev_zh + t)) % len(pool)
     return pool[idx]
+
+
+def _clarify_app_question(prev_frame_text: str) -> Optional[tuple]:
+    """Return a (zh, en) counter_reply that rephrases the last partner-frame question.
+    Used when the learner signals confusion about the app's question (哪里啊 / 不懂 / etc.)
+    rather than about the persona's mirror answer. Keeps the topic alive instead of
+    abandoning it or switching engine."""
+    ft = (prev_frame_text or "").strip().rstrip("？?").strip()
+    if not ft:
+        return None
+    zh = f"换个说法，{ft}？"
+    en  = f"Let me rephrase — {ft}?"
+    return (zh, en)
 
 
 def _place_distance_counter_reply(t: str, persona: Optional[dict]) -> Optional[tuple]:
@@ -3362,6 +3377,83 @@ def _persona_rich_engines(persona: Optional[dict]) -> list:
     return sorted(_DISCOVERY_ENGINE_ORDER, key=lambda e: -counts.get(e, 0))
 
 
+# Keywords that indicate the persona has shared concrete personal content.
+# Used to set last_persona_reveal in state_update so the next turn can trigger
+# proactive discovery (the learner should be invited to ask follow-ups).
+_PERSONA_REVEAL_KEYWORDS: tuple = (
+    # Place names (major cities/regions)
+    "成都", "西安", "北京", "上海", "广州", "杭州", "南京", "苏州", "重庆", "武汉",
+    "深圳", "厦门", "青岛", "大连", "长沙",
+    # Food
+    "火锅", "面条", "饺子", "小吃", "包子", "烤鸭", "豆腐", "家常菜",
+    # Place/origin sentiment
+    "老家", "家乡", "从小", "长大", "小时候",
+    # Preference
+    "最喜欢", "特别喜欢", "喜欢",
+    # Activity / work detail
+    "教书", "爬山", "旅行", "退休", "多年", "几年",
+)
+
+
+def _has_persona_reveal(text: str) -> bool:
+    """Return True when text contains concrete persona details that should invite follow-up questions.
+
+    Used to set last_persona_reveal in state_update.  A positive result on THIS turn's
+    counter_reply or reaction causes proactive discovery to fire on the NEXT turn.
+    """
+    if not text or len(text) < 8:
+        return False
+    return any(kw in text for kw in _PERSONA_REVEAL_KEYWORDS)
+
+
+def _build_discovery_pool(disc_eng: str,
+                           backed_topics: frozenset,
+                           rich_engines: list,
+                           seen_topics: set) -> list:
+    """Build and rank the discovery question pool for the blue panel.
+
+    Shared by counter-reply discovery and proactive discovery to avoid code duplication.
+    Returns a deduped list sorted so backed-topic questions come first.
+    """
+    disc_pool: list = list(_MIRROR_QUESTIONS_BY_ENGINE.get(disc_eng) or [])
+    for adj in rich_engines:
+        if len(disc_pool) >= 4:
+            break
+        if adj == disc_eng:
+            continue
+        adj_qs = _MIRROR_QUESTIONS_BY_ENGINE.get(adj) or []
+        opener_topic = _ENGINE_DISCOVERY_OPENER_TOPIC.get(adj)
+        best_q: Optional[dict] = None
+        if opener_topic:
+            best_q = next(
+                (q for q in adj_qs
+                 if q.get("topic") == opener_topic and q.get("topic") not in seen_topics),
+                None,
+            )
+        if not best_q:
+            best_q = next(
+                (q for q in adj_qs
+                 if q.get("topic") in backed_topics and q.get("topic") not in seen_topics),
+                None,
+            )
+        if not best_q:
+            best_q = next(
+                (q for q in adj_qs if q.get("topic") not in seen_topics),
+                adj_qs[0] if adj_qs else None,
+            )
+        if best_q and len(disc_pool) < 4:
+            disc_pool.append(best_q)
+    disc_pool.sort(key=lambda q: (0 if q.get("topic") in backed_topics else 1))
+    seen_q_topics: set = set()
+    deduped: list = []
+    for q in disc_pool:
+        qt = q.get("topic") or q.get("zh", "")
+        if qt not in seen_q_topics:
+            seen_q_topics.add(qt)
+            deduped.append(q)
+    return deduped
+
+
 def _max_curiosity_cap_for_interest(interest_level: str) -> int:
     """Phase 12E: return max consecutive curiosity depth allowed for this interest level.
 
@@ -3528,6 +3620,19 @@ def _first_clause(text: str) -> str:
     return text  # already short, or no natural split — return as-is
 
 
+def _first_sentence(text: str) -> str:
+    """Return the first complete sentence (up to the first 。！？).
+    If no sentence-ending punctuation is found, returns the full text unchanged.
+    Preferred over _first_clause for multi-sentence facts where the first sentence
+    is already a natural, complete answer and the remainder is follow-up detail."""
+    if not text:
+        return text
+    m = re.search(r'[。！？]', text)
+    if m:
+        return text[:m.end()]
+    return text
+
+
 def _nth_clause(text: str, n: int) -> str:
     """Return the n-th clause (0-indexed) of a Chinese sentence split on commas.
     Used to reveal depth on follow-up questions."""
@@ -3648,11 +3753,13 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
             zh = _first_clause(fact) if fact else "那里有一些很有意思的地方，有机会去看看。"
             return (zh, _fact_en("place"))
         if topic == "place_from":
-            # Prefer a persona-supplied place_from fact over the generic template —
-            # lets persona JSONs carry "direct answer + concrete detail" for this topic.
+            # Prefer a persona-supplied place_from fact over the generic template.
+            # Apply _first_sentence() so the second sentence (local flavour detail)
+            # is not pushed immediately — it surfaces naturally via place_like /
+            # food_local follow-up questions and the blue discovery panel.
             specific = (facts.get("place_from") or "").strip()
             if specific:
-                return (specific, facts_en.get("place_from") or "")
+                return (_first_sentence(specific), facts_en.get("place_from") or "")
             zh = f"我是{city_home}人，从小在那里长大。" if city_home else (vl.get("place") or "我是中国人。")
             en = f"I'm from {city_home} — I grew up there." if city_home else _vl_en("place")
             return (zh, en)
@@ -4487,9 +4594,14 @@ def _scorecard_depth(depth_responses: int) -> dict:
     return {"raw": n, "label": label}
 
 
-def _scorecard_stability(unmatched_responses: int, total_turns: int) -> dict:
-    n = unmatched_responses
-    rate = round(n / total_turns, 3) if total_turns > 0 else 0.0
+def _scorecard_stability(unmatched_responses: int, total_turns: int,
+                          soft_unmatched: int = 0) -> dict:
+    # Effective unmatched = hard fails (full weight) + soft fails (0.5 weight).
+    # Soft fails carry partial meaning and are a much weaker signal of breakdown.
+    effective = unmatched_responses + round(soft_unmatched * 0.5)
+    n    = unmatched_responses
+    soft = soft_unmatched
+    rate = round(effective / total_turns, 3) if total_turns > 0 else 0.0
     if rate <= 0.10:
         label = "Stable"
     elif rate <= 0.25:
@@ -4498,27 +4610,29 @@ def _scorecard_stability(unmatched_responses: int, total_turns: int) -> dict:
         label = "Unstable"
     else:
         label = "Breaking down"
-    return {"raw_unmatched": n, "rate": rate, "label": label}
+    return {"raw_unmatched": n, "raw_soft_unmatched": soft, "effective_unmatched": effective,
+            "rate": rate, "label": label}
 
 
 def _compute_scorecard(sess: dict) -> dict:
     """Compute all six scorecard metrics from a raw session object.
     All fields default to 0 if absent; total_turns=0 does not crash."""
-    total_turns           = max(0, int(sess.get("total_turns",           0) or 0))
-    recovery_uses         = max(0, int(sess.get("recovery_uses",         0) or 0))
-    successful_recoveries = max(0, int(sess.get("successful_recoveries", 0) or 0))
-    suggestion_clicks     = max(0, int(sess.get("suggestion_clicks",     0) or 0))
-    card_opens            = max(0, int(sess.get("card_opens",            0) or 0))
-    questions_asked       = max(0, int(sess.get("questions_asked",       0) or 0))
-    depth_responses       = max(0, int(sess.get("depth_responses",       0) or 0))
-    unmatched_responses   = max(0, int(sess.get("unmatched_responses",   0) or 0))
+    total_turns           = max(0, int(sess.get("total_turns",             0) or 0))
+    recovery_uses         = max(0, int(sess.get("recovery_uses",           0) or 0))
+    successful_recoveries = max(0, int(sess.get("successful_recoveries",   0) or 0))
+    suggestion_clicks     = max(0, int(sess.get("suggestion_clicks",       0) or 0))
+    card_opens            = max(0, int(sess.get("card_opens",              0) or 0))
+    questions_asked       = max(0, int(sess.get("questions_asked",         0) or 0))
+    depth_responses       = max(0, int(sess.get("depth_responses",         0) or 0))
+    unmatched_responses   = max(0, int(sess.get("unmatched_responses",     0) or 0))
+    soft_unmatched        = max(0, int(sess.get("soft_unmatched_responses", 0) or 0))
     return {
         "flow":          _scorecard_flow(total_turns),
         "recovery":      _scorecard_recovery(recovery_uses, successful_recoveries),
         "support":       _scorecard_support(suggestion_clicks, card_opens, total_turns),
         "participation": _scorecard_participation(questions_asked),
         "depth":         _scorecard_depth(depth_responses),
-        "stability":     _scorecard_stability(unmatched_responses, total_turns),
+        "stability":     _scorecard_stability(unmatched_responses, total_turns, soft_unmatched),
     }
 
 
@@ -5290,6 +5404,7 @@ class Handler(BaseHTTPRequestHandler):
                 _counter_is_new_mirror = False  # set True when a fresh mirror answer is generated this turn
                 _new_mirror_topic = ""
                 _new_mirror_engine = ""
+                _confusion_about_app_q = False  # set True when learner confused about frame question (not mirror)
 
                 if last_turn_was_answer:
                     # Lexical definition: skip for genuine user questions about the persona.
@@ -5336,6 +5451,20 @@ class Handler(BaseHTTPRequestHandler):
                         _counter_result = _confusion_recovery_reply(
                             _last_text_for_counter, _prev_counter_reply, seed=_counter_seed
                         )
+                    elif (
+                        not _prev_counter_reply
+                        and _last_text_for_counter
+                        and _is_confusion_signal(_last_text_for_counter)
+                        and not user_asked_question
+                    ):
+                        # ── App-question clarification ───────────────────────────────────────
+                        # Learner confused about the partner's frame question (no active persona voice).
+                        # Rephrase the last question and keep the topic alive.
+                        # Discovery panel will also be shown (Path 0 in blue-panel block below).
+                        _prev_frame_text = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                        if _prev_frame_text:
+                            _counter_result = _clarify_app_question(_prev_frame_text)
+                            _confusion_about_app_q = True
                     if _counter_result is None:
                         # Mirror answers only fire when the user genuinely asked a question.
                         # Statements (e.g. "我跟家人一起住。") must never match the mirror bank —
@@ -6575,6 +6704,43 @@ class Handler(BaseHTTPRequestHandler):
                     response["state_update"] = response.get("state_update") or {}
                     response["state_update"]["last_counter_reply"] = _counter_reply
 
+                # ── Blue panel — pre-computation (trigger flags) ───────────────
+                # Consecutive app questions: how many back-to-back app questions the
+                # learner has answered without asking one themselves.
+                # Reset when: learner asked, OR discovery panel is shown this turn.
+                _prev_consec_q     = int((cs.get("consecutive_app_questions") or 0) if isinstance(cs, dict) else 0)
+                _consec_q_next     = 0 if user_asked_question else _prev_consec_q + 1
+
+                # Was there a persona reveal in the PREVIOUS turn?
+                # (set in state_update last turn via _this_persona_reveal below)
+                _prev_persona_reveal = bool((cs.get("last_persona_reveal") or False) if isinstance(cs, dict) else False)
+
+                # Rate-limit: was discovery shown last turn? Avoid back-to-back panels.
+                _discovery_recent  = bool((cs.get("discovery_shown_last_turn") or False) if isinstance(cs, dict) else False)
+
+                # Does THIS turn's counter_reply or reaction carry concrete persona content?
+                # Stored so next turn's trigger knows to show proactive discovery.
+                _this_persona_reveal = (
+                    _has_persona_reveal(_counter_reply or "")
+                    or _has_persona_reveal(reaction_prefix_text or "")
+                )
+
+                # Proactive discovery fires when:
+                #   Trigger 2: persona revealed rich content last turn, OR
+                #   Trigger 3: app has asked 2+ consecutive questions (question-count suppression)
+                # Guards: not shown recently, persona has facts, user didn't ask (handled separately)
+                _trigger_proactive = (
+                    last_turn_was_answer
+                    and not user_asked_question
+                    and not _counter_reply
+                    and not _discovery_recent
+                    and bool(_persona_backed_topics(persona))
+                    and (_prev_persona_reveal or _prev_consec_q >= 2)
+                )
+
+                # Shared state: topics seen in recent turns (dedup / deprioritisation)
+                _seen_topics_disc: set = set(cs.get("recently_seen_disc_topics") or []) if isinstance(cs, dict) else set()
+
                 # ── Blue panel debug trace ─────────────────────────────────────
                 _dbg_last_pf_pre = (cs.get("last_partner_frame_id") or "").strip()
                 _dbg_in_recip    = _dbg_last_pf_pre in _RECIPROCAL_FRAME_TO_Q
@@ -6583,96 +6749,86 @@ class Handler(BaseHTTPRequestHandler):
                     f"user_asked_question={user_asked_question} | "
                     f"counter_reply={'YES' if _counter_reply else 'NO'} | "
                     f"last_turn_was_answer={last_turn_was_answer} | "
-                    f"last_partner_frame_id={_dbg_last_pf_pre!r} | "
-                    f"in_reciprocal_map={_dbg_in_recip}"
+                    f"consec_q={_prev_consec_q} | prev_reveal={_prev_persona_reveal} | "
+                    f"proactive={_trigger_proactive} | recent={_discovery_recent} | "
+                    f"last_partner_frame_id={_dbg_last_pf_pre!r} | in_reciprocal_map={_dbg_in_recip}"
                 )
                 # ──────────────────────────────────────────────────────────────
 
-                # Discovery mode: when user asked a question, offer follow-up questions THEY can
-                # ask the persona — surfacing the mirror question bank so the learner can
-                # interview the persona instead of being relentlessly interrogated.
-                if user_asked_question and _counter_reply:
-                    _disc_eng = (current_engine or engine_id or "").strip().lower()
-                    _disc_pool: list = list(_MIRROR_QUESTIONS_BY_ENGINE.get(_disc_eng) or [])
+                # ── Path 0: Learner confused about app question → clarify + discovery ──
+                # The counter_reply already holds the rephrase (_clarify_app_question).
+                # Show discovery cards so the learner has agency — they can choose a question
+                # they understand instead of being stuck on a confusing frame.
+                if _confusion_about_app_q and bool(_persona_backed_topics(persona)):
+                    _disc_eng    = (current_engine or engine_id or "").strip().lower()
+                    _backed_tpcs = _persona_backed_topics(persona)
+                    _rich_engs   = _persona_rich_engines(persona)
+                    _disc_pool   = _build_discovery_pool(_disc_eng, _backed_tpcs, _rich_engs, _seen_topics_disc)
+                    if _disc_pool:
+                        response["discovery_questions"] = _disc_pool[:3]
+                        response["user_led"] = True
+                        _shown_topics = [q.get("topic") for q in _disc_pool[:3] if q.get("topic")]
+                        response.setdefault("state_update", {})["recently_seen_disc_topics"] = _shown_topics
+                        print(
+                            f"[blue_panel_debug] SHOWN (confusion_clarification) | engine={_disc_eng!r} | "
+                            f"{len(_disc_pool[:3])} card(s)"
+                        )
+                    else:
+                        print(f"[blue_panel_debug] NOT SHOWN (confusion_clarification) | reason=no_questions_for_engine")
 
-                    # Persona-aware cross-engine supplement.
-                    # Instead of a fixed "place, work, family…" iteration, we use
-                    # _persona_rich_engines to rank engines by how much content the
-                    # persona can actually answer, then pick the opener question for
-                    # each engine that best unlocks a concrete fact.
-                    _backed_topics  = _persona_backed_topics(persona)
-                    _rich_engines   = _persona_rich_engines(persona)
-                    # Topics seen in recent turns (echoed back via conversation_state).
-                    _seen_topics: set = set(cs.get("recently_seen_disc_topics") or []) if isinstance(cs, dict) else set()
-                    for _adj in _rich_engines:
-                        if len(_disc_pool) >= 4:
-                            # Pool of 4 is enough — final trim + sort happen below
-                            break
-                        if _adj == _disc_eng:
-                            continue
-                        _adj_qs = _MIRROR_QUESTIONS_BY_ENGINE.get(_adj) or []
-                        _opener_topic = _ENGINE_DISCOVERY_OPENER_TOPIC.get(_adj)
-                        _best_q: Optional[dict] = None
-                        # 1. Best: opener question for this engine, not seen recently
-                        if _opener_topic:
-                            _best_q = next(
-                                (q for q in _adj_qs
-                                 if q.get("topic") == _opener_topic and q.get("topic") not in _seen_topics),
-                                None,
-                            )
-                        # 2. Fallback: any backed-topic question for this engine, not seen recently
-                        if not _best_q:
-                            _best_q = next(
-                                (q for q in _adj_qs
-                                 if q.get("topic") in _backed_topics and q.get("topic") not in _seen_topics),
-                                None,
-                            )
-                        # 3. Final fallback: first question in bank not seen recently
-                        if not _best_q:
-                            _best_q = next(
-                                (q for q in _adj_qs if q.get("topic") not in _seen_topics),
-                                _adj_qs[0] if _adj_qs else None,
-                            )
-                        if _best_q and len(_disc_pool) < 4:
-                            _disc_pool.append(_best_q)
-
-                    # Reorder: backed-topic questions float to the top so the client's
-                    # slice(0, 2) almost always shows the most fact-rich questions first.
-                    _disc_pool.sort(key=lambda q: (0 if q.get("topic") in _backed_topics else 1))
-
-                    # Deduplicate by topic (keep first occurrence after sort)
-                    _seen_q_topics: set = set()
-                    _disc_pool_dedup: list = []
-                    for _q in _disc_pool:
-                        _qt = _q.get("topic") or _q.get("zh", "")
-                        if _qt not in _seen_q_topics:
-                            _seen_q_topics.add(_qt)
-                            _disc_pool_dedup.append(_q)
-                    _disc_pool = _disc_pool_dedup
+                # ── Path 1: User asked a question AND persona replied ──────────
+                # Show the full discovery pool so the learner can keep interviewing.
+                elif user_asked_question and _counter_reply:
+                    _disc_eng    = (current_engine or engine_id or "").strip().lower()
+                    _backed_tpcs = _persona_backed_topics(persona)
+                    _rich_engs   = _persona_rich_engines(persona)
+                    _disc_pool   = _build_discovery_pool(_disc_eng, _backed_tpcs, _rich_engs, _seen_topics_disc)
 
                     if _disc_pool:
                         response["discovery_questions"] = _disc_pool[:3]
                         response["user_led"] = True
-                        # Track shown topics so they're deprioritised on the next turn
                         _shown_topics = [q.get("topic") for q in _disc_pool[:3] if q.get("topic")]
                         response.setdefault("state_update", {})["recently_seen_disc_topics"] = _shown_topics
-                        _backed_count = sum(1 for q in _disc_pool[:3] if q.get("topic") in _backed_topics)
+                        _backed_count = sum(1 for q in _disc_pool[:3] if q.get("topic") in _backed_tpcs)
                         print(
-                            f"[blue_panel_debug] SHOWN (discovery) | engine={_disc_eng!r} | "
+                            f"[blue_panel_debug] SHOWN (discovery/learner-asked) | engine={_disc_eng!r} | "
                             f"backed={_backed_count}/{len(_disc_pool[:3])} | {len(_disc_pool[:3])} card(s)"
                         )
                     else:
-                        print(f"[blue_panel_debug] NOT SHOWN | reason=no_mirror_questions_for_engine | engine={_disc_eng!r}")
-                    # Phase 12E: prepend one targeted hint based on keywords in the persona's reply
+                        print(f"[blue_panel_debug] NOT SHOWN | reason=no_questions_for_engine | engine={_disc_eng!r}")
+                    # Phase 12E: targeted follow-up hint from persona's reply keywords
                     _disc_hint = _pick_contextual_discovery_hint(_counter_reply)
                     if _disc_hint:
                         response["discovery_hint"] = _disc_hint
+
+                # ── Path 2: Proactive trigger (persona-reveal or question-count) ──
+                # Fires when the persona revealed rich content last turn (learner should
+                # be curious), or the app has dominated the last 2+ turns (give learner agency).
+                elif _trigger_proactive:
+                    _disc_eng    = (current_engine or engine_id or "").strip().lower()
+                    _backed_tpcs = _persona_backed_topics(persona)
+                    _rich_engs   = _persona_rich_engines(persona)
+                    _disc_pool   = _build_discovery_pool(_disc_eng, _backed_tpcs, _rich_engs, _seen_topics_disc)
+
+                    if _disc_pool:
+                        response["discovery_questions"] = _disc_pool[:3]
+                        response["user_led"] = True
+                        _shown_topics = [q.get("topic") for q in _disc_pool[:3] if q.get("topic")]
+                        response.setdefault("state_update", {})["recently_seen_disc_topics"] = _shown_topics
+                        _trigger_reason = "persona_reveal" if _prev_persona_reveal else "question_suppression"
+                        print(
+                            f"[blue_panel_debug] SHOWN (proactive/{_trigger_reason}) | engine={_disc_eng!r} | "
+                            f"consec_q={_prev_consec_q} | {len(_disc_pool[:3])} card(s)"
+                        )
+                    else:
+                        print(f"[blue_panel_debug] NOT SHOWN (proactive) | reason=no_questions_for_engine")
+
+                # ── Path 3: Reciprocal fallback (existing single-card path) ──────
+                # Only fires when proactive didn't trigger — specific frames that
+                # naturally invite a "and you?" follow-up.
                 elif last_turn_was_answer and not user_asked_question and not _counter_reply:
-                    # Reciprocal offer: learner answered a naturally-reciprocal partner frame
-                    # (e.g. 你结婚了吗？ → 是的！) — surface one blue ask-back card so they can
-                    # return the question without reintroducing the old green steer UI.
                     _last_pf = (cs.get("last_partner_frame_id") or "").strip()
-                    _rec_q = _RECIPROCAL_FRAME_TO_Q.get(_last_pf)
+                    _rec_q   = _RECIPROCAL_FRAME_TO_Q.get(_last_pf)
                     if _rec_q:
                         response["discovery_questions"] = [_rec_q]
                         response["user_led"] = True
@@ -6680,17 +6836,31 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         _reason = "no_reciprocal_mapping" if _last_pf else "no_last_partner_frame"
                         print(f"[blue_panel_debug] NOT SHOWN | reason={_reason} | frame={_last_pf!r}")
+
                 else:
-                    # Neither discovery nor reciprocal path fired — explain why
+                    # None of the paths fired — explain why in debug log
                     if not last_turn_was_answer:
                         _dbg_reason = "not_an_answer_turn"
                     elif user_asked_question and not _counter_reply:
                         _dbg_reason = "user_asked_question_but_no_counter_reply"
-                    elif user_asked_question and _counter_reply:
-                        _dbg_reason = "unreachable"  # handled above
+                    elif _discovery_recent:
+                        _dbg_reason = "rate_limited_shown_last_turn"
+                    elif not _persona_backed_topics(persona):
+                        _dbg_reason = "no_persona_backed_topics"
                     else:
-                        _dbg_reason = "counter_reply_present_blocks_reciprocal"
+                        _dbg_reason = "no_trigger_condition_met"
                     print(f"[blue_panel_debug] NOT SHOWN | reason={_dbg_reason}")
+
+                # ── Post-trigger state tracking ────────────────────────────────
+                # Always record for next turn, regardless of which path fired.
+                _su = response.setdefault("state_update", {})
+                _su["last_persona_reveal"]       = _this_persona_reveal
+                _su["discovery_shown_last_turn"] = bool(response.get("user_led"))
+                # Persist frame question text so next turn can rephrase it if learner is confused.
+                _su["last_partner_frame_text"]   = (response.get("frame_text") or "").strip()
+                # Reset consecutive question count when learner asked or discovery shown
+                if "consecutive_app_questions" not in _su:
+                    _su["consecutive_app_questions"] = 0 if bool(response.get("user_led")) else _consec_q_next
 
             # Phase 10.5: blended reciprocity injection early (prefer answer + 你呢？)
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):

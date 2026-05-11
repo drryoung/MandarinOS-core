@@ -53,10 +53,12 @@ const _tracker = {
   suggestion_clicks: 0,          // times user selected a suggested response option
   card_opens: 0,                 // user-initiated card-panel opens (not re-renders)
   questions_asked: 0,            // user turns containing a question marker (吗/什么/怎么/为什么)
-  depth_responses: 0,            // user turns containing a depth marker (因为/所以/觉得/但是/其实/对我来说)
-  unmatched_responses: 0,        // turns where ASR input did not match any option and was rejected
+  depth_responses: 0,            // user turns containing a depth/extension marker
+  unmatched_responses: 0,        // hard-fail turns (no Chinese signal / nonsense) — used in scorecard stability
+  soft_unmatched_responses: 0,   // soft-fail turns (partial meaning, not routable) — weighted at 0.5 in scorecard
   engines_used: new Set(),       // engine IDs seen in responses this session
   _pendingRecovery: false,       // transient: true if last user action was a recovery tap (cleared on next turn)
+  _pendingNaturalRecovery: false, // transient: true if natural re-attempt after rejection (cleared on next turn)
 };
 window._sessionTracker = _tracker;
 
@@ -73,62 +75,76 @@ function _trackUserTextSignals(text) {
   if (!text || typeof text !== "string") return;
 
   // ── Question detection ─────────────────────────────────────────────────────
-  // A sentence is a question only when it carries an interrogative structure —
-  // not just because it contains a question word used in a declarative clause.
+  // A turn counts as a question when any of these hold:
+  //   1. Contains 吗 (yes/no particle)
+  //   2. Ends with ? or ？
+  //   3. Ends with sentence-final 啊/呢 (spoken ASR: "你是哪里人啊")
+  //   4. Contains 你呢 (reciprocal "and you?") anywhere
+  //   5. Common embedded question patterns anywhere in the utterance
+  //      (covers multi-clause inputs like "我喜欢出中国你去过哪里")
+  //   6. QWord (什么/哪里/谁/…) + at least one structural marker
   //
-  // Structural tests (any one is sufficient alone):
-  //   hasMa           — contains the yes/no particle 吗
-  //   endsWithQmark   — ends with ASCII ? or fullwidth ？
-  //   shortIntPattern — ≤10 chars AND starts with 你/他/她/这/那
-  //
-  // Question words (什么, 哪…, 谁, 为什么, 怎么, 几, 多少, 多久) are only counted
-  // when AT LEAST ONE structural test also passes — this prevents declarative
-  // clauses like "我不知道怎么说" or "我想去哪里都可以" from being counted.
-  //
-  // 你呢 (reciprocal "and you?") is always a question regardless of length.
-  const QUESTION_WORDS = ["什么", "哪里", "哪儿", "哪个", "谁", "为什么", "怎么", "几", "多少", "多久"];
-  const textTrimmed    = text.trim();
-  const hasMa          = text.includes("吗");
-  const hasYouNe       = text.includes("你呢");
-  const endsWithQmark  = /[?？]$/.test(textTrimmed);
-  const hasQWord       = QUESTION_WORDS.some(m => text.includes(m));
-  // Short interrogative pattern: ≤10 chars AND subject-initial (你/他/她/这/那)
+  // Declarative clauses like "我不知道怎么说" or "我想去哪里都可以"
+  // do not trigger (no particle, no embedded pattern, no 吗, no ？).
+  const QUESTION_WORDS  = ["什么", "哪里", "哪儿", "哪个", "谁", "为什么", "怎么", "几", "多少", "多久"];
+  const textTrimmed     = text.trim();
+  const hasMa           = text.includes("吗");
+  const hasYouNe        = text.includes("你呢");
+  const endsWithQmark   = /[?？]$/.test(textTrimmed);
+  // Sentence-final 啊/呢 as structural marker for spoken questions (e.g. "你是哪里人啊")
+  const endsWithParticle = /[啊呢][？?]?$/.test(textTrimmed);
+  const hasQWord        = QUESTION_WORDS.some(m => text.includes(m));
+  // Short interrogative: ≤10 chars AND subject-initial (你/他/她/这/那)
   const shortIntPattern = textTrimmed.length <= 10 && /^[你他她这那]/.test(textTrimmed);
-  const isStructuralQ   = hasMa || endsWithQmark || shortIntPattern;
-  const isQuestion      = hasYouNe || hasMa || endsWithQmark || (hasQWord && isStructuralQ);
+  // Embedded question patterns — detected anywhere in the utterance so multi-clause
+  // inputs like "我现在在等你你是哪里人啊" are counted even without standalone structure.
+  const hasEmbeddedQ    = /你(是哪里人|从哪里来|老家在哪|做什么工作|去过哪里|喜欢[^，。！?？]{0,6}吗|家里有几|有没有家人)/.test(text);
+  const isStructuralQ   = hasMa || endsWithQmark || endsWithParticle || shortIntPattern;
+  const isQuestion      = hasYouNe || hasMa || endsWithQmark || hasEmbeddedQ
+                       || (hasQWord && isStructuralQ);
 
   if (isQuestion) {
     _tracker.questions_asked++;
     window._learnerObs.question_count++;
   }
 
-  // ── Depth markers (scorecard depth_responses counter — unchanged) ──────────
-  const DEPTH_MARKERS = ["因为", "所以", "觉得", "但是", "其实", "对我来说", "最喜欢", "想", "希望"];
-  if (DEPTH_MARKERS.some(m => text.includes(m))) _tracker.depth_responses++;
-
-  // ── Extended answer detection ──────────────────────────────────────────────
-  // "Extended" = carries temporal / relational / causal / quantitative context,
-  // or is long enough to contain meaningful extra information, or uses duration /
-  // comparison patterns that indicate the learner elaborated.
-  const EXTEND_MARKERS   = ["以前", "现在", "已经", "因为", "所以", "但是", "还", "和", "跟", "一起"];
-  // Duration: "20年", "二十年", "3个月" — Arabic or Chinese numeral + time unit
+  // ── Extended answer detection (unified for scorecard + ability summary) ────
+  // "Extended" = learner elaborated beyond a bare noun/verb phrase. Detected when:
+  //   a) ≥ 8 Chinese characters (multi-clause, noun expansion, correction patterns)
+  //   b) Causal/concessive/temporal marker (因为, 所以, 以前, 但是, …)
+  //   c) Repetition-based correction ("苏州我工作在苏州", "老师大学的老师")
+  //   d) Duration or comparison pattern
+  //
+  // Both _tracker.depth_responses (scorecard) and _learnerObs.extended_answer_count
+  // (ability summary) now use this single unified check.
+  const DEPTH_AND_EXTEND_MARKERS = [
+    "因为", "所以", "觉得", "但是", "其实", "对我来说", "最喜欢", "想", "希望",
+    "以前", "现在", "已经", "还", "和", "跟", "一起",
+  ];
   const COMPARISON_PAT   = /好多了|好很多|好一点|更好|比以前|进步|改善/;
-  const isExtended = text.length > 8
-                  || EXTEND_MARKERS.some(m => text.includes(m))
+  // Repetition: same 2-char Chinese span appears at least twice ("苏州…苏州", "老师…老师")
+  const REPETITION_PAT   = /(\S{2})\S*\1/;
+  const zhCharCount      = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+  const isExtended = zhCharCount >= 8
+                  || DEPTH_AND_EXTEND_MARKERS.some(m => text.includes(m))
                   || _DURATION_ANSWER_PAT.test(text)
-                  || COMPARISON_PAT.test(text);
-  if (isExtended) window._learnerObs.extended_answer_count++;
+                  || COMPARISON_PAT.test(text)
+                  || REPETITION_PAT.test(text);
+  if (isExtended) {
+    _tracker.depth_responses++;
+    window._learnerObs.extended_answer_count++;
+  }
 
-  // ── Recovery resilience ────────────────────────────────────────────────────
+  // ── Natural recovery tracking ──────────────────────────────────────────────
   // Count only when:
-  //   (a) the previous turn ended with a repair prompt, AND
-  //   (b) this submission differs from what was previously rejected
-  //       (identical retries are persistence, not resilience).
-  // Cleared after the first answer so the counter increments at most once
-  // per repair sequence.
+  //   (a) the previous turn ended with a repair prompt (rejection), AND
+  //   (b) this submission differs from the rejected text (not an identical retry).
+  // Also set _pendingNaturalRecovery so the server-response handler can credit a
+  // successful_recoveries increment when the re-attempt routes correctly.
   if (window._pendingRepairPrompt) {
     if (text !== (window._lastRepairSubmittedText || "")) {
       window._learnerObs.recovery_resilience_count++;
+      _tracker._pendingNaturalRecovery = true; // cleared in _runTurnInner on next response
     }
     window._pendingRepairPrompt      = false;
     window._lastRepairSubmittedText  = "";
@@ -276,8 +292,9 @@ if (typeof window._learnerObs === "undefined") window._learnerObs = {
   asr_rejections:           0,
   mirror_uses:              0,   // user clicked a mirror/user-led question
   question_count:           0,   // questions detected in any user text (typed or spoken)
-  extended_answer_count:    0,   // answers with length or connector markers
+  extended_answer_count:    0,   // answers with length or connector/repetition markers
   recovery_resilience_count: 0,  // times user answered again after a repair prompt
+  soft_unmatched_count:     0,   // partial-meaning rejections (partial Chinese, not routable)
 };
 if (typeof window._seededBridgeEngines  === "undefined") window._seededBridgeEngines   = [];
 if (typeof window._mediumProbeFiredEngines === "undefined") window._mediumProbeFiredEngines = [];
@@ -2491,6 +2508,19 @@ function isLexicalContentQuestion(transcript) {
   return false;
 }
 
+/**
+ * Classify a rejection as SOFT (partial meaning, partial Chinese) or HARD (no signal, noise).
+ * Used to weight unmatched responses in the stability scorecard.
+ *   HARD → counts fully in scorecard stability denominator
+ *   SOFT → counts at 0.5 weight (tracked separately; same UI display text)
+ */
+function _unmatchedFailLevel(transcript) {
+  const zhChars = ((transcript || "").match(/[\u4e00-\u9fff]/g) || []).length;
+  if (zhChars < 1) return "hard";                        // no Chinese at all — noise
+  if (zhChars <= 2 && !_detectSemanticCategory(transcript)) return "hard"; // minimal + no meaning
+  return "soft";                                         // partial meaning, understandable but not routable
+}
+
 function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmatchedCount) {
   const opts = Array.isArray(options) ? options : [];
   const hasStructuredSlots = opts.some((o) => (o?.kind || "").toUpperCase() === "FRAME_WITH_SLOTS");
@@ -2503,8 +2533,9 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
   // Linguistic confusion signal: learner echoes the frame's question word + "什么" to express
   // confusion ("哪里什么" = "what do you mean by 'where'?"). Reject so the not-understood path
   // fires with a targeted clarification rather than accepting and sending to the server.
+  // Always soft — learner clearly heard the frame, just didn't understand it.
   const _isLinguisticConfusion = /^(哪里什么|哪儿什么|什么哪里|什么哪儿|哪里啊什么|哪里啊)/i.test((transcript || "").trim());
-  if (_isLinguisticConfusion) return { accept: false, reason: "linguistic_confusion_signal" };
+  if (_isLinguisticConfusion) return { accept: false, reason: "linguistic_confusion_signal", fail_level: "soft" };
   if (opts.length === 0) return { accept: true, reason: "no_options" };
   if (semantic) return { accept: true, reason: "semantic_soft_match" };
   // Emotional vocabulary: feeling/enjoyment words are valid answers to "why/how" type frames
@@ -2521,9 +2552,11 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
   }
   if (openEnded && understandable) return { accept: true, reason: "open_ended_understandable" };
   if (hasStructuredSlots && understandable) return { accept: true, reason: "slot_frame_understandable" };
-  if (openEnded && !understandable) return { accept: false, reason: "open_ended_low_confidence" };
-  if (hasStructuredSlots && !understandable) return { accept: false, reason: "slot_frame_low_confidence" };
-  return { accept: false, reason: "closed_options_unmatched" };
+  // For explicit rejections, classify as soft or hard based on Chinese signal strength.
+  const _fl = _unmatchedFailLevel(transcript);
+  if (openEnded && !understandable) return { accept: false, reason: "open_ended_low_confidence", fail_level: _fl };
+  if (hasStructuredSlots && !understandable) return { accept: false, reason: "slot_frame_low_confidence", fail_level: _fl };
+  return { accept: false, reason: "closed_options_unmatched", fail_level: _fl };
 }
 
 /**
@@ -5049,7 +5082,7 @@ async function startFreshLearner() {
   window._learnerObs = { turns_observed: 0, hint_clicks: 0, word_clicks: 0,
                          recovery_uses: 0, successful_answers: 0, asr_rejections: 0,
                          mirror_uses: 0, question_count: 0, extended_answer_count: 0,
-                         recovery_resilience_count: 0 };
+                         recovery_resilience_count: 0, soft_unmatched_count: 0 };
   window._pendingRepairPrompt     = false;
   window._lastRepairSubmittedText = "";
 
@@ -5088,6 +5121,8 @@ async function startFreshLearner() {
   _tracker.questions_asked = 0;
   _tracker.depth_responses = 0;
   _tracker.unmatched_responses = 0;
+  _tracker.soft_unmatched_responses = 0;
+  _tracker._pendingNaturalRecovery = false;
   _tracker.engines_used = new Set();
   _tracker._pendingRecovery = false;
   _tracker.mode = _challenge.active ? "challenge" : "normal";
@@ -5310,7 +5345,13 @@ async function _runTurnInner(isNext = false, opts = {}) {
   //       dedicated "turn_accepted" field is confirmed in /api/run_turn responses.
   if (_tracker._pendingRecovery) {
     if (data.frame_id) _tracker.successful_recoveries++;
-    _tracker._pendingRecovery = false; // always clear regardless of outcome
+    _tracker._pendingRecovery = false;
+  }
+  // Natural recovery: learner re-attempted after a rejection (not via recovery panel).
+  // Credit a successful_recovery if the re-attempt was routed to a real frame.
+  if (_tracker._pendingNaturalRecovery) {
+    if (data.frame_id) _tracker.successful_recoveries++;
+    _tracker._pendingNaturalRecovery = false;
   }
   // ── end session tracker hooks ──
 
@@ -5924,8 +5965,14 @@ window.addEventListener("load", async () => {
       return;
     }
     // Not understood: update conversation with what we heard and partner's recovery (Phase 9: improve decision so reasonable answers aren't treated as not understood)
-    _tracker.unmatched_responses++;             // unmatchedDecision.accept === false
-    window._learnerObs.asr_rejections++;        // Phase L1 observation
+    // Route to hard-fail or soft-fail counter based on Chinese signal strength.
+    if ((unmatchedDecision.fail_level || "hard") === "soft") {
+      _tracker.soft_unmatched_responses++;
+      window._learnerObs.soft_unmatched_count++;
+    } else {
+      _tracker.unmatched_responses++;
+    }
+    window._learnerObs.asr_rejections++;        // Phase L1 observation (all rejections, regardless of level)
     window._pendingRepairPrompt     = true;          // next user text = recovery attempt (recovery_resilience_count)
     window._lastRepairSubmittedText = saidTrimmed;   // store rejected text so identical retries don't count
     const _frameRecShown = frameId ? (window._recoveryPromptsByFrame?.[frameId] || 0) : 0;
@@ -7141,8 +7188,9 @@ async function endSession() {
     card_opens:            t.card_opens,
     questions_asked:       t.questions_asked,
     depth_responses:       t.depth_responses,
-    unmatched_responses:   t.unmatched_responses,
-    engines_used:          Array.from(t.engines_used),
+    unmatched_responses:        t.unmatched_responses,
+    soft_unmatched_responses:   t.soft_unmatched_responses,
+    engines_used:               Array.from(t.engines_used),
   };
 
   let result = null;
