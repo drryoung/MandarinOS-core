@@ -1452,10 +1452,14 @@ def test_discovery_trigger_timing() -> None:
           "_persona_backed_topics(persona)" in src and "_trigger_proactive" in src)
 
     # ── E: recovery guard ────────────────────────────────────────────────────
-    check("T-DTT E1: proactive requires not _discovery_recent (rate-limit)",
-          "not _discovery_recent" in src and "_trigger_proactive" in src)
-    check("T-DTT E2: rate_limited debug reason present",
-          "rate_limited_shown_last_turn" in src)
+    # _discovery_recent removed from _trigger_proactive as a hard blocker
+    # (blue questions are now persistent); rate-limit guard is now handled by
+    # topic dedup in _build_discovery_pool instead.
+    check("T-DTT E1: _discovery_recent no longer blocks _trigger_proactive",
+          "not _discovery_recent" not in src[src.find("_trigger_proactive = ("):
+                                              src.find("_trigger_proactive = (") + 400])
+    check("T-DTT E2: _discovery_recent still read for debug tracing",
+          "_discovery_recent" in src)
 
     # ── F: post-trigger state tracking ──────────────────────────────────────
     check("T-DTT F1: last_persona_reveal written to state_update",
@@ -1961,8 +1965,8 @@ def test_location_distance_questions() -> None:
                                      srv_src.find("def _build_discovery_pool") + 400])
     check("T-LDQ C2: sort key uses boost_topics at priority 0",
           "0 if q.get(\"topic\") in boost_topics" in srv_src)
-    check("T-LDQ C3: sort key uses backed_topics at priority 1",
-          "1 if q.get(\"topic\") in backed_topics" in srv_src)
+    check("T-LDQ C3: sort key uses curiosity+backed at priority 1",
+          'q.get("curiosity")' in srv_src and 'q.get("topic") in backed_topics' in srv_src)
 
     # ── D: Call sites pass boost_topics ──────────────────────────────────────
     check("T-LDQ D1: _overseas_detected computed before blue panel paths",
@@ -2076,6 +2080,124 @@ def test_english_name_and_place_handling() -> None:
     print("✓  test_english_name_and_place_handling passed")
 
 
+def test_blue_question_reliability() -> None:
+    """Regression tests for persistent blue question availability (learner agency layer).
+
+    Root causes fixed:
+    1. _trigger_proactive had _discovery_recent as hard blocker — removed, allowing
+       blue questions on consecutive turns.
+    2. No fallback path when specialised paths 0-3 didn't fire — added Path 4
+       (persistent fallback) that generates questions when persona has backed topics.
+    3. Session-end discovery questions not generated — entire blue panel block was
+       inside `if payload.get("next_question")`. Added a separate session-end block.
+    4. Persona follow-up engine mismatch — Path 1 now switches engine to "place" or
+       "work" based on persona answer content keywords.
+    5. User-question tolerance — _is_user_question now detects 有什么特别, 有什么好吃,
+       elliptical questions like "喜欢吗/远吗", and short particle-ending follow-ups.
+    6. Client rendered max 2 blue questions, now 3.
+    7. isLexicalContentQuestion expanded for content-based questions.
+    8. Blue-question debug trace added to response.
+
+    Covers:
+    A  Persistent fallback (Path 4) exists in server
+    B  _discovery_recent removed from _trigger_proactive
+    C  Session-end blue questions generated outside next_question guard
+    D  Persona follow-up engine switching (place/work keywords)
+    E  User-question tolerance: 有什么特别, 喜欢吗, elliptical questions
+    F  Client renders up to 3 blue questions (not 2)
+    G  isLexicalContentQuestion expanded
+    H  Blue-question debug trace fields present
+    """
+    srv_src = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    js_src  = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+
+    # ── A: Persistent fallback (Path 4) ───────────────────────────────────
+    check("T-BQR A1: Path 4 persistent fallback block exists",
+          "persistent_fallback" in srv_src)
+    check("T-BQR A2: Path 4 generates discovery_questions",
+          'response["discovery_questions"] = _disc_pool[:3]' in srv_src)
+
+    # ── B: _discovery_recent removed from _trigger_proactive ──────────────
+    trig_idx = srv_src.find("_trigger_proactive = (")
+    assert trig_idx >= 0, "T-BQR B0: _trigger_proactive definition not found"
+    trig_block = srv_src[trig_idx: trig_idx + 400]
+    check("T-BQR B1: _discovery_recent NOT in _trigger_proactive",
+          "_discovery_recent" not in trig_block)
+    check("T-BQR B2: last_turn_was_answer still required in _trigger_proactive",
+          "last_turn_was_answer" in trig_block)
+    check("T-BQR B3: _persona_backed_topics still required in _trigger_proactive",
+          "_persona_backed_topics" in trig_block)
+
+    # ── C: Session-end blue questions ─────────────────────────────────────
+    check("T-BQR C1: session-end blue questions block exists",
+          "session_end_questions" in srv_src)
+    session_end_idx = srv_src.find("Session-end blue questions")
+    assert session_end_idx >= 0, "T-BQR C0: session-end comment not found"
+    se_block = srv_src[session_end_idx: session_end_idx + 1200]
+    check("T-BQR C2: session-end block checks not payload.get(\"next_question\")",
+          'not payload.get("next_question")' in se_block)
+    check("T-BQR C3: session-end block generates discovery_questions",
+          'response["discovery_questions"]' in se_block)
+
+    # ── D: Persona follow-up engine switching ─────────────────────────────
+    path1_idx = srv_src.find("Path 1: User asked a question AND persona replied")
+    assert path1_idx >= 0, "T-BQR D0: Path 1 comment not found"
+    path1_block = srv_src[path1_idx: path1_idx + 1200]
+    check('T-BQR D1: Path 1 checks _PERSONA_REVEAL_KEYWORDS for place engine switch',
+          "_PERSONA_REVEAL_KEYWORDS" in path1_block)
+    check('T-BQR D2: Path 1 checks work keywords for work engine switch',
+          '"work"' in path1_block)
+
+    # ── E: User-question tolerance in _is_user_question ───────────────────
+    uq_idx = srv_src.find("def _is_user_question")
+    assert uq_idx >= 0, "T-BQR E0: _is_user_question not found"
+    uq_block = srv_src[uq_idx: uq_idx + 2600]
+    check('T-BQR E1: 有什么 content-question marker detected',
+          "有什么" in uq_block)
+    check('T-BQR E2: 什么特别 marker detected',
+          "什么特别" in uq_block)
+    check('T-BQR E3: elliptical question with 啊 particle detected',
+          "啊" in uq_block)
+    check('T-BQR E4: 怎么样 marker detected',
+          "怎么样" in uq_block)
+
+    # ── F: Client renders up to 3 blue questions ──────────────────────────
+    check('T-BQR F1: client renders up to 3 discovery questions',
+          '_dq.slice(0, 3)' in js_src)
+    check('T-BQR F2: old 2-card limit removed',
+          '_dq.slice(0, 2)' not in js_src)
+
+    # ── G: isLexicalContentQuestion expanded ──────────────────────────────
+    lcq_idx = js_src.find("function isLexicalContentQuestion")
+    assert lcq_idx >= 0, "T-BQR G0: isLexicalContentQuestion not found"
+    lcq_block = js_src[lcq_idx: lcq_idx + 600]
+    check('T-BQR G1: 有什么特别 detected in isLexicalContentQuestion',
+          "有什么特别" in lcq_block)
+    check('T-BQR G2: 有什么好吃 detected in isLexicalContentQuestion',
+          "有什么好吃" in lcq_block)
+    check('T-BQR G3: 喜欢吗 detected in isLexicalContentQuestion',
+          "喜欢吗" in lcq_block)
+
+    # ── H: Blue-question debug trace ──────────────────────────────────────
+    check('T-BQR H1: blue_question_trace in response',
+          'blue_question_trace' in srv_src)
+    trace_idx = srv_src.find("blue_question_trace")
+    assert trace_idx >= 0, "T-BQR H0: blue_question_trace not found"
+    trace_block = srv_src[trace_idx: trace_idx + 1200]
+    check('T-BQR H2: blue_questions_rendered field in trace',
+          "blue_questions_rendered" in trace_block)
+    check('T-BQR H3: blue_questions_topics field in trace',
+          "blue_questions_topics" in trace_block)
+    check('T-BQR H4: blue_questions_source field in trace',
+          "blue_questions_source" in trace_block)
+    check('T-BQR H5: blue_questions_suppressed_reason field in trace',
+          "blue_questions_suppressed_reason" in trace_block)
+    check('T-BQR H6: persona_followup_available field in trace',
+          "persona_followup_available" in trace_block)
+
+    print("✓  test_blue_question_reliability passed")
+
+
 def main() -> None:
     static_only = "--static-only" in sys.argv
 
@@ -2101,6 +2223,7 @@ def main() -> None:
     test_targeted_bug_fixes()
     test_location_distance_questions()
     test_english_name_and_place_handling()
+    test_blue_question_reliability()
 
     # Integration tests — require a running server
     if static_only:

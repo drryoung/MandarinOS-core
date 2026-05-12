@@ -2323,6 +2323,16 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
         return True
     if text.endswith("吗") or ("吗" in text and len(text) <= 8):
         return True
+    # Content-based interrogatives: "有什么特别", "有什么好吃的", "有什么好玩" etc.
+    # Often asked without ？ or 吗 — e.g. "西安有什么特别啊", "这里有什么好吃的".
+    _content_q_markers = ("有什么", "什么特别", "什么好", "什么特色", "怎么样")
+    if any(m in text for m in _content_q_markers):
+        return True
+    # Elliptical question with sentence-final particles: "喜欢吗", "好吗", "远吗"
+    # (already caught by "吗" check above if 吗 present); also cover "啊", "呢" as
+    # question markers when the utterance is short enough to be a follow-up question.
+    if text.endswith(("呢", "啊", "啦")) and len(text) <= 10 and any(kw in text for kw in ("喜欢", "远", "好", "特别", "有趣")):
+        return True
     # Definition / paraphrase (火锅是什么 / 这个词什么意思)
     if "是什么" in text or "什么意思" in text or text.startswith("什么叫") or "指的是什么" in text:
         return True
@@ -3556,7 +3566,9 @@ def _build_discovery_pool(disc_eng: str,
             disc_pool.append(best_q)
     disc_pool.sort(key=lambda q: (
         0 if q.get("topic") in boost_topics else
-        (1 if q.get("topic") in backed_topics else 2)
+        (1 if q.get("curiosity") and q.get("topic") in backed_topics else
+         (2 if q.get("curiosity") else
+          (3 if q.get("topic") in backed_topics else 4)))
     ))
     seen_q_topics: set = set()
     deduped: list = []
@@ -6855,7 +6867,6 @@ class Handler(BaseHTTPRequestHandler):
                     last_turn_was_answer
                     and not user_asked_question
                     and not _counter_reply
-                    and not _discovery_recent
                     and bool(_persona_backed_topics(persona))
                     and (_prev_persona_reveal or _prev_consec_q >= 1)
                 )
@@ -6910,11 +6921,19 @@ class Handler(BaseHTTPRequestHandler):
 
                 # ── Path 1: User asked a question AND persona replied ──────────
                 # Show the full discovery pool so the learner can keep interviewing.
+                # Engine override: match the follow-up engine to what the persona just revealed.
                 elif user_asked_question and _counter_reply:
                     _disc_eng    = (current_engine or engine_id or "").strip().lower()
                     _backed_tpcs = _persona_backed_topics(persona)
                     _rich_engs   = _persona_rich_engines(persona)
-                    _disc_eng_p1 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
+                    _disc_eng_p1 = _disc_eng
+                    _reply_for_eng = (_counter_reply or "")
+                    if _overseas_detected and _disc_eng_p1 in ("identity",):
+                        _disc_eng_p1 = "place"
+                    elif any(kw in _reply_for_eng for kw in _PERSONA_REVEAL_KEYWORDS[:15]):
+                        _disc_eng_p1 = "place"
+                    elif any(kw in _reply_for_eng for kw in ("教书", "教学", "老师", "工作", "退休", "上班", "公司")):
+                        _disc_eng_p1 = "work"
                     _disc_pool   = _build_discovery_pool(_disc_eng_p1, _backed_tpcs, _rich_engs, _seen_topics_disc, boost_topics=_dist_boost)
 
                     if _disc_pool:
@@ -6971,19 +6990,37 @@ class Handler(BaseHTTPRequestHandler):
                         _reason = "no_reciprocal_mapping" if _last_pf else "no_last_partner_frame"
                         print(f"[blue_panel_debug] NOT SHOWN | reason={_reason} | frame={_last_pf!r}")
 
+                # ── Path 4: Persistent fallback — always-available learner agency ──
+                # Blue questions are not an occasional bonus; they are the primary
+                # learner-agency layer. If none of the specialised paths above fired,
+                # still generate a small set of relevant questions.
                 else:
-                    # None of the paths fired — explain why in debug log
-                    if not last_turn_was_answer:
-                        _dbg_reason = "not_an_answer_turn"
-                    elif user_asked_question and not _counter_reply:
-                        _dbg_reason = "user_asked_question_but_no_counter_reply"
-                    elif _discovery_recent:
-                        _dbg_reason = "rate_limited_shown_last_turn"
-                    elif not _persona_backed_topics(persona):
-                        _dbg_reason = "no_persona_backed_topics"
+                    _has_backed = bool(_persona_backed_topics(persona))
+                    if _has_backed:
+                        _disc_eng    = (current_engine or engine_id or "").strip().lower()
+                        _backed_tpcs = _persona_backed_topics(persona)
+                        _rich_engs   = _persona_rich_engines(persona)
+                        _disc_eng_p4 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
+                        _disc_pool   = _build_discovery_pool(_disc_eng_p4, _backed_tpcs, _rich_engs, _seen_topics_disc, boost_topics=_dist_boost)
+                        if _disc_pool:
+                            response["discovery_questions"] = _disc_pool[:3]
+                            response["user_led"] = True
+                            _shown_topics = [q.get("topic") for q in _disc_pool[:3] if q.get("topic")]
+                            response.setdefault("state_update", {})["recently_seen_disc_topics"] = _shown_topics
+                            _dbg_reason = "persistent_fallback"
+                            print(f"[blue_panel_debug] SHOWN ({_dbg_reason}) | engine={_disc_eng!r} | {len(_disc_pool[:3])} card(s)")
+                        else:
+                            print(f"[blue_panel_debug] NOT SHOWN (persistent_fallback) | reason=empty_pool")
                     else:
-                        _dbg_reason = "no_trigger_condition_met"
-                    print(f"[blue_panel_debug] NOT SHOWN | reason={_dbg_reason}")
+                        if not last_turn_was_answer:
+                            _dbg_reason = "not_an_answer_turn"
+                        elif user_asked_question and not _counter_reply:
+                            _dbg_reason = "user_asked_question_but_no_counter_reply"
+                        elif not _has_backed:
+                            _dbg_reason = "no_persona_backed_topics"
+                        else:
+                            _dbg_reason = "no_trigger_condition_met"
+                        print(f"[blue_panel_debug] NOT SHOWN | reason={_dbg_reason}")
 
                 # ── Post-trigger state tracking ────────────────────────────────
                 # Always record for next turn, regardless of which path fired.
@@ -6995,6 +7032,29 @@ class Handler(BaseHTTPRequestHandler):
                 # Reset consecutive question count when learner asked or discovery shown
                 if "consecutive_app_questions" not in _su:
                     _su["consecutive_app_questions"] = 0 if bool(response.get("user_led")) else _consec_q_next
+
+                # ── Blue-question debug trace (exposed in response) ──────────
+                _dq_rendered = response.get("discovery_questions") or []
+                response["blue_question_trace"] = {
+                    "blue_questions_rendered":          len(_dq_rendered),
+                    "blue_questions_topics":            [q.get("topic", "") for q in _dq_rendered],
+                    "blue_questions_source":            (
+                        "confusion_clarification" if (_confusion_about_app_q and bool(_dq_rendered)) else
+                        "learner_asked" if (user_asked_question and _counter_reply and bool(_dq_rendered)) else
+                        "proactive" if (_trigger_proactive and bool(_dq_rendered)) else
+                        "reciprocal" if (bool(_dq_rendered) and len(_dq_rendered) == 1) else
+                        "persistent_fallback" if bool(_dq_rendered) else
+                        "none"
+                    ),
+                    "blue_questions_suppressed_reason": (
+                        None if bool(_dq_rendered) else
+                        "no_persona_backed_topics" if not bool(_persona_backed_topics(persona)) else
+                        "empty_pool"
+                    ),
+                    "persona_followup_available":       bool(_this_persona_reveal),
+                    "consecutive_app_questions":        _consec_q_next,
+                    "overseas_detected":                _overseas_detected,
+                }
 
             # Phase 10.5: blended reciprocity injection early (prefer answer + 你呢？)
             if payload.get("next_question") and isinstance(payload.get("conversation_state"), dict):
@@ -7184,6 +7244,26 @@ class Handler(BaseHTTPRequestHandler):
                                         _lm_save(_p11c_learner_id, _pmem)
                                     except Exception:
                                         pass
+
+            # ── Session-end blue questions ─────────────────────────────────
+            # When the session is complete (no next_question), still generate
+            # discovery questions so the learner has agency prompts for "next time."
+            if not payload.get("next_question") and not response.get("discovery_questions"):
+                _cs_end = payload.get("conversation_state") if isinstance(payload.get("conversation_state"), dict) else {}
+                _partner_id_end = _cs_end.get("partner_id") or payload.get("partner_id") or ""
+                _persona_end = _resolve_persona(_partner_id_end) if _partner_id_end else None
+                if _persona_end and _persona_backed_topics(_persona_end):
+                    _backed_end = _persona_backed_topics(_persona_end)
+                    _rich_end   = _persona_rich_engines(_persona_end)
+                    _seen_end: set = set(_cs_end.get("recently_seen_disc_topics") or [])
+                    _disc_pool_end = _build_discovery_pool("place", _backed_end, _rich_end, _seen_end)
+                    if _disc_pool_end:
+                        response["discovery_questions"] = _disc_pool_end[:3]
+                        response["user_led"] = True
+                        response["session_end_questions"] = True
+                        print(f"[blue_panel_debug] SHOWN (session_end) | {len(_disc_pool_end[:3])} card(s)")
+                    else:
+                        print("[blue_panel_debug] NOT SHOWN (session_end) | reason=empty_pool")
 
             data = json.dumps(response, ensure_ascii=False).encode("utf-8")
             self.send_response(200)

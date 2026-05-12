@@ -1,11 +1,11 @@
 {
-  "schema_version": "1.1",
-  "description": "Questions the learner can ask the persona in reverse/mirror mode. Keyed by engine. Adding a new question here is all that is required — no server code change needed. 'paraphrases' lists keyword groups for fuzzy matching of typed variants (all keywords in a group must appear in the input).",
+  "schema_version": "1.2",
+  "description": "Questions the learner can ask the persona in reverse/mirror mode. Keyed by engine. Adding a new question here is all that is required — no server code change needed. 'paraphrases' lists keyword groups for fuzzy matching of typed variants (all keywords in a group must appear in the input). 'curiosity': true marks oxygen/depth questions (why/how/who/when) that should be prioritised in the blue panel.",
   "by_engine": {
     "identity": [
       {
         "zh": "你的名字是什么意思？", "py": "nǐ de míngzi shì shénme yìsi?", "en": "What does your name mean?",
-        "kind": "SENTENCE", "topic": "name_meaning", "mirror_frame": "f_ask_name_meaning",
+        "kind": "SENTENCE", "topic": "name_meaning", "mirror_frame": "f_ask_name_meaning", "curiosity": true,
         "paraphrases": [
           ["你的名字", "意思"],
           ["名字", "意思"]
@@ -13,11 +13,11 @@
       },
       {
         "zh": "谁给你取的名字？", "py": "shéi gěi nǐ qǔ de míngzi?", "en": "Who gave you your name?",
-        "kind": "SENTENCE", "topic": "name_giver"
+        "kind": "SENTENCE", "topic": "name_giver", "curiosity": true
       },
       {
         "zh": "名字背后有什么故事吗？", "py": "míngzi bèihòu yǒu shénme gùshi ma?", "en": "Is there a story behind your name?",
-        "kind": "SENTENCE", "topic": "name_story",
+        "kind": "SENTENCE", "topic": "name_story", "curiosity": true,
         "paraphrases": [
           ["名字", "故事"],
           ["名字", "来历"],
@@ -32,7 +32,7 @@
     "food": [
       {
         "zh": "你最喜欢吃什么？", "py": "nǐ zuì xǐhuān chī shénme?", "en": "What do you like to eat most?",
-        "kind": "SENTENCE", "topic": "food_fav",
+        "kind": "SENTENCE", "topic": "food_fav", "curiosity": true,
         "paraphrases": [
           ["你", "吃", "什么"],
           ["你", "喜欢吃"]
@@ -40,7 +40,7 @@
       },
       {
         "zh": "你家乡有什么好吃的？", "py": "nǐ jiāxiāng yǒu shénme hǎochī de?", "en": "What good food does your hometown have?",
-        "kind": "SENTENCE", "topic": "food_local",
+        "kind": "SENTENCE", "topic": "food_local", "curiosity": true,
         "paraphrases": [
           ["家乡", "好吃"],
           ["家乡", "吃"]
@@ -49,6 +49,14 @@
       {
         "zh": "你喜欢吃辣吗？", "py": "nǐ xǐhuān chī là ma?", "en": "Do you like spicy food?",
         "kind": "SENTENCE", "topic": "food_spicy"
+      },
+      {
+        "zh": "为什么喜欢这道菜？", "py": "wèishénme xǐhuān zhè dào cài?", "en": "Why do you like this dish?",
+        "kind": "SENTENCE", "topic": "food_why_like", "curiosity": true
+      },
+      {
+        "zh": "你会自己做吗？", "py": "nǐ huì zìjǐ zuò ma?", "en": "Do you cook it yourself?",
+        "kind": "SENTENCE", "topic": "food_cook", "curiosity": true
       }
     ],
     "place": [
@@ -62,11 +70,15 @@
       },
       {
         "zh": "那里有什么特别的？", "py": "nàlǐ yǒu shénme tèbié de?", "en": "What's special about that place?",
-        "kind": "SENTENCE", "topic": "place_special",
+        "kind": "SENTENCE", "topic": "place_special", "curiosity": true,
         "paraphrases": [
           ["那里", "特别"],
           ["有什么特色"]
         ]
+      },
+      {
+        "zh": "你为什么喜欢那里？", "py": "nǐ wèishénme xǐhuān nàlǐ?", "en": "Why do you like it there?",
+        "kind": "SENTENCE", "topic": "place_why_like", "curiosity": true
       },
       {
         "zh": "你喜欢你的家乡吗？", "py": "nǐ xǐhuān nǐ de jiāxiāng ma?", "en": "Do you like your hometown?",
@@ -79,6 +91,14 @@
       {
         "zh": "你喜欢在那里生活吗？", "py": "nǐ xǐhuān zài nàlǐ shēnghuó ma?", "en": "Do you enjoy living there?",
         "kind": "SENTENCE", "topic": "place_like"
+      },
+      {
+        "zh": "那里有什么好吃的？", "py": "nàlǐ yǒu shénme hǎochī de?", "en": "What's good to eat there?",
+        "kind": "SENTENCE", "topic": "place_food", "curiosity": true
+      },
+      {
+        "zh": "你现在还住在那里吗？", "py": "nǐ xiànzài hái zhù zài nàlǐ ma?", "en": "Do you still live there now?",
+        "kind": "SENTENCE", "topic": "place_still_live", "curiosity": true
       },
       {
         "zh": "离那儿远吗？", "py": "lí nàr yuǎn ma?", "en": "Is it far from there?",
@@ -106,7 +126,7 @@
       },
       {
         "zh": "从你那儿到那边要多久？", "py": "cóng nǐ nàr dào nàbiān yào duō jiǔ?", "en": "How long does it take to get there?",
-        "kind": "SENTENCE", "topic": "place_distance_time",
+        "kind": "SENTENCE", "topic": "place_distance_time", "curiosity": true,
         "paraphrases": [
           ["多久", "到"],
           ["要多久"]
@@ -114,7 +134,7 @@
       },
       {
         "zh": "一般怎么去？", "py": "yìbān zěnme qù?", "en": "How do you usually get there?",
-        "kind": "SENTENCE", "topic": "place_distance_transport",
+        "kind": "SENTENCE", "topic": "place_distance_transport", "curiosity": true,
         "paraphrases": [
           ["怎么去"],
           ["坐什么去"]
@@ -128,7 +148,7 @@
       },
       {
         "zh": "最难忘的旅行是哪次？", "py": "zuì nánwàng de lǚxíng shì nǎ cì?", "en": "What's your most memorable trip?",
-        "kind": "SENTENCE", "topic": "travel_memorable",
+        "kind": "SENTENCE", "topic": "travel_memorable", "curiosity": true,
         "paraphrases": [
           ["最难忘"],
           ["难忘", "旅行"]
@@ -136,7 +156,15 @@
       },
       {
         "zh": "你最喜欢哪个地方？", "py": "nǐ zuì xǐhuān nǎ ge dìfāng?", "en": "Which place do you like most?",
-        "kind": "SENTENCE", "topic": "travel_fav"
+        "kind": "SENTENCE", "topic": "travel_fav", "curiosity": true
+      },
+      {
+        "zh": "为什么喜欢那个地方？", "py": "wèishénme xǐhuān nàge dìfāng?", "en": "Why do you like that place?",
+        "kind": "SENTENCE", "topic": "travel_why_fav", "curiosity": true
+      },
+      {
+        "zh": "下次想去哪里？", "py": "xià cì xiǎng qù nǎlǐ?", "en": "Where do you want to go next?",
+        "kind": "SENTENCE", "topic": "travel_next", "curiosity": true
       }
     ],
     "work": [
@@ -148,13 +176,29 @@
         ]
       },
       {
+        "zh": "你喜欢你的工作吗？", "py": "nǐ xǐhuān nǐ de gōngzuò ma?", "en": "Do you like your work?",
+        "kind": "SENTENCE", "topic": "work_like", "curiosity": true
+      },
+      {
+        "zh": "为什么当老师？", "py": "wèishénme dāng lǎoshī?", "en": "Why did you become a teacher?",
+        "kind": "SENTENCE", "topic": "work_why", "curiosity": true
+      },
+      {
         "zh": "你做这份工作多久了？", "py": "nǐ zuò zhèfèn gōngzuò duōjiǔ le?", "en": "How long have you been doing this?",
-        "kind": "SENTENCE", "topic": "work_duration",
+        "kind": "SENTENCE", "topic": "work_duration", "curiosity": true,
         "paraphrases": [
           ["工作", "多久"],
           ["做", "工作", "多久"],
           ["这份工作", "多久"]
         ]
+      },
+      {
+        "zh": "工作中最有趣的是什么？", "py": "gōngzuò zhōng zuì yǒuqù de shì shénme?", "en": "What's most interesting about your work?",
+        "kind": "SENTENCE", "topic": "work_interesting", "curiosity": true
+      },
+      {
+        "zh": "学生怎么样？", "py": "xuéshēng zěnmeyàng?", "en": "How are the students?",
+        "kind": "SENTENCE", "topic": "work_students", "curiosity": true
       },
       {
         "zh": "你在哪里分享你的作品？", "py": "nǐ zài nǎlǐ fēnxiǎng nǐ de zuòpǐn?", "en": "Where do you share your work?",
@@ -163,10 +207,6 @@
           ["哪里", "分享"],
           ["哪个", "平台"]
         ]
-      },
-      {
-        "zh": "你喜欢你的工作吗？", "py": "nǐ xǐhuān nǐ de gōngzuò ma?", "en": "Do you like your work?",
-        "kind": "SENTENCE", "topic": "work_like"
       }
     ],
     "family": [
@@ -197,6 +237,10 @@
       {
         "zh": "你有孩子吗？", "py": "nǐ yǒu háizi ma?", "en": "Do you have children?",
         "kind": "SENTENCE", "topic": "children", "mirror_frame": "f_have_children"
+      },
+      {
+        "zh": "你们周末一般一起做什么？", "py": "nǐmen zhōumò yìbān yīqǐ zuò shénme?", "en": "What do you usually do together on weekends?",
+        "kind": "SENTENCE", "topic": "family_weekend", "curiosity": true
       }
     ],
     "hobby": [
@@ -210,13 +254,21 @@
       },
       {
         "zh": "你玩这个多久了？", "py": "nǐ wán zhège duōjiǔ le?", "en": "How long have you been doing that?",
-        "kind": "SENTENCE", "topic": "hobby_duration",
+        "kind": "SENTENCE", "topic": "hobby_duration", "curiosity": true,
         "paraphrases": [
           ["多久", "爱好"],
           ["玩", "多久"],
           ["学", "多久"],
           ["练", "多久"]
         ]
+      },
+      {
+        "zh": "为什么喜欢？", "py": "wèishénme xǐhuān?", "en": "Why do you like it?",
+        "kind": "SENTENCE", "topic": "hobby_why", "curiosity": true
+      },
+      {
+        "zh": "怎么开始的？", "py": "zěnme kāishǐ de?", "en": "How did you get started?",
+        "kind": "SENTENCE", "topic": "hobby_how_started", "curiosity": true
       }
     ]
   }

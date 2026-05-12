@@ -2523,6 +2523,9 @@ function isLexicalContentQuestion(transcript) {
   if (!s) return false;
   if (/(是什么|什么意思|什么意思啊|什么意思呢|什么叫|指的是什么)/.test(s)) return true;
   if (/新西兰/.test(s) && /(哪里|最有|最好|好玩|有趣|特别)/.test(s)) return true;
+  if (/(有什么特别|有什么好吃|有什么好玩|有什么特色|有什么有意思)/.test(s)) return true;
+  if (/(怎么样啊|怎么样呢)/.test(s)) return true;
+  if (/喜欢吗|远吗|好吗/.test(s) && s.length <= 12) return true;
   return false;
 }
 
@@ -5529,7 +5532,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
       pinyin: fillSentenceHintPinyin(fallbackText.trim(), data.frame_pinyin || ""),
       frame_id: frameId,
     };
-    renderDiscoveryPanel(_dq.slice(0, 2), fallbackText);
+    renderDiscoveryPanel(_dq.slice(0, 3), fallbackText);
   } else {
     hideDiscoveryPanel();
     window._pendingFrameText = null;
