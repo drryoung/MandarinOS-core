@@ -281,6 +281,13 @@ if (typeof window._loopCountInEngine    === "undefined") window._loopCountInEngi
 if (typeof window._enginesVisited       === "undefined") window._enginesVisited        = ["identity"];
 if (typeof window._recentConfusionCount === "undefined") window._recentConfusionCount  = 0;
 if (typeof window._repairAttemptCount   === "undefined") window._repairAttemptCount   = 0;
+// Discovery/blue-panel state — round-tripped from server state_update so proactive
+// triggers accumulate correctly across turns.
+if (typeof window._discoveryShownLastTurn    === "undefined") window._discoveryShownLastTurn    = false;
+if (typeof window._consecutiveAppQuestions   === "undefined") window._consecutiveAppQuestions   = 0;
+if (typeof window._lastPersonaReveal         === "undefined") window._lastPersonaReveal         = false;
+if (typeof window._recentlySeenDiscTopics    === "undefined") window._recentlySeenDiscTopics    = [];
+if (typeof window._lastPartnerFrameText      === "undefined") window._lastPartnerFrameText      = "";
 // Phase L1: learner observation counters — observation only, no behavior changes.
 // Reset on startFreshLearner. Updated from signal hooks throughout app.js.
 if (typeof window._learnerObs === "undefined") window._learnerObs = {
@@ -2206,7 +2213,7 @@ function isOpenEndedFrame(frameId) {
     "f_ask_you_name", "p2_id_2", "p2_id_4", "p2_id_5", "f_ask_name_meaning",
     "f_id_friends_call", "f_probe_id_nickname", "f_name_story", "f_name_story_elicit", "f_how_old",
     // Place — life-quality, local character, leisure, and travel questions are all open
-    "f_from_where", "frame.location.live_question",
+    "f_from_where", "frame.location.live_question", "f_live_where", "f_home_where",
     "f_place_why_like", "f_place_like_there",
     "f_probe_place_miss", "f_probe_place_moved", "f_probe_place_stay", "f_probe_place_why_move",
     "f_place_travel",  // 你会去别的地方吗？ — any destination answer is valid
@@ -2239,11 +2246,16 @@ function isOpenEndedFrame(frameId) {
   ]).has(fid);
 }
 
-/** Frames where learners often give foreign place names (Christchurch, Auckland) — Latin-heavy text is valid. */
+/** Frames where learners often give foreign place names (Christchurch, Auckland, Dunedin) — Latin-heavy text is valid.
+ *  f_live_where  = "你现在住哪里？"  (p2_frames.json)
+ *  f_home_where  = "你老家在哪儿？"  (p2_frames.json)
+ *  Both were previously missing, causing "我住在 Dunedin" to fail the latinCount veto. */
 const _MIXED_SCRIPT_PLACE_FRAMES = new Set([
   "frame.location.live_question",
   "p2_pl_ext1",
   "f_from_where",
+  "f_live_where",
+  "f_home_where",
 ]);
 
 /** Partner asked how others address the learner — includes legacy p2_id_2 wording. */
@@ -2328,15 +2340,20 @@ function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
 function _detectSemanticCategory(text) {
   const t = (text || "").trim();
   if (!t) return null;
-  if (/我叫|名字|英文名|[A-Za-z]{3,}/.test(t)) return "name";
+  if (/我叫|名字|英文名/.test(t)) return "name";
   if (/吃|喜欢吃|牛肉|羊肉|好吃|食物/.test(t)) return "food";
   if (_DURATION_ANSWER_PAT.test(t) || /很多年|几年|很久/.test(t)) return "duration";
   if (/身体|健康|好多了|好很多|好一点|不好|生病|康复/.test(t)) return "family_health";
-  if (/爸爸|妈妈|太太|家人|老婆|父母|家里|爱人|老公/.test(t)) return "family";
+  if (/爸爸|妈妈|太太|家人|老婆|父母|家里|爱人|老公|女儿|儿子|孩子/.test(t)) return "family";
   if (/退休|以前.*工作|以前是|做.*工作/.test(t)) return "work_status";
-  if (/住在|搬到|搬来/.test(t)) return "location";
-  // "哪里什么" / "哪儿什么" — learner confused about a location prompt → treat as location
+  // "我住在 Dunedin" / "我来自 Dunedin" must return "location" — checked before the
+  // Latin-token catch-all below so the place context wins over the script heuristic.
+  // "来自" added alongside 住在/搬到/搬来 to cover origin phrasing.
+  if (/住在|搬到|搬来|来自/.test(t)) return "location";
   if (/^哪里|^哪儿/.test(t)) return "location";
+  // Latin token alone (no Chinese location/food/family context matched above) — treat
+  // as a name attempt, e.g. "Raymond" typed on its own.
+  if (/[A-Za-z]{3,}/.test(t)) return "name";
   return null;
 }
 
@@ -2450,9 +2467,10 @@ function semanticSoftMatch(transcript, frameId) {
   }
   // Family member / living-with frames: accept any answer naming a family relationship.
   // Covers: "爸爸妈妈老婆", "我老婆", "家里人", "我和父母", "妻子孩子" etc.
+  // f_have_children included: "孩子呢你有孩子吗" / "我有两个孩子" are valid answers.
   const _FAMILY_MEMBER_FRAMES = new Set([
     "f_live_with_who", "p2_fa_live_with", "f_probe_family_closest", "f_probe_family_together",
-    "f_probe_family_influence",
+    "f_probe_family_influence", "f_have_children",
   ]);
   if (_FAMILY_MEMBER_FRAMES.has(fid)) {
     if (/(老婆|妻子|老公|丈夫|先生|爱人|妈妈|爸爸|母亲|父亲|父母|哥哥|弟弟|姐姐|妹妹|儿子|女儿|孩子|家人|家里|爷爷|奶奶|外公|外婆)/.test(t)) return true;
@@ -2530,6 +2548,17 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
   // Learner skip signal: "我不懂" / "不明白" → advance gracefully without repair loop
   if (/不懂|不明白/.test(transcript || "")) return { accept: true, reason: "learner_skip_signal" };
   if (isLexicalContentQuestion(transcript)) return { accept: true, reason: "lexical_content_question" };
+  // Learner counter-question to persona: contains 你+吗 = direct question regardless of frame.
+  // E.g. "孩子呢你有孩子吗", "你结婚了吗", "你在哪里工作吗".  Always send to server.
+  if (/你/.test(transcript || "") && /吗/.test(transcript || ""))
+    return { accept: true, reason: "learner_counter_question" };
+  // Family-member question: learner asking about persona's family member (no 你/吗 required).
+  // E.g. "女儿做什么工作啊", "孩子多大了", "儿子在哪里上班".
+  const _hasFamilyMemberQ = (
+    /(女儿|儿子|孩子|太太|老婆|先生|老公|爸爸|妈妈|父母)/.test(transcript || "") &&
+    /(做什么|工作|在哪|哪里|上班|上学|多大|几岁|结婚|有没有|怎么样)/.test(transcript || "")
+  );
+  if (_hasFamilyMemberQ) return { accept: true, reason: "family_member_question" };
   // Linguistic confusion signal: learner echoes the frame's question word + "什么" to express
   // confusion ("哪里什么" = "what do you mean by 'where'?"). Reject so the not-understood path
   // fires with a targeted clarification rather than accepting and sending to the server.
@@ -5085,6 +5114,12 @@ async function startFreshLearner() {
                          recovery_resilience_count: 0, soft_unmatched_count: 0 };
   window._pendingRepairPrompt     = false;
   window._lastRepairSubmittedText = "";
+  // Discovery/blue-panel state reset
+  window._discoveryShownLastTurn  = false;
+  window._consecutiveAppQuestions = 0;
+  window._lastPersonaReveal       = false;
+  window._recentlySeenDiscTopics  = [];
+  window._lastPartnerFrameText    = "";
 
   // Clear the "Remembered:" facts banner
   _renderMemoryBanner({});
@@ -5186,6 +5221,12 @@ async function _runTurnInner(isNext = false, opts = {}) {
       // EFC: entity follow-up chain state — round-tripped so server can continue the chain
       efc_entity: window._efcEntity || null,
       efc_depth:  window._efcDepth  || 0,
+      // Discovery/blue-panel state — round-tripped so proactive trigger can accumulate
+      discovery_shown_last_turn:  window._discoveryShownLastTurn === true,
+      consecutive_app_questions:  window._consecutiveAppQuestions || 0,
+      last_persona_reveal:        window._lastPersonaReveal === true,
+      recently_seen_disc_topics:  Array.isArray(window._recentlySeenDiscTopics) ? window._recentlySeenDiscTopics : [],
+      last_partner_frame_text:    window._lastPartnerFrameText || "",
     };
     if (window._learnerId) conversation_state.learner_id = window._learnerId;
     // Use the UI-selected partner (Phase 11C) as the persona_id for name/stub resolution.
@@ -5378,6 +5419,17 @@ async function _runTurnInner(isNext = false, opts = {}) {
       window._efcDepth = data.state_update.efc_depth;
     if (data.state_update.repair_attempt_count !== undefined)
       window._repairAttemptCount = data.state_update.repair_attempt_count;
+    // Discovery/blue-panel state — must be round-tripped so server accumulates correctly
+    if (data.state_update.discovery_shown_last_turn !== undefined)
+      window._discoveryShownLastTurn = !!data.state_update.discovery_shown_last_turn;
+    if (typeof data.state_update.consecutive_app_questions === "number")
+      window._consecutiveAppQuestions = data.state_update.consecutive_app_questions;
+    if (data.state_update.last_persona_reveal !== undefined)
+      window._lastPersonaReveal = !!data.state_update.last_persona_reveal;
+    if (Array.isArray(data.state_update.recently_seen_disc_topics))
+      window._recentlySeenDiscTopics = data.state_update.recently_seen_disc_topics;
+    if (typeof data.state_update.last_partner_frame_text === "string")
+      window._lastPartnerFrameText = data.state_update.last_partner_frame_text;
   }
   if (Array.isArray(window._recentFrameIds)) {
     window._recentFrameIds.push(frameId);

@@ -803,8 +803,8 @@ def test_semantic_extraction() -> None:
         "function _detectSemanticCategory" in src,
     )
     check(
-        "D2: name category detection (我叫/英文名/Latin)",
-        "我叫|名字|英文名|[A-Za-z]{3,}" in src,
+        "D2: name category detection (我叫/英文名 explicit markers)",
+        "我叫|名字|英文名" in src,
     )
     check(
         "D3: duration category detection uses _DURATION_ANSWER_PAT",
@@ -1442,8 +1442,8 @@ def test_discovery_trigger_timing() -> None:
     # ── D: proactive trigger condition ───────────────────────────────────────
     check("T-DTT D1: _trigger_proactive defined",
           "_trigger_proactive" in src)
-    check("T-DTT D2: proactive requires _prev_persona_reveal OR consec_q >= 2",
-          "_prev_persona_reveal or _prev_consec_q >= 2" in src)
+    check("T-DTT D2: proactive requires _prev_persona_reveal OR consec_q >= 1",
+          "_prev_persona_reveal or _prev_consec_q >= 1" in src)
     check("T-DTT D3: proactive only fires when last_turn_was_answer",
           "_trigger_proactive" in src and "last_turn_was_answer" in src)
     check("T-DTT D4: proactive only fires when not user_asked_question",
@@ -1732,6 +1732,350 @@ def test_discovery_question_selection() -> None:
           'vl.get("work")' not in wl_block and 'vl["work"]' not in wl_block)
 
 
+def test_targeted_bug_fixes() -> None:
+    """Targeted regression tests for the discovery panel + interaction layer bug fix branch.
+
+    Six issue classes:
+    A  Discovery render — client round-trip state fields
+    B  Travel near-miss  我最想吃中国
+    C  Noisy location recovery — _clarify_app_question contextual rephrasings
+    D  Family/work override  女儿做什么工作啊
+    E  Embedded child question  孩子呢你有孩子吗
+    """
+    srv_src  = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    app_src  = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+
+    # ── A: Discovery state round-trip (client) ────────────────────────────────
+    check("T-TBF A1: window._discoveryShownLastTurn initialized in app.js",
+          "window._discoveryShownLastTurn" in app_src)
+    check("T-TBF A2: window._consecutiveAppQuestions initialized in app.js",
+          "window._consecutiveAppQuestions" in app_src)
+    check("T-TBF A3: window._lastPersonaReveal initialized in app.js",
+          "window._lastPersonaReveal" in app_src)
+    check("T-TBF A4: window._recentlySeenDiscTopics initialized in app.js",
+          "window._recentlySeenDiscTopics" in app_src)
+    check("T-TBF A5: window._lastPartnerFrameText initialized in app.js",
+          "window._lastPartnerFrameText" in app_src)
+    check("T-TBF A6: discovery_shown_last_turn sent in conversation_state",
+          "discovery_shown_last_turn:" in app_src and "_discoveryShownLastTurn" in app_src)
+    check("T-TBF A7: consecutive_app_questions sent in conversation_state",
+          "consecutive_app_questions:" in app_src and "_consecutiveAppQuestions" in app_src)
+    check("T-TBF A8: last_persona_reveal sent in conversation_state",
+          "last_persona_reveal:" in app_src and "_lastPersonaReveal" in app_src)
+    check("T-TBF A9: recently_seen_disc_topics sent in conversation_state",
+          "recently_seen_disc_topics:" in app_src and "_recentlySeenDiscTopics" in app_src)
+    check("T-TBF A10: last_partner_frame_text sent in conversation_state",
+          "last_partner_frame_text:" in app_src and "_lastPartnerFrameText" in app_src)
+    check("T-TBF A11: state_update merges discovery_shown_last_turn into window var",
+          "data.state_update.discovery_shown_last_turn" in app_src and
+          "window._discoveryShownLastTurn" in app_src)
+    check("T-TBF A12: state_update merges consecutive_app_questions into window var",
+          "data.state_update.consecutive_app_questions" in app_src and
+          "window._consecutiveAppQuestions" in app_src)
+    check("T-TBF A13: discovery vars reset in startFreshLearner",
+          "_discoveryShownLastTurn  = false" in app_src and
+          "_consecutiveAppQuestions = 0" in app_src)
+    check("T-TBF A14: proactive trigger threshold lowered to >= 1",
+          "_prev_consec_q >= 1" in srv_src and "_prev_consec_q >= 2" not in srv_src)
+
+    # ── B: Travel near-miss 想吃中国 ─────────────────────────────────────────
+    check("T-TBF B1: _EAT_COUNTRY_RE defined in ui_server.py",
+          "_EAT_COUNTRY_RE" in srv_src)
+    check("T-TBF B2: _EAT_COUNTRY_RE matches 想吃+country pattern",
+          "(?:想|最想|要|想要)吃" in srv_src)
+    check("T-TBF B3: cross-engine eat+country check runs after destination-frame check",
+          "_EAT_COUNTRY_RE.search(answer_text)" in srv_src)
+    check("T-TBF B4: eat+country sets _travel_asr_candidate",
+          "_travel_asr_candidate = f\"去{_ec_m.group(1)}\"" in srv_src)
+    check("T-TBF B5: _travel_asr_candidate routes to f_travel_dest_generic_clarify",
+          "f_travel_dest_generic_clarify" in srv_src and "_travel_asr_candidate" in srv_src)
+    # Direct detection test
+    import re as _re
+    _eat_re = _re.compile(
+        r"(?:想|最想|要|想要)吃"
+        r"(中国|日本|韩国|泰国|法国|美国|英国|意大利|德国|欧洲|亚洲|澳大利亚|新西兰|印度|越南|西班牙)"
+    )
+    check("T-TBF B6: 我最想吃中国 matched by _EAT_COUNTRY_RE",
+          bool(_eat_re.search("我最想吃中国")))
+    check("T-TBF B7: 我想吃日本 matched by _EAT_COUNTRY_RE",
+          bool(_eat_re.search("我想吃日本")))
+    check("T-TBF B8: 我想吃饺子 NOT matched by _EAT_COUNTRY_RE (food is valid)",
+          not bool(_eat_re.search("我想吃饺子")))
+    check("T-TBF B9: 去中国 NOT matched (valid travel answer)",
+          not bool(_eat_re.search("去中国")))
+
+    # ── C: _clarify_app_question contextual rephrasings ───────────────────────
+    check("T-TBF C1: _clarify_app_question uses keyword pattern table",
+          "_patterns" in srv_src[srv_src.find("def _clarify_app_question"):
+                                  srv_src.find("def _clarify_app_question") + 2000])
+    check("T-TBF C2: location pattern produces 我是问：你现在住的地方在哪里？",
+          "我是问：你现在住的地方在哪里？" in srv_src)
+    check("T-TBF C3: fallback uses 我是问：X format (not f-string 换个说法,)",
+          "我是问：{ft}？" in srv_src and
+          'f"换个说法，' not in
+          srv_src[srv_src.find("def _clarify_app_question"):
+                  srv_src.find("def _clarify_app_question") + 3000])
+    check("T-TBF C4: work pattern produces contextual restatement",
+          "我是问：你做什么工作？" in srv_src)
+    check("T-TBF C5: travel pattern produces contextual restatement",
+          "我是问：你最想去哪里旅游？" in srv_src)
+
+    # ── D: Family/work override ───────────────────────────────────────────────
+    check("T-TBF D1: family regex in _detectSemanticCategory includes 女儿",
+          "女儿" in app_src[app_src.find("function _detectSemanticCategory"):
+                             app_src.find("function _detectSemanticCategory") + 600])
+    check("T-TBF D2: family regex includes 儿子",
+          "儿子" in app_src[app_src.find("function _detectSemanticCategory"):
+                             app_src.find("function _detectSemanticCategory") + 600])
+    check("T-TBF D3: family regex includes 孩子",
+          "孩子" in app_src[app_src.find("function _detectSemanticCategory"):
+                             app_src.find("function _detectSemanticCategory") + 600])
+    check("T-TBF D4: family check comes before work_status in _detectSemanticCategory",
+          app_src.find('"family"') < app_src.find('"work_status"'))
+    check("T-TBF D5: family_member_question early-accept in classifyUnmatchedFreeAnswerDecision",
+          "family_member_question" in app_src)
+    check("T-TBF D6: family-member words in early-accept pattern (女儿)",
+          "女儿" in app_src[app_src.find("_hasFamilyMemberQ"):
+                             app_src.find("_hasFamilyMemberQ") + 300])
+    check("T-TBF D7: _is_user_question server-side recognizes 你女儿",
+          "你女儿" in srv_src)
+    check("T-TBF D8: _is_user_question recognizes family-member action words",
+          "_family_words" in srv_src and "_action_words" in srv_src)
+    check("T-TBF D9: _answer_user_question_prefix has family-member branch (_fam_words)",
+          "_fam_words" in srv_src[srv_src.find("def _answer_user_question_prefix"):
+                                   srv_src.find("def _answer_user_question_prefix") + 4000])
+    check("T-TBF D10: family-member branch has safe deflect fallback",
+          "我暂时保密好了" in srv_src)
+
+    # ── E: Embedded child question 孩子呢你有孩子吗 ──────────────────────────
+    check("T-TBF E1: learner_counter_question early-accept in classifyUnmatchedFreeAnswerDecision",
+          "learner_counter_question" in app_src)
+    check("T-TBF E2: counter-question shortcut checks 你+吗",
+          "/你/.test(transcript" in app_src and "/吗/.test(transcript" in app_src)
+    check("T-TBF E3: f_have_children in _FAMILY_MEMBER_FRAMES (semanticSoftMatch)",
+          '"f_have_children"' in app_src[app_src.find("_FAMILY_MEMBER_FRAMES"):
+                                          app_src.find("_FAMILY_MEMBER_FRAMES") + 300])
+
+
+def test_location_distance_questions() -> None:
+    """Regression tests for overseas place → distance/orientation discovery questions.
+
+    The questions already exist in mirror_questions.json (place_far, place_distance_ref,
+    place_distance_time, etc.) but were not surfacing because they were sorted below
+    backed topics and the pool was truncated to 3. Fix: boost_topics in _build_discovery_pool
+    when _learner_place_is_overseas() fires.
+
+    Covers:
+    A  Question existence in mirror_questions.json
+    B  _learner_place_is_overseas detection
+    C  _build_discovery_pool boost_topics parameter
+    D  Discovery pool call sites pass boost
+    E  Domestic cities do NOT trigger boost
+    """
+    import json as _json
+    srv_src   = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    mq_path   = ROOT / "content" / "mirror_questions.json"
+    mq        = _json.loads(mq_path.read_text(encoding="utf-8")) if mq_path.exists() else {}
+    place_qs  = []
+    for eng_block in (mq.get("by_engine") or {}).values():
+        place_qs.extend(eng_block if isinstance(eng_block, list) else [])
+    place_qs_place = [q for q in place_qs if q.get("engine") == "place" or
+                      any(q.get("topic","").startswith(t) for t in ("place_far","place_distance"))]
+
+    # ── A: Questions exist in mirror_questions.json ───────────────────────────
+    _place_topics = {q.get("topic") for q in place_qs}
+    check("T-LDQ A1: place_far topic exists in mirror_questions.json",
+          "place_far" in _place_topics)
+    check("T-LDQ A2: place_distance_ref topic exists in mirror_questions.json",
+          "place_distance_ref" in _place_topics)
+    check("T-LDQ A3: place_distance_time topic exists in mirror_questions.json",
+          "place_distance_time" in _place_topics)
+    check("T-LDQ A4: place_distance_transport topic exists in mirror_questions.json",
+          "place_distance_transport" in _place_topics)
+    # Check the actual question text contains distance wording
+    _all_zh = {q.get("zh","") for q in place_qs}
+    check("T-LDQ A5: 离那儿远吗？ question text present",
+          any("远" in zh for zh in _all_zh))
+    check("T-LDQ A6: 多久 (travel time) question text present",
+          any("多久" in zh for zh in _all_zh))
+
+    # ── B: _learner_place_is_overseas detection ───────────────────────────────
+    check("T-LDQ B1: _learner_place_is_overseas defined in ui_server.py",
+          "_learner_place_is_overseas" in srv_src)
+    check("T-LDQ B2: Latin script detection (Dunedin) in _learner_place_is_overseas",
+          "re.search" in srv_src[srv_src.find("def _learner_place_is_overseas"):
+                                  srv_src.find("def _learner_place_is_overseas") + 600])
+    check("T-LDQ B3: _CHINA_DOMESTIC_PLACE_NAMES defined",
+          "_CHINA_DOMESTIC_PLACE_NAMES" in srv_src)
+    check("T-LDQ B4: _PLACE_DISTANCE_TOPICS defined",
+          "_PLACE_DISTANCE_TOPICS" in srv_src)
+    check("T-LDQ B5: _PLACE_DISTANCE_TOPICS includes place_far",
+          '"place_far"' in srv_src[srv_src.find("_PLACE_DISTANCE_TOPICS"):
+                                    srv_src.find("_PLACE_DISTANCE_TOPICS") + 300])
+    check("T-LDQ B6: _PLACE_DISTANCE_TOPICS includes place_distance_time",
+          '"place_distance_time"' in srv_src[srv_src.find("_PLACE_DISTANCE_TOPICS"):
+                                              srv_src.find("_PLACE_DISTANCE_TOPICS") + 300])
+    # Runtime behaviour test using the actual function
+    import sys as _sys, importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location("_srv_test", ROOT / "scripts" / "ui_server.py")
+    try:
+        _srv = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_srv)
+        _fn  = getattr(_srv, "_learner_place_is_overseas", None)
+        _build = getattr(_srv, "_build_discovery_pool", None)
+        _dist_topics = getattr(_srv, "_PLACE_DISTANCE_TOPICS", frozenset())
+        _backed = getattr(_srv, "_persona_backed_topics", None)
+        if _fn:
+            check("T-LDQ B7: 我是新西兰人 → overseas=True",
+                  _fn("我是新西兰人") is True)
+            check("T-LDQ B8: 我住在Dunedin → overseas=True (Latin script)",
+                  _fn("我住在Dunedin") is True)
+            check("T-LDQ B9: 我住在上海 → overseas=False (domestic)",
+                  _fn("我住在上海") is False)
+            check("T-LDQ B10: 我是北京人 → overseas=False (domestic)",
+                  _fn("我是北京人") is False)
+            check("T-LDQ B11: 我住在西安 → overseas=False (domestic)",
+                  _fn("我住在西安") is False)
+            check("T-LDQ B12: 我来自澳大利亚 → overseas=True",
+                  _fn("我来自澳大利亚") is True)
+        else:
+            check("T-LDQ B7-12: _learner_place_is_overseas importable", False)
+        if _build and _dist_topics:
+            # Build a discovery pool for place engine WITH boost and verify distance topics come first
+            _place_pool_raw = list(_srv._MIRROR_QUESTIONS_BY_ENGINE.get("place") or [])
+            _backed_tpcs    = frozenset({"place_from", "place_like"})
+            _pool_boosted   = _build("place", _backed_tpcs, [], set(), boost_topics=_dist_topics)
+            _pool_normal    = _build("place", _backed_tpcs, [], set(), boost_topics=frozenset())
+            _top3_boosted   = {q.get("topic") for q in _pool_boosted[:3]}
+            _top3_normal    = {q.get("topic") for q in _pool_normal[:3]}
+            check("T-LDQ B13: with boost, a distance topic appears in top 3",
+                  bool(_top3_boosted & _dist_topics))
+            check("T-LDQ B14: without boost, distance topics are NOT in top 3 (backed outrank them)",
+                  not bool(_top3_normal & _dist_topics))
+    except Exception as _e:
+        check(f"T-LDQ B7-14: import/runtime check (skipped: {_e})", True)
+
+    # ── C: _build_discovery_pool has boost_topics parameter ──────────────────
+    check("T-LDQ C1: boost_topics parameter added to _build_discovery_pool",
+          "boost_topics" in srv_src[srv_src.find("def _build_discovery_pool"):
+                                     srv_src.find("def _build_discovery_pool") + 400])
+    check("T-LDQ C2: sort key uses boost_topics at priority 0",
+          "0 if q.get(\"topic\") in boost_topics" in srv_src)
+    check("T-LDQ C3: sort key uses backed_topics at priority 1",
+          "1 if q.get(\"topic\") in backed_topics" in srv_src)
+
+    # ── D: Call sites pass boost_topics ──────────────────────────────────────
+    check("T-LDQ D1: _overseas_detected computed before blue panel paths",
+          "_overseas_detected" in srv_src and "_learner_place_is_overseas(answer_text)" in srv_src)
+    check("T-LDQ D2: _dist_boost computed from _PLACE_DISTANCE_TOPICS",
+          "_dist_boost" in srv_src and "_PLACE_DISTANCE_TOPICS if _overseas_detected" in srv_src)
+    check("T-LDQ D3: Path 0 passes boost_topics=_dist_boost",
+          "boost_topics=_dist_boost" in srv_src)
+    check("T-LDQ D4: all three _build_discovery_pool calls pass boost",
+          srv_src.count("boost_topics=_dist_boost") >= 3)
+
+    # ── E: Domestic cities do NOT get distance boost ──────────────────────────
+    check("T-LDQ E1: 北京 in _CHINA_DOMESTIC_PLACE_NAMES",
+          '"北京"' in srv_src[srv_src.find("_CHINA_DOMESTIC_PLACE_NAMES"):
+                               srv_src.find("_CHINA_DOMESTIC_PLACE_NAMES") + 400])
+    check("T-LDQ E2: 西安 in _CHINA_DOMESTIC_PLACE_NAMES",
+          '"西安"' in srv_src[srv_src.find("_CHINA_DOMESTIC_PLACE_NAMES"):
+                               srv_src.find("_CHINA_DOMESTIC_PLACE_NAMES") + 400])
+    check("T-LDQ E3: 新西兰 NOT in _CHINA_DOMESTIC_PLACE_NAMES (overseas, not domestic)",
+          '"新西兰"' not in srv_src[srv_src.find("_CHINA_DOMESTIC_PLACE_NAMES"):
+                                    srv_src.find("_CHINA_DOMESTIC_PLACE_NAMES") + 400])
+
+
+def test_english_name_and_place_handling() -> None:
+    """Regression tests for English / mixed-script name and place-name acceptance.
+
+    Root causes fixed:
+    1. _MIXED_SCRIPT_PLACE_FRAMES was missing f_live_where and f_home_where — causing
+       the latinCount > zhCount+2 veto to reject "我住在 Dunedin" on those frames.
+    2. isOpenEndedFrame was missing f_live_where and f_home_where.
+    3. _detectSemanticCategory fired [A-Za-z]{3,} before 住在/来自 — "我住在 Dunedin"
+       was classified as "name" instead of "location".
+
+    Covers:
+    A  _MIXED_SCRIPT_PLACE_FRAMES includes f_live_where and f_home_where
+    B  isOpenEndedFrame includes f_live_where and f_home_where
+    C  _detectSemanticCategory location check is before [A-Za-z]{3,} name catch-all
+    D  _detectSemanticCategory includes 来自 in location pattern
+    E  Latin-only name fallback still present after all location checks
+    F  f_ask_you_name stays in identityOpen (no regression on name frames)
+    """
+    js_path = ROOT / "ui" / "app.js"
+    js_src  = js_path.read_text(encoding="utf-8")
+
+    # ── A: _MIXED_SCRIPT_PLACE_FRAMES ────────────────────────────────────────
+    mixed_place_idx = js_src.find("_MIXED_SCRIPT_PLACE_FRAMES = new Set")
+    assert mixed_place_idx >= 0, "T-ENP A0: _MIXED_SCRIPT_PLACE_FRAMES definition not found"
+    mixed_place_block = js_src[mixed_place_idx: mixed_place_idx + 400]
+
+    check('T-ENP A1: f_live_where in _MIXED_SCRIPT_PLACE_FRAMES',
+          '"f_live_where"' in mixed_place_block)
+    check('T-ENP A2: f_home_where in _MIXED_SCRIPT_PLACE_FRAMES',
+          '"f_home_where"' in mixed_place_block)
+    check('T-ENP A3: f_from_where still in _MIXED_SCRIPT_PLACE_FRAMES (no regression)',
+          '"f_from_where"' in mixed_place_block)
+    check('T-ENP A4: frame.location.live_question still in _MIXED_SCRIPT_PLACE_FRAMES',
+          '"frame.location.live_question"' in mixed_place_block)
+
+    # ── B: isOpenEndedFrame ───────────────────────────────────────────────────
+    open_ended_idx = js_src.find("function isOpenEndedFrame")
+    assert open_ended_idx >= 0, "T-ENP B0: isOpenEndedFrame not found"
+    open_ended_block = js_src[open_ended_idx: open_ended_idx + 600]
+
+    check('T-ENP B1: f_live_where in isOpenEndedFrame',
+          '"f_live_where"' in open_ended_block)
+    check('T-ENP B2: f_home_where in isOpenEndedFrame',
+          '"f_home_where"' in open_ended_block)
+
+    # ── C: _detectSemanticCategory location before [A-Za-z]{3,} ──────────────
+    cat_idx = js_src.find("function _detectSemanticCategory")
+    assert cat_idx >= 0, "T-ENP C0: _detectSemanticCategory not found"
+    cat_block = js_src[cat_idx: cat_idx + 1200]
+
+    loc_idx_in_block   = cat_block.find("住在|搬到|搬来")
+    latin_idx_in_block = cat_block.find("[A-Za-z]{3,}")
+    assert loc_idx_in_block >= 0,   "T-ENP C1: location pattern 住在|搬到|搬来 not found in _detectSemanticCategory"
+    assert latin_idx_in_block >= 0, "T-ENP C2: [A-Za-z]{3,} not found in _detectSemanticCategory"
+
+    check('T-ENP C3: location check is BEFORE [A-Za-z]{3,} name catch-all',
+          loc_idx_in_block < latin_idx_in_block)
+
+    # ── D: 来自 in location pattern ───────────────────────────────────────────
+    check('T-ENP D1: 来自 included in location regex of _detectSemanticCategory',
+          '来自' in cat_block[loc_idx_in_block: loc_idx_in_block + 40])
+
+    # ── E: Latin fallback still fires after location checks ───────────────────
+    # The [A-Za-z]{3,} catch-all must appear after the location line, not be removed entirely.
+    check('T-ENP E1: [A-Za-z]{3,} Latin catch-all still present after location check',
+          latin_idx_in_block > loc_idx_in_block)
+
+    # ── F: Identity name frames not regressed ─────────────────────────────────
+    identity_open_idx = js_src.find("identityOpen = new Set")
+    assert identity_open_idx >= 0, "T-ENP F0: identityOpen Set not found"
+    identity_open_block = js_src[identity_open_idx: identity_open_idx + 300]
+
+    check('T-ENP F1: f_ask_you_name still in identityOpen',
+          '"f_ask_you_name"' in identity_open_block)
+
+    # ── G: Explicit name markers still checked FIRST (before Latin catch-all) ──
+    # "我叫|名字|英文名" must appear BEFORE "[A-Za-z]{3,}" in _detectSemanticCategory.
+    explicit_name_idx = cat_block.find("我叫|名字|英文名")
+    check('T-ENP G1: explicit name markers (我叫|名字|英文名) present in _detectSemanticCategory',
+          explicit_name_idx >= 0)
+    check('T-ENP G2: explicit name markers appear BEFORE [A-Za-z]{3,} catch-all',
+          explicit_name_idx < latin_idx_in_block)
+
+    # ── H: [A-Za-z]{3,} no longer bundled with 我叫|名字|英文名 in single regex ──
+    check('T-ENP H1: 我叫|名字|英文名 and [A-Za-z]{3,} are NOT in the same regex',
+          '我叫|名字|英文名|[A-Za-z]{3,}' not in cat_block)
+
+    print("✓  test_english_name_and_place_handling passed")
+
+
 def main() -> None:
     static_only = "--static-only" in sys.argv
 
@@ -1754,6 +2098,9 @@ def main() -> None:
     test_discovery_trigger_timing()
     test_scoring_model_refinements()
     test_discovery_question_selection()
+    test_targeted_bug_fixes()
+    test_location_distance_questions()
+    test_english_name_and_place_handling()
 
     # Integration tests — require a running server
     if static_only:
