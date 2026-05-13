@@ -2346,11 +2346,20 @@ function _detectSemanticCategory(text) {
   if (/身体|健康|好多了|好很多|好一点|不好|生病|康复/.test(t)) return "family_health";
   if (/爸爸|妈妈|太太|家人|老婆|父母|家里|爱人|老公|女儿|儿子|孩子/.test(t)) return "family";
   if (/退休|以前.*工作|以前是|做.*工作/.test(t)) return "work_status";
+  // University / academic institution context — checked before Latin catch-all so
+  // "Liverpool大学" or "西安交通大学" resolves to "education" not "name".
+  if (/大学|学院|学校/.test(t) && /[A-Za-z]{2,}|交通|复旦|浙大|北大|清华|交大/.test(t)) return "education";
   // "我住在 Dunedin" / "我来自 Dunedin" must return "location" — checked before the
   // Latin-token catch-all below so the place context wins over the script heuristic.
   // "来自" added alongside 住在/搬到/搬来 to cover origin phrasing.
   if (/住在|搬到|搬来|来自/.test(t)) return "location";
   if (/^哪里|^哪儿/.test(t)) return "location";
+  // Location question (contains 在哪里 etc. but not yet caught above)
+  if (/在哪里|在哪儿|哪里啊/.test(t)) return "location";
+  // Nationality statement (新西兰人, 中国人 …)
+  if (/新西兰人|澳大利亚人|中国人|英国人|美国人|加拿大人|日本人|韩国人/.test(t)) return "nationality";
+  // History / culture signal
+  if (/(历史|文化|景点|名胜)/.test(t)) return "history";
   // Latin token alone (no Chinese location/food/family context matched above) — treat
   // as a name attempt, e.g. "Raymond" typed on its own.
   if (/[A-Za-z]{3,}/.test(t)) return "name";
@@ -2367,11 +2376,231 @@ const _SEMANTIC_CLARIFICATION_PHRASES = {
   family:        { hanzi: "是说你的家人吗？",           pinyin: "shì shuō nǐ de jiārén ma?",              text_en: "Are you talking about your family?" },
   work_status:   { hanzi: "你是说你已经退休了吗？",     pinyin: "nǐ shì shuō nǐ yǐjīng tuìxiū le ma?",   text_en: "Do you mean you've retired?" },
   location:      { hanzi: "你是说一个城市吗？",         pinyin: "nǐ shì shuō yīgè chéngshì ma?",          text_en: "Are you referring to a city?" },
+  nationality:   { hanzi: "你是说你来自哪里？",         pinyin: "",                                         text_en: "Are you saying where you're from?" },
+  history:       { hanzi: "你是说那里有很多历史吗？",   pinyin: "",                                         text_en: "Do you mean that place has a lot of history?" },
+  education:     { hanzi: "你是说：你以前在大学工作吗？", pinyin: "",                                       text_en: "Do you mean you used to work at a university?" },
 };
 
 /** Returns the targeted clarification phrase object for the given category, or null. */
 function _getSemanticClarification(category) {
   return _SEMANTIC_CLARIFICATION_PHRASES[category] || null;
+}
+
+// ── Repeated-failure escalation helpers ───────────────────────────────────────
+/** Topic-keyed model-answer examples shown after 2+ consecutive ASR failures. */
+const _ENGINE_MODEL_ANSWERS = {
+  work:    "我退休了。 / 我是老师。",
+  retire:  "我退休了。",
+  teach:   "我是老师。",
+  place:   "我是新西兰人。 / 我住在奥克兰。",
+  origin:  "我是新西兰人。",
+  family:  "我和太太一起住。",
+  food:    "我喜欢羊肉。",
+  travel:  "我想去中国。",
+  trip:    "我想去中国。",
+};
+
+/** Returns a model-answer string for the given engine ID, or null if no match. */
+function _getModelAnswerForEngine(engineId) {
+  const e = (engineId || "").toLowerCase();
+  for (const [key, ans] of Object.entries(_ENGINE_MODEL_ANSWERS)) {
+    if (e.includes(key)) return ans;
+  }
+  return null;
+}
+
+// ── Work-context helpers ───────────────────────────────────────────────────────
+/**
+ * Updates window._learnerWorkContext based on the learner's text.
+ * "retired" takes priority over "teacher" so that "以前是老师，现在退休了" is
+ * classified as "retired".  Once set, the context persists until a fresh session.
+ */
+function _updateLearnerWorkContext(text) {
+  const t = (text || "").trim();
+  // Current employment explicitly stated → clear any prior education/retirement context
+  // so company follow-up questions are no longer suppressed.
+  if (t.includes("现在") && /公司|上班|工作/.test(t)) {
+    window._learnerWorkContext = null;
+    return;
+  }
+  if (/退休/.test(t)) {
+    window._learnerWorkContext = "retired";
+  } else if (/老师|学校|大学|教书|教学|学院/.test(t)) {
+    window._learnerWorkContext = "teacher";
+  }
+}
+
+// ── Partial-confirmation helpers ──────────────────────────────────────────────
+/**
+ * Builds a varied confirmation phrase for a given understood fragment.
+ * forms[0] is currently always used; increment _confirmVariantIdx to rotate
+ * among the other forms when confirmed safe in live testing.
+ */
+let _confirmVariantIdx = 0; // eslint-disable-line prefer-const
+function _pickConfirmForm(body) {
+  const forms = [
+    `你是说：${body}吗？`,
+    `${body}吗？`,
+    `你说的是${body}吗？`,
+  ];
+  return forms[0]; // rotate with (_confirmVariantIdx++ % forms.length) when ready
+}
+
+/** Simple factual answers for known city/place location questions. */
+const _CITY_LOCATION_MAP = {
+  '重庆': '重庆在中国西南。',
+  '西安': '西安在中国西北。',
+  '上海': '上海在中国东边。',
+  '成都': '成都在中国西南。',
+  '北京': '北京在中国北方。',
+  '广州': '广州在中国南边。',
+  '新西兰': '新西兰在南半球。',
+};
+
+/**
+ * Tries to extract a specific understood fragment from noisy rejected speech and
+ * returns a "你是说：{content}吗？" confirmation phrase.
+ * Checks are ordered most-specific first so the richest match wins.
+ * Returns null when no strong signal is found (fall through to generic clarification).
+ */
+function _buildPartialConfirmation(text) {
+  const t = (text || "").trim();
+  if (!t) return null;
+
+  // City + location-question → echo the city and answer where it is
+  for (const [city, locationFact] of Object.entries(_CITY_LOCATION_MAP)) {
+    if (t.includes(city) && /在哪里|在哪儿|哪里|哪里啊|地方/.test(t)) {
+      return { hanzi: `你是问：${city}在哪里吗？${locationFact}`, pinyin: "", text_en: "" };
+    }
+  }
+
+  // Nationality/from (新西兰人, 中国人 …)
+  const natMatch = t.match(/新西兰人|澳大利亚人|中国人|英国人|美国人|加拿大人|日本人|韩国人|法国人|德国人/);
+  if (natMatch) {
+    return { hanzi: _pickConfirmForm(`你是${natMatch[0]}`), pinyin: "", text_en: "" };
+  }
+
+  // 老家 / 来自 + place word (2–4 chars)
+  const laoJiaMatch = t.match(/老家[在是]?([\u4e00-\u9fff]{2,4})/);
+  if (laoJiaMatch) {
+    return { hanzi: _pickConfirmForm(`你老家在${laoJiaMatch[1]}`), pinyin: "", text_en: "" };
+  }
+
+  // Place name + history / culture signal
+  const placeMatch = t.match(/(中国|重庆|西安|上海|成都|北京|广州|新西兰)/);
+  if (placeMatch && /(历史|文化|特别|好玩|有名|特色|景点)/.test(t)) {
+    return { hanzi: _pickConfirmForm(`${placeMatch[1]}有很多历史`), pinyin: "", text_en: "" };
+  }
+
+  // Specific food item
+  const foodMatch = t.match(/(火锅|羊肉|牛肉|饺子|面条|炒饭)/);
+  if (foodMatch) {
+    return { hanzi: _pickConfirmForm(`你喜欢${foodMatch[1]}`), pinyin: "", text_en: "" };
+  }
+
+  // Spouse / partner + living-with signal
+  if (/太太|老婆|老公|先生|爱人/.test(t) && /住|一起/.test(t)) {
+    return { hanzi: _pickConfirmForm("你和太太一起住"), pinyin: "", text_en: "" };
+  }
+
+  // Family member health
+  if (/(妈妈|爸爸|父母|家人)/.test(t) && /(身体|不好|生病|康复)/.test(t)) {
+    return { hanzi: _pickConfirmForm("家人身体不太好"), pinyin: "", text_en: "" };
+  }
+
+  // Specific job title
+  const jobMatch = t.match(/(老师|医生|工程师|护士|厨师|司机|律师)/);
+  if (jobMatch) {
+    return { hanzi: _pickConfirmForm(`你是${jobMatch[1]}`), pinyin: "", text_en: "" };
+  }
+
+  return null;
+}
+
+/**
+ * Beginner output cap — prefers keeping two short clauses over a hard cut.
+ *
+ * 1. If the text is short or has no complex connectors, return as-is.
+ * 2. Split on Chinese commas; keep first two clauses joined with "。".
+ * 3. Fallback: truncate at first full-stop/exclamation boundary.
+ * 4. Last resort: return original unchanged.
+ */
+function _simplifySentenceForBeginner(text) {
+  if (!text) return text;
+  const connectors = ["但是", "因为", "所以", "然后", "到处", "虽然", "不但", "况且", "不过", "一就"];
+  const hasConnector = connectors.some(c => text.includes(c))
+    || /一.{0,2}就/.test(text);  // 一…就 pattern
+  if (text.length <= 22 || !hasConnector) return text;
+
+  // Split on comma boundaries and keep first two clauses
+  const parts = text.split(/[，,]/);
+  if (parts.length >= 2) {
+    const simplified = parts.slice(0, 2).join("，") + "。";
+    // Only return simplified if it's actually shorter than the original
+    if (simplified.length < text.length) return simplified;
+  }
+
+  // Fallback: truncate at first full sentence boundary
+  const breakIdx = text.search(/[。！]/);
+  if (breakIdx > 5 && breakIdx < text.length - 1) return text.slice(0, breakIdx + 1);
+
+  return text;
+}
+
+/**
+ * Returns true when the text looks like a well-formed short sentence that does NOT
+ * need partial-confirmation ("你是说…吗？").  Saves the confirmation path for genuinely
+ * noisy or structure-unclear inputs only.
+ *
+ * Heuristic: text has a subject (我/你), a verb-like word, an object, and is short (<20
+ * chars).  Clean sentences should be acknowledged normally, not confirmed back at the
+ * learner as if they were noisy.
+ */
+function _isLikelyCleanSentence(text) {
+  if (!text) return false;
+  const t = (text || "").trim();
+  const hasSubject  = t.includes("我") || t.includes("你");
+  const hasVerbLike = /(是|有|喜欢|去|住|在|做|想|爱|要|会|能)/.test(t);
+  const hasObject   = t.length >= 4;
+  // Presence of a repeated syllable pattern or strong noise markers means the text
+  // is not clean even if it contains a subject and verb.
+  const hasNoiseMarker = /(.)\1/.test(t) ||  // any repeated character (不不, 舍舍, etc.)
+    /对不起|不好意思|啊啊|呃呃|嗯嗯/.test(t);
+  return hasSubject && hasVerbLike && hasObject && t.length < 20 && !hasNoiseMarker;
+}
+
+// ── Interaction-priority helpers ─────────────────────────────────────────────
+/**
+ * Returns true when the learner's utterance is directed at the persona as a
+ * question that should be answered before the app resumes its own agenda.
+ * Covers: 你…吗, explicit ？, sentence-final question particles paired with
+ * a persona-addressed subject word, and reciprocal "你呢" turns.
+ */
+function _isUserDirectedQuestion(text) {
+  if (!text) return false;
+  const t = (text || "").trim();
+  if (/你/.test(t) && /[吗？?]/.test(t)) return true;   // 你…吗 / 你…?
+  if (/[？?]$/.test(t)) return true;                      // explicit question mark
+  if (/吗[？?]?$/.test(t)) return true;                   // sentence-final 吗
+  if (/你呢/.test(t)) return true;                        // reciprocal turn
+  // 你 + sentence-final question particle (spoken ASR omits ？)
+  if (/你/.test(t) && /[啊呢][？?]?$/.test(t)) return true;
+  // Omitted-subject question forms: learner addresses persona without an explicit "你"
+  // but the structure is clearly a question directed at the persona.
+  if (/结婚了吗|有孩子吗|多大[啊？?]?$|几岁[啊？?]?$|做多久了|多久了[啊？?]?$|去过哪里|喜欢吗[？?]?$/.test(t)) return true;
+  if (/^(结婚|有孩子|多大|几岁|做多久|多久|去过哪里|喜欢吗)/.test(t)) return true;
+  return false;
+}
+
+/**
+ * Returns true when the learner explicitly signals they cannot follow — stronger
+ * than the generic "我不懂" skip signal. These deserve an empathetic response
+ * rather than a silent topic skip.
+ * Also normalises common ASR mis-transcriptions (e.g. "1点" → "一点").
+ */
+function _isStrongConfusionText(text) {
+  const t = (text || "").replace(/1点/g, "一点");  // ASR digit normalisation
+  return /听不懂|没听懂|一点听不懂|完全不明白|听不清楚|不懂你说|一点不懂|一点都不懂|一点不明白|一点都不明白|有点不懂|不太明白|不明白|听不明白|没明白|不知道什么意思|什么意思/.test(t);
 }
 
 /**
@@ -4482,8 +4711,9 @@ function renderOptions(options, frameId) {
         window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
         window._repairAttemptCount = 0;    // valid answer resets server-side repair escalation
         window._lastRepairKind = null; window._prevRepairKind = null;
-        hideDiscoveryPanel();  // user answered partner's question — exit discovery mode
-        window._pendingFrameText = null;
+        // Do NOT hide the discovery panel here — keep it visible while the next turn loads.
+        // runTurn will update the panel with fresh questions or restore the cache.
+        window._pendingFrameText = null;   // consumed: learner answered, not deferring
       }
 
       if (opt.kind === "RECOVERY") {
@@ -4721,6 +4951,12 @@ function renderSentenceOptions(sentenceOptions, frameId) {
         runMirrorTurn(hanziStr, meaning, opt.topic);
       } else {
         window._consecutiveNotUnderstood = 0;
+        // Priority gate: if the tapped sentence is a learner question to the persona,
+        // clear confusion state so the server won't route it as a repair turn.
+        if (_isUserDirectedQuestion(hanziStr)) {
+          window._recentConfusionCount = 0;
+          window._lastRepairKind = null;
+        }
         addTranscriptEntry("user", hanziStr, { text_en: meaning });
         renderTranscript();
         container.style.display = "none";
@@ -5097,6 +5333,9 @@ async function startFreshLearner() {
   window._listeningWaitTurns     = 0;
   window._lastInterestLevel      = "low";
   window._lastUserText           = "";
+  window._lastTurnWasNoisyOrConfusion = false;
+  window._confusionFrameText          = null;
+  window._learnerWorkContext          = null;
   window._unmatchedByFrame       = {};
   window._recoveryPromptsByFrame = {};
   window._consecutiveNotUnderstood = 0;
@@ -5123,6 +5362,8 @@ async function startFreshLearner() {
   window._lastPersonaReveal       = false;
   window._recentlySeenDiscTopics  = [];
   window._lastPartnerFrameText    = "";
+  window._lastBlueQuestions       = [];   // client cache — cleared only on fresh session
+  hideDiscoveryPanel();
 
   // Clear the "Remembered:" facts banner
   _renderMemoryBanner({});
@@ -5456,6 +5697,18 @@ async function _runTurnInner(isNext = false, opts = {}) {
     }
   }
 
+  // Fix 1: Work-context company-question suppression
+  // If the server wants to ask a company follow-up but the learner has established an
+  // education / retirement context, substitute a more appropriate question.
+  if (window._learnerWorkContext && data.frame_text) {
+    const _COMPANY_Q_PAT = /你在哪个公司上班|你在哪家公司工作|你在什么公司|哪家公司|什么公司工作/;
+    if (_COMPANY_Q_PAT.test(data.frame_text)) {
+      data.frame_text = (window._learnerWorkContext === "retired")
+        ? "你退休多久了？"
+        : "你以前在哪个学校教书？";
+    }
+  }
+
   // Render frame sentence
   const fallbackText = _anchorVagueReferences(
     data.prompt_text || data.frame_text || "",
@@ -5464,6 +5717,76 @@ async function _runTurnInner(isNext = false, opts = {}) {
   setUiMode("READ");
   window._currentFrameText = (fallbackText && fallbackText.trim()) ? fallbackText.trim() : "";
   window._lastAcceptedAsrKey = "";  // reset dedup so fresh answers on new questions are accepted
+  // ── Issue 3: Generic filler blocker ──────────────────────────────────────────
+  // If the last input was noisy / rejected / strong confusion, suppress well-known
+  // generic fillers that the server sometimes uses in low-confidence fallback slots.
+  // We check and RESET the flag here so exactly one response is affected per noisy turn.
+  const _lastWasNoisyOrConfusion = window._lastTurnWasNoisyOrConfusion === true;
+  window._lastTurnWasNoisyOrConfusion = false;
+  if (_lastWasNoisyOrConfusion && data.counter_reply) {
+    const _crCheck = (data.counter_reply || "").trim();
+    const _BLOCKED_FILLERS = ["这样挺好", "这个先不说吧", "我觉得都挺有意思的", "明白了。", "明白了！"];
+    if (_BLOCKED_FILLERS.some(f => _crCheck.startsWith(f))) {
+      data.counter_reply = "我没听清楚，你可以再说一遍吗？";
+    }
+  }
+
+  // Fix 4: After strong confusion, append a simplified rephrase of the last app question
+  // so the learner hears: "我说得不清楚吗？…" + "我问：{question}" as a concrete anchor.
+  // _confusionFrameText is only set in the strong-confusion path (not plain hard-fail),
+  // so its presence is the discriminator — hard-fail rejections get no rephrase appended.
+  const _confusionFrameQ = (window._confusionFrameText || "").trim();
+  window._confusionFrameText = null;  // consume once
+  if (_confusionFrameQ && data.counter_reply) {
+    // Use first clause of the frame question if it's long
+    const _simpleQ = _confusionFrameQ.includes("，")
+      ? _confusionFrameQ.split(/[，。！？]/)[0]
+      : _confusionFrameQ;
+    if (_simpleQ.length >= 3) {
+      data.counter_reply = (data.counter_reply || "").trim() + `\n我问：${_simpleQ}`;
+    }
+  }
+
+  // ── Echo prevention ────────────────────────────────────────────────────────────
+  // Persona sometimes echoes the learner's own first-person statements as its own.
+  // Rewrite "哦，我…" → "哦，你…" when the reply closely mirrors the learner's last input.
+  // Also covers desire/travel forms: 哦，我想… / 哦，我很想… / 哦，我就想… / 哦，我要…
+  // Preserves genuine persona self-statements that include "也" (agreement marker) or
+  // "觉得" (opinion marker) without overlapping the learner's exact content.
+  if (data.counter_reply) {
+    const _crRaw   = (data.counter_reply || "").trim();
+    // Use submitted_text first; fall back to selected_option_hanzi for sentence-card taps
+    const _lastSub = (
+      window._lastAnswer?.submitted_text ||
+      window._lastAnswer?.selected_option_hanzi ||
+      ""
+    ).trim();
+    // Match "哦，我…" at start — catches 我想、我很想、我就想、我要、我喜欢、etc.
+    if (/^哦[，,]\s*我/.test(_crRaw) && _lastSub.startsWith("我")) {
+      const _crBody  = _crRaw.replace(/^哦[，,]\s*我/, "").replace(/[！。？]$/, "");
+      const _subBody = _lastSub.replace(/^我/, "");
+      // "也" / "觉得" = genuine persona statement — do not rewrite
+      const _isPersonaSelfStatement = _crRaw.includes("也") || _crRaw.startsWith("哦，我觉得");
+      if (
+        !_isPersonaSelfStatement &&
+        _crBody.length >= 2 &&
+        _subBody.length >= 3 &&
+        (_subBody.includes(_crBody.slice(0, 3)) || _crBody.includes(_subBody.slice(0, 3)))
+      ) {
+        data.counter_reply = _crRaw
+          .replace(/^(哦[，,]\s*)我/, "$1你")
+          .replace(/！/, "。");   // soften first exclamation in the echoed segment
+      }
+    }
+  }
+
+  // ── Issue 6: Beginner output cap ──────────────────────────────────────────────
+  // Simplify over-long or structurally complex persona answers so beginners see
+  // 1–2 short sentences rather than multi-clause elaborations.
+  if (data.counter_reply) {
+    data.counter_reply = _simplifySentenceForBeginner(data.counter_reply.trim());
+  }
+
   // Counter-reply: persona's answer to a user counter-question (你呢？ 你是哪里人？ etc.)
   // Must appear in transcript BEFORE the next question and be spoken first.
   console.log("[DBG counter_reply]", { counter_reply: data.counter_reply, user_led: data.user_led, disc_q_count: (data.discovery_questions || []).length });
@@ -5525,6 +5848,10 @@ async function _runTurnInner(isNext = false, opts = {}) {
     "| blue_panel_shown=" + (_isUserLed && _dq.length > 0),
     _isUserLed && _dq.length === 0 ? "| note=user_led_but_no_cards" : "",
   );
+  // Answer-reactive augmentation: 1–2 extra probes based on persona's counter_reply.
+  // Computed once and appended (after server/cached questions) in both branches below.
+  const _extraQs = _augmentQuestionsFromAnswer(_counterReply);
+
   if (_isUserLed) {
     window._pendingFrameMeta = {
       text: fallbackText.trim(),
@@ -5532,11 +5859,30 @@ async function _runTurnInner(isNext = false, opts = {}) {
       pinyin: fillSentenceHintPinyin(fallbackText.trim(), data.frame_pinyin || ""),
       frame_id: frameId,
     };
-    renderDiscoveryPanel(_dq.slice(0, 3), fallbackText);
+    renderDiscoveryPanel(_dedupeQuestions([..._dq.slice(0, 3), ..._extraQs]), fallbackText);
   } else {
-    hideDiscoveryPanel();
+    // Non-user-led turn: the server didn't send new blue questions this time.
+    // Keep the last useful question set visible so the learner can still ask.
+    // Only hide if we have never shown any questions (empty cache).
     window._pendingFrameText = null;
     window._pendingFrameMeta = null;
+    const _cached = window._lastBlueQuestions || [];
+    if (_cached.length > 0) {
+      renderDiscoveryPanel(_dedupeQuestions([..._cached, ..._extraQs]), null);
+    } else {
+      // No cached questions yet — try topic-based fallbacks before hiding the panel.
+      // This keeps the learner agency surface visible after the first persona answer.
+      const _topicFallback = _getTopicFallbackQuestions(
+        window._currentEngineId || engineId || ""
+      );
+      if (_topicFallback.length > 0) {
+        renderDiscoveryPanel(_dedupeQuestions([..._topicFallback, ..._extraQs]), null);
+      } else if (_extraQs.length > 0) {
+        renderDiscoveryPanel(_extraQs, null);
+      } else {
+        hideDiscoveryPanel();
+      }
+    }
   }
   // Auto-play: if a counter_reply exists, speak it first.
   // When user_led=true we PAUSE after the counter_reply so the learner can keep
@@ -5867,6 +6213,9 @@ window.addEventListener("load", async () => {
         || _spokenRaw === "你呢"
         || /[，。！]?(那?你呢|你怎么想|为什么这么问)[？?]?$/.test(_spokenRaw)
         || /你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(_spokenRaw)
+        // Priority gate: any 你…吗 question or short spoken question ending in 呢/啊
+        || (/你/.test(_spokenRaw) && /吗[？?]?$/.test(_spokenRaw))
+        || (_isUserDirectedQuestion(_spokenRaw))
       );
       // Add "？" for turn-around so the server detects the counter-question correctly.
       // For all other speech, send the transcript verbatim.
@@ -5969,14 +6318,29 @@ window.addEventListener("load", async () => {
       window._lastAcceptedFreeTranscript = saidTrimmed;
       window._lastAcceptedFreeTranscriptAt = Date.now();
       window._lastAcceptedFreeFrameId = frameId || "";
-      // Learner skip signal ("我不懂"): advance without saving as scored answer
+      // Learner skip signal ("我不懂"): advance without saving as scored answer.
+      // Sub-case: STRONG confusion ("听不懂", "一点听不懂") — escalate repair count and
+      // submit as a proper answer so the server can generate an empathetic clarification
+      // ("我说得太快了吗？") rather than silently skipping to the next topic.
       if (unmatchedDecision.reason === "learner_skip_signal") {
         addTranscriptEntry("user", saidTrimmed);
         renderTranscript();
         lastClickedWordId = null;
         window.lastClickedWordId = null;
         setUiMode("READ");
-        runTurn(true, { learner_skip_confusion: true });
+        if (_isStrongConfusionText(saidTrimmed)) {
+          window._recentConfusionCount = Math.max((window._recentConfusionCount || 0) + 1, 1);
+          window._lastTurnWasNoisyOrConfusion = true;
+          // Save the current app question so _runTurnInner can append a simplified rephrase.
+          window._confusionFrameText = (window._currentFrameText || "").trim();
+          // Submit only the bare confusion signal so the server focuses on clarification
+          // and doesn't latch onto any semantic content (food, travel, etc.) that may
+          // appear in the same noisy utterance after the confusion phrase.
+          window._lastAnswer = { frame_id: frameId, submitted_text: "我听不懂" };
+          runTurn(true, { last_turn_was_answer: true });
+        } else {
+          runTurn(true, { learner_skip_confusion: true });
+        }
         return;
       }
       // Normalise turn-around phrases: ensure trailing "？" so the server reliably
@@ -5984,7 +6348,19 @@ window.addEventListener("load", async () => {
       const _isTurnAround = /^(那?你呢|你怎么想|为什么这么问|为什么这样问|换我问|那你|你来问)/.test(saidTrimmed)
         || saidTrimmed === "你呢"
         || /[，。！]?(那?你呢|你怎么想|为什么这么问)[？?]?$/.test(saidTrimmed)
-        || /你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(saidTrimmed);
+        || /你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(saidTrimmed)
+        // Priority gate: any 你…吗 and broader spoken question forms
+        || (/你/.test(saidTrimmed) && /吗[？?]?$/.test(saidTrimmed))
+        || _isUserDirectedQuestion(saidTrimmed);
+      // Priority gate: clear confusion state before submitting a user question so the server
+      // does not mistake it for a repair signal and return "我是问：…" clarification.
+      if (_isTurnAround) {
+        window._recentConfusionCount = 0;
+        window._consecutiveNotUnderstood = 0;
+        window._lastRepairKind   = null;
+        window._prevRepairKind   = null;
+        window._lastTurnWasNoisyOrConfusion = false;
+      }
       // Ensure trailing "？" so server _is_user_question reliably fires
       const submittedForServer = _isTurnAround && !/[？?]$/.test(saidTrimmed) ? saidTrimmed + "？" : saidTrimmed;
       _trackUserTextSignals(saidTrimmed);
@@ -5993,6 +6369,7 @@ window.addEventListener("load", async () => {
       const _PLACE_ANCHOR_LIST = ['甘肃', '中国', '美国', '英国', '法国', '日本', '韩国', '新西兰', '台湾', '香港', '澳大利亚', '北京', '上海', '广州', '成都', '欧洲', '泰国', '新加坡', '越南', '意大利', '西班牙', '德国', '加拿大'];
       const _newAnchorPlace = _PLACE_ANCHOR_LIST.find(p => saidTrimmed.includes(p));
       if (_newAnchorPlace) window._lastMentionedPlace = _newAnchorPlace;
+      _updateLearnerWorkContext(saidTrimmed);  // track education/retirement for company-Q guard
       addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
       window._lastAcceptedFreeTranscript = saidTrimmed;
@@ -6028,6 +6405,8 @@ window.addEventListener("load", async () => {
       _tracker.unmatched_responses++;
     }
     window._learnerObs.asr_rejections++;        // Phase L1 observation (all rejections, regardless of level)
+    window._lastTurnWasNoisyOrConfusion = true; // filler-blocker: suppress generic filler on next server response
+    _updateLearnerWorkContext(saidTrimmed);      // noisy input may still reveal work context
     window._pendingRepairPrompt     = true;          // next user text = recovery attempt (recovery_resilience_count)
     window._lastRepairSubmittedText = saidTrimmed;   // store rejected text so identical retries don't count
     const _frameRecShown = frameId ? (window._recoveryPromptsByFrame?.[frameId] || 0) : 0;
@@ -6043,9 +6422,10 @@ window.addEventListener("load", async () => {
     const lastRecoveryId = window._lastRecoveryPhraseId || null;
     const phrase = getRecoveryPhraseForNotUnderstood(lastRecoveryId, recoveryCtx);
 
-    // Semantic clarification override: if we can detect the learner's intent, use a
-    // targeted question instead of generic repair (啊？). This applies from the very
-    // first rejection — generic repair only fires when NO semantic signal is detectable.
+    // Semantic clarification override: try partial-confirmation first (most specific),
+    // then category-level clarification, then generic repair (啊？).
+    // This applies from the very first rejection so "啊？" only fires when there is
+    // genuinely no detectable signal.
     const _semCategory    = _detectSemanticCategory(saidTrimmed);
     // Context-anchored confusion recovery: if the learner echoes back our location probe
     // ("哪里什么") AND our immediately previous turn was itself a 哪里？ clarification,
@@ -6053,18 +6433,42 @@ window.addEventListener("load", async () => {
     // e.g. "我是问：你说「这里羊肉牛肉都很好吃」，是在哪里？"
     const _prevWasWherePrompt = /哪里[?？]/.test(window._lastPartnerTurnText || "");
     const _isEchoConfusion    = /^(哪里|哪儿)/.test(saidTrimmed.trim()) && /什么|不懂|不明白/.test(saidTrimmed);
+    // Skip partial-confirmation for well-formed short sentences — they should get a
+    // normal acknowledgement, not an echo-back that feels robotic for clean input.
+    const _partialConf = _isLikelyCleanSentence(saidTrimmed)
+      ? null
+      : _buildPartialConfirmation(saidTrimmed);
     const _semClarifyData = (_prevWasWherePrompt && _isEchoConfusion)
       ? _buildWhereRestatement(window._lastAcceptedFreeTranscript)
-      : (_semCategory ? _getSemanticClarification(_semCategory) : null);
-    const _displayPhrase  = _semClarifyData
+      : (_partialConf || (_semCategory ? _getSemanticClarification(_semCategory) : null));
+    let _displayPhrase  = _semClarifyData
       ? Object.assign({}, phrase, {
           hanzi:           _semClarifyData.hanzi,
           pinyin:          _semClarifyData.pinyin,
           text_en:         _semClarifyData.text_en,
           recovery_action: "soft",   // stay in RESPOND; do not auto-advance turn
-          id:              "sem_clarify_" + _semCategory,
+          id:              "sem_clarify_" + (_partialConf ? "partial" : _semCategory),
         })
       : phrase;
+
+    // Fix 4: After 2+ consecutive failures with NO semantic signal, escalate to a
+    // model-answer hint.  When there IS a semantic signal, partial confirmation is
+    // still more useful than a generic model answer, so we skip escalation.
+    const _escalationSemanticSignal =
+      _detectSemanticCategory(saidTrimmed) !== null ||
+      (typeof semanticSoftMatch === "function" && semanticSoftMatch(saidTrimmed, frameId));
+    if ((window._consecutiveNotUnderstood || 0) >= 2 && !_escalationSemanticSignal) {
+      const _modelAns = _getModelAnswerForEngine(window._currentEngineId || "");
+      const _escalationHanzi = "没关系。你可以说一个简单句。"
+        + (_modelAns ? `\n比如：${_modelAns}` : "");
+      _displayPhrase = Object.assign({}, _displayPhrase, {
+        hanzi:           _escalationHanzi,
+        pinyin:          "",
+        text_en:         "No problem. Try a simple sentence.",
+        recovery_action: "soft",
+        id:              "escalated_model_answer",
+      });
+    }
 
     emitUITrace({
       type: "SPEECH_NOT_UNDERSTOOD",
@@ -6116,11 +6520,18 @@ window.addEventListener("load", async () => {
       window._consecutiveNotUnderstood = 0;
       if (frameId) delete window._recoveryPromptsByFrame[frameId];
       setUiMode("READ");
+      // Same-topic repair hold: if the rejected speech had detectable semantic content
+      // (location, family, work, food, …) stay in the same engine rather than bridging.
+      // Only bridge when the input was pure noise with no recoverable signal.
+      const _hasSemanticSignal = _detectSemanticCategory(saidTrimmed) !== null
+        || semanticSoftMatch(saidTrimmed, frameId);
       ttsSpeak({
         text: _displayPhrase.hanzi,
         lang: "zh-CN",
         onEvent: (e) => {
-          if (e?.payload?.completed) runTurn(true, { prefer_bridge: true });
+          if (e?.payload?.completed) {
+            runTurn(true, _hasSemanticSignal ? {} : { prefer_bridge: true });
+          }
         },
       });
     } else {
@@ -6244,84 +6655,86 @@ if (startFreshBtn) startFreshBtn.addEventListener("click", () => {
  * next_steps, internal_state }. Observation only; no effect on conversation.
  */
 function _buildAbilitySummary() {
-  const obs          = window._learnerObs || {};
-  const successCount = obs.successful_answers      || 0;
-  const hintCount    = obs.hint_clicks             || 0;
-  const repairCount  = window._repairAttemptCount  || 0;
-  // Combined question signal: typed/spoken questions + mirror-button clicks
-  const questionCount = (obs.question_count || 0) + (obs.mirror_uses || 0);
-  const extendedCount = obs.extended_answer_count   || 0;
-  const resilCount    = obs.recovery_resilience_count || 0;
-  const turns         = obs.turns_observed          || 0;
+  const obs = window._learnerObs || {};
 
-  // ── capability_lines ──────────────────────────────────────────────────────
-  const capability_lines = [];
-  if (successCount >= 3) capability_lines.push("Answer basic questions about yourself");
-  if (successCount >= 5) capability_lines.push("Handle short conversations");
-  if (questionCount >= 1) capability_lines.push("Ask simple follow-up questions");
-  if (capability_lines.length === 0) capability_lines.push("Starting to respond to simple questions");
+  // ── Map to spec signal variables ──────────────────────────────────────────
+  // Every reflection line below is conditioned on one of these counters so that
+  // a learner can point to the session behaviour it refers to.
+  const turnCount     = _tracker.total_turns           || 0;  // server-confirmed turns
+  const answerCount   = obs.successful_answers         || 0;  // accepted turns (= total_turns)
+  const questionCount = (obs.question_count || 0) + (obs.mirror_uses || 0); // typed/spoken + blue-panel
+  const recoveryCount = _tracker.recovery_uses         || 0;  // recovery phrase taps
+  const hintCount     = obs.hint_clicks                || 0;  // ? hint button clicks
+  const acceptedCount = obs.successful_answers         || 0;  // same source as answerCount
+  const extendedCount = obs.extended_answer_count      || 0;  // kept for internal_state only
 
-  // ── progress_lines ────────────────────────────────────────────────────────
-  // Scope: capability + emotional reinforcement only.
-  // Hint usage and participation counts belong to the scorecard.
-  const progress_lines = [];
-  if (successCount >= 3) progress_lines.push("You answered several questions");
-  // Graded extended-answer lines
-  if (extendedCount >= 2)      progress_lines.push("You gave more detailed answers");
-  else if (extendedCount === 1) progress_lines.push("You started adding more detail");
-  // Graded recovery-resilience lines
-  if (resilCount >= 2)          progress_lines.push("You worked through misunderstandings");
-  else if (resilCount === 1)    progress_lines.push("You kept going after a misunderstanding");
-  // Generic repair line only when no specific resilience signal is present
-  if (repairCount >= 3 && resilCount === 0)
-    progress_lines.push("You worked through understanding — keep going");
-  if (progress_lines.length === 0 && turns > 0)
-    progress_lines.push("You showed up and tried — that's the start");
-
-  // ── next_steps (max 2) ────────────────────────────────────────────────────
-  const next_steps = [];
-  // Never suggest asking questions if the learner already asked one
-  if (questionCount === 0) next_steps.push("Try asking a question back");
-  // Prefer connector-linking advice when learner already gives extended answers
-  if (extendedCount >= 2) {
-    next_steps.push("Try linking two ideas with 因为 / 但是 / 所以");
-  } else if (successCount >= 3) {
-    next_steps.push("Try a longer answer next time");
-  }
-  // Repair-heavy session: suggest simplification
-  if (repairCount >= 3 && next_steps.length < 2)
-    next_steps.push("Try saying the same idea in a shorter way first");
-  // General advancement suggestion when slots remain
-  if (successCount >= 5 && next_steps.length < 2)
-    next_steps.push("Try talking about your work or daily life");
-  if (next_steps.length === 0) next_steps.push("Try answering a question in Chinese");
-  const capped_next = next_steps.slice(0, 2);
-
-  // ── headline ──────────────────────────────────────────────────────────────
+  // ── 1. Headline — concrete, turn-count grounded ───────────────────────────
   let headline;
-  if (questionCount >= 1 && (extendedCount >= 2 || resilCount >= 2))
-    headline = "You're starting to handle more natural conversation flow.";
-  else if (successCount >= 5 && questionCount >= 1)
-    headline = "You're starting to handle real conversations.";
-  else if (successCount >= 5)
-    headline = "You're getting comfortable answering in Chinese.";
-  else if (successCount >= 3)
-    headline = "You're building confidence with simple conversations.";
-  else
-    headline = "You're starting to respond in Chinese.";
+  if (turnCount >= 6) {
+    headline = `You completed ${turnCount} turns in Chinese.`;
+  } else if (turnCount > 0) {
+    headline = `You completed ${turnCount} turn${turnCount === 1 ? "" : "s"} — good start.`;
+  } else {
+    headline = "You started a conversation — that's the first step.";
+  }
+
+  // ── 2. "What you can do now" — observed behaviours only ──────────────────
+  const capability_lines = [];
+  if (answerCount > 0)
+    capability_lines.push(`You responded ${answerCount} time${answerCount === 1 ? "" : "s"}.`);
+  if (questionCount > 0)
+    capability_lines.push(`You asked ${questionCount} question${questionCount === 1 ? "" : "s"} back.`);
+  if (recoveryCount > 0)
+    capability_lines.push(`You kept going after not understanding ${recoveryCount} time${recoveryCount === 1 ? "" : "s"}.`);
+  if (hintCount === 0 && answerCount > 0) {
+    capability_lines.push("You answered without using hints.");
+  } else if (hintCount > 0) {
+    capability_lines.push(`You used hints ${hintCount} time${hintCount === 1 ? "" : "s"} to support your answers.`);
+  }
+
+  // ── 3. "Recent progress" — evidence-bound lines only ─────────────────────
+  const progress_lines = [];
+  if (recoveryCount > 0)
+    progress_lines.push("You recovered after confusion instead of stopping.");
+  if (acceptedCount >= 2)
+    progress_lines.push(`You completed ${acceptedCount} accepted response turn${acceptedCount === 1 ? "" : "s"}.`);
+  if (questionCount > 0 && answerCount > 0)
+    progress_lines.push("You both answered and asked questions.");
+  if (hintCount === 0 && turnCount >= 3)
+    progress_lines.push("You completed this conversation without hints.");
+
+  // ── 4. "Next step" — single practical suggestion ─────────────────────────
+  let nextStep;
+  if (questionCount === 0) {
+    nextStep = "Next time, try asking one question back, like \u201c\u4f60\u5462\uff1f\u201d";  // 你呢？
+  } else if (recoveryCount > 0) {
+    nextStep = "Next time, try one turn again after the recovery phrase.";
+  } else if (answerCount > 0) {
+    nextStep = "Next time, try making one answer slightly longer.";
+  } else {
+    nextStep = "Next time, complete one more turn.";
+  }
+  const next_steps = [nextStep];
+
+  // ── 5. Global fallback ────────────────────────────────────────────────────
+  if (capability_lines.length === 0 && progress_lines.length === 0) {
+    capability_lines.push(
+      `You completed ${turnCount} turn${turnCount === 1 ? "" : "s"} — keep going.`
+    );
+  }
 
   const summary = {
     headline,
     capability_lines,
     progress_lines,
-    next_steps: capped_next,
+    next_steps,
     internal_state: {
-      success_count:    successCount,
-      hint_count:       hintCount,
-      repair_count:     repairCount,
-      question_count:   questionCount,
-      extended_count:   extendedCount,
-      resil_count:      resilCount,
+      turn_count:     turnCount,
+      answer_count:   answerCount,
+      question_count: questionCount,
+      recovery_count: recoveryCount,
+      hint_count:     hintCount,
+      extended_count: extendedCount,
     },
   };
   console.log("[ability_summary]", summary);
@@ -6480,6 +6893,84 @@ async function _showPostCloseMirrorOptions() {
 // app.js is an ES module — module-scope functions are not automatically on window.
 window._showPostCloseMirrorOptions = _showPostCloseMirrorOptions;
 
+// ── Topic-based blue-question fallback ────────────────────────────────────────
+/** Minimum useful blue questions per broad topic.  Served when the server doesn't
+ *  send discovery_questions and the client cache is empty.  Server-provided questions
+ *  always take priority (cache is populated before this path is reached). */
+const _TOPIC_FALLBACK_QUESTIONS = {
+  work:    [
+    { zh: "你做这个工作多久了？", py: "nǐ zuò zhège gōngzuò duō jiǔ le?",    en: "How long have you done this job?" },
+    { zh: "你喜欢这个工作吗？",   py: "nǐ xǐhuān zhège gōngzuò ma?",           en: "Do you enjoy this job?" },
+    { zh: "你在哪里工作？",       py: "nǐ zài nǎlǐ gōngzuò?",                  en: "Where do you work?" },
+  ],
+  travel:  [
+    { zh: "你去过哪里？",         py: "nǐ qù guò nǎlǐ?",                        en: "Where have you been?" },
+    { zh: "你喜欢哪里？",         py: "nǐ xǐhuān nǎlǐ?",                        en: "Which place do you like?" },
+    { zh: "你想去哪里？",         py: "nǐ xiǎng qù nǎlǐ?",                      en: "Where would you like to go?" },
+  ],
+  place:   [
+    { zh: "你喜欢那里吗？",       py: "nǐ xǐhuān nàlǐ ma?",                     en: "Do you like it there?" },
+    { zh: "那里有什么好吃的？",   py: "nàlǐ yǒu shénme hào chī de?",           en: "What good food is there?" },
+    { zh: "那里有什么特别？",     py: "nàlǐ yǒu shénme tèbié?",                 en: "What's special about that place?" },
+  ],
+  family:  [
+    { zh: "你和谁一起住？",       py: "nǐ hé shéi yīqǐ zhù?",                   en: "Who do you live with?" },
+    { zh: "你有兄弟姐妹吗？",     py: "nǐ yǒu xiōngdì jiěmèi ma?",              en: "Do you have siblings?" },
+    { zh: "家里谁最重要？",       py: "jiālǐ shéi zuì zhòngyào?",                en: "Who is most important at home?" },
+  ],
+  food:    [
+    { zh: "你最喜欢什么菜？",     py: "nǐ zuì xǐhuān shénme cài?",              en: "What dish do you like most?" },
+    { zh: "你会做饭吗？",         py: "nǐ huì zuò fàn ma?",                      en: "Can you cook?" },
+    { zh: "那里有什么好吃的？",   py: "nàlǐ yǒu shénme hào chī de?",           en: "What good food is there?" },
+  ],
+  identity:[
+    { zh: "你叫什么名字？",       py: "nǐ jiào shénme míngzi?",                  en: "What's your name?" },
+    { zh: "你多大？",             py: "nǐ duō dà?",                               en: "How old are you?" },
+    { zh: "你是哪里人？",         py: "nǐ shì nǎlǐ rén?",                       en: "Where are you from?" },
+  ],
+};
+
+/**
+ * Returns up to 2 answer-reactive probe questions based on keywords in the persona's
+ * counter_reply.  Used to augment the blue-question panel after a persona answer.
+ * Returns objects in the same {zh, py, en} shape as renderDiscoveryPanel expects.
+ */
+function _augmentQuestionsFromAnswer(counterReply) {
+  if (!counterReply) return [];
+  const extra = [];
+  if (/喜欢/.test(counterReply))                     extra.push({ zh: "你为什么喜欢这个？",   py: "", en: "Why do you like this?" });
+  if (/去过|旅行|旅游/.test(counterReply))           extra.push({ zh: "你去过哪里？",         py: "", en: "Where have you been?" });
+  if (/工作/.test(counterReply))                     extra.push({ zh: "你喜欢这个工作吗？",   py: "", en: "Do you enjoy this job?" });
+  if (/地方|那里|那边/.test(counterReply))           extra.push({ zh: "那里有什么特别？",     py: "", en: "What's special about that place?" });
+  return extra.slice(0, 2);
+}
+
+/**
+ * Deduplicates a question list by the question's Chinese text (q.zh).
+ * Preserves order (first occurrence wins) and caps to maxLen items.
+ */
+function _dedupeQuestions(qs, maxLen = 4) {
+  const seen = new Set();
+  return qs.filter(q => {
+    const key = (q.zh || "").trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, maxLen);
+}
+
+/** Returns topic-based fallback questions for the given engine ID, or [] if unknown. */
+function _getTopicFallbackQuestions(engineId) {
+  const e = (engineId || "").toLowerCase();
+  if (/work|job|career|retire|teach/.test(e)) return _TOPIC_FALLBACK_QUESTIONS.work;
+  if (/travel|trip|visit|tour/.test(e))       return _TOPIC_FALLBACK_QUESTIONS.travel;
+  if (/place|city|country|origin|from|where/.test(e)) return _TOPIC_FALLBACK_QUESTIONS.place;
+  if (/family|spouse|parent|child|live/.test(e))   return _TOPIC_FALLBACK_QUESTIONS.family;
+  if (/food|eat|restaurant|cook/.test(e))      return _TOPIC_FALLBACK_QUESTIONS.food;
+  if (/name|identity|age|how_old/.test(e))     return _TOPIC_FALLBACK_QUESTIONS.identity;
+  return [];
+}
+
 // ── Discovery panel: "You interview the persona" mode ───────────────────────
 /**
  * Render clickable "Ask them:" cards so the learner can interview the persona
@@ -6489,6 +6980,12 @@ window._showPostCloseMirrorOptions = _showPostCloseMirrorOptions;
 function renderDiscoveryPanel(questions, pendingFrameText) {
   // Store the queued frame question so "Continue" can speak it later.
   if (pendingFrameText) window._pendingFrameText = pendingFrameText.trim();
+
+  // Update the persistent cache whenever fresh questions arrive.
+  // This lets non-user-led turns and session-end keep showing the last useful set.
+  if (Array.isArray(questions) && questions.length > 0) {
+    window._lastBlueQuestions = questions.slice();
+  }
 
   let panel = document.getElementById("discoveryPanel");
   if (!panel) {
@@ -6511,7 +7008,7 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
   const _ackPhrases = (_recovData.phrases || []).filter(p => p.use === "deflection_ack");
 
   panel.innerHTML = _hasCards
-    ? `<div class="discovery-header">你想了解什么？ <span class="discovery-sub">Tap to ask the persona:</span></div>`
+    ? `<div class="discovery-header">你想了解什么？ <span class="discovery-sub">Questions you can ask:</span></div>`
     : `<div class="discovery-header discovery-header--deflect">怎么回应？ <span class="discovery-sub">Tap a phrase to acknowledge and continue:</span></div>`;
 
   (questions || []).forEach((q) => {
@@ -6708,7 +7205,14 @@ async function submitDiscoveryQuestion(q) {
   // Re-render discovery panel with remaining questions (server already excluded the asked one).
   // Pass null so _pendingFrameText is preserved (Continue button still works).
   const remaining = (data.mirror_options || []).filter(m => (m.zh || "") !== zh);
-  renderDiscoveryPanel(remaining, null);
+  if (remaining.length > 0) {
+    renderDiscoveryPanel(remaining, null);
+  } else {
+    // Mirror bank exhausted for this turn — restore the last cached set so the panel
+    // stays useful rather than flipping into deflect / empty mode.
+    const _cached = window._lastBlueQuestions || [];
+    renderDiscoveryPanel(_cached, null);
+  }
 }
 
 // ── MandarinOS-style ZH naturalizer ─────────────────────────────────────────

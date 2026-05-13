@@ -2300,7 +2300,7 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
         return True
     # Direct questions about the persona (no explicit "？" needed)
     _direct_starts = (
-        "你叫什么", "你的名字", "你是哪里人", "你从哪里来", "你老家在哪",
+        "你叫什么", "你的名字", "你名字", "你是哪里人", "你从哪里来", "你老家在哪",
         "你住在哪", "你住哪里", "你做什么工作", "你的工作", "你是做什么",
         "你喜欢什么", "你有什么爱好", "你有家人", "你有没有家人",
         "你结婚了吗", "你有孩子", "你多大", "你几岁",
@@ -2341,6 +2341,17 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
         return True
     # Place distance / never been — often no ？ (e.g. 从来没去过)
     if _looks_like_place_distance_question(text):
+        return True
+    # 谁 anywhere in a short utterance almost always signals a question
+    # e.g. "你名字谁给你取的", "这个谁做的", "谁知道"
+    if "谁" in text and len(text) <= 15:
+        return True
+    # Verb-not-verb pattern (A-not-A) — a standard Chinese question form with no ？
+    # e.g. "这个工作难不难啊", "来不来", "好不好", "是不是你"
+    _verb_not_verb_re = re.compile(
+        r"([\u4e00-\u9fff]{1,3})不\1"
+    )
+    if _verb_not_verb_re.search(text):
         return True
     return False
 
@@ -2458,7 +2469,8 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
                              "名字的意思", "名字有什么意思", "名字是什么意思")):
         fact = (_facts.get("identity") or "").strip()
         return fact if fact else f"我叫{name}，这个名字有一点特别的意思，是家人给取的。"
-    if any(p in t for p in ("名字有什么故事", "名字的故事", "名字怎么来", "名字怎么取")):
+    if any(p in t for p in ("名字有什么故事", "名字的故事", "名字怎么来", "名字怎么取",
+                             "名字谁给", "谁给你取", "谁取的", "谁起的名字", "名字是谁")):
         fact = (_facts.get("identity") or "").strip()
         return fact if fact else "我的名字有一个小故事，家里人取的，有机会再说给你听。"
 
@@ -2518,13 +2530,27 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
         return "哎，这个嘛……说来话长，有空再聊！"
 
     # Married / partner status — phrase from recovery_phrases.json (use=persona_deflect, topic=marriage)
+    # Covers both 你-prefixed forms and bare omitted-subject question forms (结婚了吗 / 结婚没有).
     if any(p in t for p in ("你结婚", "你有没有结婚", "你有对象", "你有伴侣",
-                             "你有男朋友", "你有女朋友", "你成家了")):
+                             "你有男朋友", "你有女朋友", "你成家了",
+                             "结婚了吗", "结婚了没", "结婚没有", "结婚没", "成家了吗",
+                             "结婚了嘛", "有没有结婚", "有对象吗", "单身吗")):
         return _persona_deflect("marriage", t)
 
     # Children — phrase from recovery_phrases.json (use=persona_deflect, topic=children)
     if any(p in t for p in ("你有孩子", "你有小孩", "你有儿子", "你有女儿", "你有宝宝")):
         return _persona_deflect("children", t)
+
+    # Work difficulty / quality — e.g. "这个工作难不难啊", "工作累不累", "工作怎么样"
+    if any(p in t for p in ("难不难", "累不累", "辛不辛苦", "工作怎么样", "工作累吗",
+                             "工作有没有意思", "工作有趣吗", "工作好不好")):
+        occ = (profile.get("occupation") or "").strip()
+        work_line = voice_lines.get("work") or ""
+        if work_line:
+            return work_line
+        if occ:
+            return f"{occ}嘛，有挑战，但还可以，挺有意思的。"
+        return "工作嘛，有时候忙，但还可以，挺有意思的。"
 
     # Age — phrase from recovery_phrases.json (use=persona_deflect, topic=age)
     if any(p in t for p in ("你多大", "你几岁", "你的年龄", "你今年多大")):
@@ -2632,6 +2658,85 @@ def _is_confusion_signal(t: str) -> bool:
         "不知道", "等一下", "我听不懂",
     )
     return any(m in s for m in markers)
+
+
+def _is_explicit_topic_switch(text: str) -> bool:
+    """
+    Return True when the learner uses an explicit discourse marker to signal
+    they are voluntarily switching topics (e.g. "对了", "还有", "我想问你").
+    Used to allow the learner to break out of a pending-frame commitment.
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    _markers = ("对了", "还有", "我想问你", "顺便问一下", "另外", "说起来", "话说")
+    return any(m in t for m in _markers)
+
+
+def _is_relevant_to_frame(text: str, frame_id: str) -> bool:
+    """Return True when `text` is topically relevant to the question `frame_id` asked.
+
+    Used by the pending-frame commitment guard to decide whether an off-topic
+    learner answer should trigger a clarification re-ask.  Lightweight keyword
+    check only — no embeddings, deterministic lookup table.
+    """
+    if not text:
+        return False
+    if frame_id == "f_name_story":
+        return any(k in text for k in ("故事", "名字", "叫", "取"))
+    if frame_id == "f_what_work":
+        return any(k in text for k in ("工作", "老师", "公司", "上班", "退休", "大学", "教"))
+    if frame_id == "f_live_where":
+        return any(k in text for k in ("住", "在", "哪里", "地方", "新西兰", "奥克兰"))
+    if frame_id == "f_from_where":
+        return any(k in text for k in ("人", "来自", "新西兰人", "中国人", "老家"))
+    if frame_id == "f_live_with_who":
+        return any(k in text for k in ("太太", "老婆", "家人", "爸爸", "妈妈", "儿子", "女儿", "一起住"))
+    return False
+
+
+# Frames protected by the pending-frame commitment guard (counter-reply and
+# frame-selection levels).  Extend this set — not the guard logic itself —
+# when new frames need protecting.
+_COMMITMENT_GUARD_FRAMES: frozenset = frozenset({
+    "f_what_work",
+    "f_live_where",
+    "f_from_where",
+    "f_live_with_who",
+})
+
+
+def _looks_like_valid_location(text: str) -> bool:
+    """Heuristic: return True when text plausibly contains a real location / place name.
+
+    Used to detect garbled ASR answers to location frames (e.g. "我住在等你等")
+    vs genuine place answers ("我住在北京", "Auckland").  False-negative rate is
+    acceptable — better to ask once more than to silently advance on garbage input.
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    # Latin script ≥ 3 consecutive chars → likely an English/foreign city name
+    if re.search(r'[A-Za-z]{3,}', t):
+        return True
+    # Strip common location-answer structural prefixes to isolate the place token
+    for _pfx in ("我现在住在", "我住在", "我在", "我来自", "住在", "在"):
+        if t.startswith(_pfx):
+            t = t[len(_pfx):].strip()
+            break
+    if not t:
+        return False
+    # Characters that commonly appear in Chinese city / region / country names.
+    # Deliberately narrow to reduce false-positives from functional words.
+    _LOC_CHARS = frozenset(
+        "市省州区县岛镇港京沪津渝穗榕蓉汉庆海山川江宁福厦昆贵哈沈长春银拉兰顿威"
+    )
+    if any(c in t for c in _LOC_CHARS):
+        return True
+    # Valid non-location answers (deflection / uncertainty)
+    if any(x in t for x in ("不知道", "不确定", "没想好", "这里", "那里", "这边", "那边")):
+        return True
+    return False
 
 
 def _confusion_recovery_reply(t: str, prev_zh: str, seed: str = "") -> Optional[tuple]:
@@ -5230,6 +5335,20 @@ class Handler(BaseHTTPRequestHandler):
                     if _micro_probe_candidate is None:
                         _micro_probe_eligible = False
                         _micro_probe_block_reason = "micro_probe_rate_limited"
+                    elif (
+                        _micro_probe_candidate == "f_micro_probe_where"
+                        and last_answer_fid in (
+                            "f_live_where", "frame.location.live_question", "f_from_where"
+                        )
+                        and re.search(r"[A-Za-z]{3,}", answer_text or "")
+                    ):
+                        # Don't ask bare "哪里？" when the learner's answer already contains
+                        # an explicit Latin-script city (e.g. "Dunedin") — the city is known,
+                        # so the probe is redundant.  Let normal frame selection pick the next
+                        # place frame (f_place_special, f_place_far, etc.) instead.
+                        _micro_probe_candidate = None
+                        _micro_probe_eligible = False
+                        _micro_probe_block_reason = "city_already_given_latin"
                 elif not last_turn_was_answer:
                     _micro_probe_block_reason = "not_last_turn_answer"
                 elif not slot_names:
@@ -5386,6 +5505,20 @@ class Handler(BaseHTTPRequestHandler):
                                     elif _frag and len(_frag) <= 20:
                                         _city = _frag.rstrip("。，！？")
                                         break
+                        # Fallback: scan for known prominent place names in the submitted text.
+                        # Covers noisy inputs like "我现在住新西兰等你等" where prefix patterns fail.
+                        if not _city and _submitted:
+                            _KNOWN_PLACES = (
+                                "新西兰", "澳大利亚", "澳洲", "美国", "英国", "日本", "韩国",
+                                "德国", "法国", "加拿大", "新加坡", "马来西亚", "泰国", "越南",
+                                "印度", "台湾", "香港", "中国",
+                                "北京", "上海", "广州", "深圳", "成都", "重庆", "西安",
+                                "杭州", "南京", "武汉", "苏州", "天津", "青岛",
+                            )
+                            for _kp in _KNOWN_PLACES:
+                                if _kp in _submitted:
+                                    _city = _kp
+                                    break
                         if _city:
                             _echo_candidate = f"哦，{_city}！"
                             _echo_triggered_by = "CITY"
@@ -5413,6 +5546,15 @@ class Handler(BaseHTTPRequestHandler):
                                 "。，！？、…·\u3002\uff0c\uff01\uff1f.!?, "
                             )
                         if _travel_text and len(_travel_text) <= 20:
+                            # Strip first-person desire prefix so the persona never echoes
+                            # "我想去中国" as its own statement ("哦，我想去中国！").
+                            # Extract only the destination: "我想去中国" → "中国".
+                            _fp_travel_re = re.compile(
+                                r"^我[很最也]?[想要][去到]?|^我[很最也]?非常想[去到]?"
+                            )
+                            _dest_only = _fp_travel_re.sub("", _travel_text).strip()
+                            if _dest_only and len(_dest_only) < len(_travel_text):
+                                _travel_text = _dest_only
                             _echo_candidate = f"哦，{_travel_text}！"
                             _echo_triggered_by = "TRAVEL"
                     elif "COMPANY" in slot_names:
@@ -5536,7 +5678,8 @@ class Handler(BaseHTTPRequestHandler):
                 _counter_is_new_mirror = False  # set True when a fresh mirror answer is generated this turn
                 _new_mirror_topic = ""
                 _new_mirror_engine = ""
-                _confusion_about_app_q = False  # set True when learner confused about frame question (not mirror)
+                _confusion_about_app_q   = False  # set True when learner confused about frame question (not mirror)
+                _noisy_location_clarify  = False  # set True when location answer looks garbled → frame override below
 
                 if last_turn_was_answer:
                     # Lexical definition: skip for genuine user questions about the persona.
@@ -5597,6 +5740,43 @@ class Handler(BaseHTTPRequestHandler):
                         if _prev_frame_text:
                             _counter_result = _clarify_app_question(_prev_frame_text)
                             _confusion_about_app_q = True
+                    elif (
+                        not _prev_counter_reply
+                        and _last_text_for_counter
+                        and not _is_confusion_signal(_last_text_for_counter)
+                        and not user_asked_question
+                        and "CITY" in slot_names
+                        and not _looks_like_valid_location(_last_text_for_counter)
+                    ):
+                        # ── Noisy location-answer clarification ───────────────────────────
+                        # Learner tried to answer a location question but the place token
+                        # looks garbled (e.g. "我住在等你等").  Set the confusion flag so
+                        # Path 0 shows blue questions.  A frame-text override (below, after
+                        # response is built) will replace the next question with a rephrased
+                        # version of the original location question and restore its options —
+                        # keeping the learner on the same topic instead of jumping to food.
+                        _confusion_about_app_q  = True
+                        _noisy_location_clarify = True
+                    elif (
+                        not _prev_counter_reply
+                        and _last_text_for_counter
+                        and not _is_confusion_signal(_last_text_for_counter)
+                        and not user_asked_question
+                        and "CITY" not in slot_names   # CITY frames use _noisy_location_clarify above
+                        and last_answer_fid in _COMMITMENT_GUARD_FRAMES
+                        and not _is_explicit_topic_switch(_last_text_for_counter)
+                        and not _is_relevant_to_frame(_last_text_for_counter, last_answer_fid)
+                    ):
+                        # ── Pending-frame commitment clarification ────────────────────────
+                        # Learner gave an off-topic statement to a protected question frame
+                        # (e.g. answered '你和谁一起住？' with '我想去中国').  Rephrase the
+                        # original question so the learner understands what was being asked.
+                        _pfx_pc = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                        if _pfx_pc:
+                            _caq_pc = _clarify_app_question(_pfx_pc)
+                            if _caq_pc:
+                                _counter_result        = _caq_pc
+                                _confusion_about_app_q = True
                     if _counter_result is None:
                         # Mirror answers only fire when the user genuinely asked a question.
                         # Statements (e.g. "我跟家人一起住。") must never match the mirror bank —
@@ -5612,6 +5792,22 @@ class Handler(BaseHTTPRequestHandler):
                             _new_mirror_engine   = _raw_mirror[3]
                         else:
                             _counter_result = _answer_user_question_prefix(last_answer, persona)
+                            # If _answer_user_question_prefix fell through to a generic deflection
+                            # (no specific answer found), replace it with a clarification of the
+                            # app's last question — gives the learner better recovery guidance
+                            # than "这个不好说" or "这个以后再聊".
+                            _generic_deflects = set(_persona_deflect_phrases.get("generic") or [])
+                            if (
+                                _counter_result
+                                and _generic_deflects
+                                and _counter_result[0] in _generic_deflects
+                            ):
+                                _pfx_aq = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                                if _pfx_aq:
+                                    _caq = _clarify_app_question(_pfx_aq)
+                                    if _caq:
+                                        _counter_result = _caq
+                                        _confusion_about_app_q = True
 
                 _counter_reply    = _counter_result[0] if _counter_result else None
                 _counter_reply_en = _counter_result[1] if _counter_result else ""
@@ -5646,11 +5842,17 @@ class Handler(BaseHTTPRequestHandler):
                 # ── Repair escalation ───────────────────────────────────────────
                 # When the learner repeatedly signals confusion (啊？ / 我不懂 / etc.),
                 # escalate the partner's repair phrase rather than looping the same response.
-                # Uses recent_confusion_count (already in scope from cs) as the attempt counter.
+                # Counter sources: session-level recent_confusion_count (updated by selector),
+                # client-tracked repair_attempt_count, and consecutive_not_understood —
+                # take the maximum so any client counter can drive escalation.
                 # Level 1 (count==1): short acknowledgment — let existing flow handle naturally.
                 # Level 2 (count==2): explicit repeat request "再说一遍可以吗？"
-                # Level 3+ (count>=3): candidate-specific clarification or simple request.
-                _repair_attempt_count  = recent_confusion_count  # already read from cs above
+                # Level 3+ (count>=3): supportive model-answer hint.
+                _repair_attempt_count = max(
+                    recent_confusion_count,                             # session-level (from selector)
+                    int(cs.get("repair_attempt_count") or 0),           # client-tracked
+                    int(cs.get("consecutive_not_understood") or 0),     # client-tracked
+                )
                 _repair_escalation_level = min(_repair_attempt_count, 3) if _repair_attempt_count else 0
                 if (
                     last_turn_was_answer
@@ -5661,15 +5863,26 @@ class Handler(BaseHTTPRequestHandler):
                         _counter_reply    = "再说一遍可以吗？"
                         _counter_reply_en = "Could you say that again?"
                     else:
-                        # Level 3+: use last-detected travel candidate if available,
-                        # else a generic simplification request.
+                        # Level 3+: supportive model-answer hint scoped to the current engine.
+                        # Prefer a travel ASR near-match if one was detected this turn.
                         _repair_cand = locals().get("_travel_asr_candidate") or None
                         if _repair_cand:
                             _counter_reply    = f"你是说\u201c{_repair_cand}\u201d吗？"
                             _counter_reply_en = f"Did you mean \u201c{_repair_cand}\u201d?"
                         else:
-                            _counter_reply    = "你可以再说简单一点吗？"
-                            _counter_reply_en = "Can you say that more simply?"
+                            _ENGINE_MODEL_HINTS: dict = {
+                                "place":    "我是新西兰人。",
+                                "work":     "我是老师。",
+                                "family":   "我和太太一起住。",
+                                "travel":   "我想去中国。",
+                                "food":     "我喜欢吃火锅。",
+                                "identity": "我叫大卫。",
+                                "hobby":    "我喜欢爬山。",
+                            }
+                            _hint_eng   = (current_engine or "").lower()
+                            _hint_ex    = _ENGINE_MODEL_HINTS.get(_hint_eng, "我是新西兰人。")
+                            _counter_reply    = f"没关系，你可以说一个简单句。比如：{_hint_ex}"
+                            _counter_reply_en = f"No worries — try a short sentence, e.g.: {_hint_ex}"
 
                 _counter_reply_pinyin = _resolve_counter_reply_pinyin(_counter_reply) if _counter_reply else ""
                 # Sync repair trace into first _sel_trace (used when priority branches set chosen).
@@ -5895,6 +6108,64 @@ class Handler(BaseHTTPRequestHandler):
                             pending_listening_move = False
                             listening_wait_turns = 0
 
+                # Pending-frame commitment (name-story burst): if the learner gave an
+                # off-topic answer to the name-story question (e.g. age or place during
+                # a burst), re-elicit the story once rather than silently advancing.
+                # Does NOT fire when the learner asked a question or signalled a topic switch.
+                if chosen is None and last_turn_was_answer and not user_asked_question:
+                    if (
+                        last_answer_fid == "f_name_story"
+                        and not _is_explicit_topic_switch(answer_text)
+                        and not _is_name_story_teaser_answer(answer_text)
+                    ):
+                        _ns_relevant_kw = (
+                            "故事", "名字", "叫", "取", "英文", "家里", "意思",
+                            "广东", "来自", "妈妈", "爸爸", "父母", "起的",
+                        )
+                        if not any(kw in answer_text for kw in _ns_relevant_kw):
+                            _elicit_ns = "f_name_story_elicit"
+                            # Treat the just-answered frame as already-seen so its dep is met
+                            _recent_eff_ns = set(recent or []) | {last_answer_fid}
+                            if _elicit_ns not in set(recent or []) and _frame_deps_satisfied(
+                                _elicit_ns, _recent_eff_ns, list(_recent_eff_ns)
+                            ):
+                                chosen = _elicit_ns
+                                chosen_turn_type = "question"
+                                listening_move_selected = "name_story_offtopic"
+                                listening_move_reason = "offtopic_pending_name_story"
+                                pending_listening_move = False
+                                listening_wait_turns = 0
+
+                # Pending-frame commitment (work / place / family frames): if the learner
+                # gave an off-topic answer to a protected question frame, stay in the same
+                # engine rather than bridging to a cross-topic engine.  The counter-reply
+                # section (above) already adds a "我是问：…" rephrase; this guard keeps
+                # the next frame on-topic too.
+                if chosen is None and last_turn_was_answer and not user_asked_question:
+                    if (
+                        last_answer_fid in _COMMITMENT_GUARD_FRAMES
+                        and not _is_explicit_topic_switch(answer_text)
+                        and not _is_relevant_to_frame(answer_text, last_answer_fid)
+                    ):
+                        _recent_eff_cg = set(recent or []) | {last_answer_fid}
+                        _chosen_cg = _select_next_frame_ladder_avoiding(
+                            current_engine,
+                            list(_recent_eff_cg),
+                            avoid_frame_ids=_WEAK_LOOP_FRAME_IDS,
+                            memory=memory,
+                            exchange_count=exchange_count,
+                            engines_visited=engines_visited,
+                        )
+                        if _chosen_cg:
+                            chosen = _chosen_cg
+                            chosen_turn_type = (
+                                "loop_question" if _is_loop_candidate(chosen) else "question"
+                            )
+                            listening_move_selected = "frame_commitment"
+                            listening_move_reason   = "offtopic_pending_frame"
+                            pending_listening_move  = False
+                            listening_wait_turns    = 0
+
                 # Generic probe-first: when unscripted answer sounds substantive, try one same-topic probe
                 # before bridging away. If it misses, normal bridge logic still runs next.
                 if chosen is None and unscripted_probe_first:
@@ -5990,6 +6261,19 @@ class Handler(BaseHTTPRequestHandler):
                         "micro_probe_candidate": _micro_probe_candidate,
                     }
                     if pending_listening_move or force_listening or chain_exceeded:
+                        # Guard: don't ask bare "哪里？" when the learner's answer already contains
+                        # an explicit Latin-script city name (e.g. "Dunedin").  The city is already
+                        # known — the probe is redundant and blocks a more useful place follow-up.
+                        if (
+                            _micro_probe_candidate == "f_micro_probe_where"
+                            and last_answer_fid in (
+                                "f_live_where", "frame.location.live_question", "f_from_where"
+                            )
+                            and re.search(r"[A-Za-z]{3,}", answer_text or "")
+                        ):
+                            _micro_probe_candidate = None
+                            _micro_probe_eligible = False
+                            _micro_probe_block_reason = "city_already_given_latin"
                         seed_base = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/interest"
                         gate_br = _stable_gate(seed_base + "/br")
                         p_br = P_BRIDGE_WHEN_INTEREST_HIGH if interest_level == "high" else 0.35
@@ -6720,6 +7004,29 @@ class Handler(BaseHTTPRequestHandler):
                 response.setdefault("state_update", {})
                 response["state_update"]["pending_dest_candidate"] = None
 
+            # ── Noisy location clarification: stay on the same location frame ─────
+            # When the learner gave a garbled place answer, replace the next frame
+            # with a rephrased version of the original location question and restore
+            # its answer options — no topic drift to food or other sub-topics.
+            _nlc = locals().get("_noisy_location_clarify", False)
+            if _nlc and isinstance(last_answer, dict):
+                _orig_loc_fid  = (last_answer.get("frame_id") or "").strip()
+                _cs_nlc        = payload.get("conversation_state") if isinstance(payload.get("conversation_state"), dict) else {}
+                _prev_ft_nlc   = (_cs_nlc.get("last_partner_frame_text") or "").strip()
+                _rephrase_nlc  = _clarify_app_question(_prev_ft_nlc) if _prev_ft_nlc else None
+                if _rephrase_nlc:
+                    response["frame_text"]    = _rephrase_nlc[0]
+                    response["frame_text_en"] = _rephrase_nlc[1]
+                    response["frame_pinyin"]  = ""
+                    if _orig_loc_fid:
+                        _orig_loc_fo   = _frame_options.get(_orig_loc_fid) or {}
+                        _orig_loc_opts = (_orig_loc_fo.get("options", [])
+                                          if isinstance(_orig_loc_fo, dict) else [])
+                        if _orig_loc_opts:
+                            response["options"]   = _orig_loc_opts
+                            response["frame_id"]  = _orig_loc_fid
+                    response.setdefault("state_update", {})["location_clarify_hint"] = "你可以说：我住在…"
+
             # Phase 13A: slot substitution — fill {CITY}/{PLACE}/[CITY] from learner memory
             _needs_city_slot = (
                 any(tok in (response.get("frame_text") or "") for tok in ("{CITY}", "{PLACE}"))
@@ -6996,7 +7303,7 @@ class Handler(BaseHTTPRequestHandler):
                 # still generate a small set of relevant questions.
                 else:
                     _has_backed = bool(_persona_backed_topics(persona))
-                    if _has_backed:
+                    if _has_backed and not user_asked_question:
                         _disc_eng    = (current_engine or engine_id or "").strip().lower()
                         _backed_tpcs = _persona_backed_topics(persona)
                         _rich_engs   = _persona_rich_engines(persona)
@@ -7042,7 +7349,6 @@ class Handler(BaseHTTPRequestHandler):
                         "confusion_clarification" if (_confusion_about_app_q and bool(_dq_rendered)) else
                         "learner_asked" if (user_asked_question and _counter_reply and bool(_dq_rendered)) else
                         "proactive" if (_trigger_proactive and bool(_dq_rendered)) else
-                        "reciprocal" if (bool(_dq_rendered) and len(_dq_rendered) == 1) else
                         "persistent_fallback" if bool(_dq_rendered) else
                         "none"
                     ),

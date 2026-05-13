@@ -1401,7 +1401,7 @@ def test_discovery_trigger_timing() -> None:
     C. Pre-computation flags: consecutive_app_questions, last_persona_reveal,
        discovery_shown_last_turn, _trigger_proactive.
     D. Proactive path fires on persona-reveal OR consecutive-question condition.
-    E. Recovery guard: proactive path requires not _discovery_recent.
+    E. Rate-limit guard removed: _discovery_recent no longer blocks _trigger_proactive.
     F. Post-trigger state tracking always runs.
     G. Existing discovery (learner-asked) path unchanged.
     H. Existing reciprocal path still present as fallback.
@@ -2198,6 +2198,98 @@ def test_blue_question_reliability() -> None:
     print("✓  test_blue_question_reliability passed")
 
 
+def test_topic_persistence_and_recovery() -> None:
+    """Static regression for topic persistence, noisy-location clarification, and
+    question-handling priority fixes.
+
+    A. _looks_like_valid_location helper exists (detects garbled place answers).
+    B. Noisy location clarification branch: sets _confusion_about_app_q and
+       _noisy_location_clarify when CITY slot present but answer looks garbled.
+    C. Post-response frame override: replaces frame_text when _noisy_location_clarify set.
+    D. Path 4 guard: not user_asked_question added to prevent blue questions
+       interrupting unanswered learner questions.
+    E. Patch 3: generic deflect bypass — _persona_deflect_phrases guard before
+       _answer_user_question_prefix fallback.
+    F. blue_question_trace no longer infers "reciprocal" by card count.
+    """
+    print("\n[STATIC] T-TPR — Topic persistence and recovery (ui_server.py)")
+    src = (ROOT / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+
+    # ── A: _looks_like_valid_location helper ────────────────────────────────
+    check("T-TPR A1: _looks_like_valid_location function defined",
+          "def _looks_like_valid_location(" in src)
+    loc_idx = src.find("def _looks_like_valid_location(")
+    assert loc_idx >= 0, "T-TPR A0: _looks_like_valid_location not found"
+    loc_block = src[loc_idx: loc_idx + 800]
+    check("T-TPR A2: Latin script check present (English city names)",
+          "A-Za-z" in loc_block)
+    check("T-TPR A3: location character set defined",
+          "_LOC_CHARS" in loc_block)
+    check("T-TPR A4: deflection answers treated as valid",
+          "不知道" in loc_block)
+
+    # ── B: Noisy location clarification branch ──────────────────────────────
+    check("T-TPR B1: _noisy_location_clarify initialised to False",
+          "_noisy_location_clarify  = False" in src or
+          "_noisy_location_clarify = False" in src)
+    noisy_idx = src.find("Noisy location-answer clarification")
+    assert noisy_idx >= 0, "T-TPR B0: noisy location comment not found"
+    noisy_block = src[noisy_idx: noisy_idx + 600]
+    check("T-TPR B2: CITY slot check in noisy location branch",
+          '"CITY" in slot_names' in noisy_block)
+    check("T-TPR B3: _looks_like_valid_location called in noisy location branch",
+          "_looks_like_valid_location(" in noisy_block)
+    check("T-TPR B4: _confusion_about_app_q set True in noisy location branch",
+          "_confusion_about_app_q  = True" in noisy_block or
+          "_confusion_about_app_q = True" in noisy_block)
+    check("T-TPR B5: _noisy_location_clarify set True in noisy location branch",
+          "_noisy_location_clarify = True" in noisy_block)
+
+    # ── C: Post-response frame override ─────────────────────────────────────
+    override_idx = src.find("Noisy location clarification: stay on the same location frame")
+    assert override_idx >= 0, "T-TPR C0: frame override comment not found"
+    override_block = src[override_idx: override_idx + 800]
+    check("T-TPR C1: frame override reads _noisy_location_clarify flag",
+          "_noisy_location_clarify" in override_block)
+    check("T-TPR C2: frame override replaces response[\"frame_text\"]",
+          'response["frame_text"]' in override_block)
+    check("T-TPR C3: frame override restores original frame options",
+          'response["options"]' in override_block)
+    check("T-TPR C4: frame override adds location_clarify_hint to state",
+          "location_clarify_hint" in override_block)
+
+    # ── D: Path 4 guard ─────────────────────────────────────────────────────
+    p4_idx = src.find("Path 4: Persistent fallback")
+    assert p4_idx >= 0, "T-TPR D0: Path 4 comment not found"
+    p4_block = src[p4_idx: p4_idx + 600]
+    check("T-TPR D1: Path 4 guards on not user_asked_question",
+          "not user_asked_question" in p4_block)
+    check("T-TPR D2: Path 4 still guards on _persona_backed_topics",
+          "_persona_backed_topics" in p4_block)
+
+    # ── E: Patch 3 generic deflect bypass ───────────────────────────────────
+    check("T-TPR E1: _generic_deflects set computed from _persona_deflect_phrases",
+          "_generic_deflects" in src and "_persona_deflect_phrases" in src)
+    gd_idx = src.find("_generic_deflects")
+    assert gd_idx >= 0, "T-TPR E0: _generic_deflects not found"
+    gd_block = src[gd_idx: gd_idx + 500]
+    check("T-TPR E2: generic deflect bypass calls _clarify_app_question",
+          "_clarify_app_question" in gd_block)
+    check("T-TPR E3: generic deflect bypass sets _confusion_about_app_q",
+          "_confusion_about_app_q = True" in gd_block)
+
+    # ── F: blue_question_trace no reciprocal-by-length inference ────────────
+    trace_idx = src.find("blue_questions_source")
+    assert trace_idx >= 0, "T-TPR F0: blue_questions_source not found"
+    trace_block = src[trace_idx: trace_idx + 400]
+    check("T-TPR F1: reciprocal no longer inferred by card-count (len(_dq_rendered) == 1)",
+          "len(_dq_rendered) == 1" not in trace_block)
+    check("T-TPR F2: persistent_fallback still a valid source value",
+          "persistent_fallback" in trace_block)
+
+    print("✓  test_topic_persistence_and_recovery passed")
+
+
 def main() -> None:
     static_only = "--static-only" in sys.argv
 
@@ -2224,6 +2316,7 @@ def main() -> None:
     test_location_distance_questions()
     test_english_name_and_place_handling()
     test_blue_question_reliability()
+    test_topic_persistence_and_recovery()
 
     # Integration tests — require a running server
     if static_only:
