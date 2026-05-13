@@ -5943,6 +5943,7 @@ class Handler(BaseHTTPRequestHandler):
                     and _is_confusion_signal(answer_text)
                     and _repair_attempt_count >= 2
                     and not _confirmed_re_ask
+                    and not _is_plain_affirmation(answer_text)   # 对/是的/嗯 = success, never escalate
                     and not _is_place_description(answer_text)
                 ):
                     if _repair_attempt_count == 2:
