@@ -5950,26 +5950,16 @@ class Handler(BaseHTTPRequestHandler):
                         _counter_reply    = "再说一遍可以吗？"
                         _counter_reply_en = "Could you say that again?"
                     else:
-                        # Level 3+: supportive model-answer hint scoped to the current engine.
-                        # Prefer a travel ASR near-match if one was detected this turn.
+                        # Level 3+: the partner acknowledges and moves on — no model answers
+                        # in the partner voice (Design Constitution: no "correct answer" reveals,
+                        # no teacher voice). ASR near-match confirmation is still appropriate.
                         _repair_cand = locals().get("_travel_asr_candidate") or None
                         if _repair_cand:
                             _counter_reply    = f"你是说\u201c{_repair_cand}\u201d吗？"
                             _counter_reply_en = f"Did you mean \u201c{_repair_cand}\u201d?"
                         else:
-                            _ENGINE_MODEL_HINTS: dict = {
-                                "place":    "我是新西兰人。",
-                                "work":     "我是老师。",
-                                "family":   "我和太太一起住。",
-                                "travel":   "我想去中国。",
-                                "food":     "我喜欢吃火锅。",
-                                "identity": "我叫大卫。",
-                                "hobby":    "我喜欢爬山。",
-                            }
-                            _hint_eng   = (current_engine or "").lower()
-                            _hint_ex    = _ENGINE_MODEL_HINTS.get(_hint_eng, "我是新西兰人。")
-                            _counter_reply    = f"没关系，你可以说一个简单句。比如：{_hint_ex}"
-                            _counter_reply_en = f"No worries — try a short sentence, e.g.: {_hint_ex}"
+                            _counter_reply    = "没关系，我们换个话题吧。"
+                            _counter_reply_en = "No worries, let's talk about something else."
 
                 _counter_reply_pinyin = _resolve_counter_reply_pinyin(_counter_reply) if _counter_reply else ""
                 # Sync repair trace into first _sel_trace (used when priority branches set chosen).

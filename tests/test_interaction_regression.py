@@ -293,12 +293,13 @@ def test_t5_confusion_escalation() -> None:
         not any(f in combined for f in ["啊？", "好吧"]),
         f"combined: {combined[:100]!r}",
     )
-    # "你可以说" / "简单句" are added by the client-side escalation in app.js.
-    # At the server level, accept any supportive / clarifying response.
+    # Accept any supportive or clarifying partner response.
+    # Model-answer phrases ("你可以说一个简单句", "比如") are Design Constitution violations
+    # and must NOT appear in the partner voice — they belong only in the hint affordance layer.
     check(
         "T5b — final output contains supportive or clarifying language",
         any(p in combined for p in [
-            "你可以说", "简单句", "我可以", "说简单", "再说", "不清楚", "明白",
+            "再说", "没关系", "换", "不清楚", "明白", "我可以",
         ]),
         f"combined: {combined[:100]!r}",
     )
