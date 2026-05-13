@@ -5852,6 +5852,15 @@ async function _runTurnInner(isNext = false, opts = {}) {
   // Computed once and appended (after server/cached questions) in both branches below.
   const _extraQs = _augmentQuestionsFromAnswer(_counterReply);
 
+  // Frame-stage awareness: determine whether the current frame is an early place stage.
+  // Use the answered frame (payload last_answer) as primary signal; fall back to frameId.
+  const _answeredFrameId = (
+    payload?.conversation_state?.last_answer?.frame_id || ""
+  );
+  const _activeFrameId = _answeredFrameId || frameId || "";
+  const _frameFallbackQs = _getFrameFallbackQuestions(_activeFrameId);
+  const _earlyPlace      = _isEarlyPlaceFrame(_activeFrameId);
+
   if (_isUserLed) {
     window._pendingFrameMeta = {
       text: fallbackText.trim(),
@@ -5859,7 +5868,20 @@ async function _runTurnInner(isNext = false, opts = {}) {
       pinyin: fillSentenceHintPinyin(fallbackText.trim(), data.frame_pinyin || ""),
       frame_id: frameId,
     };
-    renderDiscoveryPanel(_dedupeQuestions([..._dq.slice(0, 3), ..._extraQs]), fallbackText);
+    // For early place frames, server discovery_questions may be too advanced
+    // (e.g. "那里有什么特别的？" arriving on the very first origin/location turn).
+    // Filter those out and lead with frame-specific simple questions instead.
+    const _advancedPlacePattern = /好吃|特别|为什么喜欢|喜欢那里/;
+    const _filteredDq = _earlyPlace
+      ? _dq.filter(q => !_advancedPlacePattern.test(q.zh || ""))
+      : _dq;
+    const _serverQs = _filteredDq.slice(0, 3);
+    // Priority: frame-specific (2) → server-discovery (up to 3) → answer-reactive (up to 2).
+    // If this is an early place frame, lead with frame questions and cap server at 2.
+    const _assembled = _earlyPlace
+      ? [..._frameFallbackQs.slice(0, 2), ..._serverQs.slice(0, 2), ..._extraQs]
+      : [..._serverQs, ..._extraQs];
+    renderDiscoveryPanel(_dedupeQuestions(_assembled), fallbackText);
   } else {
     // Non-user-led turn: the server didn't send new blue questions this time.
     // Keep the last useful question set visible so the learner can still ask.
@@ -5867,7 +5889,19 @@ async function _runTurnInner(isNext = false, opts = {}) {
     window._pendingFrameText = null;
     window._pendingFrameMeta = null;
     const _cached = window._lastBlueQuestions || [];
-    if (_cached.length > 0) {
+
+    if (_frameFallbackQs.length > 0) {
+      // Frame-specific questions are available — show them, supplemented by cache or
+      // answer-reactive extras.  This is the primary path for early place/origin frames.
+      const _supplement = _cached.length > 0
+        ? _cached.filter(q => !_isEarlyPlaceFrame(_activeFrameId) ||
+            !(/好吃|特别|为什么喜欢|喜欢那里/).test(q.zh || ""))
+        : [];
+      renderDiscoveryPanel(
+        _dedupeQuestions([..._frameFallbackQs.slice(0, 2), ..._supplement, ..._extraQs]),
+        null
+      );
+    } else if (_cached.length > 0) {
       renderDiscoveryPanel(_dedupeQuestions([..._cached, ..._extraQs]), null);
     } else {
       // No cached questions yet — try topic-based fallbacks before hiding the panel.
@@ -6892,6 +6926,59 @@ async function _showPostCloseMirrorOptions() {
 // Expose on window so browser console validation and test scripts can call it directly.
 // app.js is an ES module — module-scope functions are not automatically on window.
 window._showPostCloseMirrorOptions = _showPostCloseMirrorOptions;
+
+// ── Frame-stage blue-question fallback ───────────────────────────────────────
+/** Per-frame questions shown during early stages of a topic before the persona has
+ *  revealed their own details.  These win over broad topic fallbacks and over
+ *  advanced server discovery questions that arrive too early (e.g. "那里有什么好吃的？"
+ *  during the very first place frame).
+ *  Keys must match server frame_id strings. */
+const _FRAME_FALLBACK_QUESTIONS = {
+  f_from_where: [
+    { zh: "你呢？你是哪里人？",     py: "nǐ ne? nǐ shì nǎlǐ rén?",             en: "How about you — where are you from?" },
+    { zh: "你来自哪里？",           py: "nǐ láizì nǎlǐ?",                        en: "Where do you come from?" },
+    { zh: "你现在住哪里？",         py: "nǐ xiànzài zhù nǎlǐ?",                  en: "Where do you live now?" },
+    { zh: "你老家在哪里？",         py: "nǐ lǎojiā zài nǎlǐ?",                   en: "Where is your hometown?" },
+  ],
+  // normalised canonical id for f_live_where (server uses frame.location.live_question)
+  "frame.location.live_question": [
+    { zh: "你呢？你住哪里？",       py: "nǐ ne? nǐ zhù nǎlǐ?",                  en: "How about you — where do you live?" },
+    { zh: "你住在哪里？",           py: "nǐ zhù zài nǎlǐ?",                      en: "Where do you live?" },
+    { zh: "你住的地方怎么样？",     py: "nǐ zhù de dìfāng zěnmeyàng?",           en: "What is your place like?" },
+    { zh: "你住在城市还是农村？",   py: "nǐ zhù zài chéngshì háishi nóngcūn?",   en: "City or countryside?" },
+  ],
+  f_live_where: [
+    { zh: "你呢？你住哪里？",       py: "nǐ ne? nǐ zhù nǎlǐ?",                  en: "How about you — where do you live?" },
+    { zh: "你住在哪里？",           py: "nǐ zhù zài nǎlǐ?",                      en: "Where do you live?" },
+    { zh: "你住的地方怎么样？",     py: "nǐ zhù de dìfāng zěnmeyàng?",           en: "What is your place like?" },
+    { zh: "你住在城市还是农村？",   py: "nǐ zhù zài chéngshì háishi nóngcūn?",   en: "City or countryside?" },
+  ],
+};
+
+/** Intermediate place-depth questions: shown after persona has named a city/region
+ *  but before the learner has asked about specifics.  Less advanced than the full
+ *  topic fallback ("那里有什么好吃的？" etc.). */
+const _PLACE_DEPTH_EARLY_QUESTIONS = [
+  { zh: "那是哪里？",               py: "nà shì nǎlǐ?",                          en: "Where is that?" },
+  { zh: "那里远吗？",               py: "nàlǐ yuǎn ma?",                          en: "Is it far from here?" },
+  { zh: "那里大吗？",               py: "nàlǐ dà ma?",                            en: "Is it a big place?" },
+  { zh: "那里好吗？",               py: "nàlǐ hǎo ma?",                           en: "Is it nice there?" },
+];
+
+/** Return frame-stage fallback questions for `frameId`, or [] if not an early-stage frame. */
+function _getFrameFallbackQuestions(frameId) {
+  return _FRAME_FALLBACK_QUESTIONS[frameId || ""] || [];
+}
+
+/** Return true when `frameId` is an early-stage place frame where advanced place-depth
+ *  questions (food / why-like / what's-special) would be premature. */
+function _isEarlyPlaceFrame(frameId) {
+  return !!(frameId && (
+    frameId === "f_from_where" ||
+    frameId === "f_live_where" ||
+    frameId === "frame.location.live_question"
+  ));
+}
 
 // ── Topic-based blue-question fallback ────────────────────────────────────────
 /** Minimum useful blue questions per broad topic.  Served when the server doesn't

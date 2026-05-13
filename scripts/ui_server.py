@@ -2673,6 +2673,40 @@ def _is_explicit_topic_switch(text: str) -> bool:
     return any(m in t for m in _markers)
 
 
+def _is_plain_affirmation(text: str) -> bool:
+    """Return True when `text` is a short, standalone affirmation with no additional content.
+
+    Matches 对 / 对对 / 是的 / 没错 / 嗯 / 嗯嗯 / 好的 / 就是 / 对啊 / 是啊 / 对的.
+    Deliberately strict: only fires when the entire response is essentially
+    'yes / correct / right' so that longer answers containing 对 are not swallowed
+    (e.g. "对，我住在北京" is NOT a plain affirmation — the learner is giving information).
+    """
+    t = (text or "").strip().rstrip("。！，.!,～~")
+    if not t:
+        return False
+    _AFF = {"对", "对对", "是的", "没错", "嗯", "嗯嗯", "好的", "就是", "对啊",
+            "是啊", "对的", "是", "嗯对", "对对对", "没错的", "是是", "嗯嗯嗯"}
+    return t in _AFF
+
+
+_PLACE_DESC_WORDS: frozenset = frozenset({
+    "安静", "方便", "热闹", "繁华", "冷清", "漂亮", "风景", "好看", "景色",
+    "美丽", "城市", "市区", "郊区", "农村", "海边", "山边", "湖边",
+})
+
+
+def _is_place_description(text: str) -> bool:
+    """Return True when `text` contains place-quality descriptors rather than a place name.
+
+    Recognises partial but meaningful location answers like "安静风景很好看" so that
+    noisy-location re-ask and model-answer escalation are suppressed — the learner
+    is communicating real content even if no city name was detected.
+    Deliberately excludes generic positive words (好, 很好) that appear in non-place turns.
+    """
+    t = (text or "").strip()
+    return bool(t) and any(w in t for w in _PLACE_DESC_WORDS)
+
+
 def _is_relevant_to_frame(text: str, frame_id: str) -> bool:
     """Return True when `text` is topically relevant to the question `frame_id` asked.
 
@@ -2735,6 +2769,9 @@ def _looks_like_valid_location(text: str) -> bool:
         return True
     # Valid non-location answers (deflection / uncertainty)
     if any(x in t for x in ("不知道", "不确定", "没想好", "这里", "那里", "这边", "那边")):
+        return True
+    # Place-quality descriptions ("安静风景很好看") count as meaningful place content.
+    if _is_place_description(t):
         return True
     return False
 
@@ -5187,6 +5224,37 @@ class Handler(BaseHTTPRequestHandler):
                     else ""
                 )
                 answer_text = _answer_text_from_last_answer(last_answer) if last_turn_was_answer else ""
+
+                # ── Affirmation-after-re-ask: clear confusion counters ──────────────────
+                # When the app issued a clarification re-ask last turn (noisy location,
+                # pending-frame commitment, or general confusion rephrase) and the learner
+                # responds with a plain affirmation (对/是的/没错/嗯 etc.), treat this as
+                # "I understood — continue" rather than escalating repair counters.
+                # Conditions:
+                #   1. Learner answer is a plain standalone affirmation (strict check).
+                #   2. Previous partner turn was a re-ask: contains "我是问：" or "你是说"
+                #      or the location_clarify_hint flag is set in conversation state.
+                _prev_partner_text = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                _had_re_ask = (
+                    "我是问" in _prev_partner_text
+                    or "你是说" in _prev_partner_text
+                    or bool(cs.get("location_clarify_hint") if isinstance(cs, dict) else False)
+                )
+                _confirmed_re_ask = (
+                    last_turn_was_answer
+                    and not user_asked_question
+                    and _had_re_ask
+                    and _is_plain_affirmation(answer_text)
+                )
+                if _confirmed_re_ask and isinstance(cs, dict):
+                    cs["recent_confusion_count"]      = 0
+                    cs["repair_attempt_count"]         = 0
+                    cs["mirror_confusion_count"]       = 0
+                    cs["consecutive_not_understood"]   = 0
+                    cs["location_clarify_hint"]        = ""
+                    cs["location_retry_count"]         = 0
+                    recent_confusion_count             = 0
+
                 # Pending destination confirmation: check if last turn offered a near-match
                 # clarification ("你是说甘肃吗？") and this turn is an affirmation.
                 _pending_dest = (cs.get("pending_dest_candidate") or "").strip() if isinstance(cs, dict) else ""
@@ -5522,6 +5590,19 @@ class Handler(BaseHTTPRequestHandler):
                         if _city:
                             _echo_candidate = f"哦，{_city}！"
                             _echo_triggered_by = "CITY"
+                        elif _is_place_description(_submitted):
+                            # Learner gave descriptive content ("安静风景很好看") without a city name.
+                            # Echo the strongest descriptor so the reply feels acknowledging.
+                            _desc_kw_echo = [
+                                ("风景", "风景很好"), ("好看", "风景好看"), ("安静", "很安静"),
+                                ("漂亮", "很漂亮"), ("方便", "很方便"), ("热闹", "很热闹"),
+                                ("繁华", "很繁华"), ("冷清", "比较冷清"), ("美丽", "很美"),
+                            ]
+                            _matched = [v for k, v in _desc_kw_echo if k in _submitted]
+                            _echo_candidate = (
+                                f"哦，{'，'.join(_matched[:2])}！" if _matched else "哦，听起来不错！"
+                            )
+                            _echo_triggered_by = "PLACE_DESC"
                     elif "NAME" in slot_names and exchange_count <= 3:
                         _name = (_mem.get("learner_name") or "").strip()
                         if _name and len(_name) <= 6:
@@ -5731,6 +5812,7 @@ class Handler(BaseHTTPRequestHandler):
                         and _last_text_for_counter
                         and _is_confusion_signal(_last_text_for_counter)
                         and not user_asked_question
+                        and not _confirmed_re_ask
                     ):
                         # ── App-question clarification ───────────────────────────────────────
                         # Learner confused about the partner's frame question (no active persona voice).
@@ -5745,6 +5827,7 @@ class Handler(BaseHTTPRequestHandler):
                         and _last_text_for_counter
                         and not _is_confusion_signal(_last_text_for_counter)
                         and not user_asked_question
+                        and not _confirmed_re_ask
                         and "CITY" in slot_names
                         and not _looks_like_valid_location(_last_text_for_counter)
                     ):
@@ -5762,6 +5845,7 @@ class Handler(BaseHTTPRequestHandler):
                         and _last_text_for_counter
                         and not _is_confusion_signal(_last_text_for_counter)
                         and not user_asked_question
+                        and not _confirmed_re_ask
                         and "CITY" not in slot_names   # CITY frames use _noisy_location_clarify above
                         and last_answer_fid in _COMMITMENT_GUARD_FRAMES
                         and not _is_explicit_topic_switch(_last_text_for_counter)
@@ -5858,6 +5942,8 @@ class Handler(BaseHTTPRequestHandler):
                     last_turn_was_answer
                     and _is_confusion_signal(answer_text)
                     and _repair_attempt_count >= 2
+                    and not _confirmed_re_ask
+                    and not _is_place_description(answer_text)
                 ):
                     if _repair_attempt_count == 2:
                         _counter_reply    = "再说一遍可以吗？"
@@ -7005,27 +7091,55 @@ class Handler(BaseHTTPRequestHandler):
                 response["state_update"]["pending_dest_candidate"] = None
 
             # ── Noisy location clarification: stay on the same location frame ─────
-            # When the learner gave a garbled place answer, replace the next frame
-            # with a rephrased version of the original location question and restore
-            # its answer options — no topic drift to food or other sub-topics.
+            # Escalates through three levels so the same question never repeats verbatim:
+            #   retry 0 → standard rephrase   "我是问：你现在住的地方在哪里？"
+            #   retry 1 → scaffold model      "我没听清楚。你可以说：我住在新西兰。"
+            #   retry 2+ → gentle move-on     "没关系，我们先说别的。你喜欢你住的地方吗？"
+            # Counter is stored in conversation_state["location_retry_count"] (client-side).
+            # Resets when learner gives a valid location, place-description, or confirmed re-ask.
             _nlc = locals().get("_noisy_location_clarify", False)
             if _nlc and isinstance(last_answer, dict):
                 _orig_loc_fid  = (last_answer.get("frame_id") or "").strip()
                 _cs_nlc        = payload.get("conversation_state") if isinstance(payload.get("conversation_state"), dict) else {}
                 _prev_ft_nlc   = (_cs_nlc.get("last_partner_frame_text") or "").strip()
+                _loc_retry     = int(_cs_nlc.get("location_retry_count") or 0)
                 _rephrase_nlc  = _clarify_app_question(_prev_ft_nlc) if _prev_ft_nlc else None
-                if _rephrase_nlc:
+                # Restore original frame's options (shared by levels 0 and 1)
+                _orig_loc_opts: list = []
+                if _orig_loc_fid:
+                    _orig_loc_fo   = _frame_options.get(_orig_loc_fid) or {}
+                    _orig_loc_opts = (_orig_loc_fo.get("options", []) if isinstance(_orig_loc_fo, dict) else [])
+                if _loc_retry == 0 and _rephrase_nlc:
+                    # Level 0 — first noisy attempt: standard rephrase of original question
                     response["frame_text"]    = _rephrase_nlc[0]
                     response["frame_text_en"] = _rephrase_nlc[1]
                     response["frame_pinyin"]  = ""
-                    if _orig_loc_fid:
-                        _orig_loc_fo   = _frame_options.get(_orig_loc_fid) or {}
-                        _orig_loc_opts = (_orig_loc_fo.get("options", [])
-                                          if isinstance(_orig_loc_fo, dict) else [])
-                        if _orig_loc_opts:
-                            response["options"]   = _orig_loc_opts
-                            response["frame_id"]  = _orig_loc_fid
+                    if _orig_loc_opts:
+                        response["options"]  = _orig_loc_opts
+                        response["frame_id"] = _orig_loc_fid
                     response.setdefault("state_update", {})["location_clarify_hint"] = "你可以说：我住在…"
+                elif _loc_retry == 1:
+                    # Level 1 — second noisy attempt: scaffold with a model sentence
+                    response["frame_text"]    = "我没听清楚。你可以说：我住在新西兰。"
+                    response["frame_text_en"] = "I didn't quite catch that. You could say: 我住在新西兰 (I live in New Zealand)."
+                    response["frame_pinyin"]  = "wǒ méi tīng qīngchǔ. nǐ kěyǐ shuō: wǒ zhù zài Xīnxīlán."
+                    if _orig_loc_opts:
+                        response["options"]  = _orig_loc_opts
+                        response["frame_id"] = _orig_loc_fid
+                    response.setdefault("state_update", {})["location_clarify_hint"] = "你可以说：我住在…"
+                else:
+                    # Level 2+ — third+ noisy attempt: gentle pivot to an adjacent softer question
+                    _like_frame = _frames_by_id.get("f_place_like_there") or {}
+                    _like_opts  = _like_frame.get("options", []) if _like_frame else []
+                    response["frame_text"]    = "没关系，我们先说别的。你喜欢你住的地方吗？"
+                    response["frame_text_en"] = "That's okay, let's talk about something else. Do you like where you live?"
+                    response["frame_pinyin"]  = "méiguānxi, wǒmen xiān shuō biéde. nǐ xǐhuān nǐ zhù de dìfāng ma?"
+                    response["frame_id"]      = "f_place_like_there"
+                    if _like_opts:
+                        response["options"] = _like_opts
+                    response.setdefault("state_update", {})["location_clarify_hint"] = ""
+                # Always advance the retry counter so the next noisy attempt moves to the next level.
+                response.setdefault("state_update", {})["location_retry_count"] = _loc_retry + 1
 
             # Phase 13A: slot substitution — fill {CITY}/{PLACE}/[CITY] from learner memory
             _needs_city_slot = (
@@ -7339,6 +7453,22 @@ class Handler(BaseHTTPRequestHandler):
                 # Reset consecutive question count when learner asked or discovery shown
                 if "consecutive_app_questions" not in _su:
                     _su["consecutive_app_questions"] = 0 if bool(response.get("user_led")) else _consec_q_next
+                # Confirmed re-ask: propagate counter resets to client state so next turn
+                # starts with a clean repair/confusion ladder.
+                if _confirmed_re_ask:
+                    _su["repair_attempt_count"]        = 0
+                    _su["mirror_confusion_count"]       = 0
+                    _su["recent_confusion_count"]       = 0
+                    _su["consecutive_not_understood"]   = 0
+                    _su["location_clarify_hint"]        = ""
+                    _su["location_retry_count"]         = 0
+                # Clear location retry when learner supplied a genuine place name or description.
+                # Guard with `not _nlc` so a garbled echo ("等你等" extracted as CITY) doesn't
+                # accidentally reset the counter we just incremented in the noisy-location block.
+                _echo_trig = locals().get("_echo_triggered_by")
+                _nlc_fired = locals().get("_noisy_location_clarify", False)
+                if _echo_trig in ("CITY", "PLACE_DESC") and not _nlc_fired:
+                    _su["location_retry_count"] = 0
 
                 # ── Blue-question debug trace (exposed in response) ──────────
                 _dq_rendered = response.get("discovery_questions") or []

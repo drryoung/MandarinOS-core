@@ -783,6 +783,7 @@ def main() -> None:
     test_t25_dunedin_asr_near_match_confirmed()
     test_t26_repeated_dunedin_not_food_jump()
     test_t27_dunedin_english_triggers_place_followup()
+    test_t28_location_retry_escalation()
 
     total  = len(_results)
     passed = sum(1 for _, ok in _results if ok)
@@ -800,6 +801,95 @@ def main() -> None:
                 print(f"  \u2717  {name}")
     print()
     sys.exit(0 if failed == 0 else 1)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T28 — Three-level noisy-location escalation (loop prevention)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t28_location_retry_escalation() -> None:
+    """[T28] Repeated noisy location answers must escalate through three levels.
+
+    Level 0 (retry_count=0): standard rephrase  — 我是问：你现在住的地方在哪里？
+    Level 1 (retry_count=1): scaffold model      — 我没听清楚。你可以说：我住在新西兰。
+    Level 2 (retry_count=2): gentle move-on      — 没关系，我们先说别的。你喜欢你住的地方吗？
+    """
+    print("\n[T28] Location retry escalation — 3-level loop prevention")
+
+    _NOISY = ["我现在住在等你等", "等一等我就住在等你等", "等你等等你等我就住在等你等"]
+    _BASE_CS = {
+        "last_partner_frame_text": "你现在住哪里？",
+        "learner_id":              "tester_t28",
+    }
+
+    cs = dict(_BASE_CS)
+    cs["location_retry_count"] = 0
+    prev_frame_text = "你现在住哪里？"
+    turns: list[dict] = []
+
+    for i, noisy_text in enumerate(_NOISY):
+        cs["last_partner_frame_text"] = prev_frame_text
+        resp = api_run_turn(
+            make_answer("f_live_where", noisy_text),
+            make_cs(engine="place", extra=cs),
+        )
+        if resp is None:
+            skip(f"T28 level {i}", "server not available"); return
+
+        ft = resp.get("frame_text", "")
+        # Thread state_update into next turn's cs
+        su = resp.get("state_update") or {}
+        if isinstance(su, dict):
+            for k in ("location_retry_count", "location_clarify_hint", "last_partner_frame_text"):
+                if k in su:
+                    cs[k] = su[k]
+        prev_frame_text = ft
+        turns.append(resp)
+        print(f"    [T28-{i+1}] retry={i}: {ft[:80]!r}")
+
+    # Level 0: standard rephrase
+    t0 = turns[0].get("frame_text", "")
+    check(
+        "T28a — level-0 shows standard rephrase (我是问 / 住的地方)",
+        "我是问" in t0 or "住的地方" in t0 or "哪里" in t0,
+        f"got: {t0[:80]!r}",
+    )
+    check(
+        "T28b — level-0 does NOT show scaffold or move-on text",
+        "没听清楚" not in t0 and "先说别的" not in t0,
+        f"got: {t0[:80]!r}",
+    )
+
+    # Level 1: scaffold with model sentence
+    t1 = turns[1].get("frame_text", "")
+    check(
+        "T28c — level-1 shows scaffold (没听清楚 / 新西兰)",
+        "没听清楚" in t1 or "新西兰" in t1,
+        f"got: {t1[:80]!r}",
+    )
+    check(
+        "T28d — level-1 does NOT repeat exact level-0 rephrase verbatim",
+        t1 != t0,
+        f"level-0={t0[:60]!r}  level-1={t1[:60]!r}",
+    )
+
+    # Level 2: gentle move-on
+    t2 = turns[2].get("frame_text", "")
+    check(
+        "T28e — level-2 shows gentle move-on (没关系 / 先说别的 / 喜欢住的地方)",
+        "没关系" in t2 or "先说别的" in t2 or "喜欢" in t2,
+        f"got: {t2[:80]!r}",
+    )
+    check(
+        "T28f — level-2 does NOT repeat the location question verbatim",
+        "你现在住哪里" not in t2 and "住的地方在哪里" not in t2,
+        f"got: {t2[:80]!r}",
+    )
+    check(
+        "T28g — level-2 has no food jump (好吃 / 吃什么 / 菜)",
+        not any(f in t2 for f in ("好吃", "吃什么", "菜")),
+        f"got: {t2[:80]!r}",
+    )
 
 
 if __name__ == "__main__":
