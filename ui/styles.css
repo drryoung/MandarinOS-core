@@ -942,6 +942,56 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
   margin: 0 0 14px;
 }
 
+/* ── Session Objective ("Today's focus") ────────────────────────────────── */
+/* Shown in the scorecard panel before the session starts and at the top of
+   the post-session scorecard. Two states: pre-session (.sc-objective alone)
+   and post-session (.sc-objective--post, with a reflection line below). */
+.sc-objective {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 10px 12px 8px;
+  margin-bottom: 10px;
+}
+.sc-obj-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #0369a1;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 5px;
+}
+.sc-obj-text {
+  font-size: 0.87rem;
+  color: #1e293b;
+  line-height: 1.45;
+  margin: 0 0 2px;
+}
+/* Subtle hint shown during the session (before scorecard fills) */
+.sc-obj-hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 4px 0 0;
+}
+/* Post-session reflection line appended inside .sc-objective--post */
+.sc-obj-reflection {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  margin: 7px 0 0;
+  padding-top: 7px;
+  border-top: 1px dashed #bae6fd;
+}
+.sc-obj-met {
+  color: #166534;   /* green — supportive, not grade-like */
+}
+.sc-obj-not-met {
+  color: #475569;   /* neutral grey — non-judgmental */
+}
+.sc-objective--post {
+  margin-bottom: 0;   /* divider below provides the gap */
+}
+
 /* ── Ability Dashboard (#abilityDashboard) ──────────────────────────────── */
 /* Kept for reference; the element is no longer rendered in the conversation
    window. Reflection now lives exclusively in the scorecard panel. */

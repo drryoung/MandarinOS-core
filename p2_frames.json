@@ -495,7 +495,8 @@
         "REACTION",
         "LOOP"
       ],
-      "move_type": "ASK"
+      "move_type": "ASK",
+      "skip_when": "answer_contains_marriage_fact"
     },
     {
       "id": "p2_wk_1",

@@ -362,16 +362,21 @@ _FRAME_ORDER: dict = {
         "f_name_story",          # 4. 你名字有什么故事吗？
         "f_how_old",             # 5. 你多大了？
     ],
-    # Place flow (Phase 12C final): origin → current city → special → food → hometown → travel bridge → who with → why.
+    # Place flow (Phase 12C final + Phase 12D.1 distance follow-ups):
+    # origin → current city → distance? → special → food → travel time? → hometown → travel bridge → who with → why.
+    # p2_pl_far  (离那儿远吗？)      — skip_when=city_is_well_known → only fires for unusual/overseas places.
+    # f_place_distance_time (多久？) — natural after distance question; no skip_when so fires broadly.
     "place": [
-        "f_from_where",       # 1. 你是哪里人？
-        "f_live_where",       # 2. 你现在住哪里？
-        "f_place_special",    # 3. 这里有什么特别的？
-        "f_place_food",       # 4. 这里有什么好吃的？
-        "f_home_where",       # 5. 你老家在哪儿？
-        "f_place_travel",     # 6. 你会去别的地方吗？
-        "f_live_with_who",    # 7. 你跟谁一起住？
-        "f_place_why_live",   # 8. 你为什么住在这里？
+        "f_from_where",           # 1. 你是哪里人？
+        "f_live_where",           # 2. 你现在住哪里？
+        "p2_pl_far",              # 3. 离那儿远吗？  (skipped for 北京/上海/广州; surfaces for overseas/unusual)
+        "f_place_special",        # 4. 这里有什么特别的？
+        "f_place_food",           # 5. 这里有什么好吃的？
+        "f_place_distance_time",  # 6. 从你那儿到那边要多久？ (depth follow-up after distance confirmed)
+        "f_home_where",           # 7. 你老家在哪儿？
+        "f_place_travel",         # 8. 你会去别的地方吗？
+        "f_live_with_who",        # 9. 你跟谁一起住？
+        "f_place_why_live",       # 10. 你为什么住在这里？
     ],
     # Family flow (Phase 12C): live together → closest → activity → married → children.
     # Screening questions (siblings, have_family) removed; warmth-first ordering.
@@ -439,14 +444,20 @@ _IDENTITY_OPEN_FRAMES: frozenset = frozenset({"f_ask_you_name"})
 # "OR" dependencies: any one prerequisite is sufficient.
 # Place follow-ups need an established referent ("there"/CITY) first; prevents out-of-context “那里”.
 _FRAME_AFTER_ANY: dict = {
-    "f_place_like_there": ["f_from_where", "frame.location.live_question"],
-    "p2_pl_1": ["f_from_where", "frame.location.live_question"],
-    "p2_pl_2": ["f_from_where", "frame.location.live_question"],
-    "p2_pl_3": ["f_from_where", "frame.location.live_question"],
-    "p2_pl_4": ["f_from_where", "frame.location.live_question"],
-    "p2_pl_far": ["f_from_where", "frame.location.live_question"],
+    # Note: recent_frame_ids stores the un-normalised server frame_id ("f_live_where"), NOT
+    # the canonical alias "frame.location.live_question". Both forms are listed so deps pass.
+    "f_place_like_there": ["f_from_where", "f_live_where", "frame.location.live_question"],
+    "p2_pl_1": ["f_from_where", "f_live_where", "frame.location.live_question"],
+    "p2_pl_2": ["f_from_where", "f_live_where", "frame.location.live_question"],
+    "p2_pl_3": ["f_from_where", "f_live_where", "frame.location.live_question"],
+    "p2_pl_4": ["f_from_where", "f_live_where", "frame.location.live_question"],
+    "p2_pl_far": ["f_from_where", "f_live_where", "frame.location.live_question"],
+    # Phase 12D.1: distance depth frames -- place anchor required before asking how long / how to get there.
+    "f_place_distance_time":      ["f_from_where", "f_live_where", "frame.location.live_question"],
+    "f_place_distance_ref":       ["f_from_where", "f_live_where", "frame.location.live_question"],
+    "f_place_distance_transport": ["f_from_where", "f_live_where", "frame.location.live_question"],
     # Phase 12: EXTEND frame references "where you live" so needs place context first.
-    "p2_pl_ext1": ["f_from_where", "frame.location.live_question"],
+    "p2_pl_ext1": ["f_from_where", "f_live_where", "frame.location.live_question"],
     # "Why do you like it there?" presupposes "do you like it there?" was already asked.
     "f_place_why_like": ["f_place_like_there"],
 }
@@ -458,7 +469,7 @@ def _deictic_context_fresh(fid: str, recent_frame_ids: list, window: int = 4) ->
     Even if a place anchor exists somewhere in history, require it to be recent.
     """
     anchors = {
-        "f_place_like_there": ["f_from_where", "frame.location.live_question", "p2_pl_far", "p2_pl_4", "p2_pl_2"],
+        "f_place_like_there": ["f_from_where", "f_live_where", "frame.location.live_question", "p2_pl_far", "p2_pl_4", "p2_pl_2"],
         # "Why do you like it there?" also uses "那儿" — needs a recent place anchor AND like question
         "f_place_why_like":   ["f_place_like_there"],
     }.get(fid)
@@ -885,7 +896,7 @@ _REACTION_FALLBACKS_BY_ENGINE: dict = {
     "food":     ["听起来不错！", "好吃！", "不错！"],
     "hobby":    ["不错！", "有意思！", "挺好！"],
     "travel":   ["不错！", "听起来很好！", "真好！"],
-    "family":   ["哦。", "明白了。", "不错。"],
+    "family":   ["哦。", "真不错！", "不错啊！"],
     "life":     ["嗯。", "挺好。", "不错。"],
 }
 _REACTION_FALLBACKS_GENERIC: list = ["哦。", "是吗。", "不错。", "很好。"]
@@ -914,9 +925,18 @@ _CURIOSITY_REACTIONS_GENERIC: list = ["真是不简单！", "听起来很有意�
 # and no next move (probe or ladder frame) is available. Terminal / pause move — no follow-up.
 # Format: (hanzi, pinyin, english)
 _CLOSING_REACTIONS: list = [
-    ("明白了。", "Míngbai le.", "Got it."),
     ("这样啊。", "Zhèyàng a.", "I see / so that's how it is."),
     ("这样挺好。", "Zhèyàng tǐng hǎo.", "That sounds good."),
+    ("真不错啊！", "Zhēn bùcuò a!", "That's really nice!"),
+]
+
+# Food-keyword closing reactions: warmer responses when the learner's final answer
+# contains food/family-food mentions (e.g. 妈妈 + 羊肉 / 好吃 / 做).
+# Used to avoid a flat "明白了。" after a food-emotional disclosure.
+_CLOSING_REACTIONS_FOOD: list = [
+    ("听起来很好吃！", "Tīng qǐlái hěn hǎo chī!", "That sounds delicious!"),
+    ("真的很好吃吧！", "Zhēn de hěn hǎo chī ba!", "That must be so tasty!"),
+    ("真不错啊！", "Zhēn bùcuò a!", "That's really nice!"),
 ]
 
 # Used instead of _CLOSING_REACTIONS when the learner's answer has emotional / health signals
@@ -1111,6 +1131,13 @@ def _merge_seeded_engines(
 # Referenced by skip_when="city_is_well_known" in p2_frames.json → evaluated via _check_skip_condition.
 _CITIES_SKIP_DISTANCE_ASK: frozenset = frozenset({"北京", "上海", "广州"})
 
+# Marriage-fact markers: if the learner's answer already contains one of these, skip f_married.
+# Referenced by skip_when="answer_contains_marriage_fact" in p2_frames.json.
+_MARRIAGE_FACT_WORDS: frozenset = frozenset({
+    "太太", "老婆", "老公", "丈夫", "妻子", "先生", "结婚", "成家",
+    "我们结婚", "婚了", "已婚", "爱人",
+})
+
 # Curriculum + common countries (p1_fillers): used only to detect "familiar" place tokens in answers.
 # Referenced by skip_when="city_is_familiar" in p2_frames.json → evaluated via _check_skip_condition.
 _FAMILIAR_PLACE_NAMES: frozenset = frozenset(
@@ -1237,6 +1264,11 @@ def _check_skip_condition(frame_id: str, context: dict) -> bool:
 
     if predicate == "hobby_is_travel":
         return _hobby_is_travel(answer_text, memory)
+
+    if predicate == "answer_contains_marriage_fact":
+        # Skip "你结婚了吗？" when the learner's recent answer already reveals marriage status
+        # (contains 太太 / 老婆 / 结婚 etc.) — asking again would feel like the app wasn't listening.
+        return any(w in answer_text for w in _MARRIAGE_FACT_WORDS)
 
     return False
 
@@ -2008,7 +2040,10 @@ def _infer_slot_names_from_answer(last_answer: Optional[dict]) -> List[str]:
         "p2_pl_2",
         "p2_pl_3",
         "p2_pl_4",
-        "p2_pl_far",
+        # p2_pl_far intentionally excluded: it asks "离那儿远吗？" — the expected answer is
+        # distance/travel-time (飞机, 小时, 很远), NOT a new city name.  Including it here
+        # caused the NLC (noisy-location clarification) path to fire for valid distance
+        # answers like "乘飞机12小时", generating a spurious "我是问：离那儿远吗？" re-ask.
         "f_place_like_there",
         # NOTE: f_work_where is intentionally excluded. It used to tag CITY here but that
         # triggered the CITY slot-followup chain (_SLOT_FOLLOWUP_PREFERENCES["CITY"]),
@@ -2312,9 +2347,12 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     if any(text.startswith(p) for p in _direct_starts):
         return True
     # Family-member questions without explicit 你 prefix:
-    # "女儿做什么工作啊", "孩子多大了", "儿子在哪里工作" etc.
-    _family_words = ("女儿", "儿子", "孩子", "太太", "老婆", "先生", "老公", "爸爸", "妈妈", "父母")
-    _action_words = ("做什么工作", "在哪工作", "在哪里工作", "上班", "上学", "多大", "几岁", "工作是什么", "做什么")
+    # "女儿做什么工作啊", "孩子多大了", "儿子在哪里工作", "奶奶住哪里" etc.
+    # Extended to cover grandparents and other close relatives.
+    _family_words = ("女儿", "儿子", "孩子", "太太", "老婆", "先生", "老公",
+                     "爸爸", "妈妈", "父母", "奶奶", "爷爷", "外婆", "外公", "姥姥", "姥爷")
+    _action_words = ("做什么工作", "在哪工作", "在哪里工作", "上班", "上学", "多大", "几岁",
+                     "工作是什么", "做什么", "住哪", "住在哪", "在哪里", "哪里")
     if any(fw in text for fw in _family_words) and any(aw in text for aw in _action_words):
         return True
     # Common interrogative markers without explicit punctuation
@@ -2322,6 +2360,11 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     if text.startswith(starters):
         return True
     if text.endswith("吗") or ("吗" in text and len(text) <= 8):
+        return True
+    # Duration interrogatives without ？ — e.g. "你从事这个工作多久了", "工作多长时间了"
+    if "多长时间" in text:
+        return True
+    if "多久" in text and any(kw in text for kw in ("工作", "做", "学", "住", "用", "从事")):
         return True
     # Content-based interrogatives: "有什么特别", "有什么好吃的", "有什么好玩" etc.
     # Often asked without ？ or 吗 — e.g. "西安有什么特别啊", "这里有什么好吃的".
@@ -2484,6 +2527,20 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
         occ = (profile.get("occupation") or "").strip()
         return voice_lines.get("work") or (f"我是{occ}。" if occ else "我也有工作。")
 
+    # "你喜欢[place/city]吗" — does the persona like a specific place?
+    # Handles questions like "你喜欢北京吗", "你喜欢西安吗", "你喜欢这里吗".
+    if t.startswith("你喜欢") and ("吗" in t or t.endswith("呢")):
+        city = (profile.get("city") or "").strip()
+        hometown = (profile.get("hometown") or "").strip()
+        place_line = voice_lines.get("place") or ""
+        # If asking about a place the persona is from or lives in, give an informed answer
+        for _pl in [city, hometown]:
+            if _pl and _pl in t:
+                return place_line or f"挺喜欢的，{_pl}很有特色。"
+        if place_line:
+            return place_line
+        return "还挺喜欢的，你呢？"
+
     # Hobbies / interests — "你喜欢什么" alone is too broad (catches "你喜欢什么颜色？" etc.)
     # Require either 爱好 / 做什么 / 玩什么 to confirm it's asking about hobbies.
     if any(p in t for p in ("你有什么爱好", "你喜欢做什么", "你喜欢玩什么", "你的爱好", "你平时喜欢")):
@@ -2529,12 +2586,15 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
             return place_line
         return "哎，这个嘛……说来话长，有空再聊！"
 
-    # Married / partner status — phrase from recovery_phrases.json (use=persona_deflect, topic=marriage)
+    # Married / partner status — check persona discoverable_facts first, then cooperative default.
     # Covers both 你-prefixed forms and bare omitted-subject question forms (结婚了吗 / 结婚没有).
     if any(p in t for p in ("你结婚", "你有没有结婚", "你有对象", "你有伴侣",
                              "你有男朋友", "你有女朋友", "你成家了",
                              "结婚了吗", "结婚了没", "结婚没有", "结婚没", "成家了吗",
                              "结婚了嘛", "有没有结婚", "有对象吗", "单身吗")):
+        _marriage_fact = (_facts.get("marriage") or "").strip()
+        if _marriage_fact:
+            return _marriage_fact
         return _persona_deflect("marriage", t)
 
     # Children — phrase from recovery_phrases.json (use=persona_deflect, topic=children)
@@ -2589,6 +2649,36 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
         if ht:
             return f"像{ht}这样的地方，历史就很长。你慢慢会发现很多细节。"
         return "很多地方都有很长的历史，你慢慢看会发现很多细节。"
+
+    # Work duration — must come BEFORE the travel-time handler which also matches 多长时间.
+    # e.g. "你做这个工作多久了", "你从事软件开发工作多长时间了", "工作多少年了"
+    if any(p in t for p in ("工作多久", "做这个多久", "做了多久", "从事", "工作多长时间", "这份工作多久",
+                             "这个工作多久", "工作了多久", "做了多长时间", "工作多少年")):
+        _work_fact    = (_facts.get("work") or "").strip()
+        _work_origin  = (_facts.get("work_origin") or "").strip()
+        _occ          = (profile.get("occupation") or "").strip()
+        if _work_origin:
+            return _work_origin
+        if _work_fact:
+            depth = _nth_clause(_work_fact, 1) if _work_fact else ""
+            if depth:
+                return depth
+        if _occ:
+            return f"做{_occ}已经好几年了，越来越有经验了。"
+        return "已经做了几年了，越做越有意思。"
+
+    # Extended family member location — e.g. "你奶奶住在哪里啊", "你爷爷在哪里"
+    # Give a grounded but simple answer rather than evasive deflect.
+    _ext_fam = ("奶奶", "爷爷", "外婆", "外公", "姥姥", "姥爷")
+    if any(fw in t for fw in _ext_fam):
+        ht = (profile.get("hometown") or "").strip()
+        city = (profile.get("city") or "").strip()
+        rel  = next((fw for fw in _ext_fam if fw in t), "老人")
+        if ht:
+            return f"我{rel}住在{ht}那边，离我有点远。"
+        if city:
+            return f"我{rel}在{city}附近。"
+        return f"我{rel}住在老家，我们不常见面，但会联系。"
 
     # Distance / travel time / transport questions
     if any(p in t for p in ("离那边远吗", "离那边", "离那里远", "离北京远", "离上海远", "离成都远", "离广州远")):
@@ -2726,6 +2816,8 @@ def _is_relevant_to_frame(text: str, frame_id: str) -> bool:
         return any(k in text for k in ("人", "来自", "新西兰人", "中国人", "老家"))
     if frame_id == "f_live_with_who":
         return any(k in text for k in ("太太", "老婆", "家人", "爸爸", "妈妈", "儿子", "女儿", "一起住"))
+    if frame_id in ("p2_pl_far", "f_place_distance_time", "f_place_distance_ref"):
+        return any(k in text for k in ("远", "近", "飞机", "火车", "走路", "小时", "分钟", "公里", "地方"))
     return False
 
 
@@ -2737,6 +2829,8 @@ _COMMITMENT_GUARD_FRAMES: frozenset = frozenset({
     "f_live_where",
     "f_from_where",
     "f_live_with_who",
+    "p2_pl_far",
+    "f_place_distance_time",
 })
 
 
@@ -2776,6 +2870,36 @@ def _looks_like_valid_location(text: str) -> bool:
     return False
 
 
+# ── Participation-success structural matchers ─────────────────────────────────
+# For certain frames, intent/structure confidence is sufficient to advance the
+# conversation even when the entity cannot be extracted.  These matchers check
+# the STRUCTURAL pattern of the answer, not the entity value.
+# Rule: entity confidence may remain low; unresolved entity must not block progress.
+
+def _looks_like_location_answer_structure(text: str) -> bool:
+    """Return True when text has a location-answer structural pattern —
+    我现在住在X / 我住在X / 现在住在X / 住在X — regardless of whether the
+    extracted entity is recognisable (e.g. '我现在住在等你等' matches).
+    Intent confidence can be high even when entity confidence is low."""
+    t = (text or "").strip()
+    _LOC_ANS_PREFIXES = ("我现在住在", "我住在", "现在住在", "住在")
+    return any(t.startswith(pfx) or pfx in t for pfx in _LOC_ANS_PREFIXES)
+
+
+def _looks_like_name_answer_structure(text: str) -> bool:
+    """Return True when text has a name-answer structural pattern —
+    我叫X / 我是X (where X is not a verb phrase start) — regardless of
+    whether the name entity is a known or extractable Chinese/Western name."""
+    t = (text or "").strip()
+    if t.startswith("我叫") and len(t) > 2:
+        return True
+    if t.startswith("我是") and len(t) > 2:
+        # Exclude verb-phrase continuations: 我是说/想/在/做/问/对/不/很/太
+        _verb_starts = ("说", "想", "在", "做", "因", "问", "对", "不", "真", "很", "太", "从", "去")
+        return not any(t[2:].startswith(c) for c in _verb_starts)
+    return False
+
+
 def _confusion_recovery_reply(t: str, prev_zh: str, seed: str = "") -> Optional[tuple]:
     """
     After we already gave a counter_reply, learner still confused — give a shorter repair line
@@ -2791,16 +2915,16 @@ def _confusion_recovery_reply(t: str, prev_zh: str, seed: str = "") -> Optional[
             "I may have been too fast. Shorter version: food or the place — which first?",
         ),
         (
-            "嗯，我慢一点。刚才那句话，你可以理解成：我说的是家乡的地形和吃的东西。",
-            "Let me slow down — I was talking about the landscape and the food back home.",
+            "嗯，我慢一点。刚才说的是我家那边的事情，不用担心，慢慢来。",
+            "Let me slow down — I was talking about things back home. No rush.",
         ),
         (
             "哦，我换个说法：不着急，我们一步一步来。你先告诉我，你哪一句没听懂？",
             "Let me rephrase — no rush. Which sentence was unclear?",
         ),
         (
-            "好呢，我用更简单的词：山城就是很多坡；火锅是一种很辣的锅子。",
-            "Simpler words: mountain city means lots of hills; hot pot is a spicy pot meal.",
+            "好，没关系。我们换个简单一点的话题，你来问我。",
+            "That's okay — let's try something simpler. You can ask me.",
         ),
     ]
     idx = sum(ord(c) for c in (seed + prev_zh + t)) % len(pool)
@@ -2813,6 +2937,19 @@ def _clarify_app_question(prev_frame_text: str) -> Optional[tuple]:
     restatements rather than a generic "换个说法" prefix.
     Lightweight: no embeddings, deterministic lookup table."""
     ft = (prev_frame_text or "").strip().rstrip("？?").strip()
+    if not ft:
+        return None
+    # Guard: strip existing clarification wrapper so we never double-wrap.
+    # last_partner_frame_text may already contain "我是问：..." if a previous turn
+    # was itself a clarification — strip the prefix before re-wrapping.
+    for _clar_pfx in ("我是问：", "我是在问：", "我刚刚问的是：", "我的意思是："):
+        if ft.startswith(_clar_pfx):
+            ft = ft[len(_clar_pfx):].strip().rstrip("？?").strip()
+            break
+    # Guard: strip leading echo acknowledgement "哦，X！" that may have been prepended
+    # as a reaction prefix (e.g. "哦，等你等！离那儿远吗") before the question arrived.
+    # This prevents the echo from being embedded inside the clarification wrapper.
+    ft = re.sub(r'^哦，[^！]{1,25}！\s*', '', ft).strip().rstrip("？?").strip()
     if not ft:
         return None
     # Contextual restatements — matched longest-first so specific patterns win.
@@ -2947,7 +3084,7 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
 
     # Family-member questions: "女儿做什么工作啊" / "孩子多大" / "儿子在哪里工作" etc.
     # The persona may or may not have children — use available facts or a safe deflect.
-    _fam_words = ("女儿", "儿子", "孩子", "宝宝")
+    _fam_words  = ("女儿", "儿子", "孩子", "宝宝")
     _fam_action = ("做什么工作", "上班", "上学", "工作", "多大", "几岁", "在哪")
     if any(fw in t for fw in _fam_words) and any(aw in t for aw in _fam_action):
         facts    = (persona or {}).get("discoverable_facts") or {} if persona else {}
@@ -2959,7 +3096,33 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
         # Safe persona-agnostic fallback — does not assert or deny children
         return ("这个嘛……我暂时保密好了。", "I'll keep that to myself for now.")
 
+    # Extended-family location — e.g. "你奶奶在哪里？" "你爷爷住哪里"
+    # Already handled in _direct_persona_answer; this catches any that slipped through.
+    _ext_fam2 = ("奶奶", "爷爷", "外婆", "外公", "姥姥", "姥爷")
+    if any(fw in t for fw in _ext_fam2):
+        _persona_profile = (persona or {}).get("profile") or {}
+        ht = (_persona_profile.get("hometown") or "").strip()
+        rel = next((fw for fw in _ext_fam2 if fw in t), "老人")
+        if ht:
+            return (f"我{rel}住在{ht}那边，离我有点远。", "")
+        return (f"我{rel}住在老家，不常见面，但保持联系。", "")
+
     # Catch-all: user asked a question we don't have a specific answer for.
+    # Prefer a simple topic-bridge instead of a flat evasive phrase wherever possible.
+    _profile_catch = (persona or {}).get("profile") or {}
+    _city_catch    = (_profile_catch.get("city") or "").strip()
+    _ht_catch      = (_profile_catch.get("hometown") or "").strip()
+    if any(kw in t for kw in ("哪里", "哪儿", "住", "在哪")) and (_city_catch or _ht_catch):
+        loc = _city_catch or _ht_catch
+        return (f"我在{loc}这边，你呢？", "")
+    if any(kw in t for kw in ("工作", "做什么", "职业", "上班")):
+        _vl_catch = (persona or {}).get("voice_lines") or {}
+        work_line = _vl_catch.get("work") or ""
+        if work_line:
+            return (work_line, "")
+        _occ_catch = (_profile_catch.get("occupation") or "").strip()
+        if _occ_catch:
+            return (f"我是做{_occ_catch}的，还挺有意思的。", "")
     zh = _persona_deflect("generic", t)
     return (zh, _persona_deflect_en(zh))
 
@@ -3551,9 +3714,9 @@ _FACT_KEY_TO_TOPICS: dict = {
     "place_from":      frozenset({"place_from", "place_like"}),  # place_from backs place_like too
     "place":           frozenset({"place_special", "place_like"}),
     "food":            frozenset({"food_fav", "food_local"}),
-    "work":            frozenset({"work_what", "work_like"}),
+    "work":            frozenset({"work_what", "work_like", "work_duration"}),
     "work_company":    frozenset({"work_company"}),
-    "work_origin":     frozenset({"work_origin"}),
+    "work_origin":     frozenset({"work_origin", "work_duration"}),
     "travel_where":    frozenset({"travel_where"}),
     "travel":          frozenset({"travel_memorable"}),
     "travel_with":     frozenset({"travel_with"}),
@@ -3665,18 +3828,119 @@ def _has_persona_reveal(text: str) -> bool:
     return any(kw in text for kw in _PERSONA_REVEAL_KEYWORDS)
 
 
+# ── Context keyword map: topic → signals that should appear in frame/context text ──────────────────
+# Used by _discovery_relevance_score to rank questions closer to the active sentence/topic.
+# Keywords are Chinese bigrams or short phrases that reliably co-occur with the topic.
+_TOPIC_CONTEXT_KEYWORDS: dict = {
+    "place_from":              ["哪里人", "是哪里", "来自", "家乡", "老家", "故乡"],
+    "place_special":           ["特别", "特色", "好玩", "有意思", "景点"],
+    "place_why_like":          ["为什么", "喜欢那里", "喜欢这里", "为啥"],
+    "place_like":              ["喜欢", "生活", "住"],
+    "place_food":              ["好吃", "吃什么", "美食", "菜", "食物", "火锅", "辣", "最爱"],
+    "place_far":               ["远", "多久", "飞机", "火车", "离这里"],
+    "place_still_live":        ["还住", "住在", "现在住"],
+    "place_distance_time":     ["多久", "小时", "飞机", "坐飞机"],
+    "place_distance_transport":["怎么去", "坐飞机", "坐火车", "交通"],
+    "place_distance_ref":      ["远不远", "离", "远"],
+    "work_what":               ["工作", "做什么", "上班", "职业", "当"],
+    "work_like":               ["喜欢", "工作", "觉得"],
+    "work_why":                ["为什么", "当老师", "选择", "怎么"],
+    "work_duration":           ["多久", "几年", "年", "做了"],
+    "work_interesting":        ["有趣", "好玩", "好奇"],
+    "work_students":           ["学生", "教学", "老师", "教书"],
+    "work_platform":           ["分享", "平台", "作品"],
+    "food_fav":                ["好吃", "喜欢吃", "最爱", "吃什么", "最喜欢吃"],
+    "food_local":              ["家乡", "当地", "本地"],
+    "food_spicy":              ["辣", "川菜", "火锅", "麻辣"],
+    "food_cook":               ["自己做", "会做", "做饭", "厨艺"],
+    "food_why_like":           ["为什么喜欢", "为什么", "好吃"],
+    "family_size":             ["家里", "几个人", "家人", "几口"],
+    "family_siblings":         ["兄弟", "姐妹", "哥", "弟", "姐", "妹"],
+    "family_live":             ["住在一起", "一起住", "住哪", "父母"],
+    "marriage":                ["结婚", "太太", "老婆", "爱人", "丈夫", "成家"],
+    "children":                ["孩子", "儿子", "女儿", "小孩"],
+    "family_weekend":          ["周末", "一起", "活动", "休息"],
+    "name_meaning":            ["名字", "意思", "含义"],
+    "name_giver":              ["名字", "谁", "取"],
+    "name_story":              ["名字", "故事", "来历"],
+    "age":                     ["多大", "几岁", "年龄"],
+    "travel_where":            ["去过", "旅行", "旅游", "哪里"],
+    "travel_memorable":        ["难忘", "印象", "旅行", "经历"],
+    "travel_fav":              ["最喜欢", "地方", "喜欢哪里"],
+    "travel_why_fav":          ["为什么", "喜欢那个", "那个地方"],
+    "travel_next":             ["下次", "想去", "计划"],
+    "hobby_what":              ["爱好", "喜欢做", "平时"],
+    "hobby_duration":          ["多久", "几年", "学了"],
+    "hobby_why":               ["为什么", "喜欢", "兴趣"],
+    "hobby_how_started":       ["怎么开始", "怎么学", "为什么学"],
+}
+
+
+def _discovery_relevance_score(q: dict, frame_text: str, context_text: str) -> int:
+    """Return relevance score 0–20 for a discovery question given active conversation context.
+
+    frame_text:   the current app question or most recent partner frame text.
+    context_text: persona counter-reply or recent learner answer — whichever is richer.
+
+    Scoring:
+      +10  topic keyword found in frame_text (strongest: directly about the active question)
+      + 7  topic keyword found in context_text (persona answer or learner answer)
+      + 5  2-gram from question zh found in frame_text (broad text overlap)
+      + 3  2-gram from question zh found in context_text
+    Scores are additive (capped at 20).
+    """
+    if not frame_text and not context_text:
+        return 0
+    topic     = q.get("topic") or ""
+    zh        = q.get("zh") or ""
+    score     = 0
+    ft_lower  = frame_text
+    ctx_lower = context_text
+
+    # Topic-keyword hits
+    for sig in _TOPIC_CONTEXT_KEYWORDS.get(topic, []):
+        if sig in ft_lower:
+            score += 10
+            break
+    for sig in _TOPIC_CONTEXT_KEYWORDS.get(topic, []):
+        if sig in ctx_lower:
+            score += 7
+            break
+
+    # Bigram overlap: any 2-char substring of the question in context
+    _matched_ft = False
+    for i in range(len(zh) - 1):
+        gram = zh[i:i+2]
+        if len(gram) == 2 and gram in ft_lower:
+            score += 5
+            _matched_ft = True
+            break
+    if not _matched_ft:
+        for i in range(len(zh) - 1):
+            gram = zh[i:i+2]
+            if len(gram) == 2 and gram in ctx_lower:
+                score += 3
+                break
+
+    return min(score, 20)
+
+
 def _build_discovery_pool(disc_eng: str,
                            backed_topics: frozenset,
                            rich_engines: list,
                            seen_topics: set,
-                           boost_topics: frozenset = frozenset()) -> list:
+                           boost_topics: frozenset = frozenset(),
+                           frame_text: str = "",
+                           context_text: str = "") -> list:
     """Build and rank the discovery question pool for the blue panel.
 
     Shared by counter-reply discovery and proactive discovery to avoid code duplication.
-    Returns a deduped list sorted so backed-topic questions come first.
+    Returns a deduped list sorted so context-relevant questions come first, then
+    backed-topic questions, then curiosity questions, then the rest.
 
-    boost_topics: optional set of topics to sort to the very front — above backed topics.
-                  Used to surface distance/orientation questions after overseas place mentions.
+    boost_topics:  optional set of topics to sort to the very front (distance after overseas mention).
+    frame_text:    current partner frame question — used to rank by relevance to active sentence.
+    context_text:  persona counter-reply or learner answer — secondary relevance signal.
     """
     disc_pool: list = list(_MIRROR_QUESTIONS_BY_ENGINE.get(disc_eng) or [])
     for adj in rich_engines:
@@ -3706,12 +3970,27 @@ def _build_discovery_pool(disc_eng: str,
             )
         if best_q and len(disc_pool) < 4:
             disc_pool.append(best_q)
-    disc_pool.sort(key=lambda q: (
-        0 if q.get("topic") in boost_topics else
-        (1 if q.get("curiosity") and q.get("topic") in backed_topics else
-         (2 if q.get("curiosity") else
-          (3 if q.get("topic") in backed_topics else 4)))
-    ))
+
+    def _sort_key(q: dict) -> tuple:
+        """Sort key: boost > high-relevance+curious+backed > relevance tiers > curiosity+backed."""
+        if q.get("topic") in boost_topics:
+            return (0, 0, 0)
+        rel     = _discovery_relevance_score(q, frame_text, context_text)
+        backed  = q.get("topic") in backed_topics
+        curious = bool(q.get("curiosity"))
+        # Tier by relevance band: >= 10 = strong, >= 5 = moderate, < 5 = weak
+        if rel >= 10:
+            tier = 1
+        elif rel >= 5:
+            tier = 2
+        else:
+            tier = 3
+        # Within tier: curious+backed > curious > backed > neither
+        sub = 0 if (curious and backed) else (1 if curious else (2 if backed else 3))
+        return (tier, sub, -rel)  # -rel so higher scores sort first within same tier
+
+    disc_pool.sort(key=_sort_key)
+
     seen_q_topics: set = set()
     deduped: list = []
     for q in disc_pool:
@@ -4072,6 +4351,12 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
             en_vl = (vl_en.get("work_like") or "").strip()
             return (zh_vl or "挺喜欢的，虽然有时候很忙。", en_vl or "I quite like it, though it can get busy.")
         if topic == "work_duration":
+            # Prefer a clause that actually contains duration markers (年/久/开始/以来/毕业)
+            _dur_markers = ("年", "久", "开始", "以来", "毕业", "多久", "一直")
+            _clauses = [c.strip() for c in re.split(r'[，。！？,]', fact) if c.strip()] if fact else []
+            _dur_clause = next((c for c in _clauses if any(m in c for m in _dur_markers)), None)
+            if _dur_clause:
+                return (_dur_clause + "。", "")
             depth = _nth_clause(fact, 1) if fact else ""
             return (depth or "已经做了几年了，越做越有意思。", "")
         if topic == "work_platform":
@@ -4194,7 +4479,7 @@ def _topic_to_fact_key(topic: str) -> str:
 # Restatement prefixes used in Stage 1 (natural restatement, not simplification).
 # Picked deterministically by topic hash so the same persona doesn't always use the same prefix.
 _RESTATE_PREFIXES = [
-    "我再说一遍——",
+    "我换一个方式说——",
     "换个说法——",
     "我的意思是——",
     "我再说清楚一点——",
@@ -5063,6 +5348,28 @@ class Handler(BaseHTTPRequestHandler):
                     topic = (payload.get("direction_question_topic") or "").strip()
                     stub_result = _mirror_persona_stub(topic, engine_id, persona)
                     stub, stub_en = stub_result if isinstance(stub_result, tuple) else (stub_result, "")
+                    # Derive the engine from the topic so the client can update its engine state
+                    # correctly after a user-led question (prevents identity-engine restart after mirror).
+                    _TOPIC_TO_ENG: dict = {
+                        "name_what": "identity",   "name_nickname": "identity",
+                        "name_meaning": "identity","name_story": "identity",
+                        "name_giver": "identity",
+                        "food_fav": "food",        "food_local": "food",   "food_spicy": "food",
+                        "place_from": "place",     "place_like": "place",  "place_special": "place",
+                        "place_far": "place",      "place_far_or_not": "place",
+                        "place_never_been": "place","place_live_now": "place","place_hometown": "place",
+                        "place_distance_ref": "place","place_distance_time": "place",
+                        "place_distance_transport": "place",
+                        "travel_where": "travel",  "travel_fav": "travel", "travel_memorable": "travel",
+                        "travel_with": "travel",
+                        "work_what": "work",       "work_like": "work",    "work_duration": "work",
+                        "work_platform": "work",   "work_company": "work",
+                        "hobby_what": "hobby",     "hobby_fav": "hobby",
+                        "family_marital": "family","family_children": "family",
+                        "family_parents": "family","family_live_with": "family",
+                    }
+                    if engine_id in ("unknown", "") and topic:
+                        engine_id = _TOPIC_TO_ENG.get(topic, engine_id)
                 else:
                     stub = _direction_stub(direction_intent, engine_id, last_partner_frame_id, persona)
                     stub_en = ""
@@ -5087,6 +5394,10 @@ class Handler(BaseHTTPRequestHandler):
                     "is_direction_response": True,
                     "thread_return": "resume_question",
                     "mirror_options": mirror_opts,
+                    # state_update carries the derived engine so the client can update
+                    # window._currentEngineId — critical when this is the very first turn
+                    # and the user opened with a mirror question (e.g. "你是哪里人？").
+                    "state_update": {"current_engine": engine_id} if engine_id not in ("unknown", "") else {},
                 }
                 data = json.dumps(response, ensure_ascii=False).encode("utf-8")
                 self.send_response(200)
@@ -5408,15 +5719,19 @@ class Handler(BaseHTTPRequestHandler):
                         and last_answer_fid in (
                             "f_live_where", "frame.location.live_question", "f_from_where"
                         )
-                        and re.search(r"[A-Za-z]{3,}", answer_text or "")
+                        and (
+                            re.search(r"[A-Za-z]{3,}", answer_text or "")  # Latin-script city (Dunedin, Auckland)
+                            or "CITY" in (slot_names or set())              # Chinese-character city extracted (奥克兰, 北京)
+                        )
                     ):
-                        # Don't ask bare "哪里？" when the learner's answer already contains
-                        # an explicit Latin-script city (e.g. "Dunedin") — the city is known,
-                        # so the probe is redundant.  Let normal frame selection pick the next
-                        # place frame (f_place_special, f_place_far, etc.) instead.
+                        # Don't ask bare "哪里？" when the learner has already named a city —
+                        # either as Latin script (e.g. "Dunedin") or a Chinese-character place
+                        # (e.g. "奥克兰", "新西兰") that was extracted as a CITY slot.  The city
+                        # is already known; let normal frame selection advance to the distance
+                        # follow-up (p2_pl_far, f_place_special, etc.) instead.
                         _micro_probe_candidate = None
                         _micro_probe_eligible = False
-                        _micro_probe_block_reason = "city_already_given_latin"
+                        _micro_probe_block_reason = "city_already_given"
                 elif not last_turn_was_answer:
                     _micro_probe_block_reason = "not_last_turn_answer"
                 elif not slot_names:
@@ -5885,6 +6200,7 @@ class Handler(BaseHTTPRequestHandler):
                                 _counter_result
                                 and _generic_deflects
                                 and _counter_result[0] in _generic_deflects
+                                and not user_asked_question  # genuine 你-questions keep the persona deflect
                             ):
                                 _pfx_aq = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
                                 if _pfx_aq:
@@ -5947,7 +6263,7 @@ class Handler(BaseHTTPRequestHandler):
                     and not _is_place_description(answer_text)
                 ):
                     if _repair_attempt_count == 2:
-                        _counter_reply    = "再说一遍可以吗？"
+                        _counter_reply    = "你可以再说一遍吗？"
                         _counter_reply_en = "Could you say that again?"
                     else:
                         # Level 3+: the partner acknowledges and moves on — no model answers
@@ -6692,6 +7008,16 @@ class Handler(BaseHTTPRequestHandler):
                             _stable_pick(_CLOSING_REACTIONS_EMOTIONAL, _cl_seed)
                             or _CLOSING_REACTIONS_EMOTIONAL[0]
                         )
+                    elif (
+                        # Food-warmth closing: when the answer contains food/family-food keywords,
+                        # use a warmer closing instead of a flat acknowledgement.
+                        answer_text
+                        and any(kw in answer_text for kw in ("好吃", "羊肉", "饺子", "做饭", "妈妈的", "好味", "美食"))
+                    ):
+                        _cl_zh, _cl_py, _cl_en = (
+                            _stable_pick(_CLOSING_REACTIONS_FOOD, _cl_seed)
+                            or _CLOSING_REACTIONS_FOOD[0]
+                        )
                     else:
                         _cl_zh, _cl_py, _cl_en = _pick_closing_reaction(_cl_seed)
                     print(f"[CLOSING] trigger={_cl_trigger} late_session={_cm_late_session} "
@@ -7084,11 +7410,51 @@ class Handler(BaseHTTPRequestHandler):
             # ── Noisy location clarification: stay on the same location frame ─────
             # Escalates through three levels so the same question never repeats verbatim:
             #   retry 0 → standard rephrase   "我是问：你现在住的地方在哪里？"
-            #   retry 1 → scaffold model      "我没听清楚。你可以说：我住在新西兰。"
+            #   retry 1 → natural re-ask      "我没听清楚。你住的地方，离这里远吗？"
             #   retry 2+ → gentle move-on     "没关系，我们先说别的。你喜欢你住的地方吗？"
             # Counter is stored in conversation_state["location_retry_count"] (client-side).
             # Resets when learner gives a valid location, place-description, or confirmed re-ask.
             _nlc = locals().get("_noisy_location_clarify", False)
+
+            # ── Participation-success escape: location-answer structure ───────────
+            # The _noisy_location_clarify condition requires not _prev_counter_reply,
+            # which is often non-empty in real sessions (the previous turn's persona
+            # acknowledgement is stored as last_counter_reply).  When the learner
+            # uses a structural location-answer pattern (我现在住在X / 我住在X / etc.)
+            # on a location frame but the entity is unextractable, apply a two-level
+            # intent escape so the conversation advances rather than looping:
+            #   • retry_count = 0 → set _nlc=True so Level-0 rephrase fires (no bare loop)
+            #   • retry_count ≥ 1 → advance directly to "哦，我知道了。你喜欢你现在住的地方吗？"
+            # Conceptual rule: intent confidence can be high even when entity confidence is low.
+            if not _nlc and isinstance(locals().get("last_answer"), dict):
+                _la_fid_ps = (last_answer.get("frame_id") or "").strip()
+                if _la_fid_ps in {"f_live_where", "f_from_where", "frame.location.live_question"}:
+                    _t_ps = (_last_text_for_counter or "").strip()
+                    if (
+                        _t_ps
+                        and _looks_like_location_answer_structure(_t_ps)
+                        and not _looks_like_valid_location(_t_ps)
+                    ):
+                        _cs_ps    = payload.get("conversation_state") if isinstance(payload.get("conversation_state"), dict) else {}
+                        _retry_ps = int(_cs_ps.get("location_retry_count") or 0)
+                        if _retry_ps >= 1:
+                            # Learner has already tried once with the right structure.
+                            # Treat as conversational success — advance to place follow-up.
+                            _like_frame_ps = _frames_by_id.get("f_place_like_there") or {}
+                            _like_opts_ps  = _like_frame_ps.get("options", []) if _like_frame_ps else []
+                            response["frame_text"]    = "哦，我知道了。你喜欢你现在住的地方吗？"
+                            response["frame_text_en"] = "Oh, I see. Do you like where you live now?"
+                            response["frame_pinyin"]  = "ó, wǒ zhīdào le. nǐ xǐhuān nǐ xiànzài zhù de dìfāng ma?"
+                            response["frame_id"]      = "f_place_like_there"
+                            if _like_opts_ps:
+                                response["options"]   = _like_opts_ps
+                            _su_ps = response.setdefault("state_update", {})
+                            _su_ps["location_retry_count"]  = 0
+                            _su_ps["location_clarify_hint"] = ""
+                        else:
+                            # retry_count = 0: fire the standard rephrase path, not a bare loop
+                            _nlc = True
+
             if _nlc and isinstance(last_answer, dict):
                 _orig_loc_fid  = (last_answer.get("frame_id") or "").strip()
                 _cs_nlc        = payload.get("conversation_state") if isinstance(payload.get("conversation_state"), dict) else {}
@@ -7108,16 +7474,16 @@ class Handler(BaseHTTPRequestHandler):
                     if _orig_loc_opts:
                         response["options"]  = _orig_loc_opts
                         response["frame_id"] = _orig_loc_fid
-                    response.setdefault("state_update", {})["location_clarify_hint"] = "你可以说：我住在…"
+                    response.setdefault("state_update", {})["location_clarify_hint"] = "active"
                 elif _loc_retry == 1:
-                    # Level 1 — second noisy attempt: scaffold with a model sentence
-                    response["frame_text"]    = "我没听清楚。你可以说：我住在新西兰。"
-                    response["frame_text_en"] = "I didn't quite catch that. You could say: 我住在新西兰 (I live in New Zealand)."
-                    response["frame_pinyin"]  = "wǒ méi tīng qīngchǔ. nǐ kěyǐ shuō: wǒ zhù zài Xīnxīlán."
+                    # Level 1 — second noisy attempt: natural re-ask (no template coaching)
+                    response["frame_text"]    = "我没听清楚。你住的地方，离这里远吗？"
+                    response["frame_text_en"] = "I didn't quite catch that. Is where you live far from here?"
+                    response["frame_pinyin"]  = "wǒ méi tīng qīngchǔ. nǐ zhù de dìfāng, lí zhèlǐ yuǎn ma?"
                     if _orig_loc_opts:
                         response["options"]  = _orig_loc_opts
                         response["frame_id"] = _orig_loc_fid
-                    response.setdefault("state_update", {})["location_clarify_hint"] = "你可以说：我住在…"
+                    response.setdefault("state_update", {})["location_clarify_hint"] = "active"
                 else:
                     # Level 2+ — third+ noisy attempt: gentle pivot to an adjacent softer question
                     _like_frame = _frames_by_id.get("f_place_like_there") or {}
@@ -7220,7 +7586,16 @@ class Handler(BaseHTTPRequestHandler):
                     # Clarification moves (retire_clarify, etc.) must not be prefixed with enthusiasm — it sounds wrong.
                     _reaction_is_question = "？" in reaction_prefix_text
                     _clarify_move = listening_move_selected in ("retire_clarify", "retired_pivot", "travel_dest_clarify")
-                    if "？" in (frame_rec.get("text") or "") and not _reaction_is_question and not _clarify_move:
+                    # Guard: never prepend a reaction prefix when the frame_text is itself a clarification
+                    # (generated by the NLC or pending-frame clarification paths).  Prepending "哦，X！"
+                    # in front of "我是问：…" would embed the echo inside the clarification — producing
+                    # "哦，等你等！我是问：哦，等你等！离那儿远吗？".
+                    _ft_now = response.get("frame_text") or ""
+                    _is_clarify_frame = any(_ft_now.startswith(p) for p in (
+                        "我是问：", "我是在问：", "我刚刚问的是：", "我的意思是：",
+                        "我没听清楚", "没关系，我们先说别的",
+                    ))
+                    if "？" in (frame_rec.get("text") or "") and not _reaction_is_question and not _clarify_move and not _is_clarify_frame:
                         _ft = response["frame_text"]
                         # Dedup: strip leading discourse marker from frame_text when reaction already has one.
                         # Prevents "哦，真有意思！哦，是什么故事？" → "哦，真有意思！是什么故事？"
@@ -7294,6 +7669,18 @@ class Handler(BaseHTTPRequestHandler):
                 _overseas_detected  = _learner_place_is_overseas(answer_text)
                 _dist_boost: frozenset = _PLACE_DISTANCE_TOPICS if _overseas_detected else frozenset()
 
+                # ── Blue panel shared context (used for relevance-ranked discovery) ──
+                # frame_text:    current/last app frame question — strongest relevance signal.
+                # context_prev:  previous turn's persona counter_reply — carries topic signal
+                #                into the next turn when proactive discovery fires.
+                # context_text per path:
+                #   Path 0 (confusion):  last frame text is already in frame_text; no extra answer
+                #   Path 1 (user asked): persona's counter_reply is the richest context
+                #   Path 2 (proactive):  learner answer + previous persona reveal if available
+                #   Path 4 (fallback):   same as Path 2
+                _disc_frame_text  = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                _disc_context_prev = (cs.get("last_counter_reply") or "").strip() if isinstance(cs, dict) else ""
+
                 # ── Blue panel debug trace ─────────────────────────────────────
                 _dbg_last_pf_pre = (cs.get("last_partner_frame_id") or "").strip()
                 _dbg_in_recip    = _dbg_last_pf_pre in _RECIPROCAL_FRAME_TO_Q
@@ -7318,7 +7705,11 @@ class Handler(BaseHTTPRequestHandler):
                     _rich_engs   = _persona_rich_engines(persona)
                     # Overseas: switch to place engine so full distance pool is available
                     _disc_eng_p0 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
-                    _disc_pool   = _build_discovery_pool(_disc_eng_p0, _backed_tpcs, _rich_engs, _seen_topics_disc, boost_topics=_dist_boost)
+                    _disc_pool   = _build_discovery_pool(
+                        _disc_eng_p0, _backed_tpcs, _rich_engs, _seen_topics_disc,
+                        boost_topics=_dist_boost,
+                        frame_text=_disc_frame_text, context_text="",
+                    )
                     if _disc_pool:
                         response["discovery_questions"] = _disc_pool[:3]
                         response["user_led"] = True
@@ -7346,17 +7737,27 @@ class Handler(BaseHTTPRequestHandler):
                         _disc_eng_p1 = "place"
                     elif any(kw in _reply_for_eng for kw in ("教书", "教学", "老师", "工作", "退休", "上班", "公司")):
                         _disc_eng_p1 = "work"
-                    _disc_pool   = _build_discovery_pool(_disc_eng_p1, _backed_tpcs, _rich_engs, _seen_topics_disc, boost_topics=_dist_boost)
+                    # Path 1: user's own question is the "frame"; persona reply is rich context
+                    _disc_pool   = _build_discovery_pool(
+                        _disc_eng_p1, _backed_tpcs, _rich_engs, _seen_topics_disc,
+                        boost_topics=_dist_boost,
+                        frame_text=answer_text or _disc_frame_text,
+                        context_text=_counter_reply or "",
+                    )
 
                     if _disc_pool:
-                        response["discovery_questions"] = _disc_pool[:3]
+                        # Path 1 (user asked + persona replied) is the richest context: allow up
+                        # to 4 discovery questions so the client can build a 5-question panel when
+                        # combined with answer-reactive extras from _augmentQuestionsFromAnswer.
+                        _dq_slice = _disc_pool[:4]
+                        response["discovery_questions"] = _dq_slice
                         response["user_led"] = True
-                        _shown_topics = [q.get("topic") for q in _disc_pool[:3] if q.get("topic")]
+                        _shown_topics = [q.get("topic") for q in _dq_slice if q.get("topic")]
                         response.setdefault("state_update", {})["recently_seen_disc_topics"] = _shown_topics
-                        _backed_count = sum(1 for q in _disc_pool[:3] if q.get("topic") in _backed_tpcs)
+                        _backed_count = sum(1 for q in _dq_slice if q.get("topic") in _backed_tpcs)
                         print(
                             f"[blue_panel_debug] SHOWN (discovery/learner-asked) | engine={_disc_eng!r} | "
-                            f"backed={_backed_count}/{len(_disc_pool[:3])} | {len(_disc_pool[:3])} card(s)"
+                            f"backed={_backed_count}/{len(_dq_slice)} | {len(_dq_slice)} card(s)"
                         )
                     else:
                         print(f"[blue_panel_debug] NOT SHOWN | reason=no_questions_for_engine | engine={_disc_eng!r}")
@@ -7373,7 +7774,15 @@ class Handler(BaseHTTPRequestHandler):
                     _backed_tpcs = _persona_backed_topics(persona)
                     _rich_engs   = _persona_rich_engines(persona)
                     _disc_eng_p2 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
-                    _disc_pool   = _build_discovery_pool(_disc_eng_p2, _backed_tpcs, _rich_engs, _seen_topics_disc, boost_topics=_dist_boost)
+                    # Path 2: combine current answer + previous persona reveal so that
+                    # food/place/work keywords from the persona's previous turn carry forward.
+                    _ctx_p2 = " ".join(filter(None, [_counter_reply, answer_text, _disc_context_prev]))
+                    _disc_pool   = _build_discovery_pool(
+                        _disc_eng_p2, _backed_tpcs, _rich_engs, _seen_topics_disc,
+                        boost_topics=_dist_boost,
+                        frame_text=_disc_frame_text,
+                        context_text=_ctx_p2,
+                    )
 
                     if _disc_pool:
                         response["discovery_questions"] = _disc_pool[:3]
@@ -7413,7 +7822,13 @@ class Handler(BaseHTTPRequestHandler):
                         _backed_tpcs = _persona_backed_topics(persona)
                         _rich_engs   = _persona_rich_engines(persona)
                         _disc_eng_p4 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
-                        _disc_pool   = _build_discovery_pool(_disc_eng_p4, _backed_tpcs, _rich_engs, _seen_topics_disc, boost_topics=_dist_boost)
+                        _ctx_p4 = " ".join(filter(None, [answer_text, _disc_context_prev]))
+                        _disc_pool   = _build_discovery_pool(
+                            _disc_eng_p4, _backed_tpcs, _rich_engs, _seen_topics_disc,
+                            boost_topics=_dist_boost,
+                            frame_text=_disc_frame_text,
+                            context_text=_ctx_p4,
+                        )
                         if _disc_pool:
                             response["discovery_questions"] = _disc_pool[:3]
                             response["user_led"] = True
@@ -7456,9 +7871,11 @@ class Handler(BaseHTTPRequestHandler):
                 # Clear location retry when learner supplied a genuine place name or description.
                 # Guard with `not _nlc` so a garbled echo ("等你等" extracted as CITY) doesn't
                 # accidentally reset the counter we just incremented in the noisy-location block.
+                # `_nlc` is the resolved flag (may be True from the participation-success escape even
+                # when the original _noisy_location_clarify variable was never set) so we use it here
+                # to ensure the escape-fired path is also guarded correctly.
                 _echo_trig = locals().get("_echo_triggered_by")
-                _nlc_fired = locals().get("_noisy_location_clarify", False)
-                if _echo_trig in ("CITY", "PLACE_DESC") and not _nlc_fired:
+                if _echo_trig in ("CITY", "PLACE_DESC") and not _nlc:
                     _su["location_retry_count"] = 0
 
                 # ── Blue-question debug trace (exposed in response) ──────────

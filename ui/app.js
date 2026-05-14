@@ -288,6 +288,7 @@ if (typeof window._consecutiveAppQuestions   === "undefined") window._consecutiv
 if (typeof window._lastPersonaReveal         === "undefined") window._lastPersonaReveal         = false;
 if (typeof window._recentlySeenDiscTopics    === "undefined") window._recentlySeenDiscTopics    = [];
 if (typeof window._lastPartnerFrameText      === "undefined") window._lastPartnerFrameText      = "";
+if (typeof window._lastSemanticClarifyText   === "undefined") window._lastSemanticClarifyText   = "";
 // Phase L1: learner observation counters — observation only, no behavior changes.
 // Reset on startFreshLearner. Updated from signal hooks throughout app.js.
 if (typeof window._learnerObs === "undefined") window._learnerObs = {
@@ -2337,7 +2338,7 @@ function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
  * Categories: "name" | "food" | "duration" | "family_health" | "family" |
  *             "work_status" | "location"
  */
-function _detectSemanticCategory(text) {
+function _detectSemanticCategory(text, engineHint = "") {
   const t = (text || "").trim();
   if (!t) return null;
   if (/我叫|名字|英文名/.test(t)) return "name";
@@ -2345,24 +2346,28 @@ function _detectSemanticCategory(text) {
   if (_DURATION_ANSWER_PAT.test(t) || /很多年|几年|很久/.test(t)) return "duration";
   if (/身体|健康|好多了|好很多|好一点|不好|生病|康复/.test(t)) return "family_health";
   if (/爸爸|妈妈|太太|家人|老婆|父母|家里|爱人|老公|女儿|儿子|孩子/.test(t)) return "family";
-  if (/退休|以前.*工作|以前是|做.*工作/.test(t)) return "work_status";
+  if (/退休|以前.*工作|做.*工作/.test(t)) return "work_status";
+  if (/是老师|教书|教学|大学.*老师|老师.*大学|以前是.*老师|以前在大学|在学校.*工作/.test(t)) return "work_teacher";
+  // Distance / travel-time answers — place-context signals that satisfy distance frames.
+  if (/很远|超远|好远|远着呢|坐飞机|乘飞机|坐火车|乘火车|飞机.*小时|小时.*飞机|小时.*火车|走路.*分钟/.test(t)) return "distance";
   // University / academic institution context — checked before Latin catch-all so
   // "Liverpool大学" or "西安交通大学" resolves to "education" not "name".
   if (/大学|学院|学校/.test(t) && /[A-Za-z]{2,}|交通|复旦|浙大|北大|清华|交大/.test(t)) return "education";
   // "我住在 Dunedin" / "我来自 Dunedin" must return "location" — checked before the
   // Latin-token catch-all below so the place context wins over the script heuristic.
-  // "来自" added alongside 住在/搬到/搬来 to cover origin phrasing.
   if (/住在|搬到|搬来|来自/.test(t)) return "location";
   if (/^哪里|^哪儿/.test(t)) return "location";
-  // Location question (contains 在哪里 etc. but not yet caught above)
   if (/在哪里|在哪儿|哪里啊/.test(t)) return "location";
   // Nationality statement (新西兰人, 中国人 …)
   if (/新西兰人|澳大利亚人|中国人|英国人|美国人|加拿大人|日本人|韩国人/.test(t)) return "nationality";
   // History / culture signal
   if (/(历史|文化|景点|名胜)/.test(t)) return "history";
-  // Latin token alone (no Chinese location/food/family context matched above) — treat
-  // as a name attempt, e.g. "Raymond" typed on its own.
-  if (/[A-Za-z]{3,}/.test(t)) return "name";
+  // Latin token catch-all: only treat as a name attempt when the current engine is
+  // identity/name-related.  In work/place/travel context the Latin text is likely a
+  // proper noun (place name, institution) and should not surface the "你是说你的英文名字吗？"
+  // clarification — that is a context mismatch and feels confusing to the learner.
+  const _eng = (engineHint || window._currentEngineId || "").toLowerCase();
+  if (/[A-Za-z]{3,}/.test(t) && (!_eng || /identity|name/.test(_eng))) return "name";
   return null;
 }
 
@@ -2375,6 +2380,8 @@ const _SEMANTIC_CLARIFICATION_PHRASES = {
   family_health: { hanzi: "现在好一点了吗？",           pinyin: "xiànzài hǎo yīdiǎn le ma?",              text_en: "Is it a bit better now?" },
   family:        { hanzi: "是说你的家人吗？",           pinyin: "shì shuō nǐ de jiārén ma?",              text_en: "Are you talking about your family?" },
   work_status:   { hanzi: "你是说你已经退休了吗？",     pinyin: "nǐ shì shuō nǐ yǐjīng tuìxiū le ma?",   text_en: "Do you mean you've retired?" },
+  work_teacher:  { hanzi: "你是说你以前是老师吗？",     pinyin: "nǐ shì shuō nǐ yǐqián shì lǎoshī ma?",   text_en: "Do you mean you were a teacher?" },
+  distance:      { hanzi: "那个地方很远吗？",           pinyin: "nà ge dìfāng hěn yuǎn ma?",               text_en: "Is that place far away?" },
   location:      { hanzi: "你是说一个城市吗？",         pinyin: "nǐ shì shuō yīgè chéngshì ma?",          text_en: "Are you referring to a city?" },
   nationality:   { hanzi: "你是说你来自哪里？",         pinyin: "",                                         text_en: "Are you saying where you're from?" },
   history:       { hanzi: "你是说那里有很多历史吗？",   pinyin: "",                                         text_en: "Do you mean that place has a lot of history?" },
@@ -2386,28 +2393,7 @@ function _getSemanticClarification(category) {
   return _SEMANTIC_CLARIFICATION_PHRASES[category] || null;
 }
 
-// ── Repeated-failure escalation helpers ───────────────────────────────────────
-/** Topic-keyed model-answer examples shown after 2+ consecutive ASR failures. */
-const _ENGINE_MODEL_ANSWERS = {
-  work:    "我退休了。 / 我是老师。",
-  retire:  "我退休了。",
-  teach:   "我是老师。",
-  place:   "我是新西兰人。 / 我住在奥克兰。",
-  origin:  "我是新西兰人。",
-  family:  "我和太太一起住。",
-  food:    "我喜欢羊肉。",
-  travel:  "我想去中国。",
-  trip:    "我想去中国。",
-};
-
-/** Returns a model-answer string for the given engine ID, or null if no match. */
-function _getModelAnswerForEngine(engineId) {
-  const e = (engineId || "").toLowerCase();
-  for (const [key, ans] of Object.entries(_ENGINE_MODEL_ANSWERS)) {
-    if (e.includes(key)) return ans;
-  }
-  return null;
-}
+// ── Work-context helpers (repeated-failure escalation model-answer tables removed) ──────────
 
 // ── Work-context helpers ───────────────────────────────────────────────────────
 /**
@@ -2645,6 +2631,15 @@ function semanticSoftMatch(transcript, frameId) {
   const t = (transcript || "").trim();
   const fid = (frameId || "").trim();
   if (!t) return false;
+  // Plain affirmation after a paraphrase question ("你是说：...") — route to server as confirmation.
+  // Covers both client-generated paraphrases (tracked in _lastSemanticClarifyText) and
+  // server-generated paraphrases (tracked in _lastPartnerTurnText / _lastPartnerFrameText).
+  const _prevWasParaphrase =
+    (window._lastSemanticClarifyText || "").includes("你是说") ||
+    (window._lastPartnerTurnText || "").includes("你是说") ||
+    (window._lastPartnerFrameText || "").includes("你是说");
+  if (_prevWasParaphrase && /^(对|是|嗯|好|对的|是的|没错|对啊|嗯嗯|对对|嗯呢)$/.test(
+    t.replace(/[。！？,，\s]/g, ""))) return true;
   // Turn-around / reciprocity phrases — always accept regardless of the current frame.
   // ASR rarely captures the trailing "？" so match without it.
   // Matches: standalone "你呢", leading "你呢…", AND trailing "[answer]，你呢" compound answers.
@@ -2653,6 +2648,11 @@ function semanticSoftMatch(transcript, frameId) {
   // Direct questions aimed at the partner — user turns the conversation around by
   // asking the app about its origin, city, job, hobbies, or family.
   if (/你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(t)) return true;
+  // Distance / travel-time answers on place-distance frames — accept immediately, no strikes needed.
+  const _DIST_FRAMES = new Set(["p2_pl_far", "f_place_distance_time", "f_place_distance_ref"]);
+  if (_DIST_FRAMES.has(fid)) {
+    if (/远|近|飞机|火车|走路|小时|分钟|公里|里路|很远|超远|好远|不远/.test(t)) return true;
+  }
   // Scenery / place-quality free answers (often unmatched to word tiles)
   if (/(风景|山水|漂亮|好看|很美|美|空气|环境|舒服|安静|不错|挺好|海|湖|山|树|绿)/.test(t)) return true;
   // Travel destination answers — scoped to frames where "going somewhere" is the actual question.
@@ -5139,6 +5139,23 @@ async function runMirrorTurn(zh, en, topic) {
 
   const stub = (data.frame_text || "").trim();
   window._userQuestionChain = (window._userQuestionChain || 0) + 1;
+
+  // Update engine state from the server response so subsequent runTurn calls
+  // continue from the correct engine rather than restarting from identity.
+  // This is especially important when the mirror question is the FIRST user action
+  // (e.g. user opens with "你是哪里人？" before any app-led question).
+  if (data.engine_id && data.engine_id !== "unknown") {
+    const _prevEng = window._currentEngineId || "";
+    window._currentEngineId = data.engine_id;
+    // Stale semantic clarification must not survive an engine change.
+    if (_prevEng && _prevEng !== data.engine_id) window._lastSemanticClarifyText = "";
+  }
+  if (data.state_update && typeof data.state_update.current_engine === "string" && data.state_update.current_engine) {
+    const _prevEng2 = window._currentEngineId || "";
+    window._currentEngineId = data.state_update.current_engine;
+    if (_prevEng2 && _prevEng2 !== data.state_update.current_engine) window._lastSemanticClarifyText = "";
+  }
+
   if (stub) {
     addTranscriptEntry("partner", stub);
     renderTranscript();
@@ -5362,7 +5379,9 @@ async function startFreshLearner() {
   window._lastPersonaReveal       = false;
   window._recentlySeenDiscTopics  = [];
   window._lastPartnerFrameText    = "";
+  window._lastSemanticClarifyText = "";
   window._lastBlueQuestions       = [];   // client cache — cleared only on fresh session
+  window._lastDiscoveryEngineId   = "";   // engine when last blue panel was shown
   hideDiscoveryPanel();
 
   // Clear the "Remembered:" facts banner
@@ -5405,6 +5424,9 @@ async function startFreshLearner() {
   _tracker.engines_used = new Set();
   _tracker._pendingRecovery = false;
   _tracker.mode = _challenge.active ? "challenge" : "normal";
+
+  // Refresh "Today's focus" objective for the new session
+  renderSessionObjective();
 }
 
 /**
@@ -5738,12 +5760,40 @@ async function _runTurnInner(isNext = false, opts = {}) {
   const _confusionFrameQ = (window._confusionFrameText || "").trim();
   window._confusionFrameText = null;  // consume once
   if (_confusionFrameQ && data.counter_reply) {
-    // Use first clause of the frame question if it's long
-    const _simpleQ = _confusionFrameQ.includes("，")
-      ? _confusionFrameQ.split(/[，。！？]/)[0]
-      : _confusionFrameQ;
-    if (_simpleQ.length >= 3) {
-      data.counter_reply = (data.counter_reply || "").trim() + `\n我问：${_simpleQ}`;
+    const _crExisting = (data.counter_reply || "").trim();
+    // Never stack clarification wrappers: if counter_reply already contains a
+    // clarification prefix ("我是问：", "我问："), skip the append entirely.
+    const _hasClarifyWrapper = /我是问|我问：/.test(_crExisting);
+    if (!_hasClarifyWrapper) {
+      const _simpleQ = _confusionFrameQ.includes("，")
+        ? _confusionFrameQ.split(/[，。！？]/)[0]
+        : _confusionFrameQ;
+      // Strip any wrapper from the appended text itself (defensive).
+      const _cleanQ = _simpleQ.replace(/^(我是问：|我问：|我在问：|我的意思是：|我刚刚问的是：)/, "").trim();
+      if (_cleanQ.length >= 3) {
+        data.counter_reply = _crExisting + `\n我问：${_cleanQ}`;
+      }
+    }
+  }
+
+  // ── Clarification-wrapper dedup (final pass) ──────────────────────────────────
+  // Guarantee: the learner never sees two "我是问：" / "我问：" wrappers in one turn.
+  // This catches any remaining path that stacks wrappers (server + confusion-rephrase).
+  const _CLARIFY_WRAP_RE = /我是问[：:]/g;
+  if (data.counter_reply && (_CLARIFY_WRAP_RE.lastIndex = 0, (data.counter_reply.match(_CLARIFY_WRAP_RE) || []).length > 1)) {
+    // Remove all but first occurrence
+    let _first = true;
+    data.counter_reply = data.counter_reply.replace(/我是问[：:]/g, (m) => {
+      if (_first) { _first = false; return m; }
+      return "";
+    });
+  }
+  if (data.counter_reply && data.frame_text) {
+    const _crHasClarify = /我是问[：:]|我问[：:]/.test(data.counter_reply);
+    const _ftHasClarify = /^(我是问[：:]|我问[：:])/.test((data.frame_text || "").trim());
+    if (_crHasClarify && _ftHasClarify) {
+      // Both have wrappers — strip the wrapper from frame_text
+      data.frame_text = (data.frame_text || "").replace(/^(我是问[：:]|我问[：:])\s*/, "").trim();
     }
   }
 
@@ -5875,13 +5925,17 @@ async function _runTurnInner(isNext = false, opts = {}) {
     const _filteredDq = _earlyPlace
       ? _dq.filter(q => !_advancedPlacePattern.test(q.zh || ""))
       : _dq;
-    const _serverQs = _filteredDq.slice(0, 3);
-    // Priority: frame-specific (2) → server-discovery (up to 3) → answer-reactive (up to 2).
+    const _serverQs = _filteredDq.slice(0, 4);
+    // Priority: frame-specific (2) → server-discovery (up to 4) → answer-reactive (up to 4).
     // If this is an early place frame, lead with frame questions and cap server at 2.
     const _assembled = _earlyPlace
       ? [..._frameFallbackQs.slice(0, 2), ..._serverQs.slice(0, 2), ..._extraQs]
       : [..._serverQs, ..._extraQs];
-    renderDiscoveryPanel(_dedupeQuestions(_assembled), fallbackText);
+    // For user-led turns (persona revealed content / user asking questions), allow up to 5
+    // questions so rich reveals surface multiple relevant exploration options.
+    // Relevance ranking (server-side) ensures only strong matches appear.
+    const _hasRichReply = _extraQs.length >= 3 || _serverQs.length >= 3;
+    renderDiscoveryPanel(_dedupeQuestions(_assembled, _hasRichReply ? 5 : 3), fallbackText);
   } else {
     // Non-user-led turn: the server didn't send new blue questions this time.
     // Keep the last useful question set visible so the learner can still ask.
@@ -5890,25 +5944,29 @@ async function _runTurnInner(isNext = false, opts = {}) {
     window._pendingFrameMeta = null;
     const _cached = window._lastBlueQuestions || [];
 
+    // Engine staleness: if the engine has changed since the last blue panel was shown,
+    // stale cached questions from the old engine are irrelevant — prefer topic fallback.
+    const _currentEng   = (window._currentEngineId || engineId || "").toLowerCase();
+    const _cachedEng    = (window._lastDiscoveryEngineId || "").toLowerCase();
+    const _engineChanged = _cachedEng && _cachedEng !== _currentEng;
+
+    const _topicFallback = _getTopicFallbackQuestions(_currentEng);
+
     if (_frameFallbackQs.length > 0) {
-      // Frame-specific questions are available — show them, supplemented by cache or
-      // answer-reactive extras.  This is the primary path for early place/origin frames.
-      const _supplement = _cached.length > 0
+      // Frame-specific questions take priority — directly relevant to the active question.
+      const _supplement = (!_engineChanged && _cached.length > 0)
         ? _cached.filter(q => !_isEarlyPlaceFrame(_activeFrameId) ||
             !(/好吃|特别|为什么喜欢|喜欢那里/).test(q.zh || ""))
         : [];
       renderDiscoveryPanel(
-        _dedupeQuestions([..._frameFallbackQs.slice(0, 2), ..._supplement, ..._extraQs]),
+        _dedupeQuestions([..._frameFallbackQs, ..._supplement, ..._extraQs]),
         null
       );
-    } else if (_cached.length > 0) {
+    } else if (!_engineChanged && _cached.length > 0) {
+      // Same engine: cached questions are still relevant.
       renderDiscoveryPanel(_dedupeQuestions([..._cached, ..._extraQs]), null);
     } else {
-      // No cached questions yet — try topic-based fallbacks before hiding the panel.
-      // This keeps the learner agency surface visible after the first persona answer.
-      const _topicFallback = _getTopicFallbackQuestions(
-        window._currentEngineId || engineId || ""
-      );
+      // Engine changed or no cache — use topic-based fallback for the current engine.
       if (_topicFallback.length > 0) {
         renderDiscoveryPanel(_dedupeQuestions([..._topicFallback, ..._extraQs]), null);
       } else if (_extraQs.length > 0) {
@@ -6132,6 +6190,9 @@ window.addEventListener("load", async () => {
   // so they can see if a previous session left data and clear it if needed.
   _refreshMemoryBanner();
 
+  // Show "Today's focus" in the scorecard panel before any session begins.
+  renderSessionObjective();
+
   // Phase 6: load render tokens and cards index in parallel with existing loads
   await Promise.all([
     loadPackFramesIntoDropdown(),
@@ -6344,6 +6405,7 @@ window.addEventListener("load", async () => {
       window._consecutiveNotUnderstood = 0;
       window._recentConfusionCount = 0;  // Phase 12C: real answer clears overload signal
       window._lastRepairKind = null; window._prevRepairKind = null;
+      window._lastSemanticClarifyText = "";  // stale paraphrase context cleared on real answer
       emitUITrace({
         type: "SPEECH_ACCEPTED_AS_ANSWER",
         timestamp: new Date().toISOString(),
@@ -6460,7 +6522,7 @@ window.addEventListener("load", async () => {
     // then category-level clarification, then generic repair (啊？).
     // This applies from the very first rejection so "啊？" only fires when there is
     // genuinely no detectable signal.
-    const _semCategory    = _detectSemanticCategory(saidTrimmed);
+    const _semCategory    = _detectSemanticCategory(saidTrimmed, window._currentEngineId || "");
     // Context-anchored confusion recovery: if the learner echoes back our location probe
     // ("哪里什么") AND our immediately previous turn was itself a 哪里？ clarification,
     // rephrase with their previous answer as context so the intent is unambiguous.
@@ -6485,22 +6547,33 @@ window.addEventListener("load", async () => {
         })
       : phrase;
 
-    // Fix 4: After 2+ consecutive failures with NO semantic signal, escalate to a
-    // model-answer hint.  When there IS a semantic signal, partial confirmation is
-    // still more useful than a generic model answer, so we skip escalation.
+    // Track the last semantic clarification shown so semanticSoftMatch can route
+    // a subsequent "对/是的" plain affirmation to the server as a confirmed answer.
+    window._lastSemanticClarifyText = _semClarifyData ? (_semClarifyData.hanzi || "") : "";
+    // Also update _lastPartnerFrameText so the server's _confirmed_re_ask logic fires
+    // when the client-generated paraphrase is confirmed with a plain affirmation.
+    if (_semClarifyData) window._lastPartnerFrameText = _semClarifyData.hanzi;
+
+    // After 2+ consecutive failures with no semantic signal and no clarification available:
+    // use the current frame question as a soft re-ask so the learner hears a concrete,
+    // topic-preserving anchor — never prescribe answer templates (Design Constitution).
     const _escalationSemanticSignal =
-      _detectSemanticCategory(saidTrimmed) !== null ||
+      _detectSemanticCategory(saidTrimmed, window._currentEngineId || "") !== null ||
       (typeof semanticSoftMatch === "function" && semanticSoftMatch(saidTrimmed, frameId));
-    if ((window._consecutiveNotUnderstood || 0) >= 2 && !_escalationSemanticSignal) {
-      const _modelAns = _getModelAnswerForEngine(window._currentEngineId || "");
-      const _escalationHanzi = "没关系。你可以说一个简单句。"
-        + (_modelAns ? `\n比如：${_modelAns}` : "");
+    if ((window._consecutiveNotUnderstood || 0) >= 2 && !_escalationSemanticSignal && !_semClarifyData) {
+      // Prefer the current pending question as a topic anchor; fall back to generic soothing.
+      const _pendingQ = (window._currentFrameText || "").trim()
+        .replace(/^(没关系[，。]?|我是问：|我没听清楚[，。]?)\s*/u, "")
+        .replace(/[。！,，\s]+$/u, "");
+      const _reaskHanzi = (_pendingQ.length >= 3 && _pendingQ.length <= 25)
+        ? `没关系。${_pendingQ}？`
+        : "没关系，你能再说一遍吗？";
       _displayPhrase = Object.assign({}, _displayPhrase, {
-        hanzi:           _escalationHanzi,
+        hanzi:           _reaskHanzi,
         pinyin:          "",
-        text_en:         "No problem. Try a simple sentence.",
+        text_en:         "No problem, let me ask again.",
         recovery_action: "soft",
-        id:              "escalated_model_answer",
+        id:              "contextual_reask",
       });
     }
 
@@ -6934,6 +7007,13 @@ window._showPostCloseMirrorOptions = _showPostCloseMirrorOptions;
  *  during the very first place frame).
  *  Keys must match server frame_id strings. */
 const _FRAME_FALLBACK_QUESTIONS = {
+  // ── Identity / name ──────────────────────────────────────────────────────
+  f_ask_you_name: [
+    { zh: "你叫什么名字？",         py: "nǐ jiào shénme míngzi?",                en: "What is your name?" },
+    { zh: "你的名字是什么意思？",   py: "nǐ de míngzi shì shénme yìsi?",         en: "What does your name mean?" },
+    { zh: "谁给你取的名字？",       py: "shéi gěi nǐ qǔ de míngzi?",             en: "Who gave you your name?" },
+  ],
+  // ── Place / origin ───────────────────────────────────────────────────────
   f_from_where: [
     { zh: "你呢？你是哪里人？",     py: "nǐ ne? nǐ shì nǎlǐ rén?",             en: "How about you — where are you from?" },
     { zh: "你来自哪里？",           py: "nǐ láizì nǎlǐ?",                        en: "Where do you come from?" },
@@ -6944,14 +7024,64 @@ const _FRAME_FALLBACK_QUESTIONS = {
   "frame.location.live_question": [
     { zh: "你呢？你住哪里？",       py: "nǐ ne? nǐ zhù nǎlǐ?",                  en: "How about you — where do you live?" },
     { zh: "你住在哪里？",           py: "nǐ zhù zài nǎlǐ?",                      en: "Where do you live?" },
-    { zh: "你住的地方怎么样？",     py: "nǐ zhù de dìfāng zěnmeyàng?",           en: "What is your place like?" },
+    { zh: "那里远吗？",             py: "nàlǐ yuǎn ma?",                          en: "Is it far?" },
     { zh: "你住在城市还是农村？",   py: "nǐ zhù zài chéngshì háishi nóngcūn?",   en: "City or countryside?" },
   ],
   f_live_where: [
     { zh: "你呢？你住哪里？",       py: "nǐ ne? nǐ zhù nǎlǐ?",                  en: "How about you — where do you live?" },
     { zh: "你住在哪里？",           py: "nǐ zhù zài nǎlǐ?",                      en: "Where do you live?" },
-    { zh: "你住的地方怎么样？",     py: "nǐ zhù de dìfāng zěnmeyàng?",           en: "What is your place like?" },
+    { zh: "那里远吗？",             py: "nàlǐ yuǎn ma?",                          en: "Is it far?" },
     { zh: "你住在城市还是农村？",   py: "nǐ zhù zài chéngshì háishi nóngcūn?",   en: "City or countryside?" },
+  ],
+  // Distance / far
+  p2_pl_far: [
+    { zh: "离那儿远吗？",           py: "lí nàr yuǎn ma?",                        en: "Is it far from there?" },
+    { zh: "一般怎么去？",           py: "yìbān zěnme qù?",                        en: "How do you usually get there?" },
+    { zh: "从你那儿到那边要多久？", py: "cóng nǐ nàr dào nàbiān yào duō jiǔ?",  en: "How long does it take?" },
+  ],
+  // ── Work ─────────────────────────────────────────────────────────────────
+  f_what_work: [
+    { zh: "你呢？你做什么工作？",   py: "nǐ ne? nǐ zuò shénme gōngzuò?",        en: "How about you — what do you do?" },
+    { zh: "你喜欢你的工作吗？",     py: "nǐ xǐhuān nǐ de gōngzuò ma?",           en: "Do you like your work?" },
+    { zh: "你做这份工作多久了？",   py: "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",     en: "How long have you been doing this?" },
+  ],
+  f_like_work: [
+    { zh: "你为什么喜欢这份工作？", py: "nǐ wèishénme xǐhuān zhèfèn gōngzuò?",  en: "Why do you like this work?" },
+    { zh: "工作中最有趣的是什么？", py: "gōngzuò zhōng zuì yǒuqù de shì shénme?", en: "What's most interesting about your work?" },
+    { zh: "你做这份工作多久了？",   py: "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",     en: "How long have you done this?" },
+  ],
+  // ── Family ───────────────────────────────────────────────────────────────
+  f_married: [
+    { zh: "你结婚了吗？",           py: "nǐ jiéhūn le ma?",                       en: "Are you married?" },
+    { zh: "你有孩子吗？",           py: "nǐ yǒu háizi ma?",                       en: "Do you have children?" },
+    { zh: "你家里有几个人？",       py: "nǐ jiālǐ yǒu jǐ gè rén?",               en: "How many people are in your family?" },
+  ],
+  f_have_children: [
+    { zh: "你有孩子吗？",           py: "nǐ yǒu háizi ma?",                       en: "Do you have children?" },
+    { zh: "你家里有几个人？",       py: "nǐ jiālǐ yǒu jǐ gè rén?",               en: "How many in your family?" },
+    { zh: "你有兄弟姐妹吗？",       py: "nǐ yǒu xiōngdì jiěmèi ma?",              en: "Do you have siblings?" },
+  ],
+  f_live_with_who: [
+    { zh: "你和谁一起住？",         py: "nǐ hé shéi yīqǐ zhù?",                  en: "Who do you live with?" },
+    { zh: "你家里有几个人？",       py: "nǐ jiālǐ yǒu jǐ gè rén?",               en: "How many people in your family?" },
+    { zh: "你跟父母住在一起吗？",   py: "nǐ gēn fùmǔ zhù zài yīqǐ ma?",          en: "Do you live with your parents?" },
+  ],
+  // ── Food ─────────────────────────────────────────────────────────────────
+  f_place_food: [
+    { zh: "你最喜欢吃什么？",       py: "nǐ zuì xǐhuān chī shénme?",              en: "What do you like eating most?" },
+    { zh: "你喜欢吃辣吗？",         py: "nǐ xǐhuān chī là ma?",                   en: "Do you like spicy food?" },
+    { zh: "你会自己做吗？",         py: "nǐ huì zìjǐ zuò ma?",                    en: "Can you cook that yourself?" },
+  ],
+  // ── Place depth ──────────────────────────────────────────────────────────
+  f_place_special: [
+    { zh: "那里有什么特别的？",     py: "nàlǐ yǒu shénme tèbié de?",              en: "What's special about that place?" },
+    { zh: "你为什么喜欢那里？",     py: "nǐ wèishénme xǐhuān nàlǐ?",             en: "Why do you like it there?" },
+    { zh: "那里有什么好吃的？",     py: "nàlǐ yǒu shénme hǎochī de?",             en: "What's good to eat there?" },
+  ],
+  f_place_like_there: [
+    { zh: "你喜欢那里吗？",         py: "nǐ xǐhuān nàlǐ ma?",                     en: "Do you like it there?" },
+    { zh: "那里有什么特别的？",     py: "nàlǐ yǒu shénme tèbié de?",              en: "What's special about that place?" },
+    { zh: "你为什么喜欢那里？",     py: "nǐ wèishénme xǐhuān nàlǐ?",             en: "Why do you like it there?" },
   ],
 };
 
@@ -7018,25 +7148,92 @@ const _TOPIC_FALLBACK_QUESTIONS = {
 };
 
 /**
- * Returns up to 2 answer-reactive probe questions based on keywords in the persona's
- * counter_reply.  Used to augment the blue-question panel after a persona answer.
- * Returns objects in the same {zh, py, en} shape as renderDiscoveryPanel expects.
+ * Returns answer-reactive probe questions anchored to keywords in the persona's counter_reply.
+ * For rich reveals (multi-city, work+place, food mentions), returns up to 4 questions so the
+ * blue panel can show genuinely relevant exploration options rather than generic fillers.
+ *
+ * Caller is responsible for the final cap via _dedupeQuestions.
  */
 function _augmentQuestionsFromAnswer(counterReply) {
   if (!counterReply) return [];
+  const t = counterReply;
   const extra = [];
-  if (/喜欢/.test(counterReply))                     extra.push({ zh: "你为什么喜欢这个？",   py: "", en: "Why do you like this?" });
-  if (/去过|旅行|旅游/.test(counterReply))           extra.push({ zh: "你去过哪里？",         py: "", en: "Where have you been?" });
-  if (/工作/.test(counterReply))                     extra.push({ zh: "你喜欢这个工作吗？",   py: "", en: "Do you enjoy this job?" });
-  if (/地方|那里|那边/.test(counterReply))           extra.push({ zh: "那里有什么特别？",     py: "", en: "What's special about that place?" });
-  return extra.slice(0, 2);
+
+  // ── Two-city / work-in-different-city reveal ──────────────────────────────
+  // e.g. "我是成都人，不过在北京工作已经好几年了。"
+  // Detect two distinct place mentions to surface richer place+work exploration.
+  const _bigCities = ["北京", "上海", "成都", "西安", "广州", "深圳", "重庆", "杭州", "南京", "天津",
+                      "武汉", "沈阳", "青岛", "厦门", "苏州", "长沙", "郑州", "济南"];
+  const _citiesInReply = _bigCities.filter(c => t.includes(c));
+  const _twoCities = _citiesInReply.length >= 2;
+
+  if (_twoCities) {
+    const [c1, c2] = _citiesInReply;
+    extra.push({ zh: `你更喜欢${c1}还是${c2}？`, py: "", en: `Do you prefer ${c1} or ${c2}?` });
+    extra.push({ zh: `你为什么去${c2}？`,         py: "", en: `Why did you go to ${c2}?` });
+    extra.push({ zh: `${c2}的生活怎么样？`,       py: "", en: `What is life like in ${c2}?` });
+    extra.push({ zh: `${c1}远吗？`,               py: "", en: `Is ${c1} far?` });
+    return extra;  // Two-city reveal: return these 4 directly, no need to scan more
+  }
+
+  // ── Single city mention ───────────────────────────────────────────────────
+  const _singleCity = _citiesInReply.length === 1 ? _citiesInReply[0] : null;
+  if (_singleCity) {
+    extra.push({ zh: `你喜欢${_singleCity}吗？`,       py: "", en: `Do you like ${_singleCity}?` });
+    extra.push({ zh: `${_singleCity}有什么特别的？`,   py: "", en: `What's special about ${_singleCity}?` });
+  }
+
+  // ── Work / occupation ─────────────────────────────────────────────────────
+  if (/工作|上班|老师|教书|退休|公司/.test(t))
+    extra.push({ zh: "你喜欢你的工作吗？",       py: "nǐ xǐhuān nǐ de gōngzuò ma?",       en: "Do you enjoy your work?" });
+  if (/工作.*年|做了.*年|几年了/.test(t))
+    extra.push({ zh: "你做这份工作多久了？",     py: "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",  en: "How long have you done this work?" });
+  if (/为什么.*工作|为什么.*当|为什么.*做/.test(t))
+    extra.push({ zh: "为什么选择这份工作？",     py: "wèishénme xuǎnzé zhèfèn gōngzuò?",  en: "Why did you choose this work?" });
+  if (/老师|教书|教学/.test(t))
+    extra.push({ zh: "学生怎么样？",             py: "xuéshēng zěnmeyàng?",                en: "What are the students like?" });
+
+  // ── Place / generic location ──────────────────────────────────────────────
+  if (!_singleCity && /地方|那里|那边|城市|家乡|老家/.test(t))
+    extra.push({ zh: "那里有什么特别的？",       py: "nàlǐ yǒu shénme tèbié de?",         en: "What's special about that place?" });
+  if (/喜欢.*那里|喜欢.*那边|喜欢.*那个/.test(t))
+    extra.push({ zh: "你为什么喜欢那里？",       py: "nǐ wèishénme xǐhuān nàlǐ?",        en: "Why do you like it there?" });
+
+  // ── Food / eating ─────────────────────────────────────────────────────────
+  if (/吃|美食|火锅|菜|好吃|回锅肉|饺子|面|饭/.test(t))
+    extra.push({ zh: "你最喜欢吃什么？",         py: "nǐ zuì xǐhuān chī shénme?",         en: "What do you like eating most?" });
+  if (/辣|川菜|麻辣/.test(t))
+    extra.push({ zh: "你喜欢吃辣吗？",           py: "nǐ xǐhuān chī là ma?",               en: "Do you like spicy food?" });
+  if (/妈妈.*做|做的.*菜|自己做|会做/.test(t))
+    extra.push({ zh: "你会自己做吗？",           py: "nǐ huì zìjǐ zuò ma?",                en: "Can you make it yourself?" });
+
+  // ── Family ────────────────────────────────────────────────────────────────
+  if (/太太|老婆|爱人|丈夫|结婚|成家/.test(t))
+    extra.push({ zh: "你结婚了吗？",             py: "nǐ jiéhūn le ma?",                   en: "Are you married?" });
+  if (/孩子|儿子|女儿|小孩|宝宝/.test(t))
+    extra.push({ zh: "你有孩子吗？",             py: "nǐ yǒu háizi ma?",                   en: "Do you have children?" });
+  if (/妈妈|爸爸|父母|家人|家里/.test(t))
+    extra.push({ zh: "你家里有几个人？",         py: "nǐ jiālǐ yǒu jǐ gè rén?",           en: "How many in your family?" });
+
+  // ── Travel / hobbies ──────────────────────────────────────────────────────
+  if (/去过|旅行|旅游/.test(t))
+    extra.push({ zh: "你去过哪里？",             py: "nǐ qùguò nǎlǐ?",                    en: "Where have you been?" });
+  if (/喜欢.*做|爱好|兴趣/.test(t))
+    extra.push({ zh: "你平时喜欢做什么？",       py: "nǐ píngshí xǐhuān zuò shénme?",     en: "What do you enjoy doing?" });
+
+  // ── Generic why-like fallback (only if nothing else matched) ─────────────
+  if (/喜欢/.test(t) && extra.length === 0)
+    extra.push({ zh: "你为什么喜欢这个？",       py: "nǐ wèishénme xǐhuān zhège?",         en: "Why do you like this?" });
+
+  return extra;
 }
 
 /**
  * Deduplicates a question list by the question's Chinese text (q.zh).
  * Preserves order (first occurrence wins) and caps to maxLen items.
+ * Default cap is 3 (Phase 1: relevance > variety).
  */
-function _dedupeQuestions(qs, maxLen = 4) {
+function _dedupeQuestions(qs, maxLen = 3) {
   const seen = new Set();
   return qs.filter(q => {
     const key = (q.zh || "").trim();
@@ -7069,9 +7266,10 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
   if (pendingFrameText) window._pendingFrameText = pendingFrameText.trim();
 
   // Update the persistent cache whenever fresh questions arrive.
-  // This lets non-user-led turns and session-end keep showing the last useful set.
+  // Also track engine so staleness guard can detect engine changes.
   if (Array.isArray(questions) && questions.length > 0) {
-    window._lastBlueQuestions = questions.slice();
+    window._lastBlueQuestions     = questions.slice();
+    window._lastDiscoveryEngineId = (window._currentEngineId || "").toLowerCase();
   }
 
   let panel = document.getElementById("discoveryPanel");
@@ -7699,6 +7897,45 @@ function renderScorecard(response) {
   content.innerHTML = "";
   content.classList.remove("scorecard-placeholder");
 
+  // ── Session objective card (very top of scorecard) ──────────────────────
+  // Evaluate whether the session objective was met, then render a short
+  // "Today's focus" card with aligned reflection text above everything else.
+  {
+    const obj = window._sessionObjective || buildSessionObjective(_loadLastSessionStats());
+    const endStats = {
+      total_turns:     _tracker.total_turns     || 0,
+      questions_asked: _tracker.questions_asked || 0,
+      recovery_uses:   _tracker.recovery_uses   || 0,
+      depth_responses: _tracker.depth_responses || 0,
+    };
+    const met = typeof obj.check === "function" ? obj.check(endStats) : false;
+
+    const objCard = document.createElement("div");
+    objCard.className = "sc-objective sc-objective--post";
+    objCard.dataset.objId = obj.id;
+
+    const objLbl = document.createElement("div");
+    objLbl.className = "sc-obj-label";
+    objLbl.textContent = "Today\u2019s focus";
+    objCard.appendChild(objLbl);
+
+    const objTxt = document.createElement("p");
+    objTxt.className = "sc-obj-text";
+    objTxt.textContent = obj.text;
+    objCard.appendChild(objTxt);
+
+    const reflTxt = document.createElement("p");
+    reflTxt.className = met ? "sc-obj-reflection sc-obj-met" : "sc-obj-reflection sc-obj-not-met";
+    reflTxt.textContent = met ? obj.reflection_met : obj.reflection_not_met;
+    objCard.appendChild(reflTxt);
+
+    content.appendChild(objCard);
+
+    const objDivider = document.createElement("hr");
+    objDivider.className = "sc-divider";
+    content.appendChild(objDivider);
+  }
+
   // ── Reflection section (top of scorecard) ──────────────────────────────
   // Render headline + capability / progress / next-step lines above metrics.
   // Data comes from _buildAbilitySummary() — the same source previously used
@@ -7822,6 +8059,129 @@ function renderScorecard(response) {
  * log the response to console, and render the scorecard overlay.
  * Intentionally read-only with respect to conversation state.
  */
+// ── Session Objective System ──────────────────────────────────────────────────
+// Lightweight "Today's focus" guidance shown before and after each session.
+// Uses only simple session-level data; no server changes required.
+// Persistence: stores last-session stats in localStorage (key: manos_last_session)
+// so returning users get a contextual objective rather than the default.
+
+/** Load last-session stats from localStorage. Returns null if none exist. */
+function _loadLastSessionStats() {
+  try {
+    const raw = localStorage.getItem("manos_last_session");
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Save this session's stats so the NEXT session can pick an appropriate objective. */
+function _saveLastSessionStats(stats) {
+  try {
+    localStorage.setItem("manos_last_session", JSON.stringify(stats));
+  } catch (_) {
+    // localStorage unavailable (private browsing, etc.) — silently ignore
+  }
+}
+
+/**
+ * Choose one small conversational objective based on the previous session.
+ * Returns an object: { id, text, check(stats) → bool, reflection_met, reflection_not_met }
+ */
+function buildSessionObjective(lastStats) {
+  const OBJECTIVES = {
+    default: {
+      id: "default",
+      text: "Try having a short conversation. Choose one persona and one conversation frame, then click Start.",
+      check: (s) => (s.total_turns || 0) >= 2,
+      reflection_met:     "You had a conversation \u2014 great start!",
+      reflection_not_met: "Next time, try having a short conversation with one persona.",
+    },
+    more_turns: {
+      id: "more_turns",
+      text: "Try to keep the conversation going for a few more turns.",
+      check: (s) => (s.total_turns || 0) >= 5,
+      reflection_met:     "You kept the conversation going \u2014 well done!",
+      reflection_not_met: "The conversation was brief this time. Next time, try keeping it going a little longer.",
+    },
+    ask_question: {
+      id: "ask_question",
+      text: "Try asking the persona one question back.",
+      check: (s) => (s.questions_asked || 0) >= 1,
+      reflection_met:     "You asked a question back \u2014 that helped keep the conversation going.",
+      reflection_not_met: "You didn\u2019t ask a question back this time. Next time, try asking \u201c\u4f60\u5462\uff1f\u201d once.",
+    },
+    recovery_phrase: {
+      id: "recovery_phrase",
+      text: "Try using a recovery phrase when you get stuck.",
+      check: (s) => (s.recovery_uses || 0) >= 1,
+      reflection_met:     "You used a recovery phrase \u2014 that\u2019s a real conversation skill.",
+      reflection_not_met: "Next time, try tapping a recovery phrase when you feel stuck.",
+    },
+    longer_answer: {
+      id: "longer_answer",
+      text: "Try giving one slightly longer answer.",
+      check: (s) => (s.depth_responses || 0) >= 1,
+      reflection_met:     "You gave a more detailed answer \u2014 that\u2019s great for conversation practice.",
+      reflection_not_met: "Next time, try adding one extra detail to your answer.",
+    },
+  };
+
+  if (!lastStats) return OBJECTIVES.default;
+
+  const { total_turns = 0, questions_asked = 0, recovery_uses = 0, depth_responses = 0 } = lastStats;
+
+  // Prioritise the weakest signal from the last session
+  if (total_turns < 4)                        return OBJECTIVES.more_turns;
+  if (questions_asked === 0)                  return OBJECTIVES.ask_question;
+  if (recovery_uses >= 3 && depth_responses === 0) return OBJECTIVES.longer_answer;
+  if (recovery_uses >= 1 && depth_responses === 0) return OBJECTIVES.longer_answer;
+  if (questions_asked >= 1 && total_turns >= 4)    return OBJECTIVES.default;
+  return OBJECTIVES.default;
+}
+
+/**
+ * Render the "Today's focus" block into #scorecardContent.
+ * Called on page load (before a session starts) and after startFreshLearner().
+ * Stores the chosen objective in window._sessionObjective so renderScorecard
+ * can evaluate it at session end without re-computing.
+ */
+function renderSessionObjective() {
+  const el = document.getElementById("scorecardContent");
+  if (!el) return;
+
+  const lastStats = _loadLastSessionStats();
+  const obj = buildSessionObjective(lastStats);
+  window._sessionObjective = obj;
+
+  el.innerHTML = "";
+  el.classList.remove("scorecard-placeholder");
+
+  const block = document.createElement("div");
+  block.className = "sc-objective";
+  block.dataset.objId = obj.id;
+
+  const lbl = document.createElement("div");
+  lbl.className = "sc-obj-label";
+  lbl.textContent = "Today\u2019s focus";
+  block.appendChild(lbl);
+
+  const txt = document.createElement("p");
+  txt.className = "sc-obj-text";
+  txt.textContent = obj.text;
+  block.appendChild(txt);
+
+  el.appendChild(block);
+
+  const hint = document.createElement("p");
+  hint.className = "sc-obj-hint";
+  hint.textContent = "Complete the session to see your reflection.";
+  el.appendChild(hint);
+}
+
+window.buildSessionObjective   = buildSessionObjective;
+window.renderSessionObjective  = renderSessionObjective;
+
 async function endSession() {
   const t = _tracker;
   const payload = {
@@ -7855,7 +8215,16 @@ async function endSession() {
   console.log("[endSession] scorecard result:", result);
   // renderScorecard now includes the ability reflection section at the top.
   // _renderAbilityDashboard() is intentionally NOT called here.
-  if (result?.ok) renderScorecard(result);
+  if (result?.ok) {
+    renderScorecard(result);
+    // Persist a minimal snapshot so the NEXT session can choose an appropriate objective.
+    _saveLastSessionStats({
+      total_turns:     _tracker.total_turns     || 0,
+      questions_asked: _tracker.questions_asked || 0,
+      recovery_uses:   _tracker.recovery_uses   || 0,
+      depth_responses: _tracker.depth_responses || 0,
+    });
+  }
   return result;
 }
 

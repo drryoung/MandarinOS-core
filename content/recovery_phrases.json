@@ -389,16 +389,16 @@
     },
     {
       "id": "deflect_marriage",
-      "hanzi": "这个还是秘密。",
-      "pinyin": "zhè ge hái shì mì mì.",
-      "text_en": "That's still a secret.",
+      "hanzi": "还没有，一个人也挺自在的。",
+      "pinyin": "hái méi yǒu, yī gè rén yě tǐng zì zài de.",
+      "text_en": "Not yet — being single is quite free.",
       "level": "P1",
       "topic": "marriage",
       "use": "persona_deflect",
       "recovery_action": "next_turn",
-      "move_type": "REPAIR",
+      "move_type": "REACTION",
       "response_role": "SAFE",
-      "repair_kind": "deflect_soft",
+      "repair_kind": "answer_closed",
       "priority": 90
     },
     {

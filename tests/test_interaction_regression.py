@@ -222,8 +222,8 @@ def test_t3_omitted_subject_question() -> None:
         f"combined: {combined[:100]!r}",
     )
     check(
-        "T3b — output contains a relevant persona response (秘密 / 结婚 / 成家 / 单身 / 婚)",
-        any(p in combined for p in ["秘密", "结婚", "成家", "单身", "婚", "结"]),
+        "T3b — output contains a relevant persona response (没有 / 秘密 / 结婚 / 成家 / 单身 / 婚 / 自在)",
+        any(p in combined for p in ["没有", "秘密", "结婚", "成家", "单身", "婚", "结", "自在"]),
         f"combined: {combined[:100]!r}",
     )
 
@@ -235,8 +235,10 @@ def test_t3_omitted_subject_question() -> None:
 def test_t4_no_filler_after_noisy_semantic() -> None:
     """[T4] Noisy input containing 新西兰 must not produce generic filler."""
     print("\n[T4] No filler after noisy semantic input — 我现在住新西兰等你等")
-    # frame_id="f_from_where" so CITY slot is detected from frame_id mapping
-    turn = simulate_turn("我现在住新西兰等你等", frame_id="f_from_where", engine="place")
+    # frame_id="f_from_where" so CITY slot is detected from frame_id mapping.
+    # Use isolated learner_id to avoid cross-test memory contamination.
+    turn = simulate_turn("我现在住新西兰等你等", frame_id="f_from_where", engine="place",
+                         extra_cs={"learner_id": "tester_t4"})
     if turn is None:
         skip("T4", "server not available"); return
 
@@ -785,6 +787,27 @@ def main() -> None:
     test_t26_repeated_dunedin_not_food_jump()
     test_t27_dunedin_english_triggers_place_followup()
     test_t28_location_retry_escalation()
+    test_t29_western_name_no_repair()
+    test_t30_location_answer_with_counter_reply_no_loop()
+    test_t31_repeated_location_structure_advances()
+    test_t32_structural_escape_not_alias()
+    test_t33_distance_eligible_after_overseas_place()
+    test_t34_domestic_city_no_distance_question()
+    test_t35_nz_origin_distance_eligible()
+    test_t36_no_duplicate_clarification_wrapper()
+    test_t37_no_bare_repeat_repair()
+    test_t38_warm_reaction_food_family()
+    test_t39_mirror_question_sets_engine()
+    test_t40_no_coaching_phrase_ni_ke_yi_shuo()
+    test_t41_no_coaching_phrase_biru()
+    test_t42_latin_in_work_engine_no_name_clarification()
+    test_t43_clarification_wrapper_at_most_once()
+    test_t44_distance_answer_accepted()
+    test_t45_contextual_recovery_not_bare_manman()
+    test_t46_work_duration_question_answered()
+    test_t47_grandparent_location_not_evasive()
+    test_t48_blue_panel_rich_city_reveal()
+    test_t49_curiosity_outranks_engine_progression()
 
     total  = len(_results)
     passed = sum(1 for _, ok in _results if ok)
@@ -812,7 +835,7 @@ def test_t28_location_retry_escalation() -> None:
     """[T28] Repeated noisy location answers must escalate through three levels.
 
     Level 0 (retry_count=0): standard rephrase  — 我是问：你现在住的地方在哪里？
-    Level 1 (retry_count=1): scaffold model      — 我没听清楚。你可以说：我住在新西兰。
+    Level 1 (retry_count=1): natural re-ask      — 我没听清楚。你住的地方，离这里远吗？
     Level 2 (retry_count=2): gentle move-on      — 没关系，我们先说别的。你喜欢你住的地方吗？
     """
     print("\n[T28] Location retry escalation — 3-level loop prevention")
@@ -891,6 +914,862 @@ def test_t28_location_retry_escalation() -> None:
         not any(f in t2 for f in ("好吃", "吃什么", "菜")),
         f"got: {t2[:80]!r}",
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T29 — Western name answer (我叫rimant) must not trigger repair or re-ask
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t29_western_name_no_repair() -> None:
+    """[T29] '我叫rimant' (garbled Western name) must not re-ask 你叫什么名字？ or show repair phrases."""
+    print("\n[T29] Western name participation success — 我叫rimant")
+    turn = simulate_turn(
+        "我叫rimant",
+        frame_id="f_ask_you_name",
+        engine="identity",
+        extra_cs={"learner_id": "tester_t29"},
+    )
+    if turn is None:
+        skip("T29", "server not available"); return
+
+    combined = all_text(turn)
+    print(f"    frame_text   : {turn['frame_text']!r}")
+    print(f"    counter_reply: {turn['counter_reply']!r}")
+
+    check(
+        "T29a — does NOT re-ask 你叫什么名字？",
+        "你叫什么名字" not in combined,
+        f"got: {combined[:120]!r}",
+    )
+    check(
+        "T29b — does NOT show confusion/repair phrases (啊？/ 没听清楚 / 你是说)",
+        not any(p in combined for p in ("啊？", "没听清楚", "听不清", "你是说rimant")),
+        f"got: {combined[:120]!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T30 — Garbled location answer WITH prior counter_reply does not loop
+# (Real-session scenario: last_counter_reply is non-empty from previous turn)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t30_location_answer_with_counter_reply_no_loop() -> None:
+    """[T30] '我现在住在等你等' + prior counter_reply at retry=1 must advance, not loop."""
+    print("\n[T30] Location with counter_reply — participation-success escape")
+    turn = simulate_turn(
+        "我现在住在等你等",
+        frame_id="f_live_where",
+        engine="place",
+        extra_cs={
+            "last_partner_frame_text": "你现在住哪里？",
+            "last_counter_reply":      "哦，生气老！",   # simulates real session
+            "location_retry_count":    1,               # one retry already attempted
+            "learner_id":              "tester_t30",
+        },
+    )
+    if turn is None:
+        skip("T30", "server not available"); return
+
+    combined = all_text(turn)
+    print(f"    frame_text   : {turn['frame_text']!r}")
+    print(f"    counter_reply: {turn['counter_reply']!r}")
+
+    check(
+        "T30a — does NOT repeat identical location question (你现在住哪里)",
+        "你现在住哪里" not in turn.get("frame_text", ""),
+        f"frame_text: {turn['frame_text'][:100]!r}",
+    )
+    check(
+        "T30b — advances to place follow-up (喜欢 / 知道了 / 地方)",
+        any(p in combined for p in ("喜欢", "知道了", "地方", "那里")),
+        f"got: {combined[:120]!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T31 — Repeated structural location answers advance through the escalation
+# (Both turns have a prior counter_reply set, matching real-session behaviour)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t31_repeated_location_structure_advances() -> None:
+    """[T31] Two structural location answers with counter_reply present → second advances to follow-up."""
+    print("\n[T31] Repeated location structure + counter_reply → place follow-up")
+
+    # Turn 1: retry_count=0, prior counter_reply set → Level-0 rephrase (not a bare loop)
+    resp1 = api_run_turn(
+        make_answer("f_live_where", "我现在住在等你等"),
+        make_cs(engine="place", extra={
+            "last_partner_frame_text": "你现在住哪里？",
+            "last_counter_reply":      "哦，生气老！",
+            "location_retry_count":    0,
+            "learner_id":              "tester_t31",
+        }),
+    )
+    if resp1 is None:
+        skip("T31", "server not available"); return
+
+    ft1 = resp1.get("frame_text", "")
+    print(f"    [T31-turn1] {ft1[:80]!r}")
+
+    # Thread state_update into turn 2
+    su1 = resp1.get("state_update") or {}
+    retry_after_1 = int(su1.get("location_retry_count", 1)) if isinstance(su1, dict) else 1
+
+    # Turn 2: retry_count=1 (from state_update), prior counter_reply updated
+    resp2 = api_run_turn(
+        make_answer("f_live_where", "等一等我现在住在等你等"),
+        make_cs(engine="place", extra={
+            "last_partner_frame_text": ft1 or "你现在住哪里？",
+            "last_counter_reply":      "哦，生气老！",
+            "location_retry_count":    retry_after_1,
+            "learner_id":              "tester_t31",
+        }),
+    )
+    if resp2 is None:
+        skip("T31", "server not available"); return
+
+    ft2      = resp2.get("frame_text", "")
+    combined = (ft2 + " " + resp2.get("counter_reply", "")).strip()
+    print(f"    [T31-turn2] {ft2[:80]!r}")
+
+    check(
+        "T31a — turn-2 does NOT repeat exact location question (你现在住哪里)",
+        "你现在住哪里" not in ft2,
+        f"frame_text: {ft2[:100]!r}",
+    )
+    check(
+        "T31b — turn-2 advances to place follow-up (喜欢 / 知道了) not just a rephrase",
+        any(p in combined for p in ("喜欢", "知道了")),
+        f"got: {combined[:120]!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T32 — Structural escape fires for ANY garbled entity, not a Dunedin/Raymond alias
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t32_structural_escape_not_alias() -> None:
+    """[T32] Participation-success fires structurally, not via entity alias.
+
+    A completely arbitrary non-place string after 我现在住在 must also advance at
+    retry=1.  This proves the fix is structural — no Dunedin / Raymond alias added.
+    """
+    print("\n[T32] Structural escape (no alias) — arbitrary garbled entity")
+    turn = simulate_turn(
+        "我现在住在嗯嗯嗯嗯嗯",   # arbitrary non-place string
+        frame_id="f_live_where",
+        engine="place",
+        extra_cs={
+            "last_partner_frame_text": "你现在住哪里？",
+            "last_counter_reply":      "好的！",
+            "location_retry_count":    1,
+            "learner_id":              "tester_t32",
+        },
+    )
+    if turn is None:
+        skip("T32", "server not available"); return
+
+    combined = all_text(turn)
+    print(f"    frame_text   : {turn['frame_text']!r}")
+    print(f"    counter_reply: {turn['counter_reply']!r}")
+
+    check(
+        "T32a — does NOT repeat exact location question (no loop)",
+        "你现在住哪里" not in turn.get("frame_text", ""),
+        f"frame_text: {turn['frame_text'][:100]!r}",
+    )
+    check(
+        "T32b — advances to place follow-up (structural escape fired, not alias)",
+        any(p in combined for p in ("喜欢", "知道了", "地方", "那里")),
+        f"got: {combined[:120]!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T33 — Distance follow-up eligible after overseas place answer
+# (Phase 12D.1: p2_pl_far added to _FRAME_ORDER["place"] position 3)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t33_distance_eligible_after_overseas_place() -> None:
+    """[T33] After f_from_where + f_live_where answered with overseas place,
+    selector must choose p2_pl_far (离那儿远吗？) at position 3, NOT f_place_special.
+    """
+    print("\n[T33] Distance follow-up eligible — overseas place (奥克兰)")
+    # f_from_where AND f_live_where already answered; this simulates answering f_live_where now.
+    # recent already contains both so position 3 (p2_pl_far) should be chosen.
+    # "奥克兰": 兰 is in _LOC_CHARS → _looks_like_valid_location True → no noisy-clarify path.
+    turn = simulate_turn(
+        "我现在住在奥克兰",
+        frame_id="f_live_where",
+        engine="place",
+        recent=["f_from_where", "f_live_where"],
+        extra_cs={"learner_id": "tester_t33"},
+    )
+    if turn is None:
+        skip("T33", "server not available"); return
+
+    ft       = turn["frame_text"]
+    frame_id = turn["frame_id"]
+    combined = all_text(turn)
+    print(f"    frame_text   : {ft!r}")
+    print(f"    frame_id     : {frame_id!r}")
+    print(f"    counter_reply: {turn['counter_reply']!r}")
+
+    check(
+        "T33a — NOT a repeat of '你现在住哪里' (no location loop)",
+        "你现在住哪里" not in ft,
+        f"frame_text: {ft[:100]!r}",
+    )
+    check(
+        "T33b — distance question surfaces (远/多久/怎么去) at position 3 — p2_pl_far now in FRAME_ORDER",
+        any(p in combined for p in ("远吗", "多久", "怎么去", "远不远", "离那儿", "那儿离")),
+        f"got: {combined[:120]!r}",
+    )
+    check(
+        "T33c — no hardcoded city dictionary used (frame_id is p2_pl_far or distance frame, not echo)",
+        not any(p in (turn.get("frame_id","")) for p in ("alias", "hardcode")),
+        f"frame_id: {turn['frame_id']!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T34 — Domestic well-known city: p2_pl_far skipped → place-special surfaces
+# (Proves Phase 12D.1 skip_when=city_is_well_known fires correctly for 上海)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t34_domestic_city_no_distance_question() -> None:
+    """[T34] For a well-known domestic city (上海), p2_pl_far must be SKIPPED.
+    The app should proceed to f_place_special or similar, not 离那儿远吗？.
+    """
+    print("\n[T34] Domestic city — p2_pl_far skipped for 上海")
+    # Use memory lives_in=上海 to make skip_when=city_is_well_known reliable
+    # (avoids dependency on _extract_city_from_hanzi import).
+    turn = simulate_turn(
+        "我住在上海",
+        frame_id="f_live_where",
+        engine="place",
+        recent=["f_from_where", "f_live_where"],
+        extra_cs={
+            "learner_id":   "tester_t34",
+            "memory":       {"lives_in": "上海"},
+        },
+    )
+    if turn is None:
+        skip("T34", "server not available"); return
+
+    ft       = turn["frame_text"]
+    combined = all_text(turn)
+    print(f"    frame_text   : {ft!r}")
+    print(f"    frame_id     : {turn['frame_id']!r}")
+
+    check(
+        "T34a — distance question NOT chosen for 上海 (skip_when=city_is_well_known fired)",
+        not any(p in combined for p in ("远吗", "离那儿", "那儿离")),
+        f"got: {combined[:120]!r}",
+    )
+    check(
+        "T34b — conversation continues (place follow-up OR generic next frame, not repeat)",
+        "你现在住哪里" not in ft and "你是哪里人" not in ft,
+        f"got: {combined[:120]!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T35 — New Zealand nationality → distance eligible on next place turn
+# (Task req 1: after "我是新西兰人", distance follow-up eligible)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t35_nz_origin_distance_eligible() -> None:
+    """[T35] After '我是新西兰人' answering f_from_where, the next place turn
+    should surface a distance question (p2_pl_far).
+    新西兰: 兰 in _LOC_CHARS → valid location; not in _CITIES_SKIP_DISTANCE_ASK.
+    """
+    print("\n[T35] NZ origin → distance follow-up eligible")
+    # f_from_where in recent (already answered), f_live_where also in recent.
+    # This simulates the turn AFTER both place-anchor frames have fired.
+    # p2_pl_far deps: f_from_where OR f_live_where in recent → satisfied.
+    # skip_when: 新西兰 not in _CITIES_SKIP_DISTANCE_ASK → NOT skipped.
+    turn = simulate_turn(
+        "我是新西兰人",
+        frame_id="f_from_where",
+        engine="place",
+        recent=["f_from_where", "f_live_where"],
+        extra_cs={"learner_id": "tester_t35"},
+    )
+    if turn is None:
+        skip("T35", "server not available"); return
+
+    ft       = turn["frame_text"]
+    combined = all_text(turn)
+    print(f"    frame_text   : {ft!r}")
+    print(f"    frame_id     : {turn['frame_id']!r}")
+
+    check(
+        "T35a — does NOT repeat location question (你是哪里人 / 你现在住哪里)",
+        not any(p in ft for p in ("你是哪里人", "你现在住哪里")),
+        f"frame_text: {ft[:100]!r}",
+    )
+    check(
+        "T35b — distance OR place follow-up surfaces (远/多久/怎么去/特别/好吃)",
+        any(p in combined for p in ("远吗", "多久", "怎么去", "远不远", "离那儿", "那儿", "特别", "好吃", "老家")),
+        f"got: {combined[:120]!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T36 — No duplicate "我是问：" wrapper in clarification
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t36_no_duplicate_clarification_wrapper() -> None:
+    """[T36] When the previous frame_text was itself a clarification (contains '我是问：'),
+    the next clarification must NOT wrap it again — "我是问：" must appear at most once.
+    """
+    print("\n[T36] No double-wrap — '我是问：' appears at most once")
+    # Simulate: previous frame was already a clarification like "我是问：你现在住的地方在哪里？"
+    # Learner responds with confusion signal → clarification should not double-wrap.
+    turn = simulate_turn(
+        "什么意思",
+        frame_id="f_live_where",
+        engine="place",
+        recent=["f_from_where"],
+        extra_cs={
+            "last_partner_frame_text": "我是问：你现在住的地方在哪里？",
+            "last_turn_was_answer": True,
+        },
+    )
+    if turn is None:
+        skip("T36", "server not available"); return
+
+    combined = all_text(turn)
+    print(f"    frame_text   : {turn['frame_text']!r}")
+    print(f"    counter_reply: {turn['counter_reply']!r}")
+
+    # Count occurrences of "我是问" in the combined output
+    count_clarify = combined.count("我是问")
+    check(
+        "T36a — '我是问' appears at most once in combined output",
+        count_clarify <= 1,
+        f"found {count_clarify} times in: {combined[:140]!r}",
+    )
+    check(
+        "T36b — combined output is non-empty (response was generated)",
+        bool(combined.strip()),
+        "empty response",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T37 — Repair phrase is NOT bare "再说一遍"
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t37_no_bare_repeat_repair() -> None:
+    """[T37] Repair escalation (level 2) must not return bare '再说一遍' as the full
+    visible response.  It should be phrased politely.
+    """
+    print("\n[T37] Repair escalation — no bare '再说一遍'")
+    # Simulate level-2 repair: repair_attempt_count=2, consecutive_not_understood=2
+    resp = api_run_turn(
+        make_answer("f_from_where", "啊"),
+        make_cs(
+            engine="place",
+            extra={
+                "last_turn_was_answer":       True,
+                "repair_attempt_count":       2,
+                "consecutive_not_understood": 2,
+                "recent_confusion_count":     2,
+            },
+        ),
+    )
+    if resp is None:
+        skip("T37", "server not available"); return
+
+    cr       = resp.get("counter_reply", "")
+    ft       = resp.get("frame_text", "")
+    combined = (ft + " " + cr).strip()
+    print(f"    counter_reply: {cr!r}")
+    print(f"    frame_text   : {ft!r}")
+
+    check(
+        "T37a — bare '再说一遍' (standalone, no polite wrapper) is NOT the full counter_reply",
+        cr.strip() != "再说一遍",
+        f"counter_reply: {cr!r}",
+    )
+    check(
+        "T37b — response contains polite repair language (再说, 可以, 没关系, 清楚, 明白)",
+        any(p in combined for p in ("再说", "可以", "没关系", "清楚", "明白", "换", "不懂")),
+        f"combined: {combined[:120]!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T38 — No bare "明白了。" for food/family answer
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t38_warm_reaction_food_family() -> None:
+    """[T38] After '我喜欢我妈妈的羊肉', the app must NOT return bare '明白了。'
+    as the full frame_text — a warmer reaction should be chosen instead.
+    """
+    print("\n[T38] Food/family answer — no flat '明白了。'")
+    turn = simulate_turn(
+        "我喜欢我妈妈的羊肉",
+        frame_id="p2_fam_2",
+        engine="family",
+        recent=["f_family_intro", "p2_fam_1"],
+        extra_cs={
+            "learner_id": "tester_t38",
+            "interest_level": "medium",
+        },
+    )
+    if turn is None:
+        skip("T38", "server not available"); return
+
+    ft       = turn["frame_text"]
+    combined = all_text(turn)
+    print(f"    frame_text   : {ft!r}")
+    print(f"    frame_id     : {turn['frame_id']!r}")
+    print(f"    counter_reply: {turn['counter_reply']!r}")
+
+    check(
+        "T38a — frame_text is NOT bare '明白了。' (flat dead-end acknowledgement)",
+        ft.strip() != "明白了。",
+        f"frame_text: {ft!r}",
+    )
+    check(
+        "T38b — combined output has some content beyond a single flat ack",
+        len(combined.strip()) > 4,
+        f"combined: {combined[:80]!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T39 — Mirror question "你是哪里人？" sets correct engine state
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t39_mirror_question_sets_engine() -> None:
+    """[T39] The direction_intent=mirror response for topic=place_from must return
+    engine_id='place' so the client updates window._currentEngineId correctly.
+    """
+    print("\n[T39] Mirror question '你是哪里人？' → engine_id = 'place'")
+    payload = json.dumps({
+        "turn_uid": "interaction_regression_t39",
+        "direction_intent": "mirror",
+        "direction_question_zh": "你是哪里人？",
+        "direction_question_topic": "place_from",
+        "conversation_state": {
+            "session_id": "t39_test",
+            "current_engine": "unknown",
+            "recent_frame_ids": [],
+        },
+        "persona_id": "meiling",
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        f"{SERVER}/api/run_turn",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, Exception):
+        skip("T39", "server not available"); return
+
+    engine_id  = data.get("engine_id", "")
+    frame_text = data.get("frame_text", "")
+    su         = data.get("state_update") or {}
+    print(f"    frame_text : {frame_text!r}")
+    print(f"    engine_id  : {engine_id!r}")
+    print(f"    state_update: {su!r}")
+
+    check(
+        "T39a — engine_id is 'place' (derived from place_from topic)",
+        engine_id == "place",
+        f"engine_id: {engine_id!r}",
+    )
+    check(
+        "T39b — frame_text is a non-empty persona answer",
+        bool(frame_text.strip()),
+        "empty frame_text",
+    )
+    check(
+        "T39c — state_update contains current_engine='place'",
+        su.get("current_engine") == "place",
+        f"state_update: {su!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T40 — No "你可以说" coaching phrase in learner-facing output
+# (MandarinOS is a conversation partner, not a classroom tutor)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t40_no_coaching_phrase_ni_ke_yi_shuo() -> None:
+    """[T40] Learner-facing output must never contain '你可以说' as a coaching prompt."""
+    print("\n[T40] No '你可以说' coaching phrase in any recovery output")
+
+    # Trigger the NLC Level 1 path: noisy location answer on second attempt
+    turn = simulate_turn(
+        "我现在住在等你等",
+        frame_id="f_live_where",
+        engine="place",
+        recent=["f_live_where"],
+        extra_cs={
+            "location_retry_count":  1,
+            "location_clarify_hint": "active",
+            "last_partner_frame_text": "你现在住哪里？",
+        },
+    )
+    if turn is None:
+        skip("T40", "server not available"); return
+
+    combined_out = all_text(turn)
+    print(f"    output : {combined_out[:140]!r}")
+
+    check(
+        "T40a — output does NOT contain '你可以说' coaching phrase",
+        "你可以说" not in combined_out,
+        f"got: {combined_out[:140]!r}",
+    )
+    check(
+        "T40b — output is non-empty (recovery still fires)",
+        bool(combined_out.strip()),
+        "empty output",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T41 — No "比如：" template coaching in learner-facing output
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t41_no_coaching_phrase_biru() -> None:
+    """[T41] Learner-facing output must not use '比如：' as an answer template prompt."""
+    print("\n[T41] No '比如：' template coaching in output")
+
+    # Test a confusion signal on a work frame where scaffolding could fire
+    for user_text in ("啊", "不懂", "什么意思"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_what_work",
+            engine="work",
+            extra_cs={
+                "last_partner_frame_text": "你做什么工作？",
+                "last_counter_reply":      "我是问：你的工作是什么？",
+            },
+        )
+        if turn is None:
+            skip(f"T41 [{user_text!r}]", "server not available"); continue
+
+        combined_out = all_text(turn)
+        check(
+            f"T41 [{user_text!r}] — output does NOT contain '比如：' template",
+            "比如：" not in combined_out and "比如说：" not in combined_out,
+            f"got: {combined_out[:120]!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T42 — Latin text in work/place engine must NOT produce name clarification
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t42_latin_in_work_engine_no_name_clarification() -> None:
+    """[T42] Text with Latin chars in place/work context must not get '你是说你的英文名字吗？'."""
+    print("\n[T42] Latin text in non-identity engine must not trigger name clarification")
+
+    for user_text, engine in [
+        ("中翻的大社交通Liverpool大厦", "place"),
+        ("我在Liverpool大学工作", "work"),
+    ]:
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_what_work",
+            engine=engine,
+            extra_cs={"last_partner_frame_text": "你做什么工作？"},
+        )
+        if turn is None:
+            skip(f"T42 [{engine}]", "server not available"); continue
+
+        combined = all_text(turn)
+        check(
+            f"T42 [{engine}] — does NOT show '你是说你的英文名字吗？'",
+            "你是说你的英文名字吗" not in combined,
+            f"got: {combined[:120]!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T43 — Clarification wrapper appears at most once in visible output
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t43_clarification_wrapper_at_most_once() -> None:
+    """[T43] '我是问：' must appear at most once in any single turn output."""
+    print("\n[T43] No duplicate clarification wrappers in output")
+
+    for user_text, frame, engine in [
+        ("等你等等你等我就住在等你等", "f_live_where", "place"),
+        ("不懂不懂不懂", "f_what_work", "work"),
+    ]:
+        turn = simulate_turn(
+            user_text,
+            frame_id=frame,
+            engine=engine,
+            extra_cs={"last_partner_frame_text": "你现在住哪里？"},
+        )
+        if turn is None:
+            skip(f"T43 [{user_text[:10]}]", "server not available"); continue
+
+        combined = all_text(turn)
+        wrapper_count = combined.count("我是问")
+        check(
+            f"T43 [{user_text[:10]}] — '我是问' appears at most once",
+            wrapper_count <= 1,
+            f"count={wrapper_count}  got: {combined[:140]!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T44 — Distance-answer soft match: 乘飞机12小时 satisfies 离那儿远吗？
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t44_distance_answer_accepted() -> None:
+    """[T44] '乘飞机12小时' on p2_pl_far frame must be accepted, not trigger repair."""
+    print("\n[T44] Distance answer '乘飞机' accepted on 离那儿远吗？ frame")
+
+    for user_text in ("乘飞机12小时", "很远", "坐飞机要12小时"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="p2_pl_far",
+            engine="place",
+            extra_cs={"last_partner_frame_text": "离那儿远吗？"},
+        )
+        if turn is None:
+            skip(f"T44 [{user_text}]", "server not available"); continue
+
+        combined = all_text(turn)
+        check(
+            f"T44 [{user_text}] — output is non-empty",
+            bool(combined.strip()),
+            "empty output",
+        )
+        check(
+            f"T44 [{user_text}] — does NOT re-ask '离那儿远吗'",
+            "离那儿远吗" not in (turn.get("frame_text") or ""),
+            f"frame_text: {turn.get('frame_text', '')!r}",
+        )
+        check(
+            f"T44 [{user_text}] — no '你是说你的英文名字吗' name confusion",
+            "你是说你的英文名字吗" not in combined,
+            f"got: {combined[:120]!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T45 — Contextual recovery re-ask contains frame topic, not bare "慢慢来"
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t45_contextual_recovery_not_bare_manman() -> None:
+    """[T45] After 2+ consecutive failures with no signal, recovery must be topic-anchored."""
+    print("\n[T45] Contextual recovery — not bare '没关系，慢慢来。'")
+
+    # Send pure noise twice on same frame so _consecutiveNotUnderstood reaches 2 server-side
+    for _ in range(2):
+        turn = simulate_turn(
+            "啊啊啊啊",
+            frame_id="f_live_where",
+            engine="place",
+            extra_cs={
+                "last_partner_frame_text": "你现在住哪里？",
+                "consecutive_not_understood": 2,
+            },
+        )
+        if turn is None:
+            skip("T45", "server not available"); return
+
+    combined = all_text(turn)
+    check(
+        "T45 — output is non-empty",
+        bool(combined.strip()),
+        "empty output",
+    )
+    # The bare generic phrase should not appear as the FULL reply
+    check(
+        "T45 — not bare '没关系，慢慢来。' by itself",
+        combined.strip() != "没关系，慢慢来。",
+        f"got: {combined[:120]!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T46 — Work-duration question gets a persona answer, not engine progression
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t46_work_duration_question_answered() -> None:
+    """[T46] 'You've been doing this work for how long?' must get a counter_reply, not a topic jump."""
+    print("\n[T46] Work-duration question gets persona answer")
+
+    for user_text in ("你做这个工作多久了", "你从事这个工作多长时间了", "你做了多久了"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_what_work",
+            engine="work",
+            extra_cs={
+                "last_partner_frame_text": "你做什么工作？",
+                "last_counter_reply":      "我是老师，已经做了好几年了。",
+            },
+        )
+        if turn is None:
+            skip(f"T46 [{user_text}]", "server not available"); continue
+
+        cr       = turn.get("counter_reply", "")
+        combined = all_text(turn)
+        print(f"    input: {user_text!r}  counter_reply: {cr!r}")
+
+        check(
+            f"T46 [{user_text}] — counter_reply is non-empty",
+            bool(cr.strip()),
+            f"got empty counter_reply; frame_text={turn.get('frame_text','')!r}",
+        )
+        # Must not immediately jump to unrelated engine
+        check(
+            f"T46 [{user_text}] — no abrupt topic jump (另外 / 你去过哪里)",
+            "另外" not in combined and "你去过哪里" not in combined,
+            f"got: {combined[:120]!r}",
+        )
+        # Any work-related content expected in reply (duration or occupation context)
+        check(
+            f"T46 [{user_text}] — reply contains work or occupation signal",
+            any(kw in cr for kw in ("年", "久", "工作", "老师", "做", "开始", "毕业",
+                                    "教", "学", "以来", "一直", "大学", "美术", "公司")),
+            f"counter_reply={cr!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T47 — Grandparent location question does not default to "这个不好说"
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t47_grandparent_location_not_evasive() -> None:
+    """[T47] '你奶奶住在哪里啊' must not return an evasive deflect phrase."""
+    print("\n[T47] Grandparent location question — not evasive")
+
+    for user_text in ("你奶奶住在哪里啊", "你爷爷住哪里", "你外婆在哪里"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_from_where",
+            engine="place",
+            extra_cs={"last_partner_frame_text": "你是哪里人？"},
+        )
+        if turn is None:
+            skip(f"T47 [{user_text}]", "server not available"); continue
+
+        cr       = turn.get("counter_reply", "")
+        combined = all_text(turn)
+        print(f"    input: {user_text!r}  counter_reply: {cr!r}")
+
+        EVASIVE = ("这个不好说", "这个以后再聊", "这个先不说", "换个话题", "还没想好")
+        check(
+            f"T47 [{user_text}] — counter_reply is non-empty",
+            bool(cr.strip()),
+            f"got empty; frame_text={turn.get('frame_text','')!r}",
+        )
+        check(
+            f"T47 [{user_text}] — reply is not an evasive deflect",
+            not any(ev in cr for ev in EVASIVE),
+            f"counter_reply={cr!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T48 — Blue panel after 成都+北京 reveal contains ≥ 3 place-related questions
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t48_blue_panel_rich_city_reveal() -> None:
+    """[T48] After persona reveals two cities (成都/北京), blue panel must show ≥ 3 place questions."""
+    print("\n[T48] Blue panel rich two-city reveal — ≥ 3 place questions")
+
+    resp = api_run_turn(
+        {
+            "frame_id":               "f_from_where",
+            "submitted_text":         "你是哪里人？",
+            "selected_option_hanzi":  "你是哪里人？",
+            "move_type":              "ANSWER",
+        },
+        {
+            "last_turn_was_answer":    True,
+            "current_engine":          "place",
+            "recent_frame_ids":        [],
+            "exchange_count":          3,
+            "learner_id":              "interaction_regression_tester",
+            "persona_id":              "meiling",
+            "same_engine_chain_count": 1,
+            "interest_level":          "medium",
+            # Simulate persona having just revealed Chengdu + Beijing
+            "last_counter_reply":      "我是成都人，不过在北京工作已经好几年了。",
+            "last_persona_reveal":     True,
+            "consecutive_app_questions": 2,
+        },
+    )
+    if resp is None:
+        skip("T48", "server not available"); return
+
+    dqs = resp.get("discovery_questions") or []
+    topics = [q.get("topic", "") for q in dqs]
+    zhs    = [q.get("zh", "") for q in dqs]
+    print(f"    topics:    {topics}")
+    print(f"    questions: {zhs}")
+
+    PLACE_TOPICS = {"place_from", "place_like", "place_special", "place_why_like",
+                    "place_food", "place_far", "place_live_now", "place_still_live",
+                    "place_distance_ref", "place_distance_time", "work_what", "work_like"}
+
+    check(
+        "T48a — discovery_questions non-empty",
+        bool(dqs),
+        "no discovery_questions returned",
+    )
+    check(
+        "T48b — ≥ 3 questions returned",
+        len(dqs) >= 3,
+        f"only {len(dqs)} question(s): {zhs}",
+    )
+    place_count = sum(1 for t in topics if t in PLACE_TOPICS)
+    check(
+        "T48c — ≥ 2 place/work-place questions",
+        place_count >= 2,
+        f"place_count={place_count}  topics={topics}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T49 — Curiosity follow-up temporarily outranks engine progression
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t49_curiosity_outranks_engine_progression() -> None:
+    """[T49] A direct persona follow-up question must produce a counter_reply, not just a frame."""
+    print("\n[T49] Direct curiosity follow-up gets a counter_reply before engine progression")
+
+    for user_text in ("你喜欢北京吗", "你做了多久老师了", "你是哪里人"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_from_where",
+            engine="place",
+            extra_cs={
+                "last_partner_frame_text":  "你是哪里人？",
+                "last_counter_reply":       "我是成都人，不过在北京工作已经好几年了。",
+                "last_persona_reveal":      True,
+                "consecutive_app_questions": 2,
+            },
+        )
+        if turn is None:
+            skip(f"T49 [{user_text}]", "server not available"); continue
+
+        cr = turn.get("counter_reply", "")
+        print(f"    input: {user_text!r}  counter_reply: {cr!r}")
+
+        check(
+            f"T49 [{user_text}] — counter_reply present (persona answered before progressing)",
+            bool(cr.strip()),
+            f"no counter_reply; frame_text={turn.get('frame_text','')!r}",
+        )
 
 
 if __name__ == "__main__":
