@@ -808,6 +808,11 @@ def main() -> None:
     test_t47_grandparent_location_not_evasive()
     test_t48_blue_panel_rich_city_reveal()
     test_t49_curiosity_outranks_engine_progression()
+    test_t50_preference_not_residence_duration()
+    test_t51_feature_not_origin()
+    test_t52_age_not_evasive()
+    test_t53_parent_age_not_location()
+    test_t54_travel_question_answered()
 
     total  = len(_results)
     passed = sum(1 for _, ok in _results if ok)
@@ -1769,6 +1774,619 @@ def test_t49_curiosity_outranks_engine_progression() -> None:
             f"T49 [{user_text}] — counter_reply present (persona answered before progressing)",
             bool(cr.strip()),
             f"no counter_reply; frame_text={turn.get('frame_text','')!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T50 — "你喜欢北京吗" gives a preference answer, not the same residence sentence
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t50_preference_not_residence_duration() -> None:
+    """[T50] Preference question must return a preference answer, not a residence-duration fact."""
+    print("\n[T50] '你喜欢北京吗' → preference answer, not '我在北京住了X年'")
+
+    # Simulate a turn where the persona just said "我在北京住了五年了" (stored as last_counter_reply)
+    for persona_id, city_q in [("meiling", "你喜欢西安吗"), ("zhiyuan", "你喜欢上海吗")]:
+        turn = simulate_turn(
+            city_q,
+            frame_id="f_from_where",
+            engine="place",
+            extra_cs={
+                "persona_id":          persona_id,
+                "last_counter_reply":  f"我在{'西安' if persona_id=='meiling' else '上海'}住了很多年了。",
+                "recent_persona_replies": [f"我在{'西安' if persona_id=='meiling' else '上海'}住了很多年了。"],
+            },
+        )
+        if turn is None:
+            skip(f"T50 [{persona_id}/{city_q}]", "server not available"); continue
+
+        cr = turn.get("counter_reply", "")
+        print(f"    {persona_id}: {city_q!r} → counter_reply: {cr!r}")
+
+        check(
+            f"T50 [{persona_id}] — counter_reply non-empty",
+            bool(cr.strip()),
+            "empty counter_reply",
+        )
+        # Must NOT repeat the residence-duration sentence
+        check(
+            f"T50 [{persona_id}] — does NOT repeat residence-duration sentence",
+            "住了很多年了" not in cr,
+            f"counter_reply={cr!r}",
+        )
+        # Must contain a preference-related word
+        check(
+            f"T50 [{persona_id}] — contains preference/feature signal",
+            any(kw in cr for kw in ("喜欢", "挺", "好", "特色", "方便", "文化", "历史", "活力", "快", "慢", "有意思")),
+            f"counter_reply={cr!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T51 — "X有什么特别啊" returns feature content, not origin fact
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t51_feature_not_origin() -> None:
+    """[T51] '有什么特别' question must return a feature/special answer, not an origin statement."""
+    print("\n[T51] '西安有什么特别' → feature answer, not origin/work fact")
+
+    for user_text in ("西安有什么特别啊", "那里有什么特别的", "北京有什么特别"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_from_where",
+            engine="place",
+            extra_cs={
+                "persona_id":         "meiling",
+                "last_counter_reply": "我是西安人，在这里长大的。",
+            },
+        )
+        if turn is None:
+            skip(f"T51 [{user_text}]", "server not available"); continue
+
+        cr = turn.get("counter_reply", "")
+        print(f"    {user_text!r} → counter_reply: {cr!r}")
+
+        check(
+            f"T51 [{user_text}] — counter_reply non-empty",
+            bool(cr.strip()),
+            "empty counter_reply",
+        )
+        # Must not return a bare origin statement as the feature answer
+        ORIGIN_PATTERNS = ("老家是", "老家在", "毕业后来", "来北京工作", "来成都工作")
+        check(
+            f"T51 [{user_text}] — not an origin/work statement",
+            not any(p in cr for p in ORIGIN_PATTERNS),
+            f"counter_reply={cr!r}",
+        )
+        # Should contain feature-related content
+        check(
+            f"T51 [{user_text}] — contains feature/description signal",
+            any(kw in cr for kw in ("历史", "文化", "古迹", "特色", "好吃", "小吃", "有名", "很大", "机会", "兵马俑", "大雁塔")),
+            f"counter_reply={cr!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T52 — "你多大" returns an age answer, not an evasive deflect
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t52_age_not_evasive() -> None:
+    """[T52] '你多大' must return an age answer when persona has a known age."""
+    print("\n[T52] '你多大' → age answer, not evasive deflect")
+
+    for user_text in ("你多大", "你几岁", "你今年多大"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_from_where",
+            engine="identity",
+            extra_cs={"persona_id": "meiling"},   # meiling.profile.age = 32
+        )
+        if turn is None:
+            skip(f"T52 [{user_text}]", "server not available"); continue
+
+        cr = turn.get("counter_reply", "")
+        print(f"    {user_text!r} → counter_reply: {cr!r}")
+
+        check(
+            f"T52 [{user_text}] — counter_reply non-empty",
+            bool(cr.strip()),
+            "empty counter_reply",
+        )
+        EVASIVE = ("先不说", "不好说", "以后再聊", "秘密", "还没想好")
+        check(
+            f"T52 [{user_text}] — not an evasive deflect",
+            not any(ev in cr for ev in EVASIVE),
+            f"counter_reply={cr!r}",
+        )
+        check(
+            f"T52 [{user_text}] — contains age signal (digit or 岁/多)",
+            any(kw in cr for kw in ("岁", "32", "三十", "多")),
+            f"counter_reply={cr!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T53 — "你爸爸妈妈多大" returns parent age, not parent location
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t53_parent_age_not_location() -> None:
+    """[T53] '你父母多大' must return a parent-age answer, not a location answer."""
+    print("\n[T53] '你爸爸妈妈多大' → parent age answer, not parent location")
+
+    for user_text in ("你爸爸妈妈他们多大", "你父母多大了", "你爸妈几岁了"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_from_where",
+            engine="family",
+            extra_cs={"persona_id": "meiling"},
+        )
+        if turn is None:
+            skip(f"T53 [{user_text}]", "server not available"); continue
+
+        cr = turn.get("counter_reply", "")
+        print(f"    {user_text!r} → counter_reply: {cr!r}")
+
+        check(
+            f"T53 [{user_text}] — counter_reply non-empty",
+            bool(cr.strip()),
+            "empty counter_reply",
+        )
+        # Should NOT return a location answer
+        LOC_PATTERNS = ("住在", "我父母在", "父母在", "家那边", "那边")
+        check(
+            f"T53 [{user_text}] — not a location answer",
+            not any(p in cr for p in LOC_PATTERNS),
+            f"counter_reply={cr!r}",
+        )
+        # Should contain an age signal
+        check(
+            f"T53 [{user_text}] — contains age signal (岁/多/大)",
+            any(kw in cr for kw in ("岁", "多岁", "五十", "六十", "多大")),
+            f"counter_reply={cr!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T54 — "你去过哪里" returns travel/visited answer, not residence fact
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t54_travel_question_answered() -> None:
+    """[T54] '你去过哪里' must return a travel/visited-places answer."""
+    print("\n[T54] '你去过哪里' → travel answer, not residence fact")
+
+    for user_text in ("你去过哪里", "你去过哪些地方", "你去过什么地方"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_from_where",
+            engine="travel",
+            extra_cs={"persona_id": "meiling"},
+        )
+        if turn is None:
+            skip(f"T54 [{user_text}]", "server not available"); continue
+
+        cr = turn.get("counter_reply", "")
+        print(f"    {user_text!r} → counter_reply: {cr!r}")
+
+        check(
+            f"T54 [{user_text}] — counter_reply non-empty",
+            bool(cr.strip()),
+            "empty counter_reply",
+        )
+        # Should contain travel/place words — NOT a bare residence statement
+        check(
+            f"T54 [{user_text}] — contains travel/place signal",
+            any(kw in cr for kw in ("去过", "旅行", "城市", "北京", "苏州", "上海", "成都", "历史", "文化", "地方")),
+            f"counter_reply={cr!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T55 — "远不远啊" after Xi'an mention must NOT return "啊？"
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t55_distance_followup_not_confused() -> None:
+    """[T55] '远不远啊' after persona mentions Xi'an must not produce '啊？' or empty reply."""
+    print("\n[T55] '远不远啊' → distance answer or graceful fallback, not '啊？'")
+
+    turn = simulate_turn(
+        "远不远啊",
+        frame_id="f_travel_where_been",
+        engine="travel",
+        extra_cs={
+            "persona_id": "meiling",
+            "last_counter_reply": "西安历史文化太丰富了，我很想去。",
+        },
+    )
+    if turn is None:
+        skip("T55", "server not available"); return
+
+    cr = turn.get("counter_reply", "")
+    print(f"    counter_reply: {cr!r}")
+
+    check("T55 — counter_reply non-empty", bool(cr.strip()), "empty counter_reply")
+    check("T55 — not '啊？'", cr.strip() != "啊？", f"got {cr!r}")
+    # Should not return a residence-duration sentence unrelated to distance
+    check(
+        "T55 — not bare residence sentence",
+        not any(p in cr for p in ("住了", "住在", "我呢，我在")),
+        f"counter_reply={cr!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T56 — "西安在哪儿呢" returns location answer or graceful limitation
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t56_location_followup_answered() -> None:
+    """[T56] '西安在哪儿呢' must return a location answer, not empty / evasive deflect."""
+    print("\n[T56] '西安在哪儿呢' → location answer or graceful limitation")
+
+    for user_text in ("西安在哪儿呢", "西安在哪里", "在哪儿啊"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_travel_where_been",
+            engine="travel",
+            extra_cs={
+                "persona_id": "meiling",
+                "last_counter_reply": "西安历史文化太丰富了，我很想去。",
+            },
+        )
+        if turn is None:
+            skip(f"T56 [{user_text}]", "server not available"); continue
+
+        cr = turn.get("counter_reply", "")
+        print(f"    {user_text!r} → counter_reply: {cr!r}")
+
+        check(f"T56 [{user_text}] — non-empty", bool(cr.strip()), "empty")
+        check(f"T56 [{user_text}] — not '啊？'", cr.strip() != "啊？", f"got {cr!r}")
+        # Must contain something useful — location info OR limitation phrase
+        _useful = (
+            any(kw in cr for kw in ("西安", "中国", "西北", "历史", "古都"))
+            or "不太清楚" in cr
+            or "电脑角色" in cr
+        )
+        check(f"T56 [{user_text}] — useful reply", _useful, f"counter_reply={cr!r}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T57 — Unsupported factual question returns transparent limitation, not opaque deflect
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t57_unsupported_question_graceful_fallback() -> None:
+    """[T57] Unsupported persona questions get transparent limitation, not '这个不好说'."""
+    print("\n[T57] Unsupported question → transparent limitation, not opaque evasion")
+
+    OPAQUE_PHRASES = ("这个不好说", "这个还是秘密", "这个以后再聊")
+
+    for user_text in ("你的邮政编码是什么", "你的身高多少"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_from_where",
+            engine="place",
+            extra_cs={"persona_id": "meiling"},
+        )
+        if turn is None:
+            skip(f"T57 [{user_text}]", "server not available"); continue
+
+        cr = turn.get("counter_reply", "")
+        print(f"    {user_text!r} → counter_reply: {cr!r}")
+
+        check(
+            f"T57 [{user_text}] — not opaque deflect",
+            not any(p in cr for p in OPAQUE_PHRASES),
+            f"counter_reply={cr!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T58 — Name-meaning question uses soft fallback, not "电脑角色"
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t58_name_meaning_soft_fallback() -> None:
+    """[T58] '美玲有什么意思啊' must not immediately use '电脑角色' fallback."""
+    print("\n[T58] Name-meaning question → soft fallback, not hard '电脑角色'")
+
+    turn = simulate_turn(
+        "美玲有什么意思啊",
+        frame_id="f_from_where",
+        engine="identity",
+        extra_cs={"persona_id": "meiling"},
+    )
+    if turn is None:
+        skip("T58", "server not available"); return
+
+    cr = turn.get("counter_reply", "")
+    print(f"    counter_reply: {cr!r}")
+
+    check("T58 — non-empty", bool(cr.strip()), "empty counter_reply")
+    check(
+        "T58 — no '电脑角色' for name question",
+        "电脑角色" not in cr,
+        f"counter_reply={cr!r}",
+    )
+    # Should contain some persona-voice content
+    _useful = any(kw in cr for kw in ("不太确定", "家里", "好听", "叫", "名字"))
+    check("T58 — soft persona-voice reply", _useful, f"counter_reply={cr!r}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T59 — Work-location answer ("我工作在苏州") gets city acknowledgement
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t59_work_location_city_acknowledged() -> None:
+    """[T59] '我工作在苏州' answered to f_work_where must acknowledge 苏州."""
+    print("\n[T59] '我工作在苏州' to f_work_where → city acknowledged in reaction")
+
+    turn = simulate_turn(
+        "我工作在苏州",
+        frame_id="f_work_where",
+        engine="work",
+        extra_cs={"persona_id": "meiling"},
+    )
+    if turn is None:
+        skip("T59", "server not available"); return
+
+    # Combine reaction_prefix + frame_text + counter_reply for full output check
+    combined = " ".join(filter(None, [
+        turn.get("reaction_prefix", ""),
+        turn.get("frame_text", ""),
+        turn.get("counter_reply", ""),
+    ]))
+    print(f"    combined: {combined!r}")
+
+    check("T59 — non-empty response", bool(combined.strip()), "empty response")
+    # Response should mention 苏州 OR contain a work-acknowledgement phrase
+    _ack = "苏州" in combined or any(kw in combined for kw in ("工作", "好的", "哦"))
+    check("T59 — 苏州 or work acknowledgement present", _ack, f"combined={combined!r}")
+    check("T59 — not '啊？'", combined.strip() != "啊？", f"got {combined!r}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T60 — Work-location answer does NOT immediately bridge to travel
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t60_work_location_no_immediate_travel_bridge() -> None:
+    """[T60] '我工作在苏州' should not immediately bridge to travel with no acknowledgement."""
+    print("\n[T60] '我工作在苏州' → no unacknowledged travel bridge")
+
+    turn = simulate_turn(
+        "我工作在苏州",
+        frame_id="f_work_where",
+        engine="work",
+        extra_cs={"persona_id": "meiling"},
+    )
+    if turn is None:
+        skip("T60", "server not available"); return
+
+    frame_text = turn.get("frame_text", "")
+    reaction   = turn.get("reaction_prefix", "")
+    print(f"    frame_text: {frame_text!r}  reaction: {reaction!r}")
+
+    # If the app bridges to travel ("你会去别的地方吗"), it MUST have an acknowledgement
+    TRAVEL_BRIDGE = ("你会去别的地方吗", "你喜欢旅游吗", "你去过哪里")
+    if any(tb in frame_text for tb in TRAVEL_BRIDGE):
+        check(
+            "T60 — travel bridge must have city acknowledgement",
+            bool(reaction.strip()) or "苏州" in reaction,
+            f"reaction={reaction!r}  frame_text={frame_text!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T61 — Health-improvement answer gets suitable acknowledgement
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t61_health_improvement_warm_reaction() -> None:
+    """[T61] '现在好很多' gets '那太好了' or equivalent, not only generic '真不错啊！'."""
+    print("\n[T61] '现在好很多' → warm health-appropriate reaction")
+
+    GENERIC_ONLY = ("真不错啊", "太厉害了", "太棒了")
+
+    for user_text in ("现在好很多了", "好多了", "身体好多了"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_from_where",
+            engine="place",
+            extra_cs={"persona_id": "meiling"},
+        )
+        if turn is None:
+            skip(f"T61 [{user_text}]", "server not available"); continue
+
+        reaction = turn.get("reaction_prefix", "")
+        print(f"    {user_text!r} → reaction_prefix: {reaction!r}")
+
+        if reaction.strip():
+            # Should not be only a generic boastful praise
+            check(
+                f"T61 [{user_text}] — reaction not only generic boast",
+                not any(g in reaction for g in GENERIC_ONLY) or "太好了" in reaction or "那" in reaction,
+                f"reaction={reaction!r}",
+            )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T62 — "啊我退休了" is NOT treated as confusion and reaches work routing
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t62_filler_retirement_not_confusion() -> None:
+    """[T62] '啊我退休了' on work frame must not trigger confusion recovery."""
+    print("\n[T62] '啊我退休了' → treated as retirement answer, not confusion")
+
+    CONFUSION_MARKERS = ("再说一遍", "没听懂", "你可以再说", "哪里不明白", "你说的是什么")
+
+    for user_text in ("啊我退休了", "嗯我退休了", "那个我退休了"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_what_work",
+            engine="work",
+            extra_cs={"persona_id": "meiling"},
+        )
+        if turn is None:
+            skip(f"T62 [{user_text}]", "server not available"); continue
+
+        combined = " ".join(filter(None, [turn.get("frame_text", ""), turn.get("counter_reply", "")]))
+        print(f"    {user_text!r} → {combined!r}")
+
+        check(
+            f"T62 [{user_text}] — not confusion response",
+            not any(m in combined for m in CONFUSION_MARKERS),
+            f"combined={combined!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T63 — "嗯我是新西兰人" satisfies origin answer (not confusion)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t63_filler_nationality_accepted() -> None:
+    """[T63] '嗯我是新西兰人' on origin frame must not loop or trigger confusion."""
+    print("\n[T63] '嗯我是新西兰人' → accepted as origin answer")
+
+    CONFUSION_MARKERS = ("再说一遍", "没听懂", "你可以再说", "你是来自哪里", "你是哪里人")
+    LOOP_PATTERNS     = ("你现在住哪里", "你是哪里人")
+
+    for user_text in ("嗯我是新西兰人", "啊我是新西兰人"):
+        turn = simulate_turn(
+            user_text,
+            frame_id="f_from_where",
+            engine="place",
+            extra_cs={"persona_id": "meiling"},
+        )
+        if turn is None:
+            skip(f"T63 [{user_text}]", "server not available"); continue
+
+        ft = turn.get("frame_text", "")
+        print(f"    {user_text!r} → frame_text: {ft!r}")
+
+        check(
+            f"T63 [{user_text}] — not confusion",
+            not any(m in ft for m in CONFUSION_MARKERS),
+            f"frame_text={ft!r}",
+        )
+        check(
+            f"T63 [{user_text}] — not stuck in origin loop",
+            not any(lp == ft.strip() for lp in LOOP_PATTERNS),
+            f"frame_text={ft!r}",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T64 — "就是我以前是老师" is NOT evasive — routes to teacher context
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t64_filler_teacher_accepted() -> None:
+    """[T64] '就是我以前是老师' on work frame must not trigger confusion."""
+    print("\n[T64] '就是我以前是老师' → accepted as teacher/work answer")
+
+    CONFUSION_MARKERS = ("再说一遍", "没听懂", "你可以再说", "不太明白")
+
+    turn = simulate_turn(
+        "就是我以前是老师",
+        frame_id="f_what_work",
+        engine="work",
+        extra_cs={"persona_id": "meiling"},
+    )
+    if turn is None:
+        skip("T64", "server not available"); return
+
+    combined = " ".join(filter(None, [turn.get("frame_text", ""), turn.get("counter_reply", "")]))
+    print(f"    combined: {combined!r}")
+
+    check(
+        "T64 — not confusion response",
+        not any(m in combined for m in CONFUSION_MARKERS),
+        f"combined={combined!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T65 — "你呢你是哪里人" still triggers persona answer (turn-around preserved)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t65_ni_ne_persona_preserved() -> None:
+    """[T65] '你呢你是哪里人' must still trigger a persona counter_reply."""
+    print("\n[T65] '你呢你是哪里人' → persona counter_reply (not suppressed by filler strip)")
+
+    turn = simulate_turn(
+        "你呢你是哪里人",
+        frame_id="f_from_where",
+        engine="place",
+        extra_cs={"persona_id": "meiling"},
+    )
+    if turn is None:
+        skip("T65", "server not available"); return
+
+    cr = turn.get("counter_reply", "")
+    print(f"    counter_reply: {cr!r}")
+
+    check("T65 — non-empty counter_reply", bool(cr.strip()), "empty counter_reply")
+    check("T65 — contains persona first-person voice", "我" in cr, f"counter_reply={cr!r}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T66 — Standalone "啊？" still triggers confusion recovery
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t66_standalone_confusion_preserved() -> None:
+    """[T66] Standalone '啊？' must still be treated as confusion, not a persona question."""
+    print("\n[T66] Standalone '啊？' → confusion recovery, not persona answer")
+
+    CONFUSION_RESPONSE_MARKERS = ("再说一遍", "没关系", "换个", "你哪句", "先说", "慢一点", "一步", "简单")
+
+    turn = simulate_turn(
+        "啊？",
+        frame_id="f_from_where",
+        engine="place",
+        extra_cs={"persona_id": "meiling"},
+    )
+    if turn is None:
+        skip("T66", "server not available"); return
+
+    combined = " ".join(filter(None, [turn.get("frame_text", ""), turn.get("counter_reply", "")]))
+    print(f"    combined: {combined!r}")
+
+    # The response should either be a recovery/repair phrase OR an advance (both are acceptable)
+    # Key requirement: '我' (persona first-person) counter_reply should NOT fire
+    cr = turn.get("counter_reply", "")
+    check(
+        "T66 — no persona first-person counter_reply for bare confusion signal",
+        not (cr.strip().startswith("我") and len(cr.strip()) > 10),
+        f"counter_reply={cr!r}",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# T67 — Standalone "对/嗯" after clarification still confirms successfully
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_t67_standalone_affirmation_preserved() -> None:
+    """[T67] Standalone '对' after '你是说...' clarification still confirms."""
+    print("\n[T67] Standalone '对' after clarification → confirmation success (not loop)")
+
+    LOOP_MARKERS = ("你是说", "你是说你已经")
+
+    for affirm in ("对", "嗯", "是的"):
+        turn = simulate_turn(
+            affirm,
+            frame_id="f_what_work",
+            engine="work",
+            extra_cs={
+                "persona_id":           "meiling",
+                "last_partner_frame_text": "你是说你已经退休了吗？",
+                "repair_attempt_count": 1,
+            },
+        )
+        if turn is None:
+            skip(f"T67 [{affirm}]", "server not available"); continue
+
+        ft = turn.get("frame_text", "")
+        print(f"    {affirm!r} → frame_text: {ft!r}")
+
+        # After confirmation, the app should NOT immediately re-ask "你是说..." again
+        check(
+            f"T67 [{affirm}] — does not re-ask clarification immediately",
+            not any(m in ft for m in LOOP_MARKERS),
+            f"frame_text={ft!r}",
         )
 
 

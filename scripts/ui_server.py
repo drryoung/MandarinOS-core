@@ -1552,6 +1552,20 @@ def _stable_pick(seq: list, seed: str) -> Optional[str]:
     return seq[h % len(seq)]
 
 
+def _pick_not_in(pool: list, seed: str, exclude: set) -> Optional[str]:
+    """Deterministic pick from pool, avoiding items in exclude.
+    Falls back to the normal stable pick when all pool items are excluded."""
+    if not pool:
+        return None
+    candidate = _stable_pick(pool, seed)
+    if candidate not in exclude:
+        return candidate
+    for item in pool:
+        if item not in exclude:
+            return item
+    return candidate  # all excluded — no choice
+
+
 def _looks_food_related_answer(text: str) -> bool:
     if not text:
         return False
@@ -2329,6 +2343,9 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     # Check for any question mark (fullwidth U+FF1F or ASCII U+003F)
     if any(ord(c) in (0xFF1F, 0x003F) for c in text):
         return True
+    # Strip leading fillers so "ne 你是哪里人" / "啊你住哪里" classify correctly.
+    # Question-mark check above runs on raw text first so "啊？" still signals confusion.
+    text = _strip_leading_fillers(text)
     # Turn-around markers AS SUBSTRINGS — catches "我叫X，你呢" / "喜欢你呢" etc.
     _turn_around_markers = ("你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "你来问")
     if any(m in text for m in _turn_around_markers):
@@ -2338,11 +2355,13 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
         "你叫什么", "你的名字", "你名字", "你是哪里人", "你从哪里来", "你老家在哪",
         "你住在哪", "你住哪里", "你做什么工作", "你的工作", "你是做什么",
         "你喜欢什么", "你有什么爱好", "你有家人", "你有没有家人",
-        "你结婚了吗", "你有孩子", "你多大", "你几岁",
+        "你结婚了吗", "你有孩子", "你多大", "你几岁", "你今年多大",
+        # Travel
+        "你去过哪里", "你去过哪些", "你去过什么地方", "你旅游过",
         # Persona's family members
         "你女儿", "你儿子", "你的孩子", "你的女儿", "你的儿子",
         "你老婆", "你太太", "你先生", "你老公", "你的老婆", "你的太太",
-        "你父母", "你爸爸", "你妈妈", "你的爸爸", "你的妈妈", "你家人",
+        "你父母", "你爸爸", "你妈妈", "你爸妈", "你的爸爸", "你的妈妈", "你家人",
     )
     if any(text.startswith(p) for p in _direct_starts):
         return True
@@ -2350,7 +2369,7 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     # "女儿做什么工作啊", "孩子多大了", "儿子在哪里工作", "奶奶住哪里" etc.
     # Extended to cover grandparents and other close relatives.
     _family_words = ("女儿", "儿子", "孩子", "太太", "老婆", "先生", "老公",
-                     "爸爸", "妈妈", "父母", "奶奶", "爷爷", "外婆", "外公", "姥姥", "姥爷")
+                     "爸爸", "妈妈", "爸妈", "父母", "奶奶", "爷爷", "外婆", "外公", "姥姥", "姥爷")
     _action_words = ("做什么工作", "在哪工作", "在哪里工作", "上班", "上学", "多大", "几岁",
                      "工作是什么", "做什么", "住哪", "住在哪", "在哪里", "哪里")
     if any(fw in text for fw in _family_words) and any(aw in text for aw in _action_words):
@@ -2375,6 +2394,12 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     # (already caught by "吗" check above if 吗 present); also cover "啊", "呢" as
     # question markers when the utterance is short enough to be a follow-up question.
     if text.endswith(("呢", "啊", "啦")) and len(text) <= 10 and any(kw in text for kw in ("喜欢", "远", "好", "特别", "有趣")):
+        return True
+    # Short bare-location follow-ups: "在哪儿" / "在哪里" / "在哪" — learner asking where
+    # a city/place just mentioned is located.  These carry no "？" and no 你 prefix.
+    if any(text.strip() == kw or text.endswith(kw) for kw in ("在哪儿", "在哪里", "在哪儿啊", "在哪里啊", "在哪啊", "在哪呢", "在哪儿呢", "在哪里呢")):
+        return True
+    if len(text) <= 12 and any(kw in text for kw in ("哪儿啊", "哪里啊", "在哪儿", "在哪里")) and text.endswith(("啊", "呢", "啊？", "呢？")):
         return True
     # Definition / paraphrase (火锅是什么 / 这个词什么意思)
     if "是什么" in text or "什么意思" in text or text.startswith("什么叫") or "指的是什么" in text:
@@ -2480,15 +2505,18 @@ def _persona_reply_for_ni_ne(frame_id: str, persona: Optional[dict]) -> Optional
     return None
 
 
-def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
+def _direct_persona_answer(t: str, persona: Optional[dict],
+                           recent_replies: Optional[list] = None) -> Optional[str]:
     """
     Detect direct questions aimed at the partner persona (你是哪里人？ 你住哪里？ etc.)
     and return a short first-person answer from persona profile/voice_lines.
     Returns None when no pattern matches.
+    recent_replies: list of recent persona counter_replies used to suppress exact repeats.
     """
     profile     = (persona or {}).get("profile") or {}
     voice_lines = (persona or {}).get("voice_lines") or {}
     name        = _assistant_name_from_persona(persona)
+    _recent_set: set = set(recent_replies or [])
 
     # Origin / hometown
     if any(p in t for p in ("你是哪里人", "你从哪里来", "你老家", "你哪里人")):
@@ -2527,18 +2555,52 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
         occ = (profile.get("occupation") or "").strip()
         return voice_lines.get("work") or (f"我是{occ}。" if occ else "我也有工作。")
 
-    # "你喜欢[place/city]吗" — does the persona like a specific place?
-    # Handles questions like "你喜欢北京吗", "你喜欢西安吗", "你喜欢这里吗".
-    if t.startswith("你喜欢") and ("吗" in t or t.endswith("呢")):
-        city = (profile.get("city") or "").strip()
+    # Travel / visited-places — "你去过哪里", "你去过哪些地方", "你旅游过哪里"
+    # Must come BEFORE the generic place-preference handler to prevent travel questions
+    # being answered with a residence fact.
+    if any(p in t for p in ("你去过哪里", "你去过哪些", "你去过什么地方", "你旅游过", "你去过哪个")):
+        travel_fact = (_facts.get("travel_where") or _facts.get("travel") or "").strip()
+        if travel_fact:
+            return travel_fact
+        return voice_lines.get("travel") or "我去过几个城市，很有意思。"
+
+    # "你喜欢[place/city/hobby/food]吗" — intent is PREFERENCE, not place description.
+    # IMPORTANT: never return voice_lines["place"] (a location/residence description)
+    # as the answer to a preference question — that answers "where" not "do you like it".
+    if t.startswith("你喜欢") and ("吗" in t or t.endswith("呢") or t.endswith("啊")):
+        city     = (profile.get("city") or "").strip()
         hometown = (profile.get("hometown") or "").strip()
-        place_line = voice_lines.get("place") or ""
-        # If asking about a place the persona is from or lives in, give an informed answer
+        # City-specific grounded preference pools — keyed by city name
+        _CITY_LIKE_POOL: dict = {
+            "北京": ["喜欢，北京生活很方便，机会也多。", "挺喜欢的，不过北京有时候节奏很快。",
+                     "喜欢，北京很有历史文化，住在这里挺有意思的。"],
+            "上海": ["挺喜欢的，上海很有活力，生活很方便。", "喜欢，上海很国际化，选择很多。",
+                     "喜欢，上海节奏快，但也很有魅力。"],
+            "成都": ["非常喜欢，成都生活很舒服，吃的也特别好。", "挺喜欢的，成都节奏慢，压力小。",
+                     "喜欢，成都的美食和文化都很有特色。"],
+            "西安": ["非常喜欢，西安历史文化太丰富了。", "挺喜欢的，西安的小吃和古迹都很有特色。",
+                     "喜欢，西安有很多历史古迹，住在这里很有历史感。"],
+            "重庆": ["非常喜欢，重庆的火锅是一绝！", "挺喜欢的，重庆山城的感觉很特别。",
+                     "喜欢，重庆很有活力，吃的也很好。"],
+            "南京": ["挺喜欢的，南京有很多历史，文化底蕴深。", "喜欢，南京生活节奏比较舒适。"],
+            "杭州": ["挺喜欢的，杭州很美，西湖那边特别好。", "喜欢，杭州的自然风景和文化都很好。"],
+        }
+        # If the question mentions the persona's own city/hometown, return a preference answer
         for _pl in [city, hometown]:
             if _pl and _pl in t:
-                return place_line or f"挺喜欢的，{_pl}很有特色。"
-        if place_line:
-            return place_line
+                _pool = _CITY_LIKE_POOL.get(_pl)
+                if _pool:
+                    return _pick_not_in(_pool, f"like|{_pl}|{t}", _recent_set)
+                return f"挺喜欢的，{_pl}很有特色，住在这里挺好的。"
+        # Asking about a city that's NOT the persona's city — generic positive
+        for _city_name, _pool in _CITY_LIKE_POOL.items():
+            if _city_name in t:
+                return _pick_not_in(_pool, f"like|{_city_name}|{t}", _recent_set)
+        # Generic hobby/food preference — route to the right voice_line
+        if any(kw in t for kw in ("书法", "绘画", "音乐", "运动", "旅行", "下棋", "羽毛球")):
+            return voice_lines.get("hobby") or "挺喜欢的，这是我的爱好。"
+        if any(kw in t for kw in ("吃", "食物", "菜", "火锅", "饺子", "面")):
+            return voice_lines.get("food") or "挺喜欢的，我对吃的很感兴趣。"
         return "还挺喜欢的，你呢？"
 
     # Hobbies / interests — "你喜欢什么" alone is too broad (catches "你喜欢什么颜色？" etc.)
@@ -2555,36 +2617,77 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
     if any(p in t for p in ("你有家人", "你有没有家人", "你的家人")):
         return voice_lines.get("family") or "我也有家人。"
 
-    # Parent / family member location — e.g. "你妈妈在哪儿？" "你父母住哪里？"
-    if any(p in t for p in ("你妈妈", "你爸爸", "你父母", "你爸妈", "你家人住", "你爸", "你妈")):
+    # Parent / family member — check intent first: age vs location vs relationship.
+    if any(p in t for p in ("你妈妈", "你爸爸", "你父母", "你爸妈", "你家人住", "你爸", "你妈",
+                             "爸妈几岁", "父母几岁", "父母多大")):
+        # Age intent: "你爸爸妈妈多大了" → return parent age, not location
+        if any(aw in t for aw in ("多大", "几岁", "年龄")):
+            _my_age = profile.get("age")
+            if _my_age and isinstance(_my_age, (int, float)):
+                _parent_age = int(_my_age) + _stable_pick([22, 25, 28], f"parent_age_offset|{_my_age}")
+                _parent_age = int(_parent_age)
+                return f"他们大概{_parent_age}多岁了。"
+            return "他们五十多岁了。"
+        # Location intent: "你妈妈在哪里住？" → return where parents live
         city = (profile.get("city") or "").strip()
         hometown = (profile.get("hometown") or "").strip()
         lives_with_family = voice_lines.get("family") or ""
         if "住在一起" in lives_with_family or "同一" in lives_with_family:
             loc = city or hometown or "这里"
             return f"我和父母住在{loc}附近，很近。"
+        fam_live = (_facts.get("family_live") or "").strip()
+        if fam_live:
+            return fam_live
         if city:
             return f"我父母住在{city}。"
         if hometown:
             return f"我父母在{hometown}。"
         return "我父母住得不太远。"
 
-    # City/place feature questions — e.g. "重庆有什么特别？" "西安有什么好玩？"
-    # Detected when the user asks what's special/good about a city that matches the persona's city or hometown.
+    # City/place feature questions — e.g. "北京有什么特别啊", "重庆有什么好玩？", "那里有什么特别的？"
+    # Intent: "what's special/interesting about this place?" — must answer WITH FEATURES, not origin facts.
     _feature_markers = ("有什么特别", "有什么好玩", "有什么有意思", "有什么特色", "有什么好", "怎么样啊", "怎么样呢")
     if any(m in t for m in _feature_markers):
-        fact_place = (_facts.get("place") or "").strip()
-        if fact_place:
-            return fact_place
         city = (profile.get("city") or "").strip()
         hometown = (profile.get("hometown") or "").strip()
-        place_line = voice_lines.get("place") or ""
+        # City-specific feature pools — grounded and beginner-friendly
+        _CITY_FEATURE_POOL: dict = {
+            "北京": ["北京很大，历史文化非常丰富，长城和故宫都在这里。", "北京机会很多，是个很有活力的城市。",
+                     "北京有很多历史古迹，还有很多好吃的小吃。"],
+            "上海": ["上海很国际化，外滩的夜景特别漂亮。", "上海很繁华，购物和美食选择都很多。",
+                     "上海节奏快，但也很有魅力，老弄堂和新高楼都很有特色。"],
+            "成都": ["成都的节奏比较慢，大家都很悠闲，火锅也是一绝！", "成都的美食特别有名，火锅、串串都很好吃。",
+                     "成都生活很舒服，茶馆文化很有特色，大家喜欢坐在茶馆聊天。"],
+            "西安": ["西安历史文化太丰富了，兵马俑、大雁塔都在那里。", "西安的小吃很有名，凉皮、肉夹馍都很好吃。",
+                     "西安是古都，到处都有历史遗迹，很有文化感。"],
+            "重庆": ["重庆是山城，到处都是坡路，风景很特别。", "重庆的火锅是全国最有名的，很辣很好吃！",
+                     "重庆的夜景非常漂亮，尤其是洪崖洞那一带。"],
+            "南京": ["南京历史很悠久，有很多历史遗迹。", "南京的鸭血粉丝汤很有名，小吃也很多。"],
+            "杭州": ["杭州的西湖非常漂亮，是个很出名的景点。", "杭州自然风景很美，还有很多茶文化。"],
+            "苏州": ["苏州的园林很有名，特别有诗意。", "苏州的古镇和水乡很有特色，景色很美。"],
+            "中关村": ["中关村是北京的科技中心，很多科技公司都在这里。", "中关村非常现代，科技氛围很浓。"],
+        }
+        # 1. Check if question mentions a specific city/place
+        for _loc, _pool in _CITY_FEATURE_POOL.items():
+            if _loc in t:
+                return _pick_not_in(_pool, f"feature|{_loc}|{t}", _recent_set)
+        # 2. Check if question is about the persona's city or hometown
+        for _pl in [city, hometown]:
+            if _pl:
+                _pool = _CITY_FEATURE_POOL.get(_pl)
+                if _pool:
+                    return _pick_not_in(_pool, f"feature|{_pl}|{t}", _recent_set)
+        # 3. Use discoverable_facts["place"] ONLY if it sounds like a feature (not an origin statement).
+        fact_place = (_facts.get("place") or "").strip()
+        _origin_markers = ("老家是", "老家在", "来自", "毕业后", "工作后", "住在", "来北京", "来上海", "来成都")
+        _fact_is_feature = fact_place and not any(m in fact_place for m in _origin_markers)
+        if _fact_is_feature:
+            return fact_place
+        # 4. Generic place feature fallback
         loc = city or hometown
-        if loc and loc in t:
-            return f"哎，{loc}太有特色了，说也说不完！" if not place_line else place_line
-        if place_line:
-            return place_line
-        return "哎，这个嘛……说来话长，有空再聊！"
+        if loc:
+            return f"哎，{loc}太有特色了，说也说不完！"
+        return "那个地方很有特色，有机会可以去看看！"
 
     # Married / partner status — check persona discoverable_facts first, then cooperative default.
     # Covers both 你-prefixed forms and bare omitted-subject question forms (结婚了吗 / 结婚没有).
@@ -2612,8 +2715,13 @@ def _direct_persona_answer(t: str, persona: Optional[dict]) -> Optional[str]:
             return f"{occ}嘛，有挑战，但还可以，挺有意思的。"
         return "工作嘛，有时候忙，但还可以，挺有意思的。"
 
-    # Age — phrase from recovery_phrases.json (use=persona_deflect, topic=age)
+    # Age — use profile.age if available; only deflect when explicitly absent.
+    # "年龄啊，先不说吧。" is annoying when the persona has a known age.
     if any(p in t for p in ("你多大", "你几岁", "你的年龄", "你今年多大")):
+        _age = profile.get("age")
+        if _age and isinstance(_age, (int, float)):
+            _age_i = int(_age)
+            return f"我今年{_age_i}岁。"
         return _persona_deflect("age", t)
 
     # Bare 为什么 / 为啥 — follow-up to the partner's last statement (city, life, preference).
@@ -2728,6 +2836,35 @@ def _lexical_definition_reply(t: str) -> Optional[tuple]:
             "Let me put it simply — which word do you mean?",
         )
     return None
+
+
+# ── Conversational filler normalisation ──────────────────────────────────────
+# Leading fillers (啊, 嗯, 那个, 就是, ne…) should not prevent content
+# classification.  Strip them before pattern matching — but only when
+# meaningful content remains afterwards.
+_FILLER_PREFIX_RE = re.compile(
+    r"^(?:"
+    r"(?:[啊嗯呃哦哎呀唉]+)[，。\s]*"   # single-character filler particles
+    r"|(?:那个|就是|然后|这个|好那|嗯那)[，\s]*"  # discourse markers
+    r"|(?:ne|ah|um|uh|er)\s+"            # Latin fillers (need trailing space)
+    r")+",
+    re.IGNORECASE,
+)
+
+
+def _strip_leading_fillers(text: str) -> str:
+    """Return text with leading conversational fillers removed.
+
+    Preserves the original when:
+    - No filler prefix is found, OR
+    - Stripping would leave fewer than 2 characters (standalone filler → keep for
+      confusion / affirmation detection).
+    """
+    s = (text or "").strip()
+    if not s:
+        return s
+    stripped = _FILLER_PREFIX_RE.sub("", s).strip()
+    return stripped if len(stripped) >= 2 else s
 
 
 def _is_confusion_signal(t: str) -> bool:
@@ -2993,6 +3130,121 @@ def _clarify_app_question(prev_frame_text: str) -> Optional[tuple]:
     return (zh, en)
 
 
+# Brief, factual location descriptions for common cities — used for "X在哪儿" follow-ups.
+_CITY_LOCATION_BRIEF: dict = {
+    "北京": "北京在中国北边，是首都，很大。",
+    "上海": "上海在中国东边，是个很大的港口城市。",
+    "成都": "成都在中国西南，四川省的省会，节奏比较慢。",
+    "西安": "西安在中国西北，是个历史很悠久的古都。",
+    "重庆": "重庆在中国西南，是个山城，山路多，火锅很出名。",
+    "南京": "南京在中国东边，江苏省的省会，历史也挺长的。",
+    "杭州": "杭州在中国东边，浙江省的省会，西湖很有名。",
+    "苏州": "苏州在中国东边，离上海不远，园林很有名。",
+    "武汉": "武汉在中国中部，是个大城市，夏天很热。",
+    "广州": "广州在中国南边，广东省的省会，饮食很有特色。",
+    "深圳": "深圳在中国南边，广东省，是个很现代的城市。",
+}
+
+
+def _persona_limitation_reply(topic_hint: str = "") -> str:
+    """Transparent limitation phrase for questions the persona cannot answer.
+    Shorter than a full sentence — honest, not evasive."""
+    if topic_hint:
+        return f"这个我不太清楚。我只是一个练习用的电脑角色，不过可以继续聊{topic_hint}。"
+    return "这个我不太确定。我只是一个练习用的电脑角色。"
+
+
+def _soft_persona_fallback(t: str, persona: Optional[dict]) -> Optional[str]:
+    """Try a natural soft deflection before the hard '电脑角色' phrase.
+
+    Returns a conversational non-answer when the question is harmless but unsupported,
+    so the learner hears a persona voice rather than a system disclaimer.
+    Returns None if no soft fallback applies; caller then uses _persona_limitation_reply.
+    """
+    if not t:
+        return None
+    profile = (persona or {}).get("profile") or {}
+    name    = (profile.get("name") or profile.get("display_name") or "").strip()
+
+    # Name/meaning questions: "美玲有什么意思" / "你的名字是什么意思" / "名字怎么来的"
+    if any(kw in t for kw in ("意思", "名字怎么", "名字是什么意思", "名字来的", "名字从哪", "名字好听", "取名")):
+        if name:
+            return f"这个我不太确定，应该是家里人觉得好听，就叫{name}了。"
+        return "这个我不太确定，名字是家里人取的，具体意思不太清楚。"
+
+    # Duration/routine questions that are harmless but undefined
+    if any(kw in t for kw in ("多长时间了", "多久了", "平时怎么", "一般怎么", "每天怎么")):
+        return "这个我不太确定，看情况吧。"
+
+    # Generic "what do you think / how do you feel" directed at persona facts
+    if any(kw in t for kw in ("你觉得怎么样", "你的感觉", "你觉得好吗")):
+        return "还行，挺好的。"
+
+    return None
+
+
+def _context_city_from_text(text: str) -> Optional[str]:
+    """Extract the first known city name from a text string (used for context-aware replies)."""
+    for _c in _CITY_LOCATION_BRIEF:
+        if _c in (text or ""):
+            return _c
+    return None
+
+
+def _place_followup_reply(t: str, persona: Optional[dict],
+                           context_reply: str = "") -> Optional[tuple]:
+    """
+    Handle short distance/location follow-up questions that arise after a city mention:
+      - "远不远啊" / "远吗" → answer from persona's perspective (it's their hometown → not far)
+      - "在哪儿" / "在哪里" / "在哪" → brief location fact for the city in context
+
+    context_reply: the persona's immediately preceding counter_reply, used to detect
+    which city was just mentioned.
+    """
+    if not any(m in t for m in ("远不远", "远吗", "有多远", "在哪儿", "在哪里", "在哪", "哪里啊", "哪儿啊")):
+        return None
+    profile   = (persona or {}).get("profile") or {}
+    city      = (profile.get("city") or "").strip()
+    hometown  = (profile.get("hometown") or "").strip()
+    _own_city = city or hometown
+
+    # Detect the city being asked about: prefer explicit city name in question,
+    # then look in recent context_reply for a city mention.
+    _asked_city = _context_city_from_text(t) or _context_city_from_text(context_reply)
+
+    # "在哪儿" / "在哪里" — location question
+    if any(m in t for m in ("在哪儿", "在哪里", "在哪", "哪里啊", "哪儿啊")):
+        loc_desc = _CITY_LOCATION_BRIEF.get(_asked_city or "") or _CITY_LOCATION_BRIEF.get(_own_city or "")
+        if loc_desc:
+            return (loc_desc, "")
+        if _asked_city:
+            return (f"{_asked_city}在中国，是个很有特色的城市。", "")
+        return None  # Let the caller handle with limitation fallback
+
+    # "远不远" / "远吗" — distance question
+    if any(m in t for m in ("远不远", "远吗", "有多远")):
+        # If asking about persona's own city/hometown → persona has direct knowledge
+        if _asked_city and _own_city and _asked_city == _own_city:
+            return (f"对我来说一点都不远，{_asked_city}就是我家！", "")
+        if _asked_city and _own_city:
+            # Asking about a city the persona is from but it's different from current city
+            dp = (persona or {}).get("distance_profile") or {}
+            dp_ref = (dp.get("reference") or "").strip()
+            if dp_ref and dp_ref == _asked_city:
+                zh = (dp.get("zh") or "").strip()
+                if zh:
+                    return (zh, dp.get("en") or "")
+            # Fallback: check the city location pool for general knowledge
+            loc_desc = _CITY_LOCATION_BRIEF.get(_asked_city)
+            if loc_desc:
+                return (f"我不太确定距离，不过{_asked_city}在中国是挺有名的城市。", "")
+        # Generic — persona can't know the learner's distance
+        if _own_city:
+            return (f"要看你从哪里出发，不过{_own_city}还挺好找的。", "")
+        return None
+    return None
+
+
 def _place_distance_counter_reply(t: str, persona: Optional[dict]) -> Optional[tuple]:
     """
     Acknowledge distance / never-been and pivot to 特色 or 喜欢那儿 — natural small talk
@@ -3023,21 +3275,33 @@ def _place_distance_counter_reply(t: str, persona: Optional[dict]) -> Optional[t
     return (zh_out, en)
 
 
-def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[dict]) -> Optional[tuple]:
+def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[dict],
+                                  recent_replies: Optional[list] = None,
+                                  context_reply: str = "") -> Optional[tuple]:
     """
     Return (zh, en) answering common counter-questions without adding new API turns.
     Handles: mirror questions (richest), direct persona questions, generic 你呢, catch-all deflection.
     Returns None if last answer was not a question.
     Lexical definition and confusion-after-counter are resolved in the run_turn caller first.
+    recent_replies: list of recent persona counter_replies for exact-repeat suppression.
+    context_reply: the persona's preceding counter_reply (used for context-aware place follow-ups).
     """
     if not _is_user_question(last_answer):
         return None
     t = (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
     if not t:
         return None
+    # Strip leading fillers so "ne 你是哪里人" / "啊你住哪里" reach the right handler.
+    t = _strip_leading_fillers(t)
     # Normalise formal 您 → informal 你 so all downstream pattern checks (mirror bank,
     # _direct_persona_answer substrings, etc.) work without duplicating every entry.
     t = t.replace("您", "你")
+
+    # Context-aware place follow-ups ("远不远啊" / "在哪儿" etc.) — must come BEFORE
+    # the generic _place_distance_counter_reply which doesn't use city context.
+    _pf = _place_followup_reply(t, persona, context_reply=context_reply)
+    if _pf:
+        return _pf
 
     # Mirror questions (richest answers — use discoverable_facts / profile via _mirror_persona_stub)
     _mirror = _find_mirror_answer(t, "", persona)
@@ -3049,7 +3313,7 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
         return _dist
 
     # Direct questions aimed at the partner (你是哪里人？ 你住哪里？ etc.)
-    _direct = _direct_persona_answer(t, persona)
+    _direct = _direct_persona_answer(t, persona, recent_replies=recent_replies)
     if _direct:
         zh = f"我呢，{_direct}" if not _direct.startswith("我") else _direct
         en = _en_for_counter_reply(zh, _direct) or _voice_line_en_for_zh(persona, _direct)
@@ -3123,8 +3387,17 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
         _occ_catch = (_profile_catch.get("occupation") or "").strip()
         if _occ_catch:
             return (f"我是做{_occ_catch}的，还挺有意思的。", "")
-    zh = _persona_deflect("generic", t)
-    return (zh, _persona_deflect_en(zh))
+
+    # Try soft persona fallback first (name meaning, routine, etc.) before hard limitation.
+    _soft = _soft_persona_fallback(t, persona)
+    if _soft:
+        return (_soft, "")
+    # Transparent limitation fallback: the learner asked a clear question we can't
+    # specifically answer.  "这个不好说" / "这个还是秘密" is opaque and frustrating;
+    # a brief honest acknowledgment is better UX.
+    _topic_hint = _context_city_from_text(context_reply) or ""
+    zh = _persona_limitation_reply(_topic_hint)
+    return (zh, "I'm not sure about that. I'm just a practice computer persona.")
 
 
 # ---------------------------------------------------------------------------
@@ -5960,6 +6233,17 @@ class Handler(BaseHTTPRequestHandler):
                         if _co and len(_co) <= 12:
                             _echo_candidate = f"哦，{_co}！"
                             _echo_triggered_by = "COMPANY"
+                        elif not _echo_candidate and _submitted:
+                            # Long institution names (大学, 学校…): extract institution type
+                            # so the learner gets an acknowledgement even for long names.
+                            _inst_type = next(
+                                (w for w in ("大学", "学院", "学校", "研究所", "医院", "银行", "公司")
+                                 if w in _submitted),
+                                None,
+                            )
+                            if _inst_type:
+                                _echo_candidate = f"哦，{_inst_type}工作！"
+                                _echo_triggered_by = "COMPANY"
                     elif "JOB" in slot_names:
                         _job = (_mem.get("job") or _mem.get("occupation") or "").strip()
                         if not _job and _submitted:
@@ -5976,6 +6260,24 @@ class Handler(BaseHTTPRequestHandler):
                             _echo_candidate = f"哦，{_job}！"
                             _echo_triggered_by = "JOB"
                     # Normalise: strip stray punctuation then ensure closing ！
+                    if _echo_candidate:
+                        _echo_candidate = _echo_candidate.rstrip("。，！？.!?,\u3002\uff0c\uff01\uff1f") + "！"
+
+                # Work-location frame (no formal slot): echo work city or institution type
+                # so learner gets a direct acknowledgement before the next question.
+                if not _echo_candidate and last_turn_was_answer and last_answer_fid in ("f_work_where",):
+                    _wl_submitted = (last_answer.get("submitted_text") or "").strip() if isinstance(last_answer, dict) else ""
+                    _wl_submitted = _wl_submitted.rstrip("。，！？.!?, ")
+                    _wl_cities = ("北京", "上海", "广州", "深圳", "成都", "重庆", "西安",
+                                  "杭州", "南京", "武汉", "苏州", "天津", "青岛",
+                                  "新西兰", "澳大利亚", "英国", "美国", "日本", "新加坡")
+                    _wl_city = next((c for c in _wl_cities if c in _wl_submitted), None)
+                    if _wl_city:
+                        _echo_candidate = f"哦，{_wl_city}工作！"
+                        _echo_triggered_by = "CITY"
+                    elif any(w in _wl_submitted for w in ("大学", "学院", "学校")):
+                        _echo_candidate = "哦，大学工作！"
+                        _echo_triggered_by = "JOB"
                     if _echo_candidate:
                         _echo_candidate = _echo_candidate.rstrip("。，！？.!?,\u3002\uff0c\uff01\uff1f") + "！"
 
@@ -6009,8 +6311,8 @@ class Handler(BaseHTTPRequestHandler):
 
                 # Work place-only reaction guard: suppress praise when the learner named an
                 # institution (大学, 医院…) without a role marker (老师, 医生…).
-                # "中国的大学" should not trigger "真了不起！" before the work is clarified.
-                # Does not affect the slot followup (f_probe_work_role_detail still fires).
+                # Replace over-enthusiastic praise with a neutral acknowledgement so the
+                # learner still gets some echo rather than a bare follow-up question.
                 if (
                     reaction_prefix_text
                     and (current_engine or "").strip().lower() == "work"
@@ -6019,8 +6321,8 @@ class Handler(BaseHTTPRequestHandler):
                     and any(m in answer_text for m in _WORK_PLACE_ONLY_SIGNALS)
                     and not any(m in answer_text for m in _WORK_ROLE_MARKERS)
                 ):
-                    reaction_prefix_text = ""
-                    _rxn_trace["composition_mode"] = "suppressed_work_place_only"
+                    reaction_prefix_text = "哦，好的。"
+                    _rxn_trace["composition_mode"] = "softened_work_place_only"
 
                 # Emotional depth trigger: suppress the generic stance reaction entirely so
                 # tonally wrong praise (很好！) never precedes empathetic follow-ups like 现在怎么样？
@@ -6032,6 +6334,31 @@ class Handler(BaseHTTPRequestHandler):
                 ):
                     reaction_prefix_text = ""
                     _rxn_trace["composition_mode"] = "suppressed_emotional_depth_trigger"
+
+                # Content-aware warm acknowledgement overrides.
+                # These fire AFTER the engine-based stance so they only replace generic
+                # stance phrases — never override echoes or emotional-depth suppression.
+                if (
+                    last_turn_was_answer
+                    and answer_text
+                    and not _echo_candidate          # echo takes priority
+                    and _depth_trigger_category != "emotional"
+                    and reaction_prefix_text         # only replace existing stance
+                    and reaction_used_fallback       # only replace generic pool picks
+                ):
+                    _at = answer_text
+                    if any(kw in _at for kw in ("好多了", "好很多", "好了很多", "好转", "恢复", "改善", "身体好")):
+                        reaction_prefix_text = "那太好了。"
+                        _rxn_trace["composition_mode"] = "content_aware_health"
+                    elif any(kw in _at for kw in ("一起住", "住在一起", "跟家人住", "和家人住", "跟父母住", "和父母住")):
+                        reaction_prefix_text = "这样挺好。"
+                        _rxn_trace["composition_mode"] = "content_aware_family_together"
+                    elif (current_engine or "").strip().lower() in ("food",) and any(kw in _at for kw in ("好吃", "很香", "味道好", "喜欢吃", "爱吃")):
+                        reaction_prefix_text = "听起来很好吃。"
+                        _rxn_trace["composition_mode"] = "content_aware_food"
+                    elif (current_engine or "").strip().lower() == "work" and any(kw in _at for kw in ("老师", "教书", "教学", "讲课", "大学老师", "教授")):
+                        reaction_prefix_text = "听起来很有意思。"
+                        _rxn_trace["composition_mode"] = "content_aware_teaching"
 
                 # Multi-destination reaction: learner listed 3+ places in a single travel/place answer.
                 # Override whatever stance was generated with an enthusiastic acknowledgment.
@@ -6057,6 +6384,8 @@ class Handler(BaseHTTPRequestHandler):
                 persona = _resolve_persona(persona_id) or (_get_persona(persona_id) if _get_persona else None)
                 # Read prev counter_reply FIRST — needed for confusion recovery and dedup.
                 _prev_counter_reply = (cs.get("last_counter_reply") or "").strip() if isinstance(cs, dict) else ""
+                # Recent persona replies (last 3) — used to suppress exact-repeat answers.
+                _recent_persona_replies: list = list(cs.get("recent_persona_replies") or []) if isinstance(cs, dict) else []
                 _last_text_for_counter = ""
                 if last_turn_was_answer and isinstance(last_answer, dict):
                     _last_text_for_counter = (
@@ -6190,7 +6519,11 @@ class Handler(BaseHTTPRequestHandler):
                             _new_mirror_topic    = _raw_mirror[2]
                             _new_mirror_engine   = _raw_mirror[3]
                         else:
-                            _counter_result = _answer_user_question_prefix(last_answer, persona)
+                            _counter_result = _answer_user_question_prefix(
+                                last_answer, persona,
+                                recent_replies=_recent_persona_replies,
+                                context_reply=_prev_counter_reply,
+                            )
                             # If _answer_user_question_prefix fell through to a generic deflection
                             # (no specific answer found), replace it with a clarification of the
                             # app's last question — gives the learner better recovery guidance
@@ -7622,6 +7955,9 @@ class Handler(BaseHTTPRequestHandler):
                     # Store so next turn can dedup (client echoes conversation_state back).
                     response["state_update"] = response.get("state_update") or {}
                     response["state_update"]["last_counter_reply"] = _counter_reply
+                    # Track recent persona replies for exact-repeat suppression (keep last 3).
+                    _updated_recent = (_recent_persona_replies + [_counter_reply])[-3:]
+                    response["state_update"]["recent_persona_replies"] = _updated_recent
 
                 # ── Blue panel — pre-computation (trigger flags) ───────────────
                 # Consecutive app questions: how many back-to-back app questions the

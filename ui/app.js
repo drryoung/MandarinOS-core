@@ -2339,7 +2339,8 @@ function isLikelyUnderstandableFreeAnswer(text, frameId = "") {
  *             "work_status" | "location"
  */
 function _detectSemanticCategory(text, engineHint = "") {
-  const t = (text || "").trim();
+  // Strip fillers so "啊我退休了" → "work_status", "就是我以前是老师" → "work_teacher".
+  const t = normalizeConversationalFillers((text || "").trim());
   if (!t) return null;
   if (/我叫|名字|英文名/.test(t)) return "name";
   if (/吃|喜欢吃|牛肉|羊肉|好吃|食物/.test(t)) return "food";
@@ -2627,36 +2628,55 @@ function _anchorVagueReferences(text, place) {
     .replace(/在那里/g, `在${place}那边`);
 }
 
+// ── Conversational filler normalisation ──────────────────────────────────────
+// Strip leading filler particles before content classification so that
+// "啊我退休了" / "嗯我是新西兰人" / "ne 你是哪里人" reach the right handlers.
+const _LEADING_FILLER_PAT = /^(?:(?:[啊嗯呃哦哎呀唉]+)[，。\s]*|(?:那个|就是|然后|这个|好那|嗯那)[，\s]*|(?:ne|ah|um|uh|er)\s+)+/i;
+
+/**
+ * Return text with leading conversational fillers removed.
+ * Preserves the original if stripping would leave fewer than 2 characters
+ * (standalone filler → keep for confusion/affirmation detection).
+ */
+function normalizeConversationalFillers(text) {
+  const t = (text || "").trim();
+  if (!t) return t;
+  const stripped = t.replace(_LEADING_FILLER_PAT, "").trim();
+  return stripped.length >= 2 ? stripped : t;
+}
+
 function semanticSoftMatch(transcript, frameId) {
   const t = (transcript || "").trim();
   const fid = (frameId || "").trim();
   if (!t) return false;
   // Plain affirmation after a paraphrase question ("你是说：...") — route to server as confirmation.
-  // Covers both client-generated paraphrases (tracked in _lastSemanticClarifyText) and
-  // server-generated paraphrases (tracked in _lastPartnerTurnText / _lastPartnerFrameText).
+  // Run this check on RAW text so standalone "对/嗯" still confirms correctly.
   const _prevWasParaphrase =
     (window._lastSemanticClarifyText || "").includes("你是说") ||
     (window._lastPartnerTurnText || "").includes("你是说") ||
     (window._lastPartnerFrameText || "").includes("你是说");
   if (_prevWasParaphrase && /^(对|是|嗯|好|对的|是的|没错|对啊|嗯嗯|对对|嗯呢)$/.test(
     t.replace(/[。！？,，\s]/g, ""))) return true;
+  // Normalise leading fillers for all subsequent content matching.
+  // (Affirmation check above already handled the raw-text case.)
+  const tn = normalizeConversationalFillers(t);
   // Turn-around / reciprocity phrases — always accept regardless of the current frame.
   // ASR rarely captures the trailing "？" so match without it.
   // Matches: standalone "你呢", leading "你呢…", AND trailing "[answer]，你呢" compound answers.
+  // Use raw t so "你呢" is never stripped by filler normalisation.
   if (/^(那?你呢|你怎么想|为什么这么问|为什么这样问|换我问|那你|你来问)/.test(t) || t === "你呢") return true;
   if (/[，。！]?(那?你呢|你怎么想|为什么这么问)[？?]?$/.test(t)) return true;
-  // Direct questions aimed at the partner — user turns the conversation around by
-  // asking the app about its origin, city, job, hobbies, or family.
-  if (/你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(t)) return true;
+  // Direct questions aimed at the partner — user turns the conversation around.
+  // Use tn (normalised) so "ne 你是哪里人" / "啊你是哪里人" route here.
+  if (/你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(tn)) return true;
   // Distance / travel-time answers on place-distance frames — accept immediately, no strikes needed.
   const _DIST_FRAMES = new Set(["p2_pl_far", "f_place_distance_time", "f_place_distance_ref"]);
   if (_DIST_FRAMES.has(fid)) {
-    if (/远|近|飞机|火车|走路|小时|分钟|公里|里路|很远|超远|好远|不远/.test(t)) return true;
+    if (/远|近|飞机|火车|走路|小时|分钟|公里|里路|很远|超远|好远|不远/.test(tn)) return true;
   }
   // Scenery / place-quality free answers (often unmatched to word tiles)
-  if (/(风景|山水|漂亮|好看|很美|美|空气|环境|舒服|安静|不错|挺好|海|湖|山|树|绿)/.test(t)) return true;
+  if (/(风景|山水|漂亮|好看|很美|美|空气|环境|舒服|安静|不错|挺好|海|湖|山|树|绿)/.test(tn)) return true;
   // Travel destination answers — scoped to frames where "going somewhere" is the actual question.
-  // Prevents "中国" / "会去" from triggering travel matching on identity or origin questions.
   const _TRAVEL_DEST_FRAMES = new Set([
     "f_place_travel",              // 你会去别的地方吗？
     "f_travel_where",              // 你去过哪里？
@@ -2667,67 +2687,68 @@ function semanticSoftMatch(transcript, frameId) {
     "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4",
   ]);
   if (_TRAVEL_DEST_FRAMES.has(fid) || /^(f_travel|p2_tr)/.test(fid)) {
-    // Travel-verb patterns: "我会去中国", "我要去日本", "我打算去欧洲"
-    if (/会去|要去|去过|打算去|计划去/.test(t)) return true;
-    // Country / region names are only valid destination signals inside travel frames
-    if (/(中国|日本|英国|美国|法国|德国|澳大利亚|加拿大|欧洲|亚洲|新西兰|香港|台湾|韩国|东南亚|泰国|印度|新加坡|越南|意大利|西班牙)/.test(t)) return true;
+    if (/会去|要去|去过|打算去|计划去/.test(tn)) return true;
+    if (/(中国|日本|英国|美国|法国|德国|澳大利亚|加拿大|欧洲|亚洲|新西兰|香港|台湾|韩国|东南亚|泰国|印度|新加坡|越南|意大利|西班牙)/.test(tn)) return true;
   }
-  // Foreign city / region names in Latin (Christchurch is longer than Dunedin — same rule as identity mixed-script).
-  if (_MIXED_SCRIPT_PLACE_FRAMES.has(fid) && /[\u4e00-\u9fff]/.test(t) && /[A-Za-z]/.test(t)) return true;
+  // Foreign city / region names in Latin — use tn so filler-prefixed answers still match.
+  if (_MIXED_SCRIPT_PLACE_FRAMES.has(fid) && /[\u4e00-\u9fff]/.test(tn) && /[A-Za-z]/.test(tn)) return true;
   // Identity: how people call you — tolerate ASR / mixed-script name answers.
   if (_NICKNAME_CALL_FRAMES.has(fid)) {
-    if (looksLikeNicknameCallAnswer(t, fid)) return true;
-    if (t.includes("叫我") || t.includes("大家叫")) return true;
-    const hasZh = /[\u4e00-\u9fff]/.test(t);
-    const hasLatin = /[A-Za-z]/.test(t);
+    if (looksLikeNicknameCallAnswer(tn, fid)) return true;
+    if (tn.includes("叫我") || tn.includes("大家叫")) return true;
+    const hasZh = /[\u4e00-\u9fff]/.test(tn);
+    const hasLatin = /[A-Za-z]/.test(tn);
     if (hasZh && hasLatin) return true;
   }
   // Food frames: accept food nouns combined with any evaluator, and standalone good/bad evaluators.
-  // Covers: "羊肉不错", "饺子很好吃", "面条挺好", "这里的羊肉不错", "有很多好吃的东西".
   const _FOOD_FRAMES = new Set(["f_food_what_good", "f_food_tasty", "f_food_famous_dish", "f_food_like_spicy", "f_food_expensive"]);
   if (_FOOD_FRAMES.has(fid)) {
-    if (/羊肉|牛肉|猪肉|鸡肉|鱼|面|饺子|火锅|米饭|汤|菜|包子|烤|粥|寿司|蛋糕|海鲜|蔬菜|水果/.test(t)) return true;
-    if (/不错|好吃|很好|好香|很香|挺好|非常好|很棒|好喝|很甜|很辣|很鲜|好吃的/.test(t)) return true;
-    if (/不知道|没有|不清楚|都行|随便/.test(t)) return true;
+    if (/羊肉|牛肉|猪肉|鸡肉|鱼|面|饺子|火锅|米饭|汤|菜|包子|烤|粥|寿司|蛋糕|海鲜|蔬菜|水果/.test(tn)) return true;
+    if (/不错|好吃|很好|好香|很香|挺好|非常好|很棒|好喝|很甜|很辣|很鲜|好吃的/.test(tn)) return true;
+    if (/不知道|没有|不清楚|都行|随便/.test(tn)) return true;
   }
   // Family frequency: accept natural free responses about seeing family.
   if (fid === "p2_fa_2") {
-    if (/(家人|妈妈|爸爸|父母)/.test(t) && /(天|周|月|常|每天|经常|周末)/.test(t)) return true;
+    if (/(家人|妈妈|爸爸|父母)/.test(tn) && /(天|周|月|常|每天|经常|周末)/.test(tn)) return true;
   }
-  // Family member / living-with frames: accept any answer naming a family relationship.
-  // Covers: "爸爸妈妈老婆", "我老婆", "家里人", "我和父母", "妻子孩子" etc.
-  // f_have_children included: "孩子呢你有孩子吗" / "我有两个孩子" are valid answers.
+  // Family member / living-with frames.
   const _FAMILY_MEMBER_FRAMES = new Set([
     "f_live_with_who", "p2_fa_live_with", "f_probe_family_closest", "f_probe_family_together",
     "f_probe_family_influence", "f_have_children",
   ]);
   if (_FAMILY_MEMBER_FRAMES.has(fid)) {
-    if (/(老婆|妻子|老公|丈夫|先生|爱人|妈妈|爸爸|母亲|父亲|父母|哥哥|弟弟|姐姐|妹妹|儿子|女儿|孩子|家人|家里|爷爷|奶奶|外公|外婆)/.test(t)) return true;
-    if (/(一个人|自己住|单独住|独居|和.*一起住|跟.*住)/.test(t)) return true;
+    if (/(老婆|妻子|老公|丈夫|先生|爱人|妈妈|爸爸|母亲|父亲|父母|哥哥|弟弟|姐姐|妹妹|儿子|女儿|孩子|家人|家里|爷爷|奶奶|外公|外婆)/.test(tn)) return true;
+    if (/(一个人|自己住|单独住|独居|和.*一起住|跟.*住)/.test(tn)) return true;
   }
-  // Family activity frames: accept any activity as a valid answer.
-  // Covers: "吃饭", "一起出去", "我们最喜欢吃饭", "散步", etc.
+  // Family activity frames.
   const _FAMILY_ACTIVITY_FRAMES = new Set(["p2_fa_activity", "f_probe_family_together"]);
   if (_FAMILY_ACTIVITY_FRAMES.has(fid)) {
-    if (/[\u4e00-\u9fff]{2,}/.test(t)) return true;  // any 2+ Chinese chars is a valid activity answer
+    if (/[\u4e00-\u9fff]{2,}/.test(tn)) return true;
   }
   // Work "why like this job": accept reason-like content.
   if (fid === "p2_wk_1") {
-    if (/(因为|为了|可以|能|学|帮助|工资|时间|喜欢)/.test(t)) return true;
+    if (/(因为|为了|可以|能|学|帮助|工资|时间|喜欢)/.test(tn)) return true;
   }
+  // Work/retirement: accept clearly work-status answers so filler-prefixed inputs
+  // ("啊我退休了", "就是我以前是老师") don't require a "你是说..." confirmation round-trip.
+  if (/^(f_what_work|p2_wk)/.test(fid) || fid === "f_what_work") {
+    if (/退休/.test(tn)) return true;
+    if (/老师|教书|教学|讲课|在学校|在大学/.test(tn)) return true;
+  }
+  // Origin/nationality: nationality statements are unambiguous regardless of frame.
+  if (/(新西兰人|澳大利亚人|中国人|英国人|美国人|加拿大人|日本人|韩国人)/.test(tn)) return true;
   // Duration tenure: "20年", "5年", "很多年" for work or hobby duration frames.
-  // isLikelyUnderstandableFreeAnswer returns false for "20年" (zhCount=1); catch it here.
   const _DURATION_FRAMES = new Set(["f_work_tenure", "p2_hb_5"]);
-  if (_DURATION_FRAMES.has(fid) && (_DURATION_ANSWER_PAT.test(t) || /很多年|几年|很久|多年/.test(t))) return true;
-  // Family health / emotional check-in: accept any meaningful response to "now how is it?".
+  if (_DURATION_FRAMES.has(fid) && (_DURATION_ANSWER_PAT.test(tn) || /很多年|几年|很久|多年/.test(tn))) return true;
+  // Family health / emotional check-in.
   if (fid === "f_probe_emotional_checkin") {
-    if (/身体|健康|好多了|好很多|好一点|不好|生病|康复|恢复|没事了|好转|现在好/.test(t)) return true;
-    if (/[\u4e00-\u9fff]{3,}/.test(t)) return true;  // 3+ Chinese chars is a valid "how is it now?" reply
+    if (/身体|健康|好多了|好很多|好一点|不好|生病|康复|恢复|没事了|好转|现在好/.test(tn)) return true;
+    if (/[\u4e00-\u9fff]{3,}/.test(tn)) return true;
   }
   // Name-statement frames: "我叫X" / "英文名" / Latin name in frames asking the learner's name.
   const _NAME_STATEMENT_FRAMES = new Set(["f_ask_you_name", "p2_id_4", "p2_id_5", "f_name_story", "f_name_story_elicit"]);
   if (_NAME_STATEMENT_FRAMES.has(fid)) {
-    if (/我叫|名字是|英文名|[A-Za-z]{2,}/.test(t)) return true;
+    if (/我叫|名字是|英文名|[A-Za-z]{2,}/.test(tn)) return true;
   }
   return false;
 }
