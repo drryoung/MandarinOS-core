@@ -52,6 +52,8 @@ const _tracker = {
   successful_recoveries: 0,      // recovery uses where the immediately following turn was accepted
   suggestion_clicks: 0,          // times user selected a suggested response option
   card_opens: 0,                 // user-initiated card-panel opens (not re-renders)
+  display_en_clicks: 0,          // transcript EN reveals (hidden → shown only)
+  display_py_clicks: 0,          // transcript PY reveals (hidden → shown only)
   questions_asked: 0,            // user turns containing a question marker (吗/什么/怎么/为什么)
   depth_responses: 0,            // user turns containing a depth/extension marker
   unmatched_responses: 0,        // hard-fail turns (no Chinese signal / nonsense) — used in scorecard stability
@@ -197,6 +199,7 @@ function maybeRequestGlossForEntry(entry) {
         glossLineCache.set(key, en);
         entry.text_en = en;
         if (entry.role === "user") userTranslationIndex[key] = en;
+        _syncActiveEnglishFromGloss(entry, en);
       }
     })
     .catch(() => {})
@@ -230,6 +233,43 @@ function transcriptExtrasForRecoveryPartnerRepeat(action) {
   return { text_en: en, pinyin: py };
 }
 
+/** Map run_turn / stub response fields onto partner transcript extras (no new server fields). */
+function partnerTranscriptExtrasFromData(data, zh) {
+  if (!data) return {};
+  const z = (zh || "").trim();
+  const counter = (data.counter_reply || "").trim();
+  let text_en = "";
+  let pinyin = "";
+  if (z && counter && z === counter) {
+    text_en = (data.counter_reply_en || "").trim();
+    pinyin = (data.counter_reply_pinyin || "").trim();
+  } else {
+    text_en = data.frame_text_en != null ? String(data.frame_text_en).trim() : "";
+    pinyin = (data.frame_pinyin || "").trim();
+  }
+  const out = {};
+  if (text_en) out.text_en = text_en;
+  if (pinyin || z) out.pinyin = fillSentenceHintPinyin(z, pinyin);
+  return out;
+}
+
+/** When async gloss completes, keep active #frameEnglish in sync if this is still the spoken partner line. */
+function _syncActiveEnglishFromGloss(entry, en) {
+  if (!entry || entry.role !== "partner" || !(en || "").trim()) return;
+  const entryKey = _normalizeTranscriptText(entry.text_zh || entry.text || "");
+  const activeKey = _normalizeTranscriptText(window._lastPartnerSpokenText || "");
+  if (!entryKey || entryKey !== activeKey) return;
+  const hint = window._sentenceHint || { pinyin: "", text_en: "" };
+  window._sentenceHint = { ...hint, text_en: en };
+  _setFrameEnglish(en);
+}
+
+/** Refresh active English from current sentence hint (e.g. after recovery repeat). */
+function _refreshActiveEnglishFromSentenceHint() {
+  const en = ((window._sentenceHint || {}).text_en || "").trim();
+  if (en) _setFrameEnglish(en);
+}
+
 function _normalizeTranscriptText(s) {
   return (s || "").trim().replace(/\s+/g, "");
 }
@@ -242,6 +282,7 @@ function _upsertUserTranslation(hanzi, english) {
 }
 // Phase 9.1: minimal conversation state for selector-driven next question (session_id, current_engine, last_partner_frame_id, recent_frame_ids)
 if (typeof window._sessionId === "undefined") window._sessionId = "session_" + Date.now();
+if (typeof window._sessionStartedAt === "undefined") window._sessionStartedAt = Date.now();
 if (typeof window._recentFrameIds === "undefined") window._recentFrameIds = [];
 // Phase 10: learner_id for memory persistence; last_answer (frame_id + selected_option_hanzi/submitted_text) sent with next_question when last_turn_was_answer
 if (typeof window._learnerId === "undefined") window._learnerId = "default_learner";
@@ -1601,11 +1642,7 @@ function renderTranscript() {
       pyBtn.textContent = "PY";
       pyBtn.title = "Toggle pinyin";
       pyBtn.setAttribute("aria-label", "Toggle pinyin");
-      pyBtn.addEventListener("click", () => {
-        const st = transcriptLineUiState[lineId] || { showEn: false, showPy: false };
-        transcriptLineUiState[lineId] = { ...st, showPy: !st.showPy };
-        renderTranscript();
-      });
+      pyBtn.addEventListener("click", () => toggleLinePinyin(lineId));
       actions.appendChild(pyBtn);
     }
     line.appendChild(actions);
@@ -1646,7 +1683,15 @@ function toggleLineEnglish(lineId) {
       maybeRequestGlossForEntry(entry);
     }
   }
+  if (!st.showEn) _tracker.display_en_clicks++;
   transcriptLineUiState[lineId] = { ...st, showEn: !st.showEn };
+  renderTranscript();
+}
+
+function toggleLinePinyin(lineId) {
+  const st = transcriptLineUiState[lineId] || { showEn: false, showPy: false };
+  if (!st.showPy) _tracker.display_py_clicks++;
+  transcriptLineUiState[lineId] = { ...st, showPy: !st.showPy };
   renderTranscript();
 }
 
@@ -4430,6 +4475,7 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
       addTranscriptEntry("partner", partnerLine, transcriptExtrasForRecoveryPartnerRepeat(action));
       renderTranscript();
       setActivePartnerStatement(partnerLine, "recovery_repeat", segments);
+      _refreshActiveEnglishFromSentenceHint();
       ttsSpeak({
         text: userText, lang: "zh-CN",
         onEvent: (e) => {
@@ -4776,9 +4822,10 @@ function renderOptions(options, frameId) {
           }
         }
         addTranscriptEntry("user", userText, { text_en: opt.meaning || "" });
-        addTranscriptEntry("partner", partnerLine);
+        addTranscriptEntry("partner", partnerLine, transcriptExtrasForRecoveryPartnerRepeat(action));
         renderTranscript();
         setActivePartnerStatement(partnerLine, "recovery_repeat", segments);
+        _refreshActiveEnglishFromSentenceHint();
         ttsSpeak({
           text: userText,
           lang: "zh-CN",
@@ -5090,7 +5137,7 @@ async function runDirectionTurn(intent) {
   const stub = (data.frame_text || "").trim();
   window._userQuestionChain = (window._userQuestionChain || 0) + 1;
   if (stub) {
-    addTranscriptEntry("partner", stub);
+    addTranscriptEntry("partner", stub, partnerTranscriptExtrasFromData(data, stub));
     renderTranscript();
     applyPartnerStubToActiveSentence(stub, data, payload.turn_uid);
     if (window._userQuestionChain >= MAX_USER_QUESTION_CHAIN) {
@@ -5178,7 +5225,7 @@ async function runMirrorTurn(zh, en, topic) {
   }
 
   if (stub) {
-    addTranscriptEntry("partner", stub);
+    addTranscriptEntry("partner", stub, partnerTranscriptExtrasFromData(data, stub));
     renderTranscript();
     applyPartnerStubToActiveSentence(stub, data, payload.turn_uid);
     if (window._userQuestionChain >= MAX_USER_QUESTION_CHAIN) {
@@ -5247,7 +5294,7 @@ async function runProbeTurn(probe) {
   const stub = (data.frame_text || "").trim();
   window._userQuestionChain = (window._userQuestionChain || 0) + 1;
   if (stub) {
-    addTranscriptEntry("partner", stub);
+    addTranscriptEntry("partner", stub, partnerTranscriptExtrasFromData(data, stub));
     renderTranscript();
     applyPartnerStubToActiveSentence(stub, data, payload.turn_uid);
     if (window._userQuestionChain >= MAX_USER_QUESTION_CHAIN) {
@@ -5353,6 +5400,7 @@ async function startFreshLearner() {
   hideSentenceOptions();
   window._runTurnInFlight        = false;   // clear any stale in-flight guard
   window._sessionId              = "session_" + Date.now();
+  window._sessionStartedAt       = Date.now();
   window._recentFrameIds         = [];
   window._lastAnswer             = null;
   window._probeDepth             = 0;
@@ -5437,6 +5485,8 @@ async function startFreshLearner() {
   _tracker.successful_recoveries = 0;
   _tracker.suggestion_clicks = 0;
   _tracker.card_opens = 0;
+  _tracker.display_en_clicks = 0;
+  _tracker.display_py_clicks = 0;
   _tracker.questions_asked = 0;
   _tracker.depth_responses = 0;
   _tracker.unmatched_responses = 0;
@@ -5919,9 +5969,14 @@ async function _runTurnInner(isNext = false, opts = {}) {
     "| blue_panel_shown=" + (_isUserLed && _dq.length > 0),
     _isUserLed && _dq.length === 0 ? "| note=user_led_but_no_cards" : "",
   );
-  // Answer-reactive augmentation: 1–2 extra probes based on persona's counter_reply.
-  // Computed once and appended (after server/cached questions) in both branches below.
-  const _extraQs = _augmentQuestionsFromAnswer(_counterReply);
+  // Answer-reactive augmentation: probes from persona's latest line (counter_reply or frame).
+  const _partnerForAugment = (
+    _counterReply
+    || (window._lastPartnerSpokenText || "").trim()
+    || (window._lastPartnerTurnText || "").trim()
+    || (fallbackText || "").trim()
+  );
+  const _extraQs = _augmentQuestionsFromAnswer(_partnerForAugment);
 
   // Frame-stage awareness: determine whether the current frame is an early place stage.
   // Use the answered frame (payload last_answer) as primary signal; fall back to frameId.
@@ -5950,8 +6005,8 @@ async function _runTurnInner(isNext = false, opts = {}) {
     // Priority: frame-specific (2) → server-discovery (up to 4) → answer-reactive (up to 4).
     // If this is an early place frame, lead with frame questions and cap server at 2.
     const _assembled = _earlyPlace
-      ? [..._frameFallbackQs.slice(0, 2), ..._serverQs.slice(0, 2), ..._extraQs]
-      : [..._serverQs, ..._extraQs];
+      ? [..._frameFallbackQs.slice(0, 2), ..._extraQs, ..._serverQs.slice(0, 2)]
+      : [..._extraQs, ..._serverQs];
     // For user-led turns (persona revealed content / user asking questions), allow up to 5
     // questions so rich reveals surface multiple relevant exploration options.
     // Relevance ranking (server-side) ensures only strong matches appear.
@@ -5980,16 +6035,16 @@ async function _runTurnInner(isNext = false, opts = {}) {
             !(/好吃|特别|为什么喜欢|喜欢那里/).test(q.zh || ""))
         : [];
       renderDiscoveryPanel(
-        _dedupeQuestions([..._frameFallbackQs, ..._supplement, ..._extraQs]),
+        _dedupeQuestions([..._frameFallbackQs, ..._extraQs, ..._supplement]),
         null
       );
     } else if (!_engineChanged && _cached.length > 0) {
       // Same engine: cached questions are still relevant.
-      renderDiscoveryPanel(_dedupeQuestions([..._cached, ..._extraQs]), null);
+      renderDiscoveryPanel(_dedupeQuestions([..._extraQs, ..._cached]), null);
     } else {
       // Engine changed or no cache — use topic-based fallback for the current engine.
       if (_topicFallback.length > 0) {
-        renderDiscoveryPanel(_dedupeQuestions([..._topicFallback, ..._extraQs]), null);
+        renderDiscoveryPanel(_dedupeQuestions([..._extraQs, ..._topicFallback]), null);
       } else if (_extraQs.length > 0) {
         renderDiscoveryPanel(_extraQs, null);
       } else {
@@ -6213,6 +6268,7 @@ window.addEventListener("load", async () => {
 
   // Show "Today's focus" in the scorecard panel before any session begins.
   renderSessionObjective();
+  initRightPanelTabs();
 
   // Phase 6: load render tokens and cards index in parallel with existing loads
   await Promise.all([
@@ -6782,54 +6838,97 @@ if (startFreshBtn) startFreshBtn.addEventListener("click", () => {
  * Pure data — no DOM changes. Returns { capability_lines, progress_lines,
  * next_steps, internal_state }. Observation only; no effect on conversation.
  */
-function _buildAbilitySummary() {
+function _buildAbilitySummary(metrics) {
   const obs = window._learnerObs || {};
+  const cap = (metrics && metrics.conversation_capability) || {};
 
   // ── Map to spec signal variables ──────────────────────────────────────────
-  // Every reflection line below is conditioned on one of these counters so that
-  // a learner can point to the session behaviour it refers to.
-  const turnCount     = _tracker.total_turns           || 0;  // server-confirmed turns
-  const answerCount   = obs.successful_answers         || 0;  // accepted turns (= total_turns)
-  const questionCount = (obs.question_count || 0) + (obs.mirror_uses || 0); // typed/spoken + blue-panel
-  const recoveryCount = _tracker.recovery_uses         || 0;  // recovery phrase taps
-  const hintCount     = obs.hint_clicks                || 0;  // ? hint button clicks
-  const acceptedCount = obs.successful_answers         || 0;  // same source as answerCount
-  const extendedCount = obs.extended_answer_count      || 0;  // kept for internal_state only
+  const turnCount     = _tracker.total_turns           || 0;
+  const answerCount   = obs.successful_answers         || 0;
+  const questionCount = (obs.question_count || 0) + (obs.mirror_uses || 0);
+  const recoveryCount = _tracker.recovery_uses         || 0;
+  const hintCount     = obs.hint_clicks                || 0;
+  const acceptedCount = obs.successful_answers         || 0;
+  const extendedCount = obs.extended_answer_count      || 0;
+  const unmatchedHard = _tracker.unmatched_responses   || 0;
+  const questionsTracked = _tracker.questions_asked    || 0;
+  const strongInitiative = !!cap.strong_initiative;
 
-  // ── 1. Headline — concrete, turn-count grounded ───────────────────────────
-  let headline;
-  if (turnCount >= 6) {
-    headline = `You completed ${turnCount} turns in Chinese.`;
-  } else if (turnCount > 0) {
-    headline = `You completed ${turnCount} turn${turnCount === 1 ? "" : "s"} — good start.`;
-  } else {
-    headline = "You started a conversation — that's the first step.";
+  // ── 1. Headline — product-aligned when session shows sustained dialogue ───
+  let headline = cap.headline || null;
+  if (!headline) {
+    if (turnCount >= 6) {
+      headline = `You completed ${turnCount} turns in Chinese.`;
+    } else if (turnCount > 0) {
+      headline = `You completed ${turnCount} turn${turnCount === 1 ? "" : "s"} — good start.`;
+    } else {
+      headline = "You started a conversation — that's the first step.";
+    }
   }
 
-  // ── 2. "What you can do now" — observed behaviours only ──────────────────
+  // ── 2. "What you can do now" — capability interpretation first ───────────
   const capability_lines = [];
-  if (answerCount > 0)
+  const _capFromServer = Array.isArray(cap.capability_lines) ? cap.capability_lines : [];
+  _capFromServer.forEach((line) => {
+    if (line && !capability_lines.includes(line)) capability_lines.push(line);
+  });
+  const _serverCapRich = _capFromServer.length >= 2;
+
+  if (answerCount > 0 && !strongInitiative && !_serverCapRich)
     capability_lines.push(`You responded ${answerCount} time${answerCount === 1 ? "" : "s"}.`);
-  if (questionCount > 0)
-    capability_lines.push(`You asked ${questionCount} question${questionCount === 1 ? "" : "s"} back.`);
-  if (recoveryCount > 0)
+
+  const qDisplay = Math.max(questionCount, questionsTracked);
+  if (
+    qDisplay > 0
+    && !strongInitiative
+    && !_serverCapRich
+    && !capability_lines.some((l) => l.includes("question") || l.includes("curiosity"))
+  ) {
+    capability_lines.push(`You asked ${qDisplay} question${qDisplay === 1 ? "" : "s"} back.`);
+  }
+
+  if (
+    recoveryCount > 0
+    && !strongInitiative
+    && !_serverCapRich
+    && !(Array.isArray(cap.progress_lines) && cap.progress_lines.some(
+      (l) => l && (l.includes("difficult") || l.includes("unclear")),
+    ))
+  ) {
     capability_lines.push(`You kept going after not understanding ${recoveryCount} time${recoveryCount === 1 ? "" : "s"}.`);
-  if (hintCount === 0 && answerCount > 0) {
-    capability_lines.push("You answered without using hints.");
-  } else if (hintCount > 0) {
-    capability_lines.push(`You used hints ${hintCount} time${hintCount === 1 ? "" : "s"} to support your answers.`);
+  }
+
+  // Hints: keep as a metric, but do not dominate when initiative was strong.
+  if (!strongInitiative) {
+    if (hintCount === 0 && answerCount > 0) {
+      capability_lines.push("You answered without using hints.");
+    } else if (hintCount > 0) {
+      capability_lines.push(`You used hints ${hintCount} time${hintCount === 1 ? "" : "s"} to support your answers.`);
+    }
   }
 
   // ── 3. "Recent progress" — evidence-bound lines only ─────────────────────
   const progress_lines = [];
-  if (recoveryCount > 0)
+  const _progFromServer = Array.isArray(cap.progress_lines) ? cap.progress_lines : [];
+  _progFromServer.forEach((line) => {
+    if (line && !progress_lines.includes(line)) progress_lines.push(line);
+  });
+
+  if (
+    recoveryCount > 0
+    && !progress_lines.some((l) => l.includes("difficult") || l.includes("communicating"))
+  ) {
     progress_lines.push("You recovered after confusion instead of stopping.");
-  if (acceptedCount >= 2)
+  }
+  if (acceptedCount >= 2 && !strongInitiative)
     progress_lines.push(`You completed ${acceptedCount} accepted response turn${acceptedCount === 1 ? "" : "s"}.`);
-  if (questionCount > 0 && answerCount > 0)
+  if (qDisplay > 0 && answerCount > 0 && !progress_lines.some((l) => l.includes("asked")))
     progress_lines.push("You both answered and asked questions.");
-  if (hintCount === 0 && turnCount >= 3)
+  if (hintCount === 0 && turnCount >= 3 && !strongInitiative)
     progress_lines.push("You completed this conversation without hints.");
+  if (unmatchedHard > 0 && turnCount >= 20 && unmatchedHard <= 5
+      && !progress_lines.some((l) => l.includes("unclear")))
+    progress_lines.push("A few unclear turns did not stop the conversation.");
 
   // ── 4. "Next step" — single practical suggestion ─────────────────────────
   let nextStep;
@@ -7205,14 +7304,24 @@ function _augmentQuestionsFromAnswer(counterReply) {
   }
 
   // ── Work / occupation ─────────────────────────────────────────────────────
-  if (/工作|上班|老师|教书|退休|公司/.test(t))
-    extra.push({ zh: "你喜欢你的工作吗？",       py: "nǐ xǐhuān nǐ de gōngzuò ma?",       en: "Do you enjoy your work?" });
+  const _workOcc = /工作|上班|老师|教书|退休|公司|开发|软件|程序员|工程师|从事/;
+  if (_workOcc.test(t)) {
+    extra.push({ zh: "你喜欢这个工作吗？",       py: "nǐ xǐhuān zhège gōngzuò ma?",       en: "Do you enjoy this work?" });
+    if (!/多久|几年|年|做了/.test(t))
+      extra.push({ zh: "你做这个工作多久了？",     py: "nǐ zuò zhège gōngzuò duō jiǔ le?",  en: "How long have you done this work?" });
+  }
   if (/工作.*年|做了.*年|几年了/.test(t))
     extra.push({ zh: "你做这份工作多久了？",     py: "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",  en: "How long have you done this work?" });
-  if (/为什么.*工作|为什么.*当|为什么.*做/.test(t))
-    extra.push({ zh: "为什么选择这份工作？",     py: "wèishénme xuǎnzé zhèfèn gōngzuò?",  en: "Why did you choose this work?" });
+  if (/为什么.*工作|为什么.*当|为什么.*做|开发|软件|程序员/.test(t))
+    extra.push({ zh: "你为什么做这个？",         py: "nǐ wèishénme zuò zhège?",            en: "Why do you do this?" });
   if (/老师|教书|教学/.test(t))
     extra.push({ zh: "学生怎么样？",             py: "xuéshēng zěnmeyàng?",                en: "What are the students like?" });
+  if (/做.{2,14}的/.test(t) && !/地方|那里|吃的|菜|饭|好吃/.test(t)) {
+    if (!extra.some((q) => /多久/.test(q.zh || "")))
+      extra.push({ zh: "你做这个多久了？",       py: "nǐ zuò zhège duō jiǔ le?",          en: "How long have you been doing this?" });
+    if (!extra.some((q) => /喜欢/.test(q.zh || "")))
+      extra.push({ zh: "你喜欢这个吗？",         py: "nǐ xǐhuān zhège ma?",               en: "Do you like it?" });
+  }
 
   // ── Place / generic location ──────────────────────────────────────────────
   if (!_singleCity && /地方|那里|那边|城市|家乡|老家/.test(t))
@@ -7502,7 +7611,7 @@ async function submitDiscoveryQuestion(q) {
   const stub = (data.frame_text || "").trim();
   if (stub) {
     window._lastPartnerSpokenText = stub; // for repeat/slower recovery
-    addTranscriptEntry("partner", stub);
+    addTranscriptEntry("partner", stub, partnerTranscriptExtrasFromData(data, stub));
     renderTranscript();
     applyPartnerStubToActiveSentence(stub, data, payload.turn_uid);
     ttsSpeak({ text: stub, lang: "zh-CN", queue: true });
@@ -7961,7 +8070,7 @@ function renderScorecard(response) {
   // Render headline + capability / progress / next-step lines above metrics.
   // Data comes from _buildAbilitySummary() — the same source previously used
   // by _renderAbilityDashboard(). Only the render location has changed.
-  const summary = _buildAbilitySummary();
+  const summary = _buildAbilitySummary(m);
   const reflDiv = document.createElement("div");
   reflDiv.className = "sc-reflection";
 
@@ -8036,9 +8145,9 @@ function renderScorecard(response) {
       "Whether you went beyond short answers",
     ],
     [
-      `${m.stability.raw_unmatched} unmatched responses`,
+      `${m.stability.raw_unmatched} unclear turn${m.stability.raw_unmatched === 1 ? "" : "s"}`,
       m.stability.label,
-      "How often the system could not understand or route your response",
+      "How often a turn was hard to understand — the conversation may still have stayed on track",
     ],
   ];
 
@@ -8203,16 +8312,421 @@ function renderSessionObjective() {
 window.buildSessionObjective   = buildSessionObjective;
 window.renderSessionObjective  = renderSessionObjective;
 
+// ── Progress history (Phase 1: snapshot persistence only — no graph UI yet) ───
+
+const _PROGRESS_HISTORY_KEY = "manos_progress_history";
+const _USER_TIER_KEY        = "manos_user_tier";
+
+/** @returns {"standard"|"premium"} */
+function getUserTier() {
+  try {
+    const t = (localStorage.getItem(_USER_TIER_KEY) || "standard").trim().toLowerCase();
+    return t === "premium" ? "premium" : "standard";
+  } catch (_) {
+    return "standard";
+  }
+}
+
+/** @returns {object[]} */
+function loadProgressHistory() {
+  try {
+    const raw = localStorage.getItem(_PROGRESS_HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Standard: latest 10 snapshots. Premium: unlimited.
+ * @param {object[]} history
+ * @param {string} [tier]
+ */
+function applyRetention(history, tier) {
+  if (!Array.isArray(history)) return [];
+  const t = (tier || getUserTier() || "standard").toLowerCase();
+  if (t === "premium") return history.slice();
+  return history.slice(-10);
+}
+
+/** Append one snapshot and persist with tier retention. */
+function saveProgressSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return;
+  const history = loadProgressHistory();
+  history.push(snapshot);
+  const trimmed = applyRetention(history, getUserTier());
+  try {
+    localStorage.setItem(_PROGRESS_HISTORY_KEY, JSON.stringify(trimmed));
+  } catch (_) {
+    // localStorage unavailable — silently ignore
+  }
+}
+
+function _renderProgressSavedMessage() {
+  const content = document.getElementById("scorecardContent");
+  if (!content) return;
+  let el = document.getElementById("progressSavedMsg");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "progressSavedMsg";
+    el.className = "progress-saved-msg";
+    content.appendChild(el);
+  }
+  el.textContent = "Saved to Progress";
+}
+
+// ── Progress view (Phase 2: UI only — reads manos_progress_history) ───────────
+
+const _PROGRESS_CHART_MAX_STANDARD = 10;
+const _PROGRESS_CHART_MAX_PREMIUM  = 30;
+const _PROGRESS_EMPTY_HEADLINE =
+  "No progress record yet.";
+const _PROGRESS_EMPTY_BODY =
+  "Finish a conversation session and MandarinOS will begin building your speaking progress history.";
+
+/**
+ * Sessions to show in graph/table (display slice only — storage unchanged).
+ * @param {object[]} history
+ * @param {string} [tier]
+ */
+function getProgressSessionsForDisplay(history, tier) {
+  const h = Array.isArray(history) ? history.slice() : [];
+  const t = (tier || getUserTier() || "standard").toLowerCase();
+  if (t === "premium") return h.slice(-_PROGRESS_CHART_MAX_PREMIUM);
+  return h.slice(-_PROGRESS_CHART_MAX_STANDARD);
+}
+
+function _formatProgressDate(createdAt) {
+  if (!createdAt) return "—";
+  try {
+    const d = new Date(createdAt);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch (_) {
+    return "—";
+  }
+}
+
+function _formatRecoveryCell(snap) {
+  const rate = snap?.recovery_success_rate;
+  if (rate == null) return "Not needed";
+  const pct = Math.round(Number(rate) * 100);
+  if (Number.isNaN(pct)) return "Not needed";
+  return `${pct}% completed`;
+}
+
+function _formatSupportUsed(snap) {
+  const parts = [];
+  const options = snap?.suggestion_clicks || 0;
+  const cards = snap?.card_opens || 0;
+  const hints = snap?.hint_clicks || 0;
+  const en = snap?.display_en_clicks || 0;
+  const py = snap?.display_py_clicks || 0;
+  if (options > 0) parts.push(`Options ${options}`);
+  if (cards > 0) parts.push(`Cards ${cards}`);
+  if (hints > 0) parts.push(`Hints ${hints}`);
+  if (en > 0) parts.push(`EN ${en}`);
+  if (py > 0) parts.push(`PY ${py}`);
+  return parts.length === 0 ? "None" : parts.join(" · ");
+}
+
+function _formatStabilityCell(snap) {
+  const score = snap?.conversation_stability_score;
+  if (score == null || typeof score !== "number") return "—";
+  return String(score);
+}
+
+/**
+ * Simple trend headline from recent stability scores (no analytics engine).
+ * @param {object[]} sessions
+ */
+function buildProgressHeadline(sessions) {
+  if (!sessions || sessions.length === 0) return "";
+
+  const recent = sessions.slice(-3);
+  if (recent.length < 2) return "Building your conversational history";
+
+  const scores = recent
+    .map((s) => s.conversation_stability_score)
+    .filter((v) => v != null && typeof v === "number");
+
+  const recentTurns = recent.map((s) => s.total_turns || 0);
+  const recentQuestions = recent.map((s) => s.questions_asked || 0);
+  const turbulenceCount = recent.filter(
+    (s) => s.progress_signals && s.progress_signals.turbulence_survived,
+  ).length;
+  const persistenceCount = recent.filter(
+    (s) => s.progress_signals && s.progress_signals.conversational_persistence,
+  ).length;
+
+  if (recentTurns.length >= 2 && recentTurns[recentTurns.length - 1] >= recentTurns[0] + 4) {
+    return "You are sustaining longer conversations";
+  }
+
+  if (recentQuestions.length >= 2 && recentQuestions[recentQuestions.length - 1] > recentQuestions[0]) {
+    return "You are asking more questions back over time";
+  }
+
+  if (turbulenceCount >= 2 || persistenceCount >= 2) {
+    return "You are staying engaged even when conversations get messy";
+  }
+
+  if (scores.length >= 2) {
+    const delta = scores[scores.length - 1] - scores[0];
+    if (delta >= 8) return "Your conversational steadiness is improving";
+    if (delta <= -10) return "Your conversations are staying on track";
+    return "Your conversations are staying on track";
+  }
+
+  return "Building your conversational history";
+}
+
+/**
+ * Inline SVG line chart — Conversation Stability (0–100), no external libs.
+ * @param {HTMLElement} container
+ * @param {object[]} sessions
+ */
+function renderStabilityChart(container, sessions) {
+  if (!container) return;
+  container.innerHTML = "";
+
+  const title = document.createElement("div");
+  title.className = "progress-chart-title";
+  title.textContent = "Conversation Stability";
+  container.appendChild(title);
+
+  if (!sessions || sessions.length === 0) return;
+
+  const W = 300;
+  const H = 150;
+  const padL = 34;
+  const padR = 10;
+  const padT = 12;
+  const padB = 26;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "progress-stability-chart");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Conversation Stability over recent sessions");
+
+  const n = sessions.length;
+  const xAt = (i) => padL + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const yAt = (score) => padT + plotH - (score / 100) * plotH;
+
+  // Grid lines at 0, 50, 100
+  [0, 50, 100].forEach((tick) => {
+    const y = yAt(tick);
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(padL));
+    line.setAttribute("x2", String(W - padR));
+    line.setAttribute("y1", String(y));
+    line.setAttribute("y2", String(y));
+    line.setAttribute("class", "progress-chart-grid");
+    svg.appendChild(line);
+
+    const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    lbl.setAttribute("x", "4");
+    lbl.setAttribute("y", String(y + 3));
+    lbl.setAttribute("class", "progress-chart-axis-label");
+    lbl.textContent = String(tick);
+    svg.appendChild(lbl);
+  });
+
+  const validPts = [];
+  sessions.forEach((s, i) => {
+    const score = s.conversation_stability_score;
+    const x = xAt(i);
+    if (score != null && typeof score === "number") {
+      validPts.push({ x, y: yAt(score), score, i });
+    } else {
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", String(x));
+      dot.setAttribute("cy", String(padT + plotH));
+      dot.setAttribute("r", "3");
+      dot.setAttribute("class", "progress-chart-dot progress-chart-dot--dim");
+      svg.appendChild(dot);
+    }
+  });
+
+  if (validPts.length >= 2) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    path.setAttribute(
+      "points",
+      validPts.map((p) => `${p.x},${p.y}`).join(" "),
+    );
+    path.setAttribute("class", "progress-chart-line");
+    svg.appendChild(path);
+  }
+
+  validPts.forEach((p) => {
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("cx", String(p.x));
+    dot.setAttribute("cy", String(p.y));
+    dot.setAttribute("r", "4");
+    dot.setAttribute("class", "progress-chart-dot");
+    svg.appendChild(dot);
+  });
+
+  const xLbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  xLbl.setAttribute("x", String(padL + plotW / 2));
+  xLbl.setAttribute("y", String(H - 4));
+  xLbl.setAttribute("text-anchor", "middle");
+  xLbl.setAttribute("class", "progress-chart-axis-caption");
+  xLbl.textContent = "Recent sessions";
+  svg.appendChild(xLbl);
+
+  container.appendChild(svg);
+}
+
+function renderProgressView() {
+  const root = document.getElementById("progressView");
+  if (!root) return;
+
+  const history = loadProgressHistory();
+  const tier = getUserTier();
+  const sessions = getProgressSessionsForDisplay(history, tier);
+
+  root.innerHTML = "";
+
+  if (history.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "progress-empty";
+
+    const h = document.createElement("p");
+    h.className = "progress-empty-headline";
+    h.textContent = _PROGRESS_EMPTY_HEADLINE;
+    empty.appendChild(h);
+
+    const b = document.createElement("p");
+    b.className = "progress-empty-body";
+    b.textContent = _PROGRESS_EMPTY_BODY;
+    empty.appendChild(b);
+
+    root.appendChild(empty);
+    return;
+  }
+
+  const headline = document.createElement("p");
+  headline.className = "progress-headline";
+  headline.textContent = buildProgressHeadline(sessions);
+  root.appendChild(headline);
+
+  const chartWrap = document.createElement("div");
+  chartWrap.className = "progress-chart-wrap";
+  renderStabilityChart(chartWrap, sessions);
+  root.appendChild(chartWrap);
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "progress-table-wrap";
+  const table = document.createElement("table");
+  table.className = "progress-table";
+
+  const thead = document.createElement("thead");
+  thead.innerHTML =
+    "<tr><th>Date</th><th>Turns</th><th>Stability</th><th>Questions back</th><th>Recovery</th><th>Learning support</th></tr>";
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  sessions
+    .slice()
+    .reverse()
+    .forEach((snap) => {
+      const tr = document.createElement("tr");
+      const cells = [
+        _formatProgressDate(snap.created_at),
+        String(snap.total_turns ?? "—"),
+        _formatStabilityCell(snap),
+        String(snap.questions_asked ?? 0),
+        _formatRecoveryCell(snap),
+        _formatSupportUsed(snap),
+      ];
+      cells.forEach((text) => {
+        const td = document.createElement("td");
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  root.appendChild(tableWrap);
+
+  if (tier === "premium" && history.length > sessions.length) {
+    const note = document.createElement("p");
+    note.className = "progress-tier-note";
+    note.textContent = `Showing your latest ${sessions.length} sessions. Full history is saved on Premium.`;
+    root.appendChild(note);
+  }
+}
+
+function switchRightPanel(view) {
+  const sessionPanel = document.getElementById("rightPanelSession");
+  const progressPanel = document.getElementById("rightPanelProgress");
+  const tabSession = document.getElementById("rightTabSession");
+  const tabProgress = document.getElementById("rightTabProgress");
+  if (!sessionPanel || !progressPanel) return;
+
+  const showProgress = view === "progress";
+  sessionPanel.classList.toggle("right-panel-view--hidden", showProgress);
+  sessionPanel.hidden = showProgress;
+  progressPanel.classList.toggle("right-panel-view--hidden", !showProgress);
+  progressPanel.hidden = !showProgress;
+
+  if (tabSession) {
+    tabSession.classList.toggle("right-panel-tab--active", !showProgress);
+    tabSession.setAttribute("aria-selected", showProgress ? "false" : "true");
+  }
+  if (tabProgress) {
+    tabProgress.classList.toggle("right-panel-tab--active", showProgress);
+    tabProgress.setAttribute("aria-selected", showProgress ? "true" : "false");
+  }
+
+  if (showProgress) renderProgressView();
+}
+
+function initRightPanelTabs() {
+  const tabSession = document.getElementById("rightTabSession");
+  const tabProgress = document.getElementById("rightTabProgress");
+  if (tabSession) {
+    tabSession.addEventListener("click", () => switchRightPanel("session"));
+  }
+  if (tabProgress) {
+    tabProgress.addEventListener("click", () => switchRightPanel("progress"));
+  }
+}
+
+window.getUserTier                    = getUserTier;
+window.loadProgressHistory            = loadProgressHistory;
+window.applyRetention                 = applyRetention;
+window.saveProgressSnapshot           = saveProgressSnapshot;
+window.getProgressSessionsForDisplay  = getProgressSessionsForDisplay;
+window.buildProgressHeadline          = buildProgressHeadline;
+window.renderStabilityChart           = renderStabilityChart;
+window.renderProgressView             = renderProgressView;
+window.switchRightPanel               = switchRightPanel;
+window.initRightPanelTabs             = initRightPanelTabs;
+
 async function endSession() {
   const t = _tracker;
+  const _startedAt = window._sessionStartedAt || Date.now();
   const payload = {
     session_id:            window._sessionId || "",
     mode:                  t.mode,
+    tier:                  getUserTier(),
+    persona_id:            window._partnerId || window._personaId || "",
+    duration_seconds:      Math.max(0, Math.round((Date.now() - _startedAt) / 1000)),
     total_turns:           t.total_turns,
     recovery_uses:         t.recovery_uses,
     successful_recoveries: t.successful_recoveries,
     suggestion_clicks:     t.suggestion_clicks,
     card_opens:            t.card_opens,
+    display_en_clicks:     t.display_en_clicks,
+    display_py_clicks:     t.display_py_clicks,
+    hint_clicks:           (window._learnerObs && window._learnerObs.hint_clicks) || 0,
     questions_asked:       t.questions_asked,
     depth_responses:       t.depth_responses,
     unmatched_responses:        t.unmatched_responses,
@@ -8238,6 +8752,12 @@ async function endSession() {
   // _renderAbilityDashboard() is intentionally NOT called here.
   if (result?.ok) {
     renderScorecard(result);
+    if (result.progress_snapshot) {
+      saveProgressSnapshot(result.progress_snapshot);
+      _renderProgressSavedMessage();
+      const progressPanel = document.getElementById("rightPanelProgress");
+      if (progressPanel && !progressPanel.hidden) renderProgressView();
+    }
     // Persist a minimal snapshot so the NEXT session can choose an appropriate objective.
     _saveLastSessionStats({
       total_turns:     _tracker.total_turns     || 0,

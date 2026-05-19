@@ -4087,7 +4087,27 @@ _PERSONA_REVEAL_KEYWORDS: tuple = (
     "最喜欢", "特别喜欢", "喜欢",
     # Activity / work detail
     "教书", "爬山", "旅行", "退休", "多年", "几年",
+    # Occupation / tech work (software dev etc.)
+    "开发", "软件", "程序员", "工程师", "从事",
 )
+
+# Occupation signals for discovery engine override and relevance boost (not routing).
+_WORK_OCCUPATION_KEYWORDS: tuple = (
+    "开发", "软件", "程序员", "工程师", "从事",
+    "教书", "教学", "老师", "工作", "退休", "上班", "公司",
+)
+
+
+def _text_signals_work_occupation(text: str) -> bool:
+    """True when text mentions work/occupation (incl. 软件开发-style disclosures)."""
+    if not text:
+        return False
+    return any(kw in text for kw in _WORK_OCCUPATION_KEYWORDS)
+
+
+def _discovery_context_merge(*parts: str) -> str:
+    """Join non-empty discovery context fragments (same-turn + prior-turn)."""
+    return " ".join(p.strip() for p in parts if p and p.strip())
 
 
 def _has_persona_reveal(text: str) -> bool:
@@ -4115,10 +4135,10 @@ _TOPIC_CONTEXT_KEYWORDS: dict = {
     "place_distance_time":     ["多久", "小时", "飞机", "坐飞机"],
     "place_distance_transport":["怎么去", "坐飞机", "坐火车", "交通"],
     "place_distance_ref":      ["远不远", "离", "远"],
-    "work_what":               ["工作", "做什么", "上班", "职业", "当"],
+    "work_what":               ["工作", "做什么", "上班", "职业", "当", "开发", "软件", "程序员", "工程师", "从事"],
     "work_like":               ["喜欢", "工作", "觉得"],
     "work_why":                ["为什么", "当老师", "选择", "怎么"],
-    "work_duration":           ["多久", "几年", "年", "做了"],
+    "work_duration":           ["多久", "几年", "年", "做了", "开发", "软件", "工作"],
     "work_interesting":        ["有趣", "好玩", "好奇"],
     "work_students":           ["学生", "教学", "老师", "教书"],
     "work_platform":           ["分享", "平台", "作品"],
@@ -4194,6 +4214,12 @@ def _discovery_relevance_score(q: dict, frame_text: str, context_text: str) -> i
             if len(gram) == 2 and gram in ctx_lower:
                 score += 3
                 break
+
+    # Immediate adjacency: occupation disclosure boosts work follow-up topics.
+    _combined = (frame_text or "") + (context_text or "")
+    if _combined and topic.startswith("work_"):
+        if any(k in _combined for k in ("开发", "软件", "程序员", "工程师", "从事")):
+            score += 8
 
     return min(score, 20)
 
@@ -5431,13 +5457,207 @@ def _scorecard_stability(unmatched_responses: int, total_turns: int,
     if rate <= 0.10:
         label = "Stable"
     elif rate <= 0.25:
-        label = "Some friction"
+        # A few unclear turns in a long session — conversation held together.
+        label = "Conversation stayed on track"
     elif rate <= 0.45:
+        label = "Some friction"
+    elif rate <= 0.60:
         label = "Unstable"
     else:
         label = "Breaking down"
     return {"raw_unmatched": n, "raw_soft_unmatched": soft, "effective_unmatched": effective,
             "rate": rate, "label": label}
+
+
+def _derive_conversation_signals(sess: dict) -> dict:
+    """
+    Shared interpretive heuristics for scorecard + progress (not routing).
+    Measures survivability, persistence, and initiative — not linguistic perfection.
+    """
+    total_turns           = max(0, int(sess.get("total_turns",             0) or 0))
+    questions_asked       = max(0, int(sess.get("questions_asked",         0) or 0))
+    depth_responses       = max(0, int(sess.get("depth_responses",         0) or 0))
+    unmatched_responses   = max(0, int(sess.get("unmatched_responses",     0) or 0))
+    soft_unmatched        = max(0, int(sess.get("soft_unmatched_responses", 0) or 0))
+    recovery_uses         = max(0, int(sess.get("recovery_uses",           0) or 0))
+    successful_recoveries = max(0, int(sess.get("successful_recoveries",   0) or 0))
+
+    effective_unclear = unmatched_responses + round(soft_unmatched * 0.5)
+
+    turbulence_survived = (
+        total_turns >= 12
+        and effective_unclear >= 2
+        and total_turns > effective_unclear * 3
+    )
+
+    continued_after_ambiguity = (
+        successful_recoveries >= 1
+        or (recovery_uses >= 1 and successful_recoveries > 0)
+        or (
+            effective_unclear >= 1
+            and total_turns >= 10
+            and (questions_asked >= 1 or depth_responses >= 1)
+        )
+    )
+
+    reciprocity = questions_asked >= 2
+    strong_reciprocity = (
+        questions_asked >= 3
+        or (questions_asked >= 2 and depth_responses >= 2)
+    )
+
+    extended_imperfect = depth_responses >= 2 and effective_unclear >= 1
+
+    conversational_persistence = (
+        total_turns >= 15
+        and (turbulence_survived or continued_after_ambiguity)
+    )
+
+    sustained_strict = (
+        total_turns >= 20
+        and questions_asked >= 3
+        and unmatched_responses <= 5
+    )
+
+    sustained_messy = (
+        total_turns >= 16
+        and (questions_asked >= 2 or depth_responses >= 3)
+        and (turbulence_survived or continued_after_ambiguity)
+    )
+
+    sustained = sustained_strict or sustained_messy
+
+    led_conversation = questions_asked >= 2 and total_turns >= 4
+
+    strong_initiative = (
+        sustained
+        or strong_reciprocity
+        or (total_turns >= 12 and questions_asked >= 2)
+        or (total_turns >= 14 and depth_responses >= 3)
+        or (conversational_persistence and questions_asked >= 1)
+    )
+
+    communicative_ambition = (
+        total_turns >= 10
+        and effective_unclear >= 3
+        and (
+            questions_asked >= 1
+            or depth_responses >= 1
+            or soft_unmatched >= 3
+        )
+    )
+
+    return {
+        "total_turns":                 total_turns,
+        "questions_asked":             questions_asked,
+        "depth_responses":             depth_responses,
+        "effective_unclear":           effective_unclear,
+        "turbulence_survived":           turbulence_survived,
+        "continued_after_ambiguity":   continued_after_ambiguity,
+        "reciprocity":                 reciprocity,
+        "strong_reciprocity":          strong_reciprocity,
+        "extended_imperfect":          extended_imperfect,
+        "conversational_persistence":  conversational_persistence,
+        "sustained":                   sustained,
+        "sustained_strict":            sustained_strict,
+        "sustained_messy":             sustained_messy,
+        "led_conversation":            led_conversation,
+        "strong_initiative":           strong_initiative,
+        "communicative_ambition":      communicative_ambition,
+    }
+
+
+def _scorecard_conversation_capability(sess: dict) -> dict:
+    """
+    Lightweight interpretation layer: product-aligned capability lines and headline
+    from session counters.  Does not affect conversation routing.
+    """
+    sig = _derive_conversation_signals(sess)
+    suggestion_clicks = max(0, int(sess.get("suggestion_clicks", 0) or 0))
+    card_opens        = max(0, int(sess.get("card_opens",        0) or 0))
+    support_uses      = suggestion_clicks + card_opens
+
+    capability_lines: list = []
+    progress_lines: list = []
+
+    if sig["sustained"]:
+        capability_lines.append(
+            "You kept a real conversation going, even when some turns were messy."
+        )
+    elif sig["conversational_persistence"]:
+        capability_lines.append(
+            "You stayed engaged through a longer conversation, even with unclear moments."
+        )
+
+    if sig["led_conversation"]:
+        capability_lines.append(
+            "You didn\u2019t just answer \u2014 you helped drive the conversation forward."
+        )
+    elif sig["strong_reciprocity"]:
+        capability_lines.append(
+            "You brought curiosity back into the conversation with questions of your own."
+        )
+
+    if sig["turbulence_survived"]:
+        capability_lines.append(
+            "You kept the conversation alive even when things became unclear."
+        )
+
+    if sig["continued_after_ambiguity"]:
+        progress_lines.append(
+            "You continued communicating through difficult moments instead of stopping."
+        )
+    elif sig["effective_unclear"] > 0 and sig["total_turns"] >= 12:
+        progress_lines.append(
+            "A few unclear turns did not stop the conversation."
+        )
+
+    if sig["extended_imperfect"]:
+        capability_lines.append(
+            "You stayed engaged through several imperfect exchanges and kept trying to express yourself."
+        )
+    elif sig.get("communicative_ambition"):
+        capability_lines.append(
+            "You kept pushing to communicate even when your wording was messy \u2014 that takes real conversational courage."
+        )
+    elif sig["depth_responses"] >= 2:
+        capability_lines.append(
+            f"You gave {sig['depth_responses']} extended answer"
+            f"{'' if sig['depth_responses'] == 1 else 's'} with more detail."
+        )
+
+    headline = None
+    if sig["sustained"] and sig["strong_reciprocity"] and sig["turbulence_survived"]:
+        headline = (
+            "You stayed inside a real conversation \u2014 through noise, questions, and recovery."
+        )
+    elif sig["sustained"] and sig["questions_asked"] >= 5:
+        headline = (
+            "You had a sustained, socially active conversation with initiative and resilience."
+        )
+    elif sig["sustained"]:
+        headline = "You kept a sustained conversation going and asked questions back."
+    elif sig["conversational_persistence"] and sig["led_conversation"]:
+        headline = (
+            "You helped move the conversation forward and stayed in it through imperfect turns."
+        )
+    elif sig["total_turns"] >= 12 and sig["led_conversation"]:
+        headline = "You kept the conversation going and helped move it forward."
+    elif sig["turbulence_survived"] and sig["total_turns"] >= 10:
+        headline = "You stayed in the conversation even when it got turbulent."
+
+    return {
+        "headline":           headline,
+        "capability_lines":   capability_lines,
+        "progress_lines":     progress_lines,
+        "strong_initiative":  sig["strong_initiative"],
+        "support_uses":       support_uses,
+        "signals":            {
+            "turbulence_survived":          sig["turbulence_survived"],
+            "continued_after_ambiguity":    sig["continued_after_ambiguity"],
+            "conversational_persistence":   sig["conversational_persistence"],
+        },
+    }
 
 
 def _compute_scorecard(sess: dict) -> dict:
@@ -5459,6 +5679,122 @@ def _compute_scorecard(sess: dict) -> dict:
         "participation": _scorecard_participation(questions_asked),
         "depth":         _scorecard_depth(depth_responses),
         "stability":     _scorecard_stability(unmatched_responses, total_turns, soft_unmatched),
+        "conversation_capability": _scorecard_conversation_capability(sess),
+    }
+
+
+def _conversation_stability_score(
+    stability: dict,
+    total_turns: int,
+    sess: Optional[dict] = None,
+) -> Optional[int]:
+    """
+    Return 0–100 progress stability score (higher = stronger conversational survivability).
+    Base uses the normalized stability rate from _scorecard_stability (unchanged labels).
+    Optional engagement bonus rewards sustained participation through turbulence — does not
+    change scorecard stability row labels.
+    """
+    if total_turns < 2:
+        return None
+    rate = stability.get("rate")
+    if rate is None:
+        return None
+    try:
+        rate_f = float(rate)
+    except (TypeError, ValueError):
+        return None
+    base = round(100 * (1 - min(max(rate_f, 0.0), 1.0)))
+    bonus = 0
+    if sess:
+        sig = _derive_conversation_signals(sess)
+        if sig["turbulence_survived"]:
+            bonus += 10
+        if sig["continued_after_ambiguity"]:
+            bonus += 5
+        if sig["strong_reciprocity"]:
+            bonus += 5
+        if sig["extended_imperfect"]:
+            bonus += 5
+        if sig["conversational_persistence"]:
+            bonus += 5
+    return max(0, min(100, base + min(bonus, 20)))
+
+
+def _build_progress_snapshot(
+    sess: dict,
+    metrics: dict,
+    *,
+    tier: str = "standard",
+    persona_id: Optional[str] = None,
+    duration_seconds: int = 0,
+) -> dict:
+    """Compact progress record from existing session counters and scorecard metrics."""
+    total_turns           = max(0, int(sess.get("total_turns",             0) or 0))
+    recovery_uses         = max(0, int(sess.get("recovery_uses",           0) or 0))
+    successful_recoveries = max(0, int(sess.get("successful_recoveries",   0) or 0))
+    suggestion_clicks     = max(0, int(sess.get("suggestion_clicks",       0) or 0))
+    card_opens            = max(0, int(sess.get("card_opens",              0) or 0))
+    display_en_clicks     = max(0, int(sess.get("display_en_clicks",     0) or 0))
+    display_py_clicks     = max(0, int(sess.get("display_py_clicks",     0) or 0))
+    hint_clicks           = max(0, int(sess.get("hint_clicks",           0) or 0))
+    questions_asked       = max(0, int(sess.get("questions_asked",         0) or 0))
+    depth_responses       = max(0, int(sess.get("depth_responses",         0) or 0))
+    unmatched_responses   = max(0, int(sess.get("unmatched_responses",     0) or 0))
+    mode                  = (sess.get("mode") or "normal").strip().lower()
+    session_id            = (sess.get("session_id") or "").strip()
+
+    engines = sess.get("engines_used")
+    if not isinstance(engines, list):
+        engines = []
+
+    stability = metrics.get("stability") or {}
+    recovery  = metrics.get("recovery") or {}
+
+    if recovery_uses > 0:
+        recovery_success_rate = recovery.get("rate")
+    else:
+        recovery_success_rate = None
+
+    try:
+        created_at = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+    except Exception:
+        created_at = datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+
+    tier_norm = (tier or "standard").strip().lower()
+    if tier_norm not in ("standard", "premium"):
+        tier_norm = "standard"
+
+    prog_sig = _derive_conversation_signals(sess)
+
+    return {
+        "session_id":                    session_id,
+        "created_at":                    created_at,
+        "tier":                          tier_norm,
+        "persona_id":                    (persona_id or sess.get("persona_id") or "").strip() or None,
+        "mode":                          mode,
+        "duration_seconds":              max(0, int(duration_seconds or 0)),
+        "total_turns":                   total_turns,
+        "questions_asked":               questions_asked,
+        "recovery_uses":                 recovery_uses,
+        "successful_recoveries":         successful_recoveries,
+        "unclear_turns":                 unmatched_responses,
+        "depth_responses":               depth_responses,
+        "engines_used":                  engines,
+        "suggestion_clicks":             suggestion_clicks,
+        "card_opens":                    card_opens,
+        "display_en_clicks":             display_en_clicks,
+        "display_py_clicks":             display_py_clicks,
+        "hint_clicks":                   hint_clicks,
+        "conversation_stability_score":  _conversation_stability_score(
+            stability, total_turns, sess,
+        ),
+        "recovery_success_rate":         recovery_success_rate,
+        "progress_signals": {
+            "turbulence_survived":         prog_sig["turbulence_survived"],
+            "continued_after_ambiguity":   prog_sig["continued_after_ambiguity"],
+            "conversational_persistence":  prog_sig["conversational_persistence"],
+            "communicative_ambition":      prog_sig.get("communicative_ambition", False),
+        },
     }
 
 
@@ -8016,6 +8352,11 @@ class Handler(BaseHTTPRequestHandler):
                 #   Path 4 (fallback):   same as Path 2
                 _disc_frame_text  = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
                 _disc_context_prev = (cs.get("last_counter_reply") or "").strip() if isinstance(cs, dict) else ""
+                # Same-turn partner line (frame or counter_reply) for immediate adjacency ranking.
+                _disc_same_turn = _discovery_context_merge(
+                    (response.get("frame_text") or "").strip(),
+                    (_counter_reply or "").strip(),
+                )
 
                 # ── Blue panel debug trace ─────────────────────────────────────
                 _dbg_last_pf_pre = (cs.get("last_partner_frame_id") or "").strip()
@@ -8071,14 +8412,16 @@ class Handler(BaseHTTPRequestHandler):
                         _disc_eng_p1 = "place"
                     elif any(kw in _reply_for_eng for kw in _PERSONA_REVEAL_KEYWORDS[:15]):
                         _disc_eng_p1 = "place"
-                    elif any(kw in _reply_for_eng for kw in ("教书", "教学", "老师", "工作", "退休", "上班", "公司")):
+                    elif _text_signals_work_occupation(_reply_for_eng):
                         _disc_eng_p1 = "work"
                     # Path 1: user's own question is the "frame"; persona reply is rich context
                     _disc_pool   = _build_discovery_pool(
                         _disc_eng_p1, _backed_tpcs, _rich_engs, _seen_topics_disc,
                         boost_topics=_dist_boost,
                         frame_text=answer_text or _disc_frame_text,
-                        context_text=_counter_reply or "",
+                        context_text=_discovery_context_merge(
+                            _counter_reply, _disc_same_turn,
+                        ),
                     )
 
                     if _disc_pool:
@@ -8112,11 +8455,19 @@ class Handler(BaseHTTPRequestHandler):
                     _disc_eng_p2 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
                     # Path 2: combine current answer + previous persona reveal so that
                     # food/place/work keywords from the persona's previous turn carry forward.
-                    _ctx_p2 = " ".join(filter(None, [_counter_reply, answer_text, _disc_context_prev]))
+                    _ctx_p2 = _discovery_context_merge(
+                        _counter_reply, answer_text, _disc_context_prev, _disc_same_turn,
+                    )
+                    if (
+                        not _overseas_detected
+                        and _disc_eng_p2 in ("identity",)
+                        and _text_signals_work_occupation(_ctx_p2)
+                    ):
+                        _disc_eng_p2 = "work"
                     _disc_pool   = _build_discovery_pool(
                         _disc_eng_p2, _backed_tpcs, _rich_engs, _seen_topics_disc,
                         boost_topics=_dist_boost,
-                        frame_text=_disc_frame_text,
+                        frame_text=_disc_frame_text or _disc_same_turn,
                         context_text=_ctx_p2,
                     )
 
@@ -8158,11 +8509,19 @@ class Handler(BaseHTTPRequestHandler):
                         _backed_tpcs = _persona_backed_topics(persona)
                         _rich_engs   = _persona_rich_engines(persona)
                         _disc_eng_p4 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
-                        _ctx_p4 = " ".join(filter(None, [answer_text, _disc_context_prev]))
+                        _ctx_p4 = _discovery_context_merge(
+                            answer_text, _disc_context_prev, _disc_same_turn,
+                        )
+                        if (
+                            not _overseas_detected
+                            and _disc_eng_p4 in ("identity",)
+                            and _text_signals_work_occupation(_ctx_p4)
+                        ):
+                            _disc_eng_p4 = "work"
                         _disc_pool   = _build_discovery_pool(
                             _disc_eng_p4, _backed_tpcs, _rich_engs, _seen_topics_disc,
                             boost_topics=_dist_boost,
-                            frame_text=_disc_frame_text,
+                            frame_text=_disc_frame_text or _disc_same_turn,
                             context_text=_ctx_p4,
                         )
                         if _disc_pool:
@@ -8468,8 +8827,23 @@ class Handler(BaseHTTPRequestHandler):
 
             mode       = (sess.get("mode") or "normal").strip().lower()
             session_id = (sess.get("session_id") or "").strip()
+            tier       = (sess.get("tier") or "standard").strip().lower()
+            if tier not in ("standard", "premium"):
+                tier = "standard"
+            persona_id = (sess.get("persona_id") or "").strip() or None
+            try:
+                duration_seconds = max(0, int(sess.get("duration_seconds", 0) or 0))
+            except (TypeError, ValueError):
+                duration_seconds = 0
 
             metrics = _compute_scorecard(sess)
+            progress_snapshot = _build_progress_snapshot(
+                sess,
+                metrics,
+                tier=tier,
+                persona_id=persona_id,
+                duration_seconds=duration_seconds,
+            )
             print(
                 f"[ui_server] /api/end_session session_id={session_id!r} mode={mode!r} "
                 f"turns={sess.get('total_turns', 0)} flow={metrics['flow']['label']!r}",
@@ -8493,11 +8867,13 @@ class Handler(BaseHTTPRequestHandler):
                     print(f"[ui_server] /api/end_session: failed to save progress history: {exc}", flush=True)
 
             result = {
-                "ok":         True,
-                "session_id": session_id,
-                "mode":       mode,
-                "saved":      saved,
-                "metrics":    metrics,
+                "ok":                True,
+                "session_id":        session_id,
+                "mode":              mode,
+                "saved":             saved,
+                "metrics":           metrics,
+                "progress_snapshot": progress_snapshot,
+                "progress_saved":    True,
             }
             data = json.dumps(result, ensure_ascii=False).encode("utf-8")
             self.send_response(200)

@@ -892,6 +892,153 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
   letter-spacing: 0.05em;
   margin-bottom: 12px;
 }
+.progress-saved-msg {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+  color: #059669;
+  font-weight: 500;
+}
+
+/* ── Right panel Session / Progress tabs ─────────────────────────────────── */
+.right-panel-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+}
+.right-panel-tab {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.right-panel-tab:hover {
+  color: #334155;
+  background: #f8fafc;
+}
+.right-panel-tab--active {
+  color: #0f766e;
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+.right-panel-view--hidden {
+  display: none !important;
+}
+
+/* ── Progress view (conversation journal) ────────────────────────────────── */
+.progress-view {
+  font-size: 0.84rem;
+  color: #334155;
+  line-height: 1.45;
+}
+.progress-headline {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1e293b;
+  margin: 0 0 14px;
+  line-height: 1.4;
+}
+.progress-empty {
+  padding: 8px 0 4px;
+}
+.progress-empty-headline {
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 8px;
+}
+.progress-empty-body {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin: 0;
+  line-height: 1.5;
+}
+.progress-chart-wrap {
+  margin-bottom: 16px;
+  padding: 10px 4px 4px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.progress-chart-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  padding-left: 4px;
+}
+.progress-stability-chart {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  display: block;
+}
+.progress-chart-grid {
+  stroke: #e2e8f0;
+  stroke-width: 1;
+}
+.progress-chart-line {
+  fill: none;
+  stroke: #0d9488;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.progress-chart-dot {
+  fill: #0d9488;
+}
+.progress-chart-dot--dim {
+  fill: #cbd5e1;
+}
+.progress-chart-axis-label {
+  font-size: 9px;
+  fill: #94a3b8;
+}
+.progress-chart-axis-caption {
+  font-size: 9px;
+  fill: #94a3b8;
+}
+.progress-table-wrap {
+  overflow-x: auto;
+  margin-top: 4px;
+}
+.progress-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+.progress-table th {
+  text-align: left;
+  font-weight: 600;
+  color: #64748b;
+  padding: 6px 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.progress-table td {
+  padding: 7px 4px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+.progress-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.progress-tier-note {
+  margin-top: 12px;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
 .sc-row {
   margin-bottom: 12px;
 }

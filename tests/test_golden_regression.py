@@ -1571,6 +1571,12 @@ def test_scoring_model_refinements() -> None:
     # ── E: Backward compatibility ─────────────────────────────────────────────
     check("T-SMR E1: _scorecard_stability still has Stable / Some friction labels",
           '"Stable"' in srv_src and '"Some friction"' in srv_src)
+    check("T-SMR E1b: stability uses Conversation stayed on track for moderate unclear rate",
+          "Conversation stayed on track" in srv_src)
+    check("T-SMR E1c: _scorecard_conversation_capability in _compute_scorecard",
+          "_scorecard_conversation_capability" in srv_src and "conversation_capability" in srv_src)
+    check("T-SMR E1d: client _buildAbilitySummary uses conversation_capability",
+          "conversation_capability" in app_src and "_buildAbilitySummary" in app_src)
     check("T-SMR E2: participation scorecard unchanged (questions_asked still used)",
           "_scorecard_participation(questions_asked)" in srv_src)
     check("T-SMR E3: recovery panel path unchanged (_pendingRecovery still checked)",
@@ -2038,7 +2044,9 @@ def test_english_name_and_place_handling() -> None:
     # ── C: _detectSemanticCategory location before [A-Za-z]{3,} ──────────────
     cat_idx = js_src.find("function _detectSemanticCategory")
     assert cat_idx >= 0, "T-ENP C0: _detectSemanticCategory not found"
-    cat_block = js_src[cat_idx: cat_idx + 1200]
+    cat_end = js_src.find("const _SEMANTIC_CLARIFICATION_PHRASES", cat_idx)
+    assert cat_end >= 0, "T-ENP C0b: end of _detectSemanticCategory block not found"
+    cat_block = js_src[cat_idx:cat_end]
 
     loc_idx_in_block   = cat_block.find("住在|搬到|搬来")
     latin_idx_in_block = cat_block.find("[A-Za-z]{3,}")

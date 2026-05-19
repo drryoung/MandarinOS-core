@@ -135,6 +135,12 @@
             <div id="cardBody"></div>
           </div>
           <div id="noCard" class="nocard">No card opened</div>
+          <!-- Session / Progress toggle — progress history stays out of the live transcript -->
+          <div class="right-panel-tabs" role="tablist" aria-label="Right panel view">
+            <button type="button" id="rightTabSession" class="right-panel-tab right-panel-tab--active" role="tab" aria-selected="true" aria-controls="rightPanelSession">Session</button>
+            <button type="button" id="rightTabProgress" class="right-panel-tab" role="tab" aria-selected="false" aria-controls="rightPanelProgress">Progress</button>
+          </div>
+          <div id="rightPanelSession" class="right-panel-view" role="tabpanel">
           <!-- Session Scorecard — populated by endSession(); shows placeholder during conversation -->
           <div class="scorecard-panel-inline">
             <h2>Session Scorecard</h2>
@@ -146,6 +152,10 @@
             <summary class="trace-summary">Show Trace</summary>
             <pre id="trace" class="trace">(no trace)</pre>
           </details>
+          </div>
+          <div id="rightPanelProgress" class="right-panel-view right-panel-view--hidden" role="tabpanel" hidden>
+            <div id="progressView" class="progress-view" aria-live="polite"></div>
+          </div>
         </aside>
       </main>
     </div>
