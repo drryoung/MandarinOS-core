@@ -1,0 +1,2 @@
+# Force Python provider — package.json is obsolete Replit boilerplate, not the runtime app.
+providers = ["python"]
