@@ -9,11 +9,14 @@ Step 3: File persistence at data/learner_memory.json (keyed by learner_id).
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Dict, Optional
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_PERSISTENCE_PATH = _REPO_ROOT / "data" / "learner_memory.json"
+_DEFAULT_DATA_DIR = _REPO_ROOT / "data"
+BASE_DATA_DIR = Path(os.environ.get("MANDARINOS_DATA_DIR", str(_DEFAULT_DATA_DIR)))
+_PERSISTENCE_PATH = BASE_DATA_DIR / "learner_memory.json"
 
 # Canonical six fields (all optional string or None)
 LEARNER_MEMORY_KEYS = (

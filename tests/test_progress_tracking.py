@@ -88,7 +88,7 @@ def test_snapshot_structure():
 
 
 def test_stability_score_forty_turns_two_unclear():
-    """40 turns, 2 hard unclear → 5% effective rate → stability score 95."""
+    """40 turns, 2 hard unclear — turbulence-aware score, not inflated to ~100."""
     srv = _load_ui_server()
     sess = {
         "total_turns": 40,
@@ -97,11 +97,14 @@ def test_stability_score_forty_turns_two_unclear():
     }
     metrics = srv._compute_scorecard(sess)
     assert metrics["stability"]["rate"] == 0.05
-    score_base = srv._conversation_stability_score(metrics["stability"], 40)
-    assert score_base == 95
+    score = srv._conversation_stability_score(metrics["stability"], 40, sess)
+    assert score is not None
+    assert score < 100
+    assert 80 <= score <= 94
     snap = srv._build_progress_snapshot(sess, metrics)
-    assert snap["conversation_stability_score"] >= 95
+    assert snap["conversation_stability_score"] == score
     assert snap["unclear_turns"] == 2
+    assert "Messy but sustained" in snap["stability_display_label"] or "Stayed on track" in snap["stability_display_label"] or "Stable" in snap["stability_display_label"]
 
 
 def test_stability_score_none_for_short_session():
@@ -244,24 +247,33 @@ def test_phase2_empty_state_copy_in_app():
 
 
 def _format_learning_support(snap: dict) -> str:
-    """Mirror of ui/app.js _formatSupportUsed — keep in sync."""
-    parts = []
-    options = snap.get("suggestion_clicks") or 0
-    cards = snap.get("card_opens") or 0
-    hints = snap.get("hint_clicks") or 0
-    en = snap.get("display_en_clicks") or 0
-    py = snap.get("display_py_clicks") or 0
-    if options > 0:
-        parts.append(f"Options {options}")
-    if cards > 0:
-        parts.append(f"Cards {cards}")
-    if hints > 0:
-        parts.append(f"Hints {hints}")
-    if en > 0:
-        parts.append(f"EN {en}")
-    if py > 0:
-        parts.append(f"PY {py}")
-    return " · ".join(parts) if parts else "None"
+    """Mirror of ui/app.js _formatSupportCell — tier label for tests."""
+    if snap.get("support_display_label"):
+        return snap["support_display_label"]
+    n = sum(
+        snap.get(k) or 0
+        for k in (
+            "suggestion_clicks", "hint_clicks", "display_en_clicks",
+            "display_py_clicks", "translation_help_uses",
+        )
+    )
+    if n == 0:
+        return "None"
+    if n <= 2:
+        return "Light"
+    if n <= 5:
+        return "Moderate"
+    return "Heavy"
+
+
+def _format_flow_cell(snap: dict) -> str:
+    """Mirror of ui/app.js _formatFlowCell."""
+    if snap.get("flow_display_label"):
+        return snap["flow_display_label"]
+    label = snap.get("stability_display_label") or ""
+    if " · " in label:
+        return label.split(" · ", 1)[1]
+    return label or "—"
 
 
 def test_snapshot_includes_display_and_hint_support_fields():
@@ -288,28 +300,25 @@ def test_snapshot_support_fields_default_zero_when_absent():
 
 
 def test_format_support_legacy_snapshot():
-    assert _format_learning_support({"suggestion_clicks": 2, "card_opens": 1}) == "Options 2 · Cards 1"
+    assert _format_learning_support({"suggestion_clicks": 2, "card_opens": 1}) == "Light"
 
 
 def test_format_support_en_only():
-    assert _format_learning_support({"display_en_clicks": 4}) == "EN 4"
+    assert _format_learning_support({"display_en_clicks": 4}) == "Moderate"
 
 
 def test_format_support_py_only():
-    assert _format_learning_support({"display_py_clicks": 3}) == "PY 3"
+    assert _format_learning_support({"display_py_clicks": 3}) == "Moderate"
 
 
 def test_format_support_mixed():
-    assert (
-        _format_learning_support(
-            {
-                "hint_clicks": 2,
-                "display_en_clicks": 5,
-                "card_opens": 1,
-            },
-        )
-        == "Cards 1 · Hints 2 · EN 5"
-    )
+    assert _format_learning_support(
+        {
+            "hint_clicks": 2,
+            "display_en_clicks": 5,
+            "card_opens": 1,
+        },
+    ) == "Heavy"
 
 
 def test_format_support_none_when_all_zero():
@@ -344,12 +353,322 @@ def test_scorecard_support_unchanged_by_display_fields():
     assert m_base["support"] == m_disp["support"]
 
 
+def test_progress_ui_flow_and_support_columns():
+    src = _load_app_js()
+    assert "Flow" in src
+    assert "Support" in src
+    assert "function _formatFlowCell" in src
+    assert "function _formatSupportCell" in src
+    assert "flow_display_label" in src
+    assert "support_display_label" in src
+    assert "session_interpretation" in src
+
+
 def test_progress_ui_learning_support_column_and_tracking():
     src = _load_app_js()
-    assert "Learning support" in src
+    assert "translation_help_uses" in src
     assert "display_en_clicks" in src
     assert "display_py_clicks" in src
     assert "hint_clicks:" in src
     assert "function toggleLinePinyin" in src
     assert "!st.showEn) _tracker.display_en_clicks" in src
     assert "!st.showPy) _tracker.display_py_clicks" in src
+
+
+def test_progress_recovery_not_needed_removed():
+    src = _load_app_js()
+    assert "Not needed" not in src
+    assert "recovery_display_label" in src
+    assert "function _formatRecoveryCell" in src
+
+
+def test_progress_recovery_self_recovered_after_confusion():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {
+            "total_turns": 18,
+            "unmatched_responses": 2,
+            "conversational_recoveries": 2,
+            "successful_conversational_recoveries": 2,
+            "recovery_uses": 0,
+            "questions_asked": 1,
+        },
+    )
+    assert snap["recovery_display_label"] in ("Self-recovered", "Self-recovered often")
+    assert "Not needed" not in snap["recovery_display_label"]
+
+
+def test_progress_recovery_stayed_on_track_without_formal_recovery():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {
+            "total_turns": 15,
+            "unmatched_responses": 2,
+            "recovery_uses": 0,
+            "conversational_recoveries": 0,
+            "successful_conversational_recoveries": 0,
+            "questions_asked": 2,
+            "depth_responses": 1,
+        },
+    )
+    assert snap["recovery_display_label"] in ("Stayed on track", "Kept going")
+
+
+def test_progress_recovery_smooth_clean_session():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {"unmatched_responses": 0, "recovery_uses": 0},
+    )
+    assert snap["recovery_display_label"] == "Smooth"
+
+
+def test_progress_recovery_used_support_when_phrase_cards():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {
+            "recovery_uses": 4,
+            "successful_recoveries": 3,
+            "unmatched_responses": 1,
+        },
+    )
+    assert snap["recovery_display_label"].startswith("App-assisted")
+
+
+def test_progress_stability_clean_session_can_score_100():
+    srv = _load_ui_server()
+    snap = _make_snapshot(srv, {"total_turns": 20, "unmatched_responses": 0, "recovery_uses": 0})
+    assert snap["conversation_stability_score"] == 100
+    assert "Smooth" in snap["stability_display_label"]
+
+
+def test_progress_stability_one_unclear_cannot_be_100():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {
+            "total_turns": 18,
+            "unmatched_responses": 1,
+            "questions_asked": 4,
+            "depth_responses": 10,
+            "recovery_uses": 0,
+        },
+    )
+    assert snap["conversation_stability_score"] < 100
+    assert 85 <= snap["conversation_stability_score"] <= 92
+    assert "Stayed on track" in snap["stability_display_label"] or "Stable" in snap["stability_display_label"]
+    assert "Smooth" not in snap["stability_display_label"]
+
+
+def test_progress_stability_two_unclear_short_session_messy_band():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {
+            "total_turns": 8,
+            "unmatched_responses": 2,
+            "questions_asked": 2,
+            "recovery_uses": 0,
+        },
+    )
+    assert snap["conversation_stability_score"] < 80
+    assert 65 <= snap["conversation_stability_score"] <= 79
+    assert "Messy but sustained" in snap["stability_display_label"]
+
+
+def test_progress_stability_one_unclear_short_session_stable_band():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {"total_turns": 8, "unmatched_responses": 1, "questions_asked": 1},
+    )
+    assert snap["conversation_stability_score"] < 100
+    assert 80 <= snap["conversation_stability_score"] <= 92
+    assert "Smooth" not in snap["stability_display_label"]
+
+
+def test_progress_stability_messy_sustained_not_perfect():
+    srv = _load_ui_server()
+    sess = {
+        "total_turns": 28,
+        "questions_asked": 5,
+        "unmatched_responses": 6,
+        "soft_unmatched_responses": 4,
+        "depth_responses": 5,
+        "recovery_uses": 4,
+        "successful_recoveries": 3,
+    }
+    metrics = srv._compute_scorecard(sess)
+    snap = srv._build_progress_snapshot(sess, metrics)
+    assert snap["conversation_stability_score"] < 80
+    assert snap["progress_signals"]["turbulence_survived"] is True
+    cap = srv._scorecard_conversation_capability(sess)
+    assert cap["headline"]
+
+
+def test_progress_stability_label_messy_but_sustained():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {
+            "total_turns": 40,
+            "unmatched_responses": 2,
+            "questions_asked": 2,
+            "depth_responses": 2,
+        },
+    )
+    assert snap["conversation_stability_score"] < 100
+    assert "Smooth" not in snap["stability_display_label"]
+
+
+def test_progress_stability_smooth_when_no_unclear():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {"total_turns": 20, "unmatched_responses": 0},
+    )
+    assert "Smooth" in snap["stability_display_label"]
+
+
+def test_learning_support_separate_from_recovery_display():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {
+            "unmatched_responses": 2,
+            "conversational_recoveries": 1,
+            "successful_conversational_recoveries": 1,
+            "display_en_clicks": 6,
+            "card_opens": 3,
+        },
+    )
+    assert snap["recovery_display_label"] in ("Self-recovered", "Self-recovered often")
+    assert _format_learning_support(snap) == "Heavy"
+    assert snap.get("card_exploration_count") == 3
+
+
+def test_card_opens_do_not_change_stability_score():
+    srv = _load_ui_server()
+    base = {"total_turns": 20, "unmatched_responses": 0}
+    with_cards = {**base, "card_opens": 12, "display_en_clicks": 8, "hint_clicks": 5}
+    snap_base = _make_snapshot(srv, base)
+    snap_cards = _make_snapshot(srv, with_cards)
+    assert snap_base["conversation_stability_score"] == snap_cards["conversation_stability_score"]
+    assert snap_base["flow_display_label"] == snap_cards["flow_display_label"]
+
+
+def test_card_opens_do_not_inflate_support_tier():
+    srv = _load_ui_server()
+    snap = _make_snapshot(srv, {"card_opens": 10, "suggestion_clicks": 0})
+    assert snap["support_display_label"] == "None"
+    assert snap["card_exploration_count"] == 10
+
+
+def test_turbulent_28_turn_session_display_labels():
+    """Alpha-style messy sustained session — not near-perfect smooth."""
+    srv = _load_ui_server()
+    sess = {
+        "total_turns": 28,
+        "questions_asked": 7,
+        "unmatched_responses": 4,
+        "soft_unmatched_responses": 3,
+        "depth_responses": 5,
+        "recovery_uses": 2,
+        "successful_recoveries": 2,
+        "conversational_recoveries": 3,
+        "successful_conversational_recoveries": 2,
+        "display_en_clicks": 2,
+        "hint_clicks": 1,
+        "suggestion_clicks": 1,
+    }
+    metrics = srv._compute_scorecard(sess)
+    snap = srv._build_progress_snapshot(sess, metrics)
+    assert snap["flow_display_label"] in (
+        "Messy but sustained", "Worked through turbulence", "Stayed on track",
+    )
+    assert snap["flow_display_label"] != "Smooth"
+    assert "Smooth" not in snap["flow_display_label"]
+    assert snap["recovery_display_label"] in (
+        "Self-recovered often", "Used support + self-recovered", "Self-recovered",
+    )
+    assert snap["support_display_label"] in ("Light", "Moderate")
+    assert snap["support_display_label"] != "None"
+
+
+def test_flow_label_never_smooth_with_unclear_turns():
+    srv = _load_ui_server()
+    snap = _make_snapshot(
+        srv,
+        {"total_turns": 28, "unmatched_responses": 3, "questions_asked": 5},
+    )
+    assert snap["flow_display_label"] != "Smooth"
+    assert _format_flow_cell(snap) != "Smooth"
+
+
+def test_support_tier_thresholds():
+    srv = _load_ui_server()
+    assert _format_learning_support({"hint_clicks": 1}) == "Light"
+    assert _format_learning_support({"hint_clicks": 3, "display_en_clicks": 1}) == "Moderate"
+    assert _format_learning_support({"hint_clicks": 4, "display_en_clicks": 3}) == "Heavy"
+
+
+def test_end_session_includes_session_interpretation():
+    src = (_SCRIPTS / "ui_server.py").read_text(encoding="utf-8")
+    assert "session_interpretation" in src
+    assert "flow_display_label" in src
+    assert "support_display_label" in src
+
+
+def test_beta_progress_api_endpoints_present():
+    src = (_SCRIPTS / "ui_server.py").read_text(encoding="utf-8")
+    assert "/api/save_progress" in src
+    assert "/api/progress" in src
+    assert "_ps_save_snapshot" in src
+    assert "learner_id" in src
+
+
+def test_beta_progress_client_wiring():
+    src = _load_app_js()
+    assert "manos_learner_id" in src
+    assert "function setLearnerId" in src
+    assert "initLearnerId" in src
+    assert "/api/save_progress" in src
+    assert "_persistProgressSnapshotToServer" in src
+    assert "learner_id:" in src
+
+
+def test_beta_profile_api_endpoints_present():
+    src = (_SCRIPTS / "ui_server.py").read_text(encoding="utf-8")
+    assert "/api/beta_profile" in src
+    assert "_bp_load_profile" in src
+    assert "_bp_save_profile" in src
+
+
+def test_beta_profile_client_wiring():
+    src = _load_app_js()
+    assert "initBetaProfile" in src
+    assert "saveBetaProfile" in src
+    assert "/api/beta_profile" in src
+    assert "startingPointBar" in (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
+    assert "starting-point-btn" in (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
+    assert "practiceLevelBtn" in src
+    assert "_comfortMode" in src
+    assert "_updateChallengeModeVisibility" in src
+
+
+def test_snapshot_includes_flow_and_support_display_labels():
+    srv = _load_ui_server()
+    snap = _make_snapshot(srv)
+    assert "flow_display_label" in snap
+    assert "support_display_label" in snap
+    assert snap["stability_display_label"] == snap["flow_display_label"]
+
+
+def test_legacy_stability_display_without_score_prefix():
+    srv = _load_ui_server()
+    snap = _make_snapshot(srv, {"total_turns": 20, "unmatched_responses": 0})
+    assert " · " not in snap["stability_display_label"]
+    assert snap["flow_display_label"] == snap["stability_display_label"]

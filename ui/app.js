@@ -50,10 +50,13 @@ const _tracker = {
   total_turns: 0,                // user-submitted turns (incremented once per accepted /api/run_turn response)
   recovery_uses: 0,              // times user tapped a recovery phrase card
   successful_recoveries: 0,      // recovery uses where the immediately following turn was accepted
+  conversational_recoveries: 0,  // learner self-repair attempts after confusion/repair prompt
+  successful_conversational_recoveries: 0,  // self-repair accepted (conversation continued)
   suggestion_clicks: 0,          // times user selected a suggested response option
   card_opens: 0,                 // user-initiated card-panel opens (not re-renders)
   display_en_clicks: 0,          // transcript EN reveals (hidden → shown only)
   display_py_clicks: 0,          // transcript PY reveals (hidden → shown only)
+  translation_help_uses: 0,      // EN→ZH translation panel uses (Translate / Use)
   questions_asked: 0,            // user turns containing a question marker (吗/什么/怎么/为什么)
   depth_responses: 0,            // user turns containing a depth/extension marker
   unmatched_responses: 0,        // hard-fail turns (no Chinese signal / nonsense) — used in scorecard stability
@@ -142,15 +145,31 @@ function _trackUserTextSignals(text) {
   //   (a) the previous turn ended with a repair prompt (rejection), AND
   //   (b) this submission differs from the rejected text (not an identical retry).
   // Also set _pendingNaturalRecovery so the server-response handler can credit a
-  // successful_recoveries increment when the re-attempt routes correctly.
+  // successful_conversational_recoveries increment when the re-attempt routes correctly.
   if (window._pendingRepairPrompt) {
     if (text !== (window._lastRepairSubmittedText || "")) {
       window._learnerObs.recovery_resilience_count++;
-      _tracker._pendingNaturalRecovery = true; // cleared in _runTurnInner on next response
+      if (_isConversationalRecoveryAttempt(text)) {
+        _tracker.conversational_recoveries++;
+        _tracker._pendingNaturalRecovery = true; // cleared in _runTurnInner on next response
+      }
     }
     window._pendingRepairPrompt      = false;
     window._lastRepairSubmittedText  = "";
   }
+}
+
+/** True when learner text after a repair/confusion prompt looks like self-repair, not noise. */
+function _isConversationalRecoveryAttempt(text) {
+  const t = (text || "").trim();
+  if (!t) return false;
+  const frameId = window._currentFrameId || document.getElementById("frameSelect")?.value || "";
+  if (_detectSemanticCategory(t, window._currentEngineId || "")) return true;
+  if (isLikelyUnderstandableFreeAnswer(t, frameId)) return true;
+  const zhCount = (t.match(/[\u4e00-\u9fff]/g) || []).length;
+  if (zhCount >= 3) return true;
+  if (zhCount >= 2 && /(\S{2})\S*\1/.test(t)) return true; // repeat/clarify pattern
+  return false;
 }
 
 function addTranscriptEntry(role, textZh, extras = {}) {
@@ -167,7 +186,13 @@ function addTranscriptEntry(role, textZh, extras = {}) {
     _glossPending: false,
   };
   conversationTranscript.push(entry);
+  _initTranscriptLineUiState(entry);
   maybeRequestGlossForEntry(entry);
+}
+
+function _initTranscriptLineUiState(entry) {
+  if (!entry || !entry.id) return;
+  transcriptLineUiState[entry.id] = _defaultTranscriptLineUiState(entry.role);
 }
 
 /** Fill missing English via server /api/gloss (optional deep-translator) for any Chinese line. */
@@ -285,7 +310,173 @@ if (typeof window._sessionId === "undefined") window._sessionId = "session_" + D
 if (typeof window._sessionStartedAt === "undefined") window._sessionStartedAt = Date.now();
 if (typeof window._recentFrameIds === "undefined") window._recentFrameIds = [];
 // Phase 10: learner_id for memory persistence; last_answer (frame_id + selected_option_hanzi/submitted_text) sent with next_question when last_turn_was_answer
+const _LEARNER_ID_STORAGE_KEY = "manos_learner_id";
+
+function _normalizeBetaLearnerId(code) {
+  const c = String(code || "").trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48);
+  if (!c) return null;
+  return c.startsWith("beta_") ? c : `beta_${c}`;
+}
+
+function setLearnerId(id) {
+  const lid = String(id || "").trim();
+  if (!lid || !/^[a-zA-Z0-9_-]{1,64}$/.test(lid)) return false;
+  window._learnerId = lid;
+  try {
+    localStorage.setItem(_LEARNER_ID_STORAGE_KEY, lid);
+  } catch (_) {}
+  return true;
+}
+
+function initLearnerId() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const beta = params.get("beta");
+    if (beta) {
+      const normalized = _normalizeBetaLearnerId(beta);
+      if (normalized && setLearnerId(normalized)) return;
+    }
+    const stored = localStorage.getItem(_LEARNER_ID_STORAGE_KEY);
+    if (stored && /^[a-zA-Z0-9_-]{1,64}$/.test(stored.trim())) {
+      window._learnerId = stored.trim();
+      return;
+    }
+  } catch (_) {}
+  if (typeof window._learnerId === "undefined") window._learnerId = "default_learner";
+}
+
 if (typeof window._learnerId === "undefined") window._learnerId = "default_learner";
+initLearnerId();
+window.setLearnerId = setLearnerId;
+
+// Beta learner profile — practice comfort level (L1/L2)
+const _VALID_LEARNER_LEVELS = new Set(["beginner", "lower_intermediate", "intermediate"]);
+const _LEVEL_LABELS = {
+  beginner: "Just getting started",
+  lower_intermediate: "Studied some Mandarin",
+  intermediate: "Can hold a basic conversation",
+};
+
+if (typeof window._learnerLevel === "undefined") window._learnerLevel = null;
+if (typeof window._comfortMode === "undefined") window._comfortMode = false;
+
+function _defaultTranscriptLineUiState(role) {
+  const showPy = !!(window._comfortMode && role === "partner");
+  return { showEn: false, showPy };
+}
+
+function _applyBetaProfileDefaults(profile) {
+  const level = profile && profile.learner_level;
+  window._learnerLevel = _VALID_LEARNER_LEVELS.has(level) ? level : null;
+  window._comfortMode = !!(profile && profile.comfort_mode);
+  document.body.classList.toggle("comfort-mode", window._comfortMode);
+  document.body.classList.toggle("learner-beginner", window._learnerLevel === "beginner");
+  if (window._comfortMode) {
+    transcriptDisplayMode = "zh_en";
+    const displayModeEl = document.getElementById("transcriptDisplayMode");
+    if (displayModeEl) displayModeEl.value = "zh_en";
+  }
+  _updateChallengeModeVisibility();
+  renderTranscript();
+}
+
+async function saveBetaProfile(level, levelSource) {
+  const lid = window._learnerId || "default_learner";
+  try {
+    const res = await fetch("/api/beta_profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        learner_id: lid,
+        learner_level: level,
+        level_source: levelSource || "self_selected",
+      }),
+    });
+    const data = await res.json();
+    if (data.ok && data.profile) {
+      _applyBetaProfileDefaults(data.profile);
+      return data.profile;
+    }
+  } catch (_) {}
+  return null;
+}
+
+function _showLevelGateOverlay(force) {
+  const overlay = document.getElementById("levelGateOverlay");
+  if (!overlay) return;
+  overlay.classList.remove("hidden");
+  overlay.querySelectorAll(".level-gate-option").forEach((btn) => {
+    btn.onclick = async () => {
+      const level = btn.getAttribute("data-level");
+      if (!_VALID_LEARNER_LEVELS.has(level)) return;
+      overlay.classList.add("hidden");
+      await saveBetaProfile(level, "self_selected");
+      _updatePracticeLevelBtnLabel();
+    };
+  });
+  if (force) overlay.setAttribute("data-force", "1");
+  else overlay.removeAttribute("data-force");
+}
+
+function _hideLevelGateOverlay() {
+  const overlay = document.getElementById("levelGateOverlay");
+  if (overlay) overlay.classList.add("hidden");
+}
+
+function _updatePracticeLevelBtnLabel() {
+  const btn = document.getElementById("practiceLevelBtn");
+  if (!btn) return;
+  const level = window._learnerLevel;
+  const hasLevel = level && _LEVEL_LABELS[level];
+  const label = hasLevel ? _LEVEL_LABELS[level] : "Choose your starting point";
+  btn.textContent = label;
+  btn.dataset.set = hasLevel ? "1" : "0";
+  btn.title = hasLevel
+    ? `Starting point: ${label} — click to change`
+    : "Choose your practice comfort level";
+}
+
+function _updateChallengeModeVisibility() {
+  const btn = document.getElementById("challengeModeBtn");
+  if (!btn) return;
+  const hide = window._learnerLevel === "beginner";
+  btn.style.display = hide ? "none" : "";
+  if (hide && _challenge.active) {
+    _challenge.active = false;
+    _tracker.mode = "normal";
+    document.body.classList.remove("challenge-mode", "challenge-text-revealed");
+    btn.textContent = "Challenge Mode";
+    btn.classList.remove("challenge-active");
+    const zone = document.getElementById("challengeRecoveryZone");
+    if (zone) zone.innerHTML = "";
+  }
+}
+
+async function initBetaProfile() {
+  const lid = window._learnerId || "default_learner";
+  try {
+    const res = await fetch(`/api/beta_profile?learner_id=${encodeURIComponent(lid)}`);
+    const data = await res.json();
+    if (data.ok && data.profile && data.profile.learner_level) {
+      _applyBetaProfileDefaults(data.profile);
+      _updatePracticeLevelBtnLabel();
+      return data.profile;
+    }
+  } catch (_) {}
+
+  if (lid === "default_learner") {
+    await saveBetaProfile("lower_intermediate", "operator_set");
+    _updatePracticeLevelBtnLabel();
+    return null;
+  }
+
+  _showLevelGateOverlay(false);
+  _updatePracticeLevelBtnLabel();
+  return null;
+}
+
+window.initBetaProfile = initBetaProfile;
+window.saveBetaProfile = saveBetaProfile;
 if (typeof window._lastAnswer === "undefined") window._lastAnswer = null;
 // Phase 10 Step 6: persona_id for persona-consistent stubs (e.g. probe responses); default first persona
 if (typeof window._personaId === "undefined") window._personaId = "zhang_wei";
@@ -1578,7 +1769,7 @@ function renderTranscript() {
     const textEn = resolveLineEnglish(entry);
     const textPy = entry.pinyin || "";
     const role = entry.role === "partner" ? "partner" : "user";
-    const uiState = transcriptLineUiState[lineId] || { showEn: false, showPy: false };
+    const uiState = transcriptLineUiState[lineId] || _defaultTranscriptLineUiState(role);
 
     const line = document.createElement("div");
     line.className = "transcript-line " + role;
@@ -1673,7 +1864,7 @@ function resolveUserLineTranslation(entry) {
 
 function toggleLineEnglish(lineId) {
   const entry = (conversationTranscript || []).find((e, idx) => (e.id || String(idx)) === lineId);
-  const st = transcriptLineUiState[lineId] || { showEn: false, showPy: false };
+  const st = transcriptLineUiState[lineId] || _defaultTranscriptLineUiState(entry?.role);
   if (!entry) return;
   if (entry.role === "user" && !(entry.text_en || "").trim()) {
     const resolved = resolveUserLineTranslation(entry);
@@ -1689,7 +1880,8 @@ function toggleLineEnglish(lineId) {
 }
 
 function toggleLinePinyin(lineId) {
-  const st = transcriptLineUiState[lineId] || { showEn: false, showPy: false };
+  const entry = (conversationTranscript || []).find((e, idx) => (e.id || String(idx)) === lineId);
+  const st = transcriptLineUiState[lineId] || _defaultTranscriptLineUiState(entry?.role);
   if (!st.showPy) _tracker.display_py_clicks++;
   transcriptLineUiState[lineId] = { ...st, showPy: !st.showPy };
   renderTranscript();
@@ -2192,10 +2384,30 @@ function getRecoveryPhraseForNotUnderstood(avoidPhraseId = null, precomputedCont
   return selected;
 }
 
+// Machine-translation register artifacts → spoken conversational forms (longer first).
+const _SPOKEN_REGISTER_PAIRS = [
+  ["同住", "一起住"],
+  ["居住", "住"],
+  ["共同", "一起"],
+  ["您",   "你"],
+  ["与",   "跟"],
+];
+
+/** Normalize formal/written register for matching and live translation post-processing. */
+function _normalizeSpokenRegister(text) {
+  if (!text) return text;
+  let s = text;
+  for (const [formal, spoken] of _SPOKEN_REGISTER_PAIRS) {
+    s = s.split(formal).join(spoken);
+  }
+  return s;
+}
+
 /** Normalize for match: trim, collapse spaces, remove common punctuation. */
 function normalizeForMatch(s) {
   if (typeof s !== "string") return "";
-  return s.trim().replace(/\s+/g, "").replace(/[。？！，、；：""''\s]/g, "");
+  const spoken = _normalizeSpokenRegister(s.trim());
+  return spoken.replace(/\s+/g, "").replace(/[。？！，、；：""''\s]/g, "");
 }
 
 /** Single-token fillers / fragments — not substantive answers; avoid persona-stall recovery tone. */
@@ -2691,7 +2903,7 @@ function normalizeConversationalFillers(text) {
 }
 
 function semanticSoftMatch(transcript, frameId) {
-  const t = (transcript || "").trim();
+  const t = _normalizeSpokenRegister((transcript || "").trim());
   const fid = (frameId || "").trim();
   if (!t) return false;
   // Plain affirmation after a paraphrase question ("你是说：...") — route to server as confirmation.
@@ -5368,7 +5580,7 @@ function _renderMemoryBanner(mem) {
 /** Fetch current learner memory from the server and update the banner immediately. */
 async function _refreshMemoryBanner() {
   try {
-    const res = await fetch("/api/memory?learner_id=default_learner");
+    const res = await fetch(`/api/memory?learner_id=${encodeURIComponent(window._learnerId || "default_learner")}`);
     if (res.ok) {
       const data = await res.json();
       _renderMemoryBanner(data.memory || {});
@@ -5377,116 +5589,108 @@ async function _refreshMemoryBanner() {
 }
 
 /**
- * Reset all session state and clear learner memory on the server, then restart from the greeting.
- * Called by the "Start Fresh" button so the app treats the user as a first-time learner.
+ * Reset current-session UI, counters, and transient state for a clean new conversation.
+ * Preserves: selected persona, selected frame, learner memory, progress history, card data.
+ * Does not call the server or clear long-term localStorage progress records.
  */
-async function startFreshLearner() {
-  // Switch to a new learner ID so the server starts with empty memory automatically —
-  // no API call required.  The old data remains in the file but is never used again.
-  window._learnerId = "learner_" + Date.now();
-
-  // Also ask the server to clear the old ID in the background (best-effort cleanup).
-  // This may fail silently if the server is not available — that is fine.
-  try {
-    await fetch("/api/reset_memory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ learner_id: "default_learner" })
-    });
-  } catch (_) {}
-
-  // Reset all client-side session state
+function _resetCurrentSessionState() {
   _cancelProbeAutoAdvance();
   hideSentenceOptions();
-  window._runTurnInFlight        = false;   // clear any stale in-flight guard
-  window._sessionId              = "session_" + Date.now();
-  window._sessionStartedAt       = Date.now();
-  window._recentFrameIds         = [];
-  window._lastAnswer             = null;
-  window._probeDepth             = 0;
-  window._userQuestionChain      = 0;
-  window._lastProbeOptions       = [];
-  window._revealedVoiceLines     = {};
-  window._revealedPartnerFacts   = {};
-  window._exchangeCount          = 0;
-  window._curiosityDepth         = 0;
-  window._askChainCount          = 0;
-  window._lastPartnerTurnType    = "question";
-  window._sameEngineChainCount   = 0;
-  window._sameSlotChainCount     = 0;
-  window._lastFocusSlot          = "";
-  window._pendingListeningMove   = false;
-  window._listeningWaitTurns     = 0;
-  window._lastInterestLevel      = "low";
-  window._lastUserText           = "";
+  window._runTurnInFlight = false;
+
+  window._sessionId = "session_" + Date.now();
+  window._sessionStartedAt = Date.now();
+  window._recentFrameIds = [];
+  window._lastAnswer = null;
+  window._probeDepth = 0;
+  window._userQuestionChain = 0;
+  window._lastProbeOptions = [];
+  window._revealedVoiceLines = {};
+  window._revealedPartnerFacts = {};
+  window._exchangeCount = 0;
+  window._curiosityDepth = 0;
+  window._askChainCount = 0;
+  window._lastPartnerTurnType = "question";
+  window._sameEngineChainCount = 0;
+  window._sameSlotChainCount = 0;
+  window._lastFocusSlot = "";
+  window._pendingListeningMove = false;
+  window._listeningWaitTurns = 0;
+  window._lastInterestLevel = "low";
+  window._lastUserText = "";
   window._lastTurnWasNoisyOrConfusion = false;
-  window._confusionFrameText          = null;
-  window._learnerWorkContext          = null;
-  window._unmatchedByFrame       = {};
+  window._confusionFrameText = null;
+  window._learnerWorkContext = null;
+  window._unmatchedByFrame = {};
   window._recoveryPromptsByFrame = {};
   window._consecutiveNotUnderstood = 0;
-  window._lastRepairKind          = null;
-  window._prevRepairKind          = null;
-  window._currentEngineId        = "identity";
-  // Phase 12C: session arc state
-  window._loopCountInEngine      = 0;
-  window._enginesVisited         = ["identity"];
-  window._recentConfusionCount   = 0;
-  // Phase 13B: seeded bridge queue reset on new session
-  window._seededBridgeEngines    = [];
+  window._lastRepairKind = null;
+  window._prevRepairKind = null;
+  window._lastPartnerFrameId = null;
+  window._isPostClosingMove = false;
+  window._loopCountInEngine = 0;
+  window._enginesVisited = ["identity"];
+  window._recentConfusionCount = 0;
+  window._seededBridgeEngines = [];
   window._mediumProbeFiredEngines = [];
-  // Phase L1: reset learner observation counters on fresh session
-  window._learnerObs = { turns_observed: 0, hint_clicks: 0, word_clicks: 0,
-                         recovery_uses: 0, successful_answers: 0, asr_rejections: 0,
-                         mirror_uses: 0, question_count: 0, extended_answer_count: 0,
-                         recovery_resilience_count: 0, soft_unmatched_count: 0 };
-  window._pendingRepairPrompt     = false;
+  window._repairAttemptCount = 0;
+  window._efcEntity = null;
+  window._efcDepth = 0;
+  window._lastRecoveryPhraseId = null;
+  window._pendingRepairPrompt = false;
   window._lastRepairSubmittedText = "";
-  // Discovery/blue-panel state reset
-  window._discoveryShownLastTurn  = false;
+  window._discoveryShownLastTurn = false;
   window._consecutiveAppQuestions = 0;
-  window._lastPersonaReveal       = false;
-  window._recentlySeenDiscTopics  = [];
-  window._lastPartnerFrameText    = "";
+  window._lastPersonaReveal = false;
+  window._recentlySeenDiscTopics = [];
+  window._lastPartnerFrameText = "";
   window._lastSemanticClarifyText = "";
-  window._lastBlueQuestions       = [];   // client cache — cleared only on fresh session
-  window._lastDiscoveryEngineId   = "";   // engine when last blue panel was shown
+  window._lastBlueQuestions = [];
+  window._lastDiscoveryEngineId = "";
   hideDiscoveryPanel();
 
-  // Clear the "Remembered:" facts banner
-  _renderMemoryBanner({});
+  window._learnerObs = {
+    turns_observed: 0, hint_clicks: 0, word_clicks: 0,
+    recovery_uses: 0, successful_answers: 0, asr_rejections: 0,
+    mirror_uses: 0, question_count: 0, extended_answer_count: 0,
+    recovery_resilience_count: 0, soft_unmatched_count: 0,
+  };
 
-  // Clear the transcript so the slate looks visually fresh
-  const transcriptEl = document.getElementById("transcript");
-  if (transcriptEl) transcriptEl.innerHTML = "";
+  conversationTranscript = [];
+  transcriptLineUiState = {};
+  transcriptReplayToken += 1;
+  transcriptReplayState = { active: false, activeLineId: null, queue: [] };
+  transcriptSelectedLineIds = [];
+  renderTranscript();
 
-  // Clear the active partner question area
   const frameSentenceEl = document.getElementById("frameSentence");
   if (frameSentenceEl) frameSentenceEl.textContent = "";
+  const optC = document.getElementById("optionsContainer");
+  if (optC) { optC.innerHTML = ""; optC.style.display = "none"; }
+  const challengeZone = document.getElementById("challengeRecoveryZone");
+  if (challengeZone) challengeZone.innerHTML = "";
 
-  hideSentenceOptions();
+  window._sentenceHint = { pinyin: "", text_en: "" };
+  window._currentHintAffordance = { visible: false };
+  window._currentTurnUid = null;
+  hint_cascade_state = { level: 0, turn_uid: null };
+  if (_challenge.active) _resetChallengeHelpState();
 
-  // Show a brief status message — do NOT auto-start a turn.
-  // The user can now select any frame from the dropdown and press Run Turn,
-  // or press the mic to speak the first greeting themselves.
-  const statusEl = document.getElementById("statusMsg") || document.createElement("div");
-  statusEl.textContent = "Memory cleared — ready for a new conversation.";
-  statusEl.style.cssText = "color:#0891b2;font-size:0.85rem;padding:6px 14px;";
-  if (!document.getElementById("statusMsg")) {
-    statusEl.id = "statusMsg";
-    document.getElementById("actionLadder")?.prepend(statusEl);
-  }
-  setTimeout(() => { statusEl.textContent = ""; }, 4000);
+  const scoreOverlay = document.getElementById("scorecardOverlay");
+  if (scoreOverlay) scoreOverlay.remove();
+  const progressSaved = document.getElementById("progressSavedMsg");
+  if (progressSaved) progressSaved.remove();
 
-  // Reset session tracker — preserve mode based on current challenge state
-  // (challenge button stays toggled; a fresh start begins a new tracked session in the same mode)
   _tracker.total_turns = 0;
   _tracker.recovery_uses = 0;
   _tracker.successful_recoveries = 0;
+  _tracker.conversational_recoveries = 0;
+  _tracker.successful_conversational_recoveries = 0;
   _tracker.suggestion_clicks = 0;
   _tracker.card_opens = 0;
   _tracker.display_en_clicks = 0;
   _tracker.display_py_clicks = 0;
+  _tracker.translation_help_uses = 0;
   _tracker.questions_asked = 0;
   _tracker.depth_responses = 0;
   _tracker.unmatched_responses = 0;
@@ -5496,8 +5700,44 @@ async function startFreshLearner() {
   _tracker._pendingRecovery = false;
   _tracker.mode = _challenge.active ? "challenge" : "normal";
 
-  // Refresh "Today's focus" objective for the new session
   renderSessionObjective();
+}
+
+/**
+ * Reset all session state and clear learner memory on the server, then restart from the greeting.
+ * Called by the "Clear memory" button so the app treats the user as a first-time learner.
+ */
+async function startFreshLearner() {
+  const oldId = window._learnerId;
+  setLearnerId("learner_" + Date.now());
+
+  // Best-effort: clear the previous learner's memory on the server.
+  try {
+    if (oldId) {
+      await fetch("/api/reset_memory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ learner_id: oldId }),
+      });
+    }
+  } catch (_) {}
+
+  _resetCurrentSessionState();
+
+  // Clear the "Remembered:" facts banner
+  _renderMemoryBanner({});
+
+  // Show a brief status message — do NOT auto-start a turn.
+  const statusEl = document.getElementById("statusMsg") || document.createElement("div");
+  statusEl.textContent = "Memory cleared — ready for a new conversation.";
+  statusEl.style.cssText = "color:#0891b2;font-size:0.85rem;padding:6px 14px;";
+  if (!document.getElementById("statusMsg")) {
+    statusEl.id = "statusMsg";
+    document.getElementById("actionLadder")?.prepend(statusEl);
+  }
+  setTimeout(() => { statusEl.textContent = ""; }, 4000);
+
+  await initBetaProfile();
 }
 
 /**
@@ -5726,9 +5966,12 @@ async function _runTurnInner(isNext = false, opts = {}) {
     _tracker._pendingRecovery = false;
   }
   // Natural recovery: learner re-attempted after a rejection (not via recovery panel).
-  // Credit a successful_recovery if the re-attempt was routed to a real frame.
+  // Credit when the re-attempt was routed to a real frame.
   if (_tracker._pendingNaturalRecovery) {
-    if (data.frame_id) _tracker.successful_recoveries++;
+    if (data.frame_id) {
+      _tracker.successful_recoveries++;
+      _tracker.successful_conversational_recoveries++;
+    }
     _tracker._pendingNaturalRecovery = false;
   }
   // ── end session tracker hooks ──
@@ -5969,14 +6212,22 @@ async function _runTurnInner(isNext = false, opts = {}) {
     "| blue_panel_shown=" + (_isUserLed && _dq.length > 0),
     _isUserLed && _dq.length === 0 ? "| note=user_led_but_no_cards" : "",
   );
-  // Answer-reactive augmentation: probes from persona's latest line (counter_reply or frame).
+  // Answer-reactive augmentation: probes from learner's latest line and persona's latest line.
+  const _learnerForAugment = (
+    payload?.conversation_state?.last_answer?.submitted_text
+    || payload?.conversation_state?.last_answer?.selected_option_hanzi
+    || ""
+  ).trim();
   const _partnerForAugment = (
     _counterReply
     || (window._lastPartnerSpokenText || "").trim()
     || (window._lastPartnerTurnText || "").trim()
     || (fallbackText || "").trim()
   );
-  const _extraQs = _augmentQuestionsFromAnswer(_partnerForAugment);
+  const _extraQs = _dedupeQuestions([
+    ..._augmentQuestionsFromAnswer(_learnerForAugment),
+    ..._augmentQuestionsFromAnswer(_partnerForAugment),
+  ], 5);
 
   // Frame-stage awareness: determine whether the current frame is an early place stage.
   // Use the answered frame (payload last_answer) as primary signal; fall back to frameId.
@@ -6262,6 +6513,8 @@ cardPanel.addEventListener("click", (e) => {
 
 // defaults
 window.addEventListener("load", async () => {
+  await initBetaProfile();
+
   // Show current memory state immediately — before the user clicks Start,
   // so they can see if a previous session left data and clear it if needed.
   _refreshMemoryBanner();
@@ -6752,7 +7005,11 @@ window.addEventListener("load", async () => {
   render();
 });
 
-runBtn.addEventListener("click", () => { ttsUnlock(); runTurn(false); });
+runBtn.addEventListener("click", () => {
+  ttsUnlock();
+  _resetCurrentSessionState();
+  runTurn(false);
+});
 if (nextBtn) nextBtn.addEventListener("click", () => { ttsUnlock(); runTurn(true); });
 const changeTopicBtn = document.getElementById("changeTopicBtn");
 if (changeTopicBtn) changeTopicBtn.addEventListener("click", () => { ttsUnlock(); runTurn(true, { prefer_bridge: true }); });
@@ -6793,6 +7050,11 @@ function toggleChallengeMode() {
 
 const challengeModeBtn = document.getElementById("challengeModeBtn");
 if (challengeModeBtn) challengeModeBtn.addEventListener("click", toggleChallengeMode);
+
+const practiceLevelBtn = document.getElementById("practiceLevelBtn");
+if (practiceLevelBtn) {
+  practiceLevelBtn.addEventListener("click", () => _showLevelGateOverlay(true));
+}
 
 const showOptionsBtn = document.getElementById("showOptionsBtn");
 if (showOptionsBtn) showOptionsBtn.addEventListener("click", () => {
@@ -7638,6 +7900,7 @@ async function submitDiscoveryQuestion(q) {
 // Add new entries to _ZH_VOCAB_PAIRS as they are discovered.
 // Longer / more-specific patterns MUST appear before shorter ones.
 const _ZH_VOCAB_PAIRS = [
+  ..._SPOKEN_REGISTER_PAIRS,
   // Multi-character formal → spoken (order matters: longer first)
   ["父母亲",   "爸爸妈妈"],
   ["父母",     "爸爸妈妈"],
@@ -7731,6 +7994,12 @@ const TRANSLATION_OVERRIDES = {
   "i live with my parents and wife":   "我跟爸爸妈妈和老婆一起住",
   "i live alone":                      "我一个人住",
   "i live by myself":                  "我一个人住",
+  // ── Common conversational questions (spoken-first) ────────────────────────
+  "do you live with your parents":     "你跟爸妈一起住吗？",
+  "do you live with your family":      "你跟家人一起住吗？",
+  "do you live alone":                 "你一个人住吗？",
+  "are you married":                   "你结婚了吗？",
+  "do you have children":              "你有孩子吗？",
   // ── Family members ────────────────────────────────────────────────────────
   "my wife":                           "我老婆",
   "my husband":                        "我老公",
@@ -7868,6 +8137,7 @@ function _lookupTranslationOverride(englishInput) {
     // ── Priority 1: curated override map (instant, no API call) ──────────────
     const override = _lookupTranslationOverride(text);
     if (override) {
+      _tracker.translation_help_uses++;
       _renderTranslationTokens(override);
       _setTranslationPinyin(override);
       engResult.style.display = "flex";
@@ -7886,6 +8156,7 @@ function _lookupTranslationOverride(englishInput) {
       const rawZh = (data?.responseData?.translatedText || "").trim();
       const zh = naturalizeZhTranslation(rawZh, text);
       if (zh && zh !== text) {
+        _tracker.translation_help_uses++;
         _renderTranslationTokens(zh);
         _setTranslationPinyin(zh);
         engResult.style.display = "flex";
@@ -8013,6 +8284,7 @@ function renderScorecard(response) {
   if (!response || !response.metrics) return;
   const m    = response.metrics;
   const mode = (response.mode || "normal");
+  const interp = response.session_interpretation || {};
 
   // Remove any leftover overlay from an older session (defensive)
   const prev = document.getElementById("scorecardOverlay");
@@ -8125,14 +8397,14 @@ function renderScorecard(response) {
       "How long you kept the conversation going",
     ],
     [
-      `${m.recovery.raw_uses} recoveries (${m.recovery.raw_successes} successful)`,
-      m.recovery.label,
+      m.recovery.display_summary || `${m.recovery.raw_uses} recoveries (${m.recovery.raw_successes} successful)`,
+      interp.recovery || m.recovery.label,
       "How well you got unstuck",
     ],
     [
       `${m.support.raw_uses} support uses`,
-      m.support.label,
-      "How much help you used",
+      interp.support || m.support.label,
+      "How much help you used — support is part of learning, not failure",
     ],
     [
       `${m.participation.raw} questions`,
@@ -8146,8 +8418,8 @@ function renderScorecard(response) {
     ],
     [
       `${m.stability.raw_unmatched} unclear turn${m.stability.raw_unmatched === 1 ? "" : "s"}`,
-      m.stability.label,
-      "How often a turn was hard to understand — the conversation may still have stayed on track",
+      interp.flow || m.stability.label,
+      "How smooth the conversation felt — messy sessions can still show real progress",
     ],
   ];
 
@@ -8361,6 +8633,18 @@ function saveProgressSnapshot(snapshot) {
   } catch (_) {
     // localStorage unavailable — silently ignore
   }
+  _persistProgressSnapshotToServer(snapshot);
+}
+
+/** Fire-and-forget server persistence for beta multi-user history. */
+function _persistProgressSnapshotToServer(snapshot) {
+  const lid = window._learnerId;
+  if (!lid || !snapshot) return;
+  fetch("/api/save_progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ learner_id: lid, snapshot }),
+  }).catch(() => {});
 }
 
 function _renderProgressSavedMessage() {
@@ -8408,12 +8692,103 @@ function _formatProgressDate(createdAt) {
   }
 }
 
+function _formatFlowCell(snap) {
+  if (snap?.flow_display_label) return snap.flow_display_label;
+  if (snap?.stability_display_label) {
+    const s = snap.stability_display_label;
+    if (s.includes(" · ")) return s.split(" · ").slice(1).join(" · ");
+    return s;
+  }
+  const score = snap?.conversation_stability_score;
+  const unclear = snap?.unclear_turns || 0;
+  const softUnclear = snap?.soft_unclear_turns || 0;
+  const repairMoments = (snap?.recovery_uses || 0) + (snap?.conversational_recoveries || 0);
+  const hasTurbulence = unclear > 0 || softUnclear > 0 || repairMoments > 0;
+  if (score == null || typeof score !== "number") return "—";
+  if (hasTurbulence) {
+    if (repairMoments >= 3 || unclear >= 4) return "Worked through turbulence";
+    if (snap?.progress_signals?.turbulence_survived || (snap?.total_turns || 0) >= 15) {
+      return "Messy but sustained";
+    }
+    return "Stayed on track";
+  }
+  if (score >= 95) return "Smooth";
+  if (score >= 80) return "Stable";
+  return "Difficult but continued";
+}
+
+function _formatSupportCell(snap) {
+  if (snap?.support_display_label) return snap.support_display_label;
+  const n =
+    (snap?.suggestion_clicks || 0) +
+    (snap?.hint_clicks || 0) +
+    (snap?.display_en_clicks || 0) +
+    (snap?.display_py_clicks || 0) +
+    (snap?.translation_help_uses || 0);
+  if (n === 0) return "None";
+  if (n <= 2) return "Light";
+  if (n <= 5) return "Moderate";
+  return "Heavy";
+}
+
+function _formatSupportDetail(snap) {
+  const parts = [];
+  const en = snap?.display_en_clicks || 0;
+  const py = snap?.display_py_clicks || 0;
+  const hints = snap?.hint_clicks || 0;
+  const options = snap?.suggestion_clicks || 0;
+  const cards = snap?.card_opens || snap?.card_exploration_count || 0;
+  const translate = snap?.translation_help_uses || 0;
+  if (options > 0) parts.push(`Options ${options}`);
+  if (hints > 0) parts.push(`Hints ${hints}`);
+  if (en > 0) parts.push(`EN ${en}`);
+  if (py > 0) parts.push(`PY ${py}`);
+  if (translate > 0) parts.push(`Translate ${translate}`);
+  if (cards > 0) parts.push(`Exploration ${cards}`);
+  return parts.length ? parts.join(" · ") : "";
+}
+
 function _formatRecoveryCell(snap) {
+  if (snap?.recovery_display_label) return snap.recovery_display_label;
+  const unclear = snap?.unclear_turns || 0;
+  const recoveryUses = snap?.recovery_uses || 0;
+  const convSuccess = snap?.successful_conversational_recoveries || 0;
+  const convAttempts = snap?.conversational_recoveries || 0;
+  const continued = snap?.progress_signals?.continued_after_ambiguity;
+  const totalTurns = snap?.total_turns || 0;
   const rate = snap?.recovery_success_rate;
-  if (rate == null) return "Not needed";
-  const pct = Math.round(Number(rate) * 100);
-  if (Number.isNaN(pct)) return "Not needed";
-  return `${pct}% completed`;
+  if (unclear > 0 && convSuccess >= 2) return "Self-recovered often";
+  if (unclear > 0 && convSuccess > 0) return "Self-recovered";
+  if (recoveryUses > 0 && convSuccess > 0) return "Used support + self-recovered";
+  if (recoveryUses > 0) {
+    if (rate != null) {
+      const pct = Math.round(Number(rate) * 100);
+      return Number.isNaN(pct) ? "App-assisted" : `App-assisted (${pct}%)`;
+    }
+    return "App-assisted";
+  }
+  if (unclear > 0 && convAttempts > 0) return "Kept going";
+  if (unclear > 0 && (continued || totalTurns >= 8)) {
+    if ((snap?.questions_asked || 0) >= 2 && totalTurns >= 12) return "Kept going";
+    return "Stayed on track";
+  }
+  if (unclear === 0 && recoveryUses === 0) return "Smooth";
+  if (unclear > 0) return "Stayed on track";
+  return "No system help";
+}
+
+function _formatStabilityCell(snap) {
+  if (snap?.stability_display_label) return snap.stability_display_label;
+  const score = snap?.conversation_stability_score;
+  if (score == null || typeof score !== "number") return "—";
+  const unclear = snap?.unclear_turns || 0;
+  const repairMoments = (snap?.recovery_uses || 0) + (snap?.conversational_recoveries || 0);
+  const hasTurbulence = unclear > 0 || repairMoments > 0;
+  if (score >= 95 && !hasTurbulence) return `${score} · Smooth`;
+  if (score >= 80) return `${score} · ${hasTurbulence ? "Stayed on track" : "Stable"}`;
+  if (score >= 65) return `${score} · Messy but sustained`;
+  if (score >= 45) return `${score} · Worked through turbulence`;
+  return `${score} · Difficult but continued`;
 }
 
 function _formatSupportUsed(snap) {
@@ -8429,12 +8804,6 @@ function _formatSupportUsed(snap) {
   if (en > 0) parts.push(`EN ${en}`);
   if (py > 0) parts.push(`PY ${py}`);
   return parts.length === 0 ? "None" : parts.join(" · ");
-}
-
-function _formatStabilityCell(snap) {
-  const score = snap?.conversation_stability_score;
-  if (score == null || typeof score !== "number") return "—";
-  return String(score);
 }
 
 /**
@@ -8460,15 +8829,33 @@ function buildProgressHeadline(sessions) {
     (s) => s.progress_signals && s.progress_signals.conversational_persistence,
   ).length;
 
+  const recentSupport = recent.map((s) => _formatSupportCell(s));
+  const heavySupportCount = recentSupport.filter((l) => l === "Moderate" || l === "Heavy").length;
+  const messyFlowCount = recent.filter((s) => {
+    const flow = s.flow_display_label || s.stability_display_label || "";
+    return /Messy|turbulence|Difficult/i.test(flow);
+  }).length;
+
+  if (turbulenceCount >= 2 || persistenceCount >= 2 || messyFlowCount >= 2) {
+    return "You are staying engaged through turbulence";
+  }
+
+  if (heavySupportCount >= 2) {
+    return "You are using support to keep conversations alive";
+  }
+
   if (recentTurns.length >= 2 && recentTurns[recentTurns.length - 1] >= recentTurns[0] + 4) {
+    if (messyFlowCount >= 1 || turbulenceCount >= 1) {
+      return "You are becoming more resilient in conversation";
+    }
     return "You are sustaining longer conversations";
   }
 
   if (recentQuestions.length >= 2 && recentQuestions[recentQuestions.length - 1] > recentQuestions[0]) {
-    return "You are asking more questions back over time";
+    return "You are asking more questions back";
   }
 
-  if (turbulenceCount >= 2 || persistenceCount >= 2) {
+  if (turbulenceCount >= 1 || persistenceCount >= 1) {
     return "You are staying engaged even when conversations get messy";
   }
 
@@ -8627,7 +9014,7 @@ function renderProgressView() {
 
   const thead = document.createElement("thead");
   thead.innerHTML =
-    "<tr><th>Date</th><th>Turns</th><th>Stability</th><th>Questions back</th><th>Recovery</th><th>Learning support</th></tr>";
+    "<tr><th>Date</th><th>Turns</th><th>Flow</th><th>Questions back</th><th>Recovery</th><th>Support</th></tr>";
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
@@ -8636,17 +9023,22 @@ function renderProgressView() {
     .reverse()
     .forEach((snap) => {
       const tr = document.createElement("tr");
+      const supportLabel = _formatSupportCell(snap);
+      const supportDetail = _formatSupportDetail(snap);
       const cells = [
         _formatProgressDate(snap.created_at),
         String(snap.total_turns ?? "—"),
-        _formatStabilityCell(snap),
+        _formatFlowCell(snap),
         String(snap.questions_asked ?? 0),
         _formatRecoveryCell(snap),
-        _formatSupportUsed(snap),
+        supportLabel,
       ];
-      cells.forEach((text) => {
+      cells.forEach((text, idx) => {
         const td = document.createElement("td");
         td.textContent = text;
+        if (idx === 5 && supportDetail && supportLabel !== "None") {
+          td.title = supportDetail;
+        }
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -8715,6 +9107,7 @@ async function endSession() {
   const _startedAt = window._sessionStartedAt || Date.now();
   const payload = {
     session_id:            window._sessionId || "",
+    learner_id:            window._learnerId || "",
     mode:                  t.mode,
     tier:                  getUserTier(),
     persona_id:            window._partnerId || window._personaId || "",
@@ -8722,11 +9115,14 @@ async function endSession() {
     total_turns:           t.total_turns,
     recovery_uses:         t.recovery_uses,
     successful_recoveries: t.successful_recoveries,
+    conversational_recoveries: t.conversational_recoveries,
+    successful_conversational_recoveries: t.successful_conversational_recoveries,
     suggestion_clicks:     t.suggestion_clicks,
     card_opens:            t.card_opens,
     display_en_clicks:     t.display_en_clicks,
     display_py_clicks:     t.display_py_clicks,
     hint_clicks:           (window._learnerObs && window._learnerObs.hint_clicks) || 0,
+    translation_help_uses: t.translation_help_uses,
     questions_asked:       t.questions_asked,
     depth_responses:       t.depth_responses,
     unmatched_responses:        t.unmatched_responses,
@@ -8771,6 +9167,7 @@ async function endSession() {
 
 window.endSession    = endSession;
 window.renderScorecard = renderScorecard;
+window._resetCurrentSessionState = _resetCurrentSessionState;
 
 
 

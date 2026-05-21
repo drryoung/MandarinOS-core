@@ -34,6 +34,19 @@ try:
 except ImportError:
     _lm_load = _lm_save = _lm_apply_updates = _capture_from_turn = None
     _get_memory_field_for_frame = None
+# Beta progress persistence (per-learner snapshot files)
+try:
+    from progress_store import load_snapshots as _ps_load_snapshots
+    from progress_store import save_snapshot as _ps_save_snapshot
+    from progress_store import load_all as _ps_load_all
+except ImportError:
+    _ps_load_snapshots = _ps_save_snapshot = _ps_load_all = None
+# Beta learner profile (practice comfort level per learner_id)
+try:
+    from beta_profile import load_profile as _bp_load_profile
+    from beta_profile import save_profile as _bp_save_profile
+except ImportError:
+    _bp_load_profile = _bp_save_profile = None
 # Phase 10 Step 6: persona for persona-consistent stubs
 try:
     from persona_data import get_persona as _get_persona
@@ -4105,6 +4118,162 @@ def _text_signals_work_occupation(text: str) -> bool:
     return any(kw in text for kw in _WORK_OCCUPATION_KEYWORDS)
 
 
+# ── Local conversational probing: learner-answer affordance signals ──────────
+_META_PLACE_NAMES: frozenset = frozenset({"中国", "大陆", "内地", "台湾", "香港", "澳门"})
+
+_FAMILY_PERSON_KEYWORDS: tuple = (
+    "爸爸", "妈妈", "父母", "家人", "老婆", "太太", "爱人", "丈夫",
+    "孩子", "儿子", "女儿", "哥哥", "姐姐", "弟弟", "妹妹", "爷爷", "奶奶",
+)
+
+_TRAVEL_INTENT_KEYWORDS: tuple = ("想去", "打算去", "计划去", "要去", "希望去")
+
+_FOOD_AFFORDANCE_KEYWORDS: tuple = (
+    "吃", "好吃", "美食", "菜", "饭", "火锅", "肉", "羊肉", "牛肉", "面", "饺子",
+)
+
+_DURATION_AFFORDANCE_KEYWORDS: tuple = (
+    "以前", "之前", "多久", "几年", "年了", "做了", "已经", "住了",
+)
+
+
+def _text_mentions_domestic_city(text: str) -> bool:
+    """True when text names a domestic city/province (excl. meta region tokens)."""
+    if not text:
+        return False
+    return any(c in text for c in _CHINA_DOMESTIC_PLACE_NAMES if c not in _META_PLACE_NAMES)
+
+
+def _text_signals_travel_intent(text: str) -> bool:
+    if not text:
+        return False
+    if any(k in text for k in _TRAVEL_INTENT_KEYWORDS):
+        return True
+    return any(k in text for k in ("旅行", "旅游", "去过"))
+
+
+def _text_signals_family_disclosure(text: str) -> bool:
+    if not text:
+        return False
+    if any(k in text for k in ("一起住", "住在一起", "同住")):
+        return True
+    family_hits = sum(1 for k in _FAMILY_PERSON_KEYWORDS if k in text)
+    return family_hits >= 2 or (family_hits >= 1 and "住" in text)
+
+
+def _text_signals_food_disclosure(text: str) -> bool:
+    if not text:
+        return False
+    return any(k in text for k in _FOOD_AFFORDANCE_KEYWORDS)
+
+
+def _infer_local_probe_boost_topics(text: str) -> frozenset:
+    """Map recent learner/partner text to mirror topics for local follow-up probes."""
+    if not text:
+        return frozenset()
+    t = text.strip()
+    boost: set = set()
+
+    has_city = _text_mentions_domestic_city(t)
+    has_place = has_city or any(k in t for k in ("地方", "那里", "那边", "城市", "家乡", "老家"))
+    has_work = _text_signals_work_occupation(t)
+
+    if has_place:
+        boost.update((
+            "place_like", "place_why_like", "place_food", "place_special", "place_still_live",
+        ))
+
+    if has_work:
+        boost.update(("work_duration", "work_like", "work_why", "work_interesting"))
+        if "老师" in t or "教书" in t:
+            boost.add("work_students")
+
+    if _text_signals_family_disclosure(t):
+        boost.update((
+            "family_live", "family_weekend", "marriage", "children", "family_size",
+        ))
+
+    if _text_signals_travel_intent(t):
+        boost.update((
+            "travel_why_fav", "travel_next", "place_never_been", "travel_fav",
+        ))
+
+    if _text_signals_food_disclosure(t):
+        boost.update(("food_fav", "food_why_like", "food_cook", "food_spicy"))
+
+    if any(k in t for k in _DURATION_AFFORDANCE_KEYWORDS):
+        if has_work:
+            boost.add("work_duration")
+        elif "玩" in t or "爱好" in t or "学" in t:
+            boost.add("hobby_duration")
+        elif has_place:
+            boost.update(("place_like", "place_why_like"))
+
+    return frozenset(boost)
+
+
+def _local_affordance_relevance_bonus(topic: str, combined: str) -> int:
+    """Extra relevance when a question topic matches a local disclosure affordance."""
+    if not combined or not topic:
+        return 0
+    bonus = 0
+    if topic.startswith("place_") and (
+        _text_mentions_domestic_city(combined)
+        or any(k in combined for k in ("那里", "老家", "家乡", "城市"))
+    ):
+        bonus += 8
+    if topic.startswith("work_") and _text_signals_work_occupation(combined):
+        bonus += 8
+    if (topic.startswith("family_") or topic in ("marriage", "children")) and (
+        any(k in combined for k in _FAMILY_PERSON_KEYWORDS)
+        or "一起住" in combined
+        or "住在一起" in combined
+    ):
+        bonus += 8
+    if (topic.startswith("travel_") or topic == "place_never_been") and _text_signals_travel_intent(combined):
+        bonus += 8
+    if topic.startswith("food_") and _text_signals_food_disclosure(combined):
+        bonus += 8
+    if topic.endswith("_duration") and any(k in combined for k in _DURATION_AFFORDANCE_KEYWORDS):
+        bonus += 6
+    return bonus
+
+
+def _resolve_discovery_engine_for_context(
+    disc_eng: str,
+    ctx_text: str,
+    *,
+    overseas_detected: bool = False,
+    reply_for_eng: str = "",
+) -> str:
+    """Pick discovery pool engine from recent disclosure context (ranking only)."""
+    eng = (disc_eng or "").strip().lower()
+    if overseas_detected and eng in ("identity",):
+        return "place"
+
+    probe = _discovery_context_merge(ctx_text, reply_for_eng)
+    if not probe:
+        return eng
+
+    if _text_signals_travel_intent(probe):
+        return "travel"
+    if _text_signals_family_disclosure(probe):
+        return "family"
+    if _text_signals_food_disclosure(probe) and not _text_signals_work_occupation(probe):
+        return "food"
+    if _text_signals_work_occupation(probe):
+        return "work"
+    if _text_mentions_domestic_city(probe) or any(k in probe for k in ("老家", "家乡", "城市")):
+        return "place"
+
+    if reply_for_eng and any(kw in reply_for_eng for kw in _PERSONA_REVEAL_KEYWORDS[:15]):
+        return "place"
+    if eng in ("identity",) and _text_signals_work_occupation(probe):
+        return "work"
+
+    return eng
+
+
 def _discovery_context_merge(*parts: str) -> str:
     """Join non-empty discovery context fragments (same-turn + prior-turn)."""
     return " ".join(p.strip() for p in parts if p and p.strip())
@@ -4220,6 +4389,8 @@ def _discovery_relevance_score(q: dict, frame_text: str, context_text: str) -> i
     if _combined and topic.startswith("work_"):
         if any(k in _combined for k in ("开发", "软件", "程序员", "工程师", "从事")):
             score += 8
+
+    score += _local_affordance_relevance_bonus(topic, _combined)
 
     return min(score, 20)
 
@@ -5376,6 +5547,7 @@ def _stub_card_id(frame_id: str):
 # conversation selector, frame engine, or any turn-level runtime logic.
 
 _PROGRESS_HISTORY_PATH = REPO_ROOT / "data" / "progress_history.json"
+_BETA_ADMIN_TOKEN = (os.environ.get("MANDARINOS_BETA_ADMIN_TOKEN") or "beta_export_local").strip()
 
 
 def _scorecard_flow(total_turns: int) -> dict:
@@ -5391,19 +5563,85 @@ def _scorecard_flow(total_turns: int) -> dict:
     return {"raw": n, "label": label}
 
 
-def _scorecard_recovery(recovery_uses: int, successful_recoveries: int) -> dict:
+def _scorecard_recovery(
+    recovery_uses: int,
+    successful_recoveries: int,
+    conversational_recoveries: int = 0,
+    successful_conversational_recoveries: int = 0,
+) -> dict:
     uses = recovery_uses
-    successes = min(successful_recoveries, uses)  # guard: successes cannot exceed uses
-    rate = round(successes / uses, 3) if uses > 0 else None
-    if uses == 0:
+    phrase_successes = min(successful_recoveries, uses) if uses > 0 else 0
+    conv = max(0, conversational_recoveries)
+    conv_success = (
+        min(successful_conversational_recoveries, conv)
+        if conv > 0
+        else max(0, successful_conversational_recoveries)
+    )
+    rate = round(phrase_successes / uses, 3) if uses > 0 else None
+    total_moments = uses + conv
+    total_success = phrase_successes + conv_success
+
+    if total_moments == 0:
         label = "Smooth"
+    elif conv > 0 and uses == 0:
+        if conv_success >= conv:
+            label = "Got back on track"
+        elif conv_success >= 1:
+            label = "Kept going after confusion"
+        else:
+            label = "Tried to recover"
+    elif uses <= 3 and rate is not None and rate >= 0.70 and conv_success >= 1:
+        label = "Recovered smoothly"
     elif uses <= 3 and rate is not None and rate >= 0.70:
         label = "Recovered smoothly"
+    elif total_moments <= 7 and total_success >= max(1, total_moments // 2):
+        label = "Recovered with effort"
     elif uses <= 7 and rate is not None and rate >= 0.50:
         label = "Recovered with effort"
     else:
         label = "Struggling to recover"
-    return {"raw_uses": uses, "raw_successes": successes, "rate": rate, "label": label}
+
+    display_summary = _recovery_display_summary(
+        uses, phrase_successes, conv, conv_success,
+    )
+
+    return {
+        "raw_uses": uses,
+        "raw_successes": phrase_successes,
+        "conversational_recoveries": conv,
+        "successful_conversational_recoveries": conv_success,
+        "display_summary": display_summary,
+        "rate": rate,
+        "label": label,
+    }
+
+
+def _recovery_display_summary(
+    phrase_uses: int,
+    phrase_successes: int,
+    conv: int,
+    conv_success: int,
+) -> str:
+    """User-facing recovery line — phrase recoveries vs learner self-repair."""
+    if phrase_uses == 0 and conv == 0:
+        return "0 recovery moments"
+    parts: list = []
+    if phrase_uses > 0:
+        parts.append(
+            f"{phrase_uses} phrase recover{'y' if phrase_uses == 1 else 'ies'}"
+            f" ({phrase_successes} successful)"
+        )
+    if conv > 0:
+        if conv_success >= conv:
+            parts.append(
+                f"{conv} time{'s' if conv != 1 else ''} you got back on track"
+            )
+        else:
+            parts.append(
+                f"{conv} self-repair moment{'s' if conv != 1 else ''}"
+                f" ({conv_success} continued)"
+            )
+    return " · ".join(parts)
 
 
 def _scorecard_support(suggestion_clicks: int, card_opens: int, total_turns: int) -> dict:
@@ -5481,6 +5719,10 @@ def _derive_conversation_signals(sess: dict) -> dict:
     soft_unmatched        = max(0, int(sess.get("soft_unmatched_responses", 0) or 0))
     recovery_uses         = max(0, int(sess.get("recovery_uses",           0) or 0))
     successful_recoveries = max(0, int(sess.get("successful_recoveries",   0) or 0))
+    conversational_recoveries = max(0, int(sess.get("conversational_recoveries", 0) or 0))
+    successful_conversational_recoveries = max(
+        0, int(sess.get("successful_conversational_recoveries", 0) or 0),
+    )
 
     effective_unclear = unmatched_responses + round(soft_unmatched * 0.5)
 
@@ -5492,6 +5734,8 @@ def _derive_conversation_signals(sess: dict) -> dict:
 
     continued_after_ambiguity = (
         successful_recoveries >= 1
+        or successful_conversational_recoveries >= 1
+        or conversational_recoveries >= 1
         or (recovery_uses >= 1 and successful_recoveries > 0)
         or (
             effective_unclear >= 1
@@ -5666,6 +5910,10 @@ def _compute_scorecard(sess: dict) -> dict:
     total_turns           = max(0, int(sess.get("total_turns",             0) or 0))
     recovery_uses         = max(0, int(sess.get("recovery_uses",           0) or 0))
     successful_recoveries = max(0, int(sess.get("successful_recoveries",   0) or 0))
+    conversational_recoveries = max(0, int(sess.get("conversational_recoveries", 0) or 0))
+    successful_conversational_recoveries = max(
+        0, int(sess.get("successful_conversational_recoveries", 0) or 0),
+    )
     suggestion_clicks     = max(0, int(sess.get("suggestion_clicks",       0) or 0))
     card_opens            = max(0, int(sess.get("card_opens",              0) or 0))
     questions_asked       = max(0, int(sess.get("questions_asked",         0) or 0))
@@ -5674,7 +5922,12 @@ def _compute_scorecard(sess: dict) -> dict:
     soft_unmatched        = max(0, int(sess.get("soft_unmatched_responses", 0) or 0))
     return {
         "flow":          _scorecard_flow(total_turns),
-        "recovery":      _scorecard_recovery(recovery_uses, successful_recoveries),
+        "recovery":      _scorecard_recovery(
+            recovery_uses,
+            successful_recoveries,
+            conversational_recoveries,
+            successful_conversational_recoveries,
+        ),
         "support":       _scorecard_support(suggestion_clicks, card_opens, total_turns),
         "participation": _scorecard_participation(questions_asked),
         "depth":         _scorecard_depth(depth_responses),
@@ -5689,35 +5942,193 @@ def _conversation_stability_score(
     sess: Optional[dict] = None,
 ) -> Optional[int]:
     """
-    Return 0–100 progress stability score (higher = stronger conversational survivability).
-    Base uses the normalized stability rate from _scorecard_stability (unchanged labels).
-    Optional engagement bonus rewards sustained participation through turbulence — does not
-    change scorecard stability row labels.
+    Return 0–100 progress stability score for the Progress tab graph/table.
+    Reflects conversational turbulence (unclear/repair moments), not collapse alone.
+    Does not alter _scorecard_stability row labels on the session scorecard.
     """
     if total_turns < 2:
         return None
-    rate = stability.get("rate")
-    if rate is None:
-        return None
-    try:
-        rate_f = float(rate)
-    except (TypeError, ValueError):
-        return None
-    base = round(100 * (1 - min(max(rate_f, 0.0), 1.0)))
-    bonus = 0
-    if sess:
-        sig = _derive_conversation_signals(sess)
-        if sig["turbulence_survived"]:
-            bonus += 10
-        if sig["continued_after_ambiguity"]:
-            bonus += 5
-        if sig["strong_reciprocity"]:
-            bonus += 5
-        if sig["extended_imperfect"]:
-            bonus += 5
-        if sig["conversational_persistence"]:
-            bonus += 5
-    return max(0, min(100, base + min(bonus, 20)))
+
+    # Bare rate-only path (no session counters) — used in a few unit comparisons.
+    if not sess:
+        rate = stability.get("rate")
+        if rate is None:
+            return None
+        try:
+            rate_f = float(rate)
+        except (TypeError, ValueError):
+            return None
+        return round(100 * (1 - min(max(rate_f, 0.0), 1.0)))
+
+    hard = max(0, int(sess.get("unmatched_responses", 0) or 0))
+    soft = max(0, int(sess.get("soft_unmatched_responses", 0) or 0))
+    recovery_uses = max(0, int(sess.get("recovery_uses", 0) or 0))
+    conv_rec = max(0, int(sess.get("conversational_recoveries", 0) or 0))
+    effective_unclear = hard + round(soft * 0.5)
+    repair_moments = recovery_uses + conv_rec
+
+    if effective_unclear == 0 and repair_moments == 0:
+        return 100
+
+    per_event = hard * 8 + round(soft * 0.5) * 5
+    if total_turns >= 20:
+        per_event = round(per_event * 0.85)
+    if total_turns >= 30:
+        per_event = round(per_event * 0.85)
+
+    rate_penalty = round(
+        50 * min(effective_unclear / max(total_turns, 1), 0.5),
+    )
+    repair_penalty = recovery_uses * 4 + conv_rec * 2
+    short_penalty = 6 if total_turns < 12 and effective_unclear >= 1 else 0
+    deduction = per_event + rate_penalty + repair_penalty + short_penalty
+
+    credit = 0
+    sig = _derive_conversation_signals(sess)
+    if effective_unclear >= 1 and sig["continued_after_ambiguity"]:
+        credit += 4
+    if sig["turbulence_survived"]:
+        credit += 4
+    credit = min(8, credit)
+
+    score = 100 - deduction + credit
+
+    if effective_unclear >= 1:
+        score = min(score, 92)
+    if effective_unclear >= 2:
+        score = min(score, 88 if total_turns >= 15 else 79)
+    if effective_unclear >= 4:
+        score = min(score, 72)
+    if repair_moments >= 3:
+        score = min(score, 75)
+
+    return max(0, min(100, round(score)))
+
+
+def _count_learning_support_actions(sess: dict) -> int:
+    """Support actions for Progress Support tier — excludes card exploration and phrase recovery."""
+    return sum(
+        max(0, int(sess.get(k, 0) or 0))
+        for k in (
+            "suggestion_clicks",
+            "hint_clicks",
+            "display_en_clicks",
+            "display_py_clicks",
+            "translation_help_uses",
+        )
+    )
+
+
+def _format_progress_support_label(sess: dict) -> str:
+    """Progress-table Support tier — encouraging, not punitive."""
+    n = _count_learning_support_actions(sess)
+    if n == 0:
+        return "None"
+    if n <= 2:
+        return "Light"
+    if n <= 5:
+        return "Moderate"
+    return "Heavy"
+
+
+def _format_progress_flow_label(
+    *,
+    score: Optional[int],
+    unclear_turns: int,
+    total_turns: int,
+    turbulence_survived: bool,
+    continued_after_ambiguity: bool,
+    recovery_uses: int = 0,
+    conversational_recoveries: int = 0,
+    soft_unclear_turns: int = 0,
+) -> str:
+    """Progress-table Flow label — turbulence signals first, not inflated score."""
+    repair_moments = recovery_uses + conversational_recoveries
+    effective_unclear = unclear_turns + round(soft_unclear_turns * 0.5)
+    has_turbulence = effective_unclear > 0 or repair_moments > 0
+
+    if not has_turbulence:
+        if score is None:
+            return "—"
+        if score >= 95:
+            return "Smooth"
+        if score >= 80:
+            return "Stable"
+        return "Difficult but continued"
+
+    if repair_moments >= 3 or effective_unclear >= 4:
+        return "Worked through turbulence"
+    if turbulence_survived or (total_turns >= 15 and effective_unclear >= 2):
+        return "Messy but sustained"
+    if effective_unclear >= 2 or repair_moments >= 2:
+        return "Messy but sustained"
+    if continued_after_ambiguity or total_turns >= 8:
+        return "Stayed on track"
+    return "Difficult but continued"
+
+
+def _format_progress_recovery_label(
+    *,
+    unclear_turns: int,
+    recovery_uses: int,
+    recovery_success_rate: Optional[float],
+    conversational_recoveries: int,
+    successful_conversational_recoveries: int,
+    continued_after_ambiguity: bool,
+    total_turns: int,
+    questions_asked: int = 0,
+) -> str:
+    """Progress-table Recovery cell — aligned with scorecard self-repair story."""
+    has_self_repair = successful_conversational_recoveries > 0
+    has_conv_attempts = conversational_recoveries > 0
+    has_phrase_support = recovery_uses > 0
+
+    if has_phrase_support and has_self_repair:
+        return "Used support + self-recovered"
+    if has_phrase_support:
+        if recovery_success_rate is not None:
+            pct = round(float(recovery_success_rate) * 100)
+            return f"App-assisted ({pct}%)" if pct < 100 else "App-assisted"
+        return "App-assisted"
+    if has_self_repair:
+        if successful_conversational_recoveries >= 2:
+            return "Self-recovered often"
+        return "Self-recovered"
+    if has_conv_attempts:
+        return "Kept going"
+    if unclear_turns > 0 and continued_after_ambiguity:
+        if questions_asked >= 2 and total_turns >= 12:
+            return "Kept going"
+        return "Stayed on track"
+    if unclear_turns == 0 and recovery_uses == 0:
+        return "Smooth"
+    if unclear_turns > 0:
+        return "Stayed on track"
+    return "No system help"
+
+
+def _format_progress_stability_label(
+    *,
+    score: Optional[int],
+    unclear_turns: int,
+    total_turns: int,
+    turbulence_survived: bool,
+    continued_after_ambiguity: bool,
+    recovery_uses: int = 0,
+    conversational_recoveries: int = 0,
+    soft_unclear_turns: int = 0,
+) -> str:
+    """Legacy alias — label-only flow (no numeric prefix). Prefer flow_display_label."""
+    return _format_progress_flow_label(
+        score=score,
+        unclear_turns=unclear_turns,
+        total_turns=total_turns,
+        turbulence_survived=turbulence_survived,
+        continued_after_ambiguity=continued_after_ambiguity,
+        recovery_uses=recovery_uses,
+        conversational_recoveries=conversational_recoveries,
+        soft_unclear_turns=soft_unclear_turns,
+    )
 
 
 def _build_progress_snapshot(
@@ -5734,14 +6145,21 @@ def _build_progress_snapshot(
     successful_recoveries = max(0, int(sess.get("successful_recoveries",   0) or 0))
     suggestion_clicks     = max(0, int(sess.get("suggestion_clicks",       0) or 0))
     card_opens            = max(0, int(sess.get("card_opens",              0) or 0))
+    conversational_recoveries = max(0, int(sess.get("conversational_recoveries", 0) or 0))
+    successful_conversational_recoveries = max(
+        0, int(sess.get("successful_conversational_recoveries", 0) or 0),
+    )
     display_en_clicks     = max(0, int(sess.get("display_en_clicks",     0) or 0))
     display_py_clicks     = max(0, int(sess.get("display_py_clicks",     0) or 0))
     hint_clicks           = max(0, int(sess.get("hint_clicks",           0) or 0))
+    translation_help_uses = max(0, int(sess.get("translation_help_uses", 0) or 0))
     questions_asked       = max(0, int(sess.get("questions_asked",         0) or 0))
     depth_responses       = max(0, int(sess.get("depth_responses",         0) or 0))
     unmatched_responses   = max(0, int(sess.get("unmatched_responses",     0) or 0))
+    soft_unmatched        = max(0, int(sess.get("soft_unmatched_responses", 0) or 0))
     mode                  = (sess.get("mode") or "normal").strip().lower()
     session_id            = (sess.get("session_id") or "").strip()
+    learner_id            = (sess.get("learner_id") or "").strip() or None
 
     engines = sess.get("engines_used")
     if not isinstance(engines, list):
@@ -5766,8 +6184,35 @@ def _build_progress_snapshot(
 
     prog_sig = _derive_conversation_signals(sess)
 
+    stability_score = _conversation_stability_score(
+        stability, total_turns, sess,
+    )
+    recovery_display_label = _format_progress_recovery_label(
+        unclear_turns=unmatched_responses,
+        recovery_uses=recovery_uses,
+        recovery_success_rate=recovery_success_rate,
+        conversational_recoveries=conversational_recoveries,
+        successful_conversational_recoveries=successful_conversational_recoveries,
+        continued_after_ambiguity=prog_sig["continued_after_ambiguity"],
+        total_turns=total_turns,
+        questions_asked=questions_asked,
+    )
+    flow_display_label = _format_progress_flow_label(
+        score=stability_score,
+        unclear_turns=unmatched_responses,
+        total_turns=total_turns,
+        turbulence_survived=prog_sig["turbulence_survived"],
+        continued_after_ambiguity=prog_sig["continued_after_ambiguity"],
+        recovery_uses=recovery_uses,
+        conversational_recoveries=conversational_recoveries,
+        soft_unclear_turns=soft_unmatched,
+    )
+    support_display_label = _format_progress_support_label(sess)
+    stability_display_label = flow_display_label
+
     return {
         "session_id":                    session_id,
+        "learner_id":                    learner_id,
         "created_at":                    created_at,
         "tier":                          tier_norm,
         "persona_id":                    (persona_id or sess.get("persona_id") or "").strip() or None,
@@ -5777,6 +6222,8 @@ def _build_progress_snapshot(
         "questions_asked":               questions_asked,
         "recovery_uses":                 recovery_uses,
         "successful_recoveries":         successful_recoveries,
+        "conversational_recoveries":     conversational_recoveries,
+        "successful_conversational_recoveries": successful_conversational_recoveries,
         "unclear_turns":                 unmatched_responses,
         "depth_responses":               depth_responses,
         "engines_used":                  engines,
@@ -5785,10 +6232,14 @@ def _build_progress_snapshot(
         "display_en_clicks":             display_en_clicks,
         "display_py_clicks":             display_py_clicks,
         "hint_clicks":                   hint_clicks,
-        "conversation_stability_score":  _conversation_stability_score(
-            stability, total_turns, sess,
-        ),
+        "translation_help_uses":         translation_help_uses,
+        "conversation_stability_score":  stability_score,
         "recovery_success_rate":         recovery_success_rate,
+        "recovery_display_label":        recovery_display_label,
+        "flow_display_label":            flow_display_label,
+        "support_display_label":         support_display_label,
+        "stability_display_label":       stability_display_label,
+        "card_exploration_count":        card_opens,
         "progress_signals": {
             "turbulence_survived":         prog_sig["turbulence_survived"],
             "continued_after_ambiguity":   prog_sig["continued_after_ambiguity"],
@@ -5866,6 +6317,63 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
 
+        if path == "/api/progress/all":
+            token = (qs.get("admin_token", [""])[0] or "").strip()
+            if not _BETA_ADMIN_TOKEN or token != _BETA_ADMIN_TOKEN:
+                self._json_error(403, "invalid or missing admin_token")
+                return
+            if not _ps_load_all:
+                self._json_error(503, "progress store unavailable")
+                return
+            all_data = _ps_load_all()
+            data = json.dumps({"ok": True, "learners": all_data}, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/progress":
+            learner_id = (qs.get("learner_id", [""])[0] or "").strip()
+            if not learner_id:
+                self._json_error(400, "missing learner_id")
+                return
+            if not _ps_load_snapshots:
+                self._json_error(503, "progress store unavailable")
+                return
+            snapshots = _ps_load_snapshots(learner_id)
+            data = json.dumps(
+                {"ok": True, "learner_id": learner_id, "snapshots": snapshots},
+                ensure_ascii=False,
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/beta_profile":
+            learner_id = (qs.get("learner_id", [""])[0] or "").strip()
+            if not learner_id:
+                self._json_error(400, "missing learner_id")
+                return
+            if not _bp_load_profile:
+                self._json_error(503, "beta profile unavailable")
+                return
+            profile = _bp_load_profile(learner_id)
+            data = json.dumps(
+                {"ok": True, "learner_id": learner_id, "profile": profile},
+                ensure_ascii=False,
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
         if path.startswith("/runtime/"):
             file_path = RUNTIME_DIR / path[len("/runtime/"):]
         elif path.startswith("/data/"):
@@ -5926,6 +6434,74 @@ class Handler(BaseHTTPRequestHandler):
                 result = {"ok": False, "error": "missing learner_id or memory module unavailable"}
             data = json.dumps(result).encode("utf-8")
             self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/save_progress":
+            length = int(self.headers.get("Content-Length", 0))
+            body   = self.rfile.read(length)
+            try:
+                payload = json.loads(body)
+            except Exception:
+                payload = {}
+            learner_id = (payload.get("learner_id") or "").strip()
+            snapshot = payload.get("snapshot") or payload.get("progress_snapshot")
+            if not learner_id:
+                self._json_error(400, "missing learner_id")
+                return
+            if not isinstance(snapshot, dict):
+                self._json_error(400, "missing snapshot")
+                return
+            if not _ps_save_snapshot:
+                self._json_error(503, "progress store unavailable")
+                return
+            ok = _ps_save_snapshot(learner_id, snapshot)
+            sid = (snapshot.get("session_id") or "").strip()
+            result = {
+                "ok": ok,
+                "learner_id": learner_id,
+                "session_id": sid or None,
+            }
+            data = json.dumps(result, ensure_ascii=False).encode("utf-8")
+            self.send_response(200 if ok else 500)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/beta_profile":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length else b"{}"
+            try:
+                payload = json.loads(body)
+            except Exception:
+                payload = {}
+            learner_id = (payload.get("learner_id") or "").strip()
+            learner_level = (payload.get("learner_level") or "").strip()
+            if not learner_id:
+                self._json_error(400, "missing learner_id")
+                return
+            if not learner_level:
+                self._json_error(400, "missing learner_level")
+                return
+            if not _bp_save_profile:
+                self._json_error(503, "beta profile unavailable")
+                return
+            updates = {
+                "learner_level": learner_level,
+                "level_source": (payload.get("level_source") or "self_selected").strip(),
+            }
+            if isinstance(payload.get("comfort_mode"), bool):
+                updates["comfort_mode"] = payload["comfort_mode"]
+            ok = _bp_save_profile(learner_id, updates)
+            profile = _bp_load_profile(learner_id) if ok and _bp_load_profile else {}
+            result = {"ok": ok, "learner_id": learner_id, "profile": profile}
+            data = json.dumps(result, ensure_ascii=False).encode("utf-8")
+            self.send_response(200 if ok else 400)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
@@ -8358,6 +8934,14 @@ class Handler(BaseHTTPRequestHandler):
                     (_counter_reply or "").strip(),
                 )
 
+                # Local probe boost: recent learner answer (+ prior context) surfaces
+                # place/work/family/travel/food follow-ups before generic fallbacks.
+                _probe_ctx_base = _discovery_context_merge(
+                    answer_text, _disc_context_prev,
+                )
+                _local_boost = _infer_local_probe_boost_topics(_probe_ctx_base)
+                _all_boost: frozenset = _dist_boost | _local_boost
+
                 # ── Blue panel debug trace ─────────────────────────────────────
                 _dbg_last_pf_pre = (cs.get("last_partner_frame_id") or "").strip()
                 _dbg_in_recip    = _dbg_last_pf_pre in _RECIPROCAL_FRAME_TO_Q
@@ -8384,8 +8968,8 @@ class Handler(BaseHTTPRequestHandler):
                     _disc_eng_p0 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
                     _disc_pool   = _build_discovery_pool(
                         _disc_eng_p0, _backed_tpcs, _rich_engs, _seen_topics_disc,
-                        boost_topics=_dist_boost,
-                        frame_text=_disc_frame_text, context_text="",
+                        boost_topics=_all_boost,
+                        frame_text=_disc_frame_text, context_text=answer_text or "",
                     )
                     if _disc_pool:
                         response["discovery_questions"] = _disc_pool[:3]
@@ -8406,21 +8990,20 @@ class Handler(BaseHTTPRequestHandler):
                     _disc_eng    = (current_engine or engine_id or "").strip().lower()
                     _backed_tpcs = _persona_backed_topics(persona)
                     _rich_engs   = _persona_rich_engines(persona)
-                    _disc_eng_p1 = _disc_eng
                     _reply_for_eng = (_counter_reply or "")
-                    if _overseas_detected and _disc_eng_p1 in ("identity",):
-                        _disc_eng_p1 = "place"
-                    elif any(kw in _reply_for_eng for kw in _PERSONA_REVEAL_KEYWORDS[:15]):
-                        _disc_eng_p1 = "place"
-                    elif _text_signals_work_occupation(_reply_for_eng):
-                        _disc_eng_p1 = "work"
+                    _disc_eng_p1 = _resolve_discovery_engine_for_context(
+                        _disc_eng,
+                        _discovery_context_merge(answer_text, _reply_for_eng),
+                        overseas_detected=_overseas_detected,
+                        reply_for_eng=_reply_for_eng,
+                    )
                     # Path 1: user's own question is the "frame"; persona reply is rich context
                     _disc_pool   = _build_discovery_pool(
                         _disc_eng_p1, _backed_tpcs, _rich_engs, _seen_topics_disc,
-                        boost_topics=_dist_boost,
+                        boost_topics=_all_boost,
                         frame_text=answer_text or _disc_frame_text,
                         context_text=_discovery_context_merge(
-                            _counter_reply, _disc_same_turn,
+                            answer_text, _counter_reply, _disc_same_turn,
                         ),
                     )
 
@@ -8452,21 +9035,17 @@ class Handler(BaseHTTPRequestHandler):
                     _disc_eng    = (current_engine or engine_id or "").strip().lower()
                     _backed_tpcs = _persona_backed_topics(persona)
                     _rich_engs   = _persona_rich_engines(persona)
-                    _disc_eng_p2 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
                     # Path 2: combine current answer + previous persona reveal so that
                     # food/place/work keywords from the persona's previous turn carry forward.
                     _ctx_p2 = _discovery_context_merge(
-                        _counter_reply, answer_text, _disc_context_prev, _disc_same_turn,
+                        answer_text, _counter_reply, _disc_context_prev, _disc_same_turn,
                     )
-                    if (
-                        not _overseas_detected
-                        and _disc_eng_p2 in ("identity",)
-                        and _text_signals_work_occupation(_ctx_p2)
-                    ):
-                        _disc_eng_p2 = "work"
+                    _disc_eng_p2 = _resolve_discovery_engine_for_context(
+                        _disc_eng, _ctx_p2, overseas_detected=_overseas_detected,
+                    )
                     _disc_pool   = _build_discovery_pool(
                         _disc_eng_p2, _backed_tpcs, _rich_engs, _seen_topics_disc,
-                        boost_topics=_dist_boost,
+                        boost_topics=_all_boost,
                         frame_text=_disc_frame_text or _disc_same_turn,
                         context_text=_ctx_p2,
                     )
@@ -8508,19 +9087,15 @@ class Handler(BaseHTTPRequestHandler):
                         _disc_eng    = (current_engine or engine_id or "").strip().lower()
                         _backed_tpcs = _persona_backed_topics(persona)
                         _rich_engs   = _persona_rich_engines(persona)
-                        _disc_eng_p4 = "place" if (_overseas_detected and _disc_eng in ("identity",)) else _disc_eng
                         _ctx_p4 = _discovery_context_merge(
                             answer_text, _disc_context_prev, _disc_same_turn,
                         )
-                        if (
-                            not _overseas_detected
-                            and _disc_eng_p4 in ("identity",)
-                            and _text_signals_work_occupation(_ctx_p4)
-                        ):
-                            _disc_eng_p4 = "work"
+                        _disc_eng_p4 = _resolve_discovery_engine_for_context(
+                            _disc_eng, _ctx_p4, overseas_detected=_overseas_detected,
+                        )
                         _disc_pool   = _build_discovery_pool(
                             _disc_eng_p4, _backed_tpcs, _rich_engs, _seen_topics_disc,
-                            boost_topics=_dist_boost,
+                            boost_topics=_all_boost,
                             frame_text=_disc_frame_text or _disc_same_turn,
                             context_text=_ctx_p4,
                         )
@@ -8844,6 +9419,19 @@ class Handler(BaseHTTPRequestHandler):
                 persona_id=persona_id,
                 duration_seconds=duration_seconds,
             )
+            learner_id = (sess.get("learner_id") or progress_snapshot.get("learner_id") or "").strip()
+            if learner_id and _ps_save_snapshot:
+                try:
+                    _ps_save_snapshot(learner_id, progress_snapshot)
+                    print(
+                        f"[ui_server] /api/end_session: progress saved for learner_id={learner_id!r}",
+                        flush=True,
+                    )
+                except Exception as exc:
+                    print(
+                        f"[ui_server] /api/end_session: progress save failed: {exc}",
+                        flush=True,
+                    )
             print(
                 f"[ui_server] /api/end_session session_id={session_id!r} mode={mode!r} "
                 f"turns={sess.get('total_turns', 0)} flow={metrics['flow']['label']!r}",
@@ -8874,6 +9462,11 @@ class Handler(BaseHTTPRequestHandler):
                 "metrics":           metrics,
                 "progress_snapshot": progress_snapshot,
                 "progress_saved":    True,
+                "session_interpretation": {
+                    "flow":     progress_snapshot.get("flow_display_label"),
+                    "recovery": progress_snapshot.get("recovery_display_label"),
+                    "support":  progress_snapshot.get("support_display_label"),
+                },
             }
             data = json.dumps(result, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
@@ -8966,7 +9559,7 @@ def _kill_stale_server_processes(port: int) -> None:
 
 
 if __name__ == "__main__":
-    port = 8765
+    port = int(os.environ.get("PORT", 8765))
     _kill_stale_server_processes(port)
-    print(f"[ui_server] Listening on http://localhost:{port}", flush=True)
+    print(f"[ui_server] Listening on http://0.0.0.0:{port}", flush=True)
     ThreadedHTTPServer(("", port), Handler).serve_forever()

@@ -2,6 +2,45 @@
 body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; }
 .container { display: flex; flex-direction: column; height: 100vh; }
 header { background:#0b4f6c; color: #fff; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+header h1 { margin: 0; font-size: 1.35rem; }
+.header-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.starting-point-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.starting-point-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 600;
+}
+.starting-point-btn {
+  font: 0.82rem Arial, Helvetica, sans-serif;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.starting-point-btn:hover,
+.starting-point-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.72);
+  outline: none;
+}
+.starting-point-btn[data-set="1"] {
+  border-color: #7dd3fc;
+  background: rgba(3, 105, 161, 0.55);
+}
 main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, var(--panel-width)); grid-template-rows: 1fr; gap: var(--gap); padding: 12px; }
 .left { padding: 8px; border-right: 1px solid #eee; overflow: hidden; min-width: 0; min-height: 0; }
 /* Conversation section title — sits above Frame / Start controls */
@@ -1289,3 +1328,73 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
   animation: listen-spin 0.75s linear infinite;
 }
 @keyframes listen-spin { to { transform: rotate(360deg); } }
+
+/* Beta learner level gate — first-run / practice level selection */
+.level-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.55);
+}
+.level-gate-overlay.hidden { display: none; }
+.level-gate-panel {
+  max-width: 520px;
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px 22px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+.level-gate-panel h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  color: #0f172a;
+}
+.level-gate-sub {
+  margin: 0 0 18px;
+  font-size: 0.9rem;
+  color: #475569;
+  line-height: 1.45;
+}
+.level-gate-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.level-gate-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 14px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.level-gate-option:hover,
+.level-gate-option:focus-visible {
+  border-color: #0b4f6c;
+  background: #eff6ff;
+  outline: none;
+}
+.level-gate-option-title {
+  font-weight: 600;
+  color: #0f172a;
+}
+.level-gate-option-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after {
+  content: " (comfort)";
+  font-size: 0.7rem;
+  color: #64748b;
+}

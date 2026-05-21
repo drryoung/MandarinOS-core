@@ -13,7 +13,13 @@
   <body>
     <div class="container">
       <header>
-        <h1>MandarinOS</h1>
+        <div class="header-brand">
+          <h1>MandarinOS</h1>
+          <div class="starting-point-bar" id="startingPointBar">
+            <span class="starting-point-label">Starting point</span>
+            <button id="practiceLevelBtn" type="button" class="starting-point-btn" title="Choose your practice comfort level">Choose your starting point</button>
+          </div>
+        </div>
         <!-- Phase 11C: Persona selector — top bar so partner is always visible -->
         <div class="persona-bar" id="personaBar">
           <span class="persona-bar-label">Partner:</span>
@@ -569,6 +575,26 @@
         font: 0.75rem Arial, Helvetica, sans-serif;
       }
     </style>
+    <div id="levelGateOverlay" class="level-gate-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="levelGateTitle">
+      <div class="level-gate-panel">
+        <h2 id="levelGateTitle">Choose your starting point</h2>
+        <p class="level-gate-sub">Pick the practice comfort level that feels right. You can change this anytime from <strong>Starting point</strong> below the MandarinOS title.</p>
+        <div class="level-gate-options">
+          <button type="button" class="level-gate-option" data-level="beginner">
+            <span class="level-gate-option-title">Just getting started</span>
+            <span class="level-gate-option-desc">Short prompts, English visible, extra support</span>
+          </button>
+          <button type="button" class="level-gate-option" data-level="lower_intermediate">
+            <span class="level-gate-option-title">Studied some Mandarin</span>
+            <span class="level-gate-option-desc">Ready to practice — the standard experience</span>
+          </button>
+          <button type="button" class="level-gate-option" data-level="intermediate">
+            <span class="level-gate-option-title">Can hold a basic conversation</span>
+            <span class="level-gate-option-desc">Less scaffolding, longer open-ended flow</span>
+          </button>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

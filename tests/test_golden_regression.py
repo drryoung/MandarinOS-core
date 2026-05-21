@@ -683,6 +683,9 @@ def test_translation_naturalizer() -> None:
         ("父亲", "爸爸"),
         ("母亲", "妈妈"),
         ("父母", "爸爸妈妈"),
+        ("同住", "一起住"),
+        ("您", "你"),
+        ("与", "跟"),
     ]
     for formal, spoken in required_vocab_pairs:
         check(
@@ -714,6 +717,8 @@ def test_translation_naturalizer() -> None:
         ("i am closest to my wife",    "我跟我老婆最亲近"),
         ("i am retired",               "我退休了"),
         ("i live with my parents",     "我跟爸爸妈妈一起住"),
+        ("do you live with your parents", "你跟爸妈一起住吗？"),
+        ("are you married",            "你结婚了吗？"),
     ]
     for en_key, zh_val in required_overrides:
         check(
@@ -1533,7 +1538,7 @@ def test_scoring_model_refinements() -> None:
           "_tracker._pendingNaturalRecovery = true" in app_src)
     check("T-SMR C3: _pendingNaturalRecovery checked in success handler",
           "_tracker._pendingNaturalRecovery" in app_src and
-          "successful_recoveries++" in app_src)
+          "successful_conversational_recoveries++" in app_src)
     check("T-SMR C4: _pendingNaturalRecovery reset after success check",
           "_tracker._pendingNaturalRecovery = false" in app_src)
     check("T-SMR C5: natural recovery does not break recovery_resilience_count",

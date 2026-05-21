@@ -1,0 +1,2 @@
+# Runtime dependencies for scripts/ui_server.py (Railway beta deployment)
+deep-translator>=1.11.4

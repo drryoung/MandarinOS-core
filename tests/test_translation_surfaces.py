@@ -70,7 +70,78 @@ def test_transcript_resolve_english_chain():
     assert "glossLineCache" in src
 
 
-def test_empty_text_en_does_not_force_zero_percent_recovery_display():
-    """Recovery table/display uses 'Not needed' pattern in progress; transcript uses null gloss."""
+def test_progress_recovery_display_uses_interpretation_labels():
+    """Progress Recovery column uses interpretation labels, not 'Not needed'."""
     src = _src()
-    assert '"Not needed"' in src or "'Not needed'" in src or "Not needed" in src
+    assert "Self-recovered" in src
+    assert "Stayed on track" in src
+    assert "Not needed" not in src
+
+
+def test_spoken_register_pairs_in_vocab_and_naturalizer():
+    src = _src()
+    for formal, spoken in [
+        ("同住", "一起住"),
+        ("居住", "住"),
+        ("您", "你"),
+        ("与", "跟"),
+        ("共同", "一起"),
+    ]:
+        assert f'["{formal}",' in src or f'["{formal}", ' in src
+        assert f'"{spoken}"' in src
+    assert "function _normalizeSpokenRegister" in src
+    assert "..._SPOKEN_REGISTER_PAIRS" in src
+
+
+def test_spoken_register_normalization_logic():
+    """Mirror split/join register normalization used in app.js."""
+
+    def normalize(text):
+        pairs = [
+            ("同住", "一起住"),
+            ("居住", "住"),
+            ("共同", "一起"),
+            ("您", "你"),
+            ("与", "跟"),
+        ]
+        s = text
+        for formal, spoken in pairs:
+            s = spoken.join(s.split(formal))
+        return s
+
+    assert normalize("您与爸爸妈妈同住吗？") == "你跟爸爸妈妈一起住吗？"
+    assert normalize("您居住在这里") == "你住在这里"
+    assert normalize("我们共同生活") == "我们一起生活"
+
+
+def test_translation_overrides_spoken_questions():
+    src = _src()
+    overrides = {
+        "do you live with your parents": "你跟爸妈一起住吗？",
+        "do you live with your family": "你跟家人一起住吗？",
+        "do you live alone": "你一个人住吗？",
+        "are you married": "你结婚了吗？",
+        "do you have children": "你有孩子吗？",
+    }
+    for key, zh in overrides.items():
+        assert f'"{key}"' in src
+        assert f'"{zh}"' in src
+
+
+def test_client_matching_applies_spoken_register():
+    src = _src()
+    assert "function normalizeForMatch" in src
+    assert "_normalizeSpokenRegister(s.trim())" in src
+    nf_block = src.split("function normalizeForMatch")[1].split("function isIncompleteLearnerUtterance")[0]
+    assert "_normalizeSpokenRegister" in nf_block
+    sm_block = src.split("function semanticSoftMatch")[1].split("function shouldAcceptUnmatchedFreeAnswer")[0]
+    assert "_normalizeSpokenRegister" in sm_block
+
+
+def test_curated_response_patterns_unchanged():
+    """Curated JSON content must not be modified by this layer."""
+    patterns = (ROOT / "content" / "response_patterns.json").read_text(encoding="utf-8")
+    assert "我跟家人一起住" in patterns
+    assert "是的，住在一起" in patterns
+    frames = (ROOT / "p2_frames.json").read_text(encoding="utf-8")
+    assert "你跟家人住在一起吗？" in frames

@@ -87,17 +87,15 @@ def test_continued_after_ambiguity_without_formal_recovery_only():
 
 
 def test_progress_stability_bonus_for_messy_sustained():
+    """Messy sustained sessions score below perfect but retain positive interpretation."""
     srv = _load_ui_server()
     metrics_messy = srv._compute_scorecard(MESSY_SUSTAINED)
     snap_messy = srv._build_progress_snapshot(MESSY_SUSTAINED, metrics_messy)
-    base_only = srv._conversation_stability_score(
-        metrics_messy["stability"], MESSY_SUSTAINED["total_turns"], None,
-    )
     assert snap_messy["conversation_stability_score"] is not None
-    assert base_only is not None
-    # Engagement bonus raises progress score above raw unclear-rate alone.
-    assert snap_messy["conversation_stability_score"] > base_only
+    assert snap_messy["conversation_stability_score"] < 80
     assert snap_messy["progress_signals"]["turbulence_survived"] is True
+    cap = srv._scorecard_conversation_capability(MESSY_SUSTAINED)
+    assert cap["headline"]
 
 
 def test_messy_beats_collapsed_short_session_on_interpretation():
@@ -159,9 +157,114 @@ def test_progress_snapshot_includes_communicative_ambition():
     assert snap["progress_signals"].get("communicative_ambition") is True
 
 
+def test_session_interpretation_aligns_with_progress_snapshot():
+    """Scorecard session_interpretation must match progress snapshot labels."""
+    srv = _load_ui_server()
+    sess = {
+        "total_turns": 28,
+        "questions_asked": 7,
+        "unmatched_responses": 4,
+        "soft_unmatched_responses": 3,
+        "recovery_uses": 2,
+        "successful_recoveries": 2,
+        "conversational_recoveries": 3,
+        "successful_conversational_recoveries": 2,
+        "display_en_clicks": 2,
+        "hint_clicks": 1,
+    }
+    metrics = srv._compute_scorecard(sess)
+    snap = srv._build_progress_snapshot(sess, metrics)
+    interpretation = {
+        "flow": snap["flow_display_label"],
+        "recovery": snap["recovery_display_label"],
+        "support": snap["support_display_label"],
+    }
+    assert interpretation["flow"] != "Smooth"
+    assert "Independent" not in interpretation["support"]
+    assert interpretation["recovery"] != "Smooth"
+
+
+def test_supported_session_not_labelled_independent():
+    srv = _load_ui_server()
+    snap = srv._build_progress_snapshot(
+        {"total_turns": 20, "display_en_clicks": 4, "hint_clicks": 2},
+        srv._compute_scorecard(
+            {"total_turns": 20, "display_en_clicks": 4, "hint_clicks": 2},
+        ),
+    )
+    assert snap["support_display_label"] in ("Moderate", "Heavy")
+    assert snap["support_display_label"] != "None"
+
+
 def test_scorecard_stability_labels_unchanged():
     """Raw stability labels still come from rate — interpretation layer is separate."""
     srv = _load_ui_server()
     m = srv._compute_scorecard(MESSY_SUSTAINED)
     assert "label" in m["stability"]
     assert m["stability"]["raw_unmatched"] == 6
+
+
+def test_conversational_recovery_display_without_phrase_uses():
+    srv = _load_ui_server()
+    sess = {
+        "total_turns": 18,
+        "recovery_uses": 0,
+        "successful_recoveries": 0,
+        "conversational_recoveries": 2,
+        "successful_conversational_recoveries": 2,
+    }
+    m = srv._compute_scorecard(sess)
+    rec = m["recovery"]
+    assert rec["raw_uses"] == 0
+    assert rec["conversational_recoveries"] == 2
+    assert "got back on track" in rec["display_summary"].lower()
+    assert rec["label"] != "Smooth"
+
+
+def test_conversational_recovery_zero_unchanged():
+    srv = _load_ui_server()
+    sess = {"total_turns": 10, "recovery_uses": 0, "successful_recoveries": 0}
+    m = srv._compute_scorecard(sess)
+    assert m["recovery"]["display_summary"] == "0 recovery moments"
+    assert m["recovery"]["label"] == "Smooth"
+
+
+def test_conversational_recovery_signals_continued_after_ambiguity():
+    srv = _load_ui_server()
+    sess = {
+        "total_turns": 12,
+        "recovery_uses": 0,
+        "successful_recoveries": 0,
+        "conversational_recoveries": 1,
+        "successful_conversational_recoveries": 1,
+        "unmatched_responses": 2,
+        "depth_responses": 0,
+        "questions_asked": 0,
+    }
+    sig = srv._derive_conversation_signals(sess)
+    assert sig["continued_after_ambiguity"] is True
+
+
+def test_display_support_does_not_change_recovery_metric():
+    srv = _load_ui_server()
+    base = {"total_turns": 15, "recovery_uses": 0, "successful_recoveries": 0}
+    with_display = {
+        **base,
+        "display_en_clicks": 8,
+        "display_py_clicks": 5,
+        "hint_clicks": 4,
+        "conversational_recoveries": 0,
+    }
+    assert srv._compute_scorecard(base)["recovery"] == srv._compute_scorecard(with_display)["recovery"]
+
+
+def test_progress_snapshot_includes_conversational_recovery_fields():
+    srv = _load_ui_server()
+    sess = {
+        "total_turns": 14,
+        "conversational_recoveries": 2,
+        "successful_conversational_recoveries": 1,
+    }
+    snap = srv._build_progress_snapshot(sess, srv._compute_scorecard(sess))
+    assert snap["conversational_recoveries"] == 2
+    assert snap["successful_conversational_recoveries"] == 1
