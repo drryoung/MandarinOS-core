@@ -47,6 +47,34 @@ try:
     from beta_profile import save_profile as _bp_save_profile
 except ImportError:
     _bp_load_profile = _bp_save_profile = None
+
+_LEARNER_MEMORY_FIELD_KEYS = (
+    "learner_name",
+    "hometown",
+    "lives_in",
+    "job_or_study",
+    "family",
+    "favourite_food",
+)
+
+
+def _learner_memory_is_empty(mem: Optional[dict]) -> bool:
+    """True when no factual learner memory fields are populated."""
+    if not isinstance(mem, dict):
+        return True
+    return all(not (mem.get(k) or "").strip() for k in _LEARNER_MEMORY_FIELD_KEYS)
+
+
+def _is_first_time_beta_user(learner_id: str) -> bool:
+    """Server truth: no progress snapshots and no saved learner memory for this learner_id."""
+    lid = (learner_id or "").strip()
+    if not lid:
+        return False
+    if _ps_load_snapshots and _ps_load_snapshots(lid):
+        return False
+    mem = _lm_load(lid) if _lm_load else {}
+    return _learner_memory_is_empty(mem)
+
 # Phase 10 Step 6: persona for persona-consistent stubs
 try:
     from persona_data import get_persona as _get_persona
@@ -6333,7 +6361,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/memory":
             learner_id = (qs.get("learner_id", ["default_learner"])[0] or "default_learner").strip()
             mem = (_lm_load(learner_id) if _lm_load and learner_id else None) or {}
-            data = json.dumps({"ok": True, "learner_id": learner_id, "memory": mem}, ensure_ascii=False).encode("utf-8")
+            payload = {
+                "ok": True,
+                "learner_id": learner_id,
+                "memory": mem,
+                "is_first_time_beta_user": _is_first_time_beta_user(learner_id),
+            }
+            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
@@ -6368,7 +6402,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             snapshots = _ps_load_snapshots(learner_id)
             data = json.dumps(
-                {"ok": True, "learner_id": learner_id, "snapshots": snapshots},
+                {
+                    "ok": True,
+                    "learner_id": learner_id,
+                    "snapshots": snapshots,
+                    "is_first_time_beta_user": _is_first_time_beta_user(learner_id),
+                },
                 ensure_ascii=False,
             ).encode("utf-8")
             self.send_response(200)
@@ -6388,7 +6427,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             profile = _bp_load_profile(learner_id)
             data = json.dumps(
-                {"ok": True, "learner_id": learner_id, "profile": profile},
+                {
+                    "ok": True,
+                    "learner_id": learner_id,
+                    "profile": profile,
+                    "is_first_time_beta_user": _is_first_time_beta_user(learner_id),
+                },
                 ensure_ascii=False,
             ).encode("utf-8")
             self.send_response(200)

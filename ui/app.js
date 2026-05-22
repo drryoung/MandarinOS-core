@@ -359,6 +359,11 @@ const _LEVEL_LABELS = {
 
 if (typeof window._learnerLevel === "undefined") window._learnerLevel = null;
 if (typeof window._comfortMode === "undefined") window._comfortMode = false;
+if (typeof window._isFirstTimeBetaUser === "undefined") window._isFirstTimeBetaUser = false;
+if (typeof window._onboardingGuideDismissed === "undefined") window._onboardingGuideDismissed = false;
+
+const _FIRST_TIME_ONBOARDING_TEXT =
+  "Choose persona and conversation frame, then try to have a conversation.";
 
 function _defaultTranscriptLineUiState(role) {
   const showPy = !!(window._comfortMode && role === "partner");
@@ -432,8 +437,32 @@ function _updatePracticeLevelBtnLabel() {
   btn.textContent = label;
   btn.dataset.set = hasLevel ? "1" : "0";
   btn.title = hasLevel
-    ? `Starting point: ${label} — click to change`
+    ? `Choose your starting point: ${label} — click to change`
     : "Choose your practice comfort level";
+}
+
+function _dismissOnboardingGuideIfActive() {
+  if (!window._isFirstTimeBetaUser || window._onboardingGuideDismissed) return;
+  window._onboardingGuideDismissed = true;
+  renderSessionObjective();
+}
+
+/** Clear browser carryover so a server-verified first-time beta user starts clean. */
+function _applyFirstTimeBetaHygiene() {
+  try {
+    localStorage.removeItem("manos_last_session");
+    localStorage.removeItem("manos_progress_history");
+  } catch (_) {}
+  window._lastMentionedPlace = null;
+  window._lastAcceptedFreeTranscript = "";
+  window._lastAcceptedFreeFrameId = "";
+  window._lastAcceptedAsrKey = "";
+  window._lastAcceptedAsrTime = 0;
+  window._learnerWorkContext = null;
+  _resetCurrentSessionState();
+  _renderMemoryBanner({});
+  window._isFirstTimeBetaUser = true;
+  window._onboardingGuideDismissed = false;
 }
 
 function _updateChallengeModeVisibility() {
@@ -454,15 +483,24 @@ function _updateChallengeModeVisibility() {
 
 async function initBetaProfile() {
   const lid = window._learnerId || "default_learner";
+  let isFirstTime = false;
   try {
     const res = await fetch(`/api/beta_profile?learner_id=${encodeURIComponent(lid)}`);
     const data = await res.json();
-    if (data.ok && data.profile && data.profile.learner_level) {
-      _applyBetaProfileDefaults(data.profile);
-      _updatePracticeLevelBtnLabel();
-      return data.profile;
+    if (data.ok) {
+      if (typeof data.is_first_time_beta_user === "boolean") {
+        isFirstTime = data.is_first_time_beta_user;
+      }
+      window._isFirstTimeBetaUser = isFirstTime;
+      if (data.profile && data.profile.learner_level) {
+        _applyBetaProfileDefaults(data.profile);
+        _updatePracticeLevelBtnLabel();
+        return data.profile;
+      }
     }
   } catch (_) {}
+
+  window._isFirstTimeBetaUser = isFirstTime;
 
   if (lid === "default_learner") {
     await saveBetaProfile("lower_intermediate", "operator_set");
@@ -2410,6 +2448,64 @@ function normalizeForMatch(s) {
   return spoken.replace(/\s+/g, "").replace(/[。？！，、；：""''\s]/g, "");
 }
 
+/** Acoustic filler particles — semantic emptiness does not become meaningful through repetition. */
+const _FILLER_CHAR_SET = new Set(["嗯", "啊", "呃", "哦", "喔", "哎", "诶", "呀", "唉"]);
+const _DISCOURSE_FRAGMENT_FILLERS = new Set(["这个", "那个", "就是"]);
+
+function _isPureFillerUtterance(normalized) {
+  if (!normalized) return false;
+  if (_DISCOURSE_FRAGMENT_FILLERS.has(normalized)) return true;
+  for (const ch of normalized) {
+    if (!_FILLER_CHAR_SET.has(ch)) return false;
+  }
+  return normalized.length > 0;
+}
+
+function _hasNonFillerCjkChar(transcript) {
+  const t = normalizeForMatch(transcript);
+  if (!t) return false;
+  for (const ch of t) {
+    if (/[\u4e00-\u9fff]/.test(ch) && !_FILLER_CHAR_SET.has(ch)) return true;
+  }
+  return false;
+}
+
+function _isAffirmationAfterParaphrase(transcript) {
+  const t = _normalizeSpokenRegister((transcript || "").trim());
+  if (!t) return false;
+  const prevWasParaphrase =
+    (window._lastSemanticClarifyText || "").includes("你是说") ||
+    (window._lastPartnerTurnText || "").includes("你是说") ||
+    (window._lastPartnerFrameText || "").includes("你是说");
+  if (!prevWasParaphrase) return false;
+  return /^(对|是|嗯|好|对的|是的|没错|对啊|嗯嗯|对对|嗯呢)$/.test(t.replace(/[。！？,，\s]/g, ""));
+}
+
+function _isTurnAroundPhrase(transcript) {
+  const t = _normalizeSpokenRegister((transcript || "").trim());
+  if (!t) return false;
+  const tn = normalizeConversationalFillers(t);
+  if (/^(那?你呢|你怎么想|为什么这么问|为什么这样问|换我问|那你|你来问)/.test(t) || t === "你呢") return true;
+  if (/[，。！]?(那?你呢|你怎么想|为什么这么问)[？?]?$/.test(t)) return true;
+  if (/你(是哪里人|从哪里来|老家在哪|住(在哪|哪里|的地方)|做什么工作|的工作|是做什么|喜欢(什么|做什么)|有什么爱好|有家人|有没有家人)/.test(tn)) return true;
+  return false;
+}
+
+/** Filler suppressor only — not a semantic gatekeeper. */
+function _isSufficientLinguisticSignal(transcript, frameId) {
+  const s = (transcript || "").trim();
+  if (!s) return false;
+  if (/不懂|不明白/.test(s)) return true;
+  if (_isAffirmationAfterParaphrase(s)) return true;
+  if (_isTurnAroundPhrase(s)) return true;
+  if (_detectSemanticCategory(s)) return true;
+  if (_DURATION_ANSWER_PAT.test(s)) return true;
+  if (/[A-Za-z]/.test(s)) return true;
+  if (isIncompleteLearnerUtterance(s)) return false;
+  if (_hasNonFillerCjkChar(s)) return true;
+  return false;
+}
+
 /** Single-token fillers / fragments — not substantive answers; avoid persona-stall recovery tone. */
 function isIncompleteLearnerUtterance(transcript) {
   const raw = (transcript || "").trim();
@@ -2418,6 +2514,7 @@ function isIncompleteLearnerUtterance(transcript) {
   if (!t) return false;
   const fillers = new Set(["我", "嗯", "啊", "呃", "哦", "喔", "哎", "诶", "这个", "那个", "就是"]);
   if (fillers.has(t)) return true;
+  if (_isPureFillerUtterance(t)) return true;
   if (t.length === 1 && /[\u4e00-\u9fff]/.test(t)) return true;
   return false;
 }
@@ -3075,6 +3172,9 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
   // Always soft — learner clearly heard the frame, just didn't understand it.
   const _isLinguisticConfusion = /^(哪里什么|哪儿什么|什么哪里|什么哪儿|哪里啊什么|哪里啊)/i.test((transcript || "").trim());
   if (_isLinguisticConfusion) return { accept: false, reason: "linguistic_confusion_signal", fail_level: "soft" };
+  if (!_isSufficientLinguisticSignal(transcript, frameId)) {
+    return { accept: false, reason: "insufficient_linguistic_signal", fail_level: "hard" };
+  }
   if (opts.length === 0) return { accept: true, reason: "no_options" };
   if (semantic) return { accept: true, reason: "semantic_soft_match" };
   // Emotional vocabulary: feeling/enjoyment words are valid answers to "why/how" type frames
@@ -3105,6 +3205,8 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
 // Milliseconds of silence after the last detected speech before the turn ends.
 // Increase this to give learners more time to construct sentences.
 const SPEECH_SILENCE_MS = 3000;
+// One-shot patience window when silence ends on pure filler (e.g. mmmm → 嗯嗯).
+const SPEECH_FILLER_EXTEND_MS = 2000;
 
 // ── Listening state indicator ────────────────────────────────────────────────
 // Drives #listenStatus through: idle → listening → waiting → processing → idle.
@@ -3157,6 +3259,7 @@ function listenForResponse(options, timeoutMs) {
     let wallClockTid = null;
     let waitingTid = null;   // transitions indicator to "waiting" ~800ms after last speech event
     let speechStarted = false;
+    let fillerExtendFired = false;
     // Wall-clock budget once speech has begun — gives slow learners time to complete sentences.
     const SPEECH_ACTIVE_MAX_MS = 13000;
 
@@ -3180,8 +3283,23 @@ function listenForResponse(options, timeoutMs) {
     function resetSilenceTimer() {
       if (resolved) return;
       if (silenceTid) clearTimeout(silenceTid);
-      // Fire finish() directly — no dependency on rec.stop() → onend chain.
       silenceTid = setTimeout(() => {
+        if (resolved) return;
+        const fillerOnly = isIncompleteLearnerUtterance(finalTranscript);
+        if (!fillerExtendFired && fillerOnly) {
+          fillerExtendFired = true;
+          console.log(`[ASR] filler-only silence — extending listen ${SPEECH_FILLER_EXTEND_MS}ms`);
+          const statusEl = document.getElementById("listenStatus");
+          if (statusEl) {
+            statusEl.dataset.state = "waiting";
+            statusEl.innerHTML = '<span class="listen-icon">🎙️</span><span>Still listening…</span>';
+          }
+          silenceTid = setTimeout(() => {
+            console.log(`[ASR] filler extend timeout fired, transcript="${finalTranscript}"`);
+            finish("silence_filler_extended");
+          }, SPEECH_FILLER_EXTEND_MS);
+          return;
+        }
         console.log(`[ASR] silence timeout fired, transcript="${finalTranscript}"`);
         finish("silence");
       }, SPEECH_SILENCE_MS);
@@ -4191,6 +4309,7 @@ async function loadPersonas() {
       btn.title = [p.name_pinyin, p.description].filter(Boolean).join(" — ");
       btn.dataset.personaId = p.id;
       btn.addEventListener("click", () => {
+        _dismissOnboardingGuideIfActive();
         if (window._partnerId !== p.id) {
           // Switching to a different partner resets per-engine reveal history
           window._revealedVoiceLines = {};
@@ -5586,7 +5705,7 @@ function _renderMemoryBanner(mem) {
     el.textContent = "Memory — " + parts.join(" · ");
     el.style.display = "";
   } else {
-    el.textContent = "Memory — empty";
+    el.textContent = "Memory — No saved learner memory yet.";
     el.style.display = "";
   }
 }
@@ -5752,6 +5871,10 @@ async function startFreshLearner() {
   setTimeout(() => { statusEl.textContent = ""; }, 4000);
 
   await initBetaProfile();
+  if (window._isFirstTimeBetaUser) {
+    _applyFirstTimeBetaHygiene();
+  }
+  renderSessionObjective();
 }
 
 /**
@@ -5760,6 +5883,7 @@ async function startFreshLearner() {
  * @param {{ prefer_bridge?: boolean, force_bridge?: boolean, last_turn_was_answer?: boolean, learner_skip_confusion?: boolean }} [opts] When isNext: prefer_bridge tries bridge first; learner_skip_confusion clears bridge intent after "我不明白" advance.
  */
 async function runTurn(isNext = false, opts = {}) {
+  _dismissOnboardingGuideIfActive();
   // Cancel any pending idle auto-advance so it doesn't conflict with this turn.
   _cancelProbeAutoAdvance();
   hideSentenceOptions();
@@ -6528,12 +6652,13 @@ cardPanel.addEventListener("click", (e) => {
 // defaults
 window.addEventListener("load", async () => {
   await initBetaProfile();
+  if (window._isFirstTimeBetaUser) {
+    _applyFirstTimeBetaHygiene();
+  } else {
+    _refreshMemoryBanner();
+  }
 
-  // Show current memory state immediately — before the user clicks Start,
-  // so they can see if a previous session left data and clear it if needed.
-  _refreshMemoryBanner();
-
-  // Show "Today's focus" in the scorecard panel before any session begins.
+  // Show onboarding guide or "Today's focus" in the scorecard panel before any session begins.
   renderSessionObjective();
   initRightPanelTabs();
 
@@ -6586,6 +6711,11 @@ window.addEventListener("load", async () => {
     replaySelectedBtn.addEventListener("click", () => replaySelectedTranscriptLines());
   }
   updateReplaySelectedButton();
+  if (frameSelect) {
+    frameSelect.addEventListener("change", () => {
+      _dismissOnboardingGuideIfActive();
+    });
+  }
   // Phase 7.4: Speak-first — actually listen (Web Speech API), then either advance turn or show recovery
   const LISTEN_BEFORE_RECOVERY_MS = 7000;
   document.getElementById("tryRespondingBtn")?.addEventListener("click", async () => {
@@ -8566,8 +8696,18 @@ function renderSessionObjective() {
   const el = document.getElementById("scorecardContent");
   if (!el) return;
 
-  const lastStats = _loadLastSessionStats();
-  const obj = buildSessionObjective(lastStats);
+  const showFirstTimeGuide =
+    window._isFirstTimeBetaUser && !window._onboardingGuideDismissed;
+  const lastStats = showFirstTimeGuide ? null : _loadLastSessionStats();
+  const obj = showFirstTimeGuide
+    ? {
+        id: "first_time_onboarding",
+        text: _FIRST_TIME_ONBOARDING_TEXT,
+        check: () => true,
+        reflection_met: "",
+        reflection_not_met: "",
+      }
+    : buildSessionObjective(lastStats);
   window._sessionObjective = obj;
 
   el.innerHTML = "";
@@ -8579,7 +8719,7 @@ function renderSessionObjective() {
 
   const lbl = document.createElement("div");
   lbl.className = "sc-obj-label";
-  lbl.textContent = "Today\u2019s focus";
+  lbl.textContent = showFirstTimeGuide ? "Getting started" : "Today\u2019s focus";
   block.appendChild(lbl);
 
   const txt = document.createElement("p");
@@ -8589,10 +8729,12 @@ function renderSessionObjective() {
 
   el.appendChild(block);
 
-  const hint = document.createElement("p");
-  hint.className = "sc-obj-hint";
-  hint.textContent = "Complete the session to see your reflection.";
-  el.appendChild(hint);
+  if (!showFirstTimeGuide) {
+    const hint = document.createElement("p");
+    hint.className = "sc-obj-hint";
+    hint.textContent = "Complete the session to see your reflection.";
+    el.appendChild(hint);
+  }
 }
 
 window.buildSessionObjective   = buildSessionObjective;
