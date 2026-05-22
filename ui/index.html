@@ -134,13 +134,18 @@
 
         </section>
         <aside class="right">
-          <h2>Explore word</h2>
+          <h2 class="right-explore-heading">Explore word</h2>
           <div id="cardPanel" class="card hidden">
             <div id="cardError" class="error"></div>
             <h3 id="cardTitle"></h3>
             <div id="cardBody"></div>
           </div>
           <div id="noCard" class="nocard">No card opened</div>
+          <div id="mobileRightSheet" class="mobile-right-sheet" aria-hidden="true">
+            <div class="mobile-sheet-header">
+              <span id="mobileSheetTitle" class="mobile-sheet-title">Session Guide</span>
+              <button type="button" id="mobileSheetClose" class="mobile-sheet-close" aria-label="Close panel">✕</button>
+            </div>
           <!-- Session / Progress toggle — progress history stays out of the live transcript -->
           <div class="right-panel-tabs" role="tablist" aria-label="Right panel view">
             <button type="button" id="rightTabSession" class="right-panel-tab right-panel-tab--active" role="tab" aria-selected="true" aria-controls="rightPanelSession">Session</button>
@@ -162,8 +167,11 @@
           <div id="rightPanelProgress" class="right-panel-view right-panel-view--hidden" role="tabpanel" hidden>
             <div id="progressView" class="progress-view" aria-live="polite"></div>
           </div>
+          </div>
         </aside>
       </main>
+      <button type="button" id="mobilePanelFab" class="mobile-panel-fab" aria-expanded="false" aria-controls="mobileRightSheet">Session Guide</button>
+      <div id="mobileSheetBackdrop" class="mobile-sheet-backdrop hidden" aria-hidden="true"></div>
     </div>
     <style>
       section.left { overflow-y: auto; }
@@ -427,6 +435,11 @@
       }
       @media (max-height: 780px) {
         .transcript-panel { max-height: 120px; }
+      }
+      @media (max-width: 768px) {
+        .transcript-panel {
+          max-height: min(32vh, 220px);
+        }
       }
       .transcript-content { line-height: 1.5; }
       .transcript-line { margin-bottom: 6px; display: flex; align-items: baseline; flex-wrap: wrap; }

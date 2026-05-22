@@ -3972,9 +3972,11 @@ function render() {
     cardPanel.classList.remove("hidden");
     noCard.style.display = "none";
     // Only scroll when the panel just became visible (card newly opened).
-    if (wasHidden) {
+    // On mobile the card is a fixed bottom sheet — scrollIntoView fights the layout.
+    if (wasHidden && !_isMobileLayout()) {
       setTimeout(() => cardPanel.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     }
+    _syncMobileCardSheet(true);
     cardError.textContent = state.error ? (state.error.message || state.error.kind || "Error") : "";
     const titleText = (state.activeCard && state.activeCard.title) || "";
     while (cardTitle.firstChild) cardTitle.removeChild(cardTitle.firstChild);
@@ -4207,6 +4209,7 @@ function render() {
   } else {
     cardPanel.classList.add("hidden");
     noCard.style.display = "block";
+    _syncMobileCardSheet(false);
     cardError.textContent = "";
     cardTitle.textContent = "";
     cardBody.textContent = "";
@@ -5814,6 +5817,10 @@ function _resetCurrentSessionState() {
   const progressSaved = document.getElementById("progressSavedMsg");
   if (progressSaved) progressSaved.remove();
 
+  document.body.classList.remove("conversation-active", "session-ended", "mobile-panel-open", "card-sheet-open");
+  _syncMobileBackdrop();
+  _updateMobileFabLabel();
+
   _tracker.total_turns = 0;
   _tracker.recovery_uses = 0;
   _tracker.successful_recoveries = 0;
@@ -5884,6 +5891,7 @@ async function startFreshLearner() {
  */
 async function runTurn(isNext = false, opts = {}) {
   _dismissOnboardingGuideIfActive();
+  _setConversationActive(true);
   // Cancel any pending idle auto-advance so it doesn't conflict with this turn.
   _cancelProbeAutoAdvance();
   hideSentenceOptions();
@@ -6661,6 +6669,7 @@ window.addEventListener("load", async () => {
   // Show onboarding guide or "Today's focus" in the scorecard panel before any session begins.
   renderSessionObjective();
   initRightPanelTabs();
+  initMobileLayout();
 
   // Phase 6: load render tokens and cards index in parallel with existing loads
   await Promise.all([
@@ -9234,6 +9243,120 @@ function switchRightPanel(view) {
   }
 
   if (showProgress) renderProgressView();
+  _updateMobileFabLabel();
+}
+
+function _isMobileLayout() {
+  return window.matchMedia("(max-width: 768px)").matches;
+}
+
+function _syncMobileBackdrop() {
+  const bd = document.getElementById("mobileSheetBackdrop");
+  if (!bd) return;
+  if (!_isMobileLayout()) {
+    bd.classList.add("hidden");
+    bd.setAttribute("aria-hidden", "true");
+    return;
+  }
+  const show =
+    document.body.classList.contains("mobile-panel-open") ||
+    document.body.classList.contains("card-sheet-open");
+  bd.classList.toggle("hidden", !show);
+  bd.setAttribute("aria-hidden", show ? "false" : "true");
+}
+
+function _syncMobileCardSheet(isOpen) {
+  if (!_isMobileLayout()) {
+    document.body.classList.remove("card-sheet-open");
+    _syncMobileBackdrop();
+    return;
+  }
+  document.body.classList.toggle("card-sheet-open", !!isOpen);
+  _syncMobileBackdrop();
+}
+
+function _setConversationActive(active) {
+  document.body.classList.toggle("conversation-active", !!active);
+  if (active && !document.body.classList.contains("session-ended")) {
+    document.body.classList.remove("mobile-panel-open");
+    _syncMobileBackdrop();
+  }
+  _updateMobileFabLabel();
+}
+
+function _openMobilePanel() {
+  if (!_isMobileLayout()) return;
+  document.body.classList.add("mobile-panel-open");
+  const sheet = document.getElementById("mobileRightSheet");
+  if (sheet) sheet.setAttribute("aria-hidden", "false");
+  const fab = document.getElementById("mobilePanelFab");
+  if (fab) fab.setAttribute("aria-expanded", "true");
+  _syncMobileBackdrop();
+  _updateMobileFabLabel();
+}
+
+function _closeMobilePanel() {
+  document.body.classList.remove("mobile-panel-open");
+  const sheet = document.getElementById("mobileRightSheet");
+  if (sheet) sheet.setAttribute("aria-hidden", "true");
+  const fab = document.getElementById("mobilePanelFab");
+  if (fab) fab.setAttribute("aria-expanded", "false");
+  _syncMobileBackdrop();
+  _updateMobileFabLabel();
+}
+
+function _toggleMobilePanel() {
+  if (document.body.classList.contains("mobile-panel-open")) _closeMobilePanel();
+  else _openMobilePanel();
+}
+
+function _updateMobileFabLabel() {
+  const fab = document.getElementById("mobilePanelFab");
+  const title = document.getElementById("mobileSheetTitle");
+  if (!fab) return;
+  const progressPanel = document.getElementById("rightPanelProgress");
+  const progressVisible = progressPanel && !progressPanel.hidden;
+  const open = document.body.classList.contains("mobile-panel-open");
+  const ended = document.body.classList.contains("session-ended");
+  if (open) {
+    fab.textContent = "Close";
+    if (title) title.textContent = progressVisible ? "Progress" : (ended ? "Session Scorecard" : "Session Guide");
+  } else if (ended) {
+    fab.textContent = progressVisible ? "View Progress" : "View Scorecard";
+    if (title) title.textContent = progressVisible ? "Progress" : "Session Scorecard";
+  } else {
+    fab.textContent = progressVisible ? "View Progress" : "Session Guide";
+    if (title) title.textContent = progressVisible ? "Progress" : "Session Guide";
+  }
+}
+
+function initMobileLayout() {
+  const fab = document.getElementById("mobilePanelFab");
+  const closeBtn = document.getElementById("mobileSheetClose");
+  const backdrop = document.getElementById("mobileSheetBackdrop");
+  if (!fab) return;
+
+  if (!fab.dataset.wired) {
+    fab.dataset.wired = "1";
+    fab.addEventListener("click", () => _toggleMobilePanel());
+    if (closeBtn) closeBtn.addEventListener("click", () => _closeMobilePanel());
+    if (backdrop) {
+      backdrop.addEventListener("click", () => {
+        _closeMobilePanel();
+        if (state && state.isOpen) dispatch({ type: "CARD_PANEL_CLOSED" });
+      });
+    }
+    window.matchMedia("(max-width: 768px)").addEventListener("change", () => {
+      if (!_isMobileLayout()) {
+        document.body.classList.remove("mobile-panel-open", "card-sheet-open");
+        _syncMobileBackdrop();
+      }
+      _updateMobileFabLabel();
+    });
+  }
+
+  _syncMobileBackdrop();
+  _updateMobileFabLabel();
 }
 
 function initRightPanelTabs() {
@@ -9304,6 +9427,13 @@ async function endSession() {
   // _renderAbilityDashboard() is intentionally NOT called here.
   if (result?.ok) {
     renderScorecard(result);
+    if (_isMobileLayout()) {
+      document.body.classList.add("session-ended");
+      document.body.classList.add("mobile-panel-open");
+      switchRightPanel("session");
+      _syncMobileBackdrop();
+      _updateMobileFabLabel();
+    }
     if (result.progress_snapshot) {
       saveProgressSnapshot(result.progress_snapshot);
       _renderProgressSavedMessage();

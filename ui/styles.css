@@ -1399,3 +1399,236 @@ body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after 
   font-size: 0.7rem;
   color: #64748b;
 }
+
+/* ── Mobile conversation-first layout (iPhone / narrow phones) ─────────────── */
+.mobile-panel-fab,
+.mobile-sheet-backdrop,
+.mobile-sheet-header {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    padding: 6px;
+  }
+
+  section.left {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 4px 6px;
+    border-right: none;
+  }
+
+  section.left > .conversation-heading {
+    margin-bottom: 6px;
+    font-size: 1rem;
+  }
+
+  .controls {
+    flex-shrink: 0;
+    margin-bottom: 4px;
+  }
+
+  .conversation-panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin: 6px 0 0;
+    overflow: hidden;
+  }
+
+  .transcript-panel {
+    flex-shrink: 0;
+  }
+
+  .current-turn {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Aside leaves document flow — overlays only */
+  .right {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 0;
+    padding: 0;
+    border: none;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 400;
+    background: transparent;
+  }
+
+  .right-explore-heading,
+  #noCard {
+    display: none !important;
+  }
+
+  /* Explore Word: bottom sheet when a word is opened */
+  #cardPanel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 52vh;
+    margin: 0;
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -10px 36px rgba(15, 23, 42, 0.2);
+    z-index: 520;
+    pointer-events: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #cardPanel.hidden {
+    display: none !important;
+  }
+
+  /* Session / progress bottom sheet */
+  .mobile-right-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: min(72vh, 560px);
+    background: #fff;
+    border-radius: 14px 14px 0 0;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.14);
+    pointer-events: auto;
+    z-index: 480;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transform: translateY(100%);
+    transition: transform 0.28s ease;
+    padding: 0 12px  calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    padding: 10px 2px 8px;
+    border-bottom: 1px solid #f1f5f9;
+    z-index: 1;
+  }
+
+  .mobile-sheet-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .mobile-sheet-close {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .scorecard-panel-inline {
+    margin-top: 8px;
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .scorecard-panel-inline > h2 {
+    display: none;
+  }
+
+  /* Pre-conversation: compact onboarding strip (top of sheet visible) */
+  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open) .mobile-right-sheet {
+    transform: translateY(0);
+    max-height: 7.5rem;
+    overflow: hidden;
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
+  }
+
+  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open) .mobile-right-sheet .mobile-sheet-header,
+  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open) .mobile-right-sheet .right-panel-tabs {
+    display: none;
+  }
+
+  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open) .mobile-right-sheet #rightPanelProgress {
+    display: none !important;
+  }
+
+  /* Active conversation: hide sheet until user asks */
+  body.conversation-active:not(.mobile-panel-open):not(.session-ended) .mobile-right-sheet {
+    transform: translateY(100%);
+  }
+
+  body.mobile-panel-open .mobile-right-sheet {
+    transform: translateY(0);
+    max-height: min(72vh, 560px);
+  }
+
+  body.session-ended.mobile-panel-open .mobile-right-sheet {
+    transform: translateY(0);
+    max-height: min(85vh, 640px);
+  }
+
+  /* FAB toggle for session/progress sheet */
+  .mobile-panel-fab {
+    display: block;
+    position: fixed;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    z-index: 460;
+    padding: 10px 14px;
+    font: 600 0.82rem Arial, Helvetica, sans-serif;
+    color: #fff;
+    background: #0b4f6c;
+    border: none;
+    border-radius: 999px;
+    box-shadow: 0 4px 14px rgba(11, 79, 108, 0.35);
+    cursor: pointer;
+  }
+
+  body.mobile-panel-open .mobile-panel-fab {
+    background: #475569;
+  }
+
+  body.card-sheet-open .mobile-panel-fab {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .mobile-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.38);
+    z-index: 510;
+    pointer-events: auto;
+  }
+
+  .mobile-sheet-backdrop.hidden {
+    display: none !important;
+  }
+
+  body.card-sheet-open .mobile-sheet-backdrop:not(.hidden) {
+    z-index: 515;
+  }
+}
