@@ -433,11 +433,11 @@ function _updatePracticeLevelBtnLabel() {
   if (!btn) return;
   const level = window._learnerLevel;
   const hasLevel = level && _LEVEL_LABELS[level];
-  const label = hasLevel ? _LEVEL_LABELS[level] : "Choose your starting point";
+  const label = hasLevel ? _LEVEL_LABELS[level] : "Select…";
   btn.textContent = label;
   btn.dataset.set = hasLevel ? "1" : "0";
   btn.title = hasLevel
-    ? `Choose your starting point: ${label} — click to change`
+    ? `Choose starting point: ${label} — click to change`
     : "Choose your practice comfort level";
 }
 
@@ -678,6 +678,12 @@ function _shouldAlsoOpenCardPanel() {
   } catch (e) {
     return false;
   }
+}
+
+/** Mobile: Explore Word is bottom-sheet — only open via explicit "Explore word" tap. */
+function _closeExploreWordPanelIfMobile() {
+  if (!_isMobileLayout()) return;
+  if (state?.isOpen) dispatch({ type: "CARD_PANEL_CLOSED" });
 }
 
 /** Map __opt_N (option-hint pseudo id) to real card_id for etymology index lookup. */
@@ -1635,6 +1641,7 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
     if (hintMeaning) { hintMeaning.textContent = ""; hintMeaning.style.display = "none"; }
     if (hintEtymEl) { hintEtymEl.innerHTML = ""; hintEtymEl.style.display = "none"; }
     hint_cascade_state = { level: 0, turn_uid: null };
+    _syncActiveEnglishDisplay();
     return;
   }
 
@@ -1747,6 +1754,7 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
       hintBtn.textContent = "?";
       hintBtn.title = getHintButtonLabel(level, levelHasContent);
     }
+    _syncActiveEnglishDisplay();
   } else {
     // Word in active sentence: use global hint rows only until the matching card is open — then hints live in the card panel.
     const goldWordId = window._tapOptions?.find(o => o.is_gold)?.card_id;
@@ -1792,6 +1800,7 @@ function renderHintAffordance(hintAffordance, turnUid, inputMode, optionPanelEl)
       hintBtn.textContent = "?";
       hintBtn.title = getHintButtonLabel(level, levelHasContent);
     }
+    _syncActiveEnglishDisplay();
   }
 }
 // ── end Phase 6 ────────────────────────────────────────────────────────────
@@ -3205,15 +3214,36 @@ function classifyUnmatchedFreeAnswerDecision(transcript, options, frameId, unmat
 // Milliseconds of silence after the last detected speech before the turn ends.
 // Increase this to give learners more time to construct sentences.
 const SPEECH_SILENCE_MS = 3000;
+// Longer silence budget before the learner has spoken (iOS WebKit — Safari, Chrome, etc.).
+const SPEECH_PRE_SPEECH_SILENCE_MS_MOBILE = 4000;
+const SPEECH_PRE_SPEECH_SILENCE_MS_DESKTOP = 4500;
+// Ignore immediate onend-with-no-speech within this window (iOS WebKit quirk).
+const SPEECH_MIN_LISTEN_GRACE_MS_MOBILE = 1800;
+const SPEECH_MIN_LISTEN_GRACE_MS_DESKTOP = 1000;
 // One-shot patience window when silence ends on pure filler (e.g. mmmm → 嗯嗯).
 const SPEECH_FILLER_EXTEND_MS = 2000;
 
 // ── Listening state indicator ────────────────────────────────────────────────
-// Drives #listenStatus through: idle → listening → waiting → processing → idle.
-// No Chinese text — system feedback is always in English for clarity.
-function _setListenState(state) {
+// Subtle line below the mic: hidden while opening; appears once speech is detected.
+function _setListenState(state, message) {
   const el = document.getElementById("listenStatus");
+  const armsMic = state === "preparing" || state === "listening" || state === "waiting"
+    || state === "processing" || state === "reconnect";
+  document.body.classList.toggle("is-listening", armsMic);
+  if (window._listenNoticeTimer) {
+    clearTimeout(window._listenNoticeTimer);
+    window._listenNoticeTimer = null;
+  }
   if (!el) return;
+
+  // Opening / reconnect — arm mic without showing a banner.
+  if (state === "preparing") {
+    el.dataset.state = "idle";
+    el.innerHTML = "";
+    return;
+  }
+  if (state === "reconnect") return;
+
   el.dataset.state = state;
   switch (state) {
     case "listening":
@@ -3225,18 +3255,39 @@ function _setListenState(state) {
     case "processing":
       el.innerHTML = '<span class="listen-spinner"></span><span>Processing…</span>';
       break;
+    case "notice":
+      el.innerHTML = `<span>${message || "Tap the mic and speak"}</span>`;
+      document.body.classList.remove("is-listening");
+      break;
     default:
       el.innerHTML = "";
       break;
   }
 }
 
+function _showListenNotice(message, autoClearMs = 3500) {
+  _setListenState("notice", message);
+  if (autoClearMs > 0) {
+    window._listenNoticeTimer = setTimeout(() => _setListenState("idle"), autoClearMs);
+  }
+}
+
 function listenForResponse(options, timeoutMs) {
+  _setListenState("preparing");
   return new Promise((resolve) => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       emitUITrace({ type: "SPEECH_NOT_AVAILABLE", timestamp: new Date().toISOString(), payload: { message: "SpeechRecognition not supported" } });
-      resolve({ transcript: "", matchedOption: null, asr_confidence: null });
+      _showListenNotice("Speech recognition is not available in this browser.");
+      resolve({ transcript: "", matchedOption: null, asr_confidence: null, finishReason: "not_available" });
+      return;
+    }
+    // Mic requires HTTPS on iOS/Chrome (except localhost). Detect early and give a clear message.
+    if (_isMobileLayout() && location.protocol === "http:" &&
+        location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      emitUITrace({ type: "SPEECH_INSECURE_ORIGIN", timestamp: new Date().toISOString(), payload: { host: location.hostname } });
+      _showListenNotice("Mic needs HTTPS — open this app via https:// or use Safari on this device.", 6000);
+      resolve({ transcript: "", matchedOption: null, asr_confidence: null, finishReason: "insecure_origin" });
       return;
     }
     // Stop partner TTS before opening the mic — prevents ASR from transcribing speaker output
@@ -3244,15 +3295,14 @@ function listenForResponse(options, timeoutMs) {
     try {
       if (window.speechSynthesis) window.speechSynthesis.cancel();
     } catch (_) {}
-    const postCancelDelayMs = 380;
-
+    const isMobileListen = _isMobileLayout();
     const rec = new SpeechRecognition();
-    // continuous=true keeps the mic open across pauses so we control when the turn ends
-    // via SPEECH_SILENCE_MS rather than the browser's built-in ~1 s VAD cutoff.
-    rec.continuous = true;
+    // iOS WebKit: continuous mode is unreliable — use single-utterance + manual restart on onend.
+    rec.continuous = !isMobileListen;
     rec.lang = "zh-CN";
     rec.interimResults = true;
     let finalTranscript = "";
+    let interimTranscript = "";
     let lastConf = null;
     let resolved = false;
     let silenceTid = null;
@@ -3260,8 +3310,32 @@ function listenForResponse(options, timeoutMs) {
     let waitingTid = null;   // transitions indicator to "waiting" ~800ms after last speech event
     let speechStarted = false;
     let fillerExtendFired = false;
+    let micStarted = false;   // set in rec.onstart — used to distinguish "never opened" from "no speech"
+    let listenStartedAt = 0;
+    let onendRetryCount = 0;
+    const preSpeechSilenceMs = _isMobileLayout()
+      ? SPEECH_PRE_SPEECH_SILENCE_MS_MOBILE
+      : SPEECH_PRE_SPEECH_SILENCE_MS_DESKTOP;
+    const minListenGraceMs = _isMobileLayout()
+      ? SPEECH_MIN_LISTEN_GRACE_MS_MOBILE
+      : SPEECH_MIN_LISTEN_GRACE_MS_DESKTOP;
     // Wall-clock budget once speech has begun — gives slow learners time to complete sentences.
     const SPEECH_ACTIVE_MAX_MS = 13000;
+
+    function getBestTranscript() {
+      return (finalTranscript || interimTranscript || "").trim();
+    }
+
+    function noteSpeechActivity() {
+      if (speechStarted) return;
+      speechStarted = true;
+      if (wallClockTid) { clearTimeout(wallClockTid); wallClockTid = null; }
+      wallClockTid = setTimeout(() => {
+        console.log("[ASR] active-speech wall-clock fired");
+        finish("wall_clock_active");
+      }, SPEECH_ACTIVE_MAX_MS);
+      console.log(`[ASR] speech started — active wall-clock set to ${SPEECH_ACTIVE_MAX_MS}ms`);
+    }
 
     // ── finish(reason): single guarded submission point ─────────────────────
     // Called by the silence timer, wall-clock timer, or onend (backup).
@@ -3269,31 +3343,96 @@ function listenForResponse(options, timeoutMs) {
     function finish(reason) {
       if (resolved) return;
       resolved = true;
-      console.log(`[ASR] finish: reason=${reason}, transcript="${finalTranscript}"`);
+      // Expose whether the mic actually opened (onstart fired) for the caller's error message
+      window._lastMicStarted = micStarted;
+      console.log(`[ASR] finish: reason=${reason}, transcript="${getBestTranscript()}", micStarted=${micStarted}`);
       if (silenceTid)  { clearTimeout(silenceTid);  silenceTid  = null; }
       if (wallClockTid){ clearTimeout(wallClockTid); wallClockTid = null; }
       if (waitingTid)  { clearTimeout(waitingTid);  waitingTid  = null; }
       _setListenState("processing");
-      try { rec.abort(); } catch (_) {}
-      const matched = matchTranscriptToOption(finalTranscript, options || []);
-      const ac = typeof lastConf === "number" && !Number.isNaN(lastConf) ? lastConf : null;
-      resolve({ transcript: finalTranscript, matchedOption: matched ?? null, asr_confidence: ac });
+
+      const finalize = () => {
+        finalTranscript = getBestTranscript();
+        interimTranscript = "";
+        const matched = matchTranscriptToOption(finalTranscript, options || []);
+        const ac = typeof lastConf === "number" && !Number.isNaN(lastConf) ? lastConf : null;
+        resolve({
+          transcript: finalTranscript,
+          matchedOption: matched ?? null,
+          asr_confidence: ac,
+          finishReason: reason,
+        });
+      };
+
+      // iOS: stop (not abort) so final results can arrive before we read the transcript.
+      if (isMobileListen) {
+        try { rec.stop(); } catch (_) { try { rec.abort(); } catch (_2) {} }
+        setTimeout(finalize, 250);
+      } else {
+        try { rec.abort(); } catch (_) {}
+        finalize();
+      }
+    }
+
+    function absorbResults(e) {
+      noteSpeechActivity();
+      let chunkFinal = "";
+      let chunkInterim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const seg = e.results[i][0];
+        if (e.results[i].isFinal) {
+          chunkFinal += seg.transcript;
+          if (typeof seg.confidence === "number") lastConf = seg.confidence;
+        } else {
+          chunkInterim += seg.transcript;
+        }
+      }
+      if (isMobileListen) {
+        let latestFinal = "";
+        let latestAny = "";
+        for (let i = 0; i < e.results.length; i++) {
+          const t = (e.results[i][0].transcript || "").trim();
+          if (!t) continue;
+          latestAny = t;
+          if (e.results[i].isFinal) latestFinal = t;
+        }
+        if (latestFinal) {
+          finalTranscript = latestFinal;
+          interimTranscript = "";
+        } else if (latestAny) {
+          interimTranscript = latestAny;
+        }
+      } else {
+        if (chunkFinal) {
+          finalTranscript = (finalTranscript + chunkFinal).trim();
+          interimTranscript = "";
+        }
+        if (chunkInterim) interimTranscript = chunkInterim.trim();
+      }
+      if (finalTranscript) {
+        console.log(`[ASR] onresult final: "${finalTranscript}"`);
+      } else if (interimTranscript) {
+        console.log(`[ASR] onresult interim: "${interimTranscript}"`);
+      }
+      _setListenState("listening");
+      if (waitingTid) clearTimeout(waitingTid);
+      waitingTid = setTimeout(() => {
+        if (!resolved) _setListenState("waiting");
+      }, 1400);
+      resetSilenceTimer();
     }
 
     function resetSilenceTimer() {
       if (resolved) return;
       if (silenceTid) clearTimeout(silenceTid);
+      const silenceDelay = speechStarted ? SPEECH_SILENCE_MS : preSpeechSilenceMs;
       silenceTid = setTimeout(() => {
         if (resolved) return;
-        const fillerOnly = isIncompleteLearnerUtterance(finalTranscript);
+        const fillerOnly = isIncompleteLearnerUtterance(getBestTranscript());
         if (!fillerExtendFired && fillerOnly) {
           fillerExtendFired = true;
           console.log(`[ASR] filler-only silence — extending listen ${SPEECH_FILLER_EXTEND_MS}ms`);
-          const statusEl = document.getElementById("listenStatus");
-          if (statusEl) {
-            statusEl.dataset.state = "waiting";
-            statusEl.innerHTML = '<span class="listen-icon">🎙️</span><span>Still listening…</span>';
-          }
+          _setListenState("waiting");
           silenceTid = setTimeout(() => {
             console.log(`[ASR] filler extend timeout fired, transcript="${finalTranscript}"`);
             finish("silence_filler_extended");
@@ -3302,72 +3441,86 @@ function listenForResponse(options, timeoutMs) {
         }
         console.log(`[ASR] silence timeout fired, transcript="${finalTranscript}"`);
         finish("silence");
-      }, SPEECH_SILENCE_MS);
+      }, silenceDelay);
     }
 
-    rec.onresult = (e) => {
-      // On first speech: swap the short "never-spoke" wall-clock for a longer active-speech cap.
-      if (!speechStarted) {
-        speechStarted = true;
-        if (wallClockTid) { clearTimeout(wallClockTid); wallClockTid = null; }
-        wallClockTid = setTimeout(() => {
-          console.log("[ASR] active-speech wall-clock fired");
-          finish("wall_clock_active");
-        }, SPEECH_ACTIVE_MAX_MS);
-        console.log(`[ASR] speech started — active wall-clock set to ${SPEECH_ACTIVE_MAX_MS}ms`);
-      }
+    rec.onresult = (e) => absorbResults(e);
 
-      // Append only NEW final segments using resultIndex (prevents re-reading old ones).
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          const seg = e.results[i][0];
-          finalTranscript += seg.transcript;
-          if (typeof seg.confidence === "number") lastConf = seg.confidence;
-          console.log(`[ASR] onresult isFinal: "${seg.transcript}" → accumulated: "${finalTranscript}"`);
+    // onend: iOS fires early/often — restart while empty; finish when we have a transcript.
+    rec.onend = () => {
+      const txt = getBestTranscript();
+      console.log(`[ASR] onend fired, transcript="${txt}"`);
+      if (resolved) return;
+      if (txt) {
+        finish("onend");
+        return;
+      }
+      const elapsed = listenStartedAt ? Date.now() - listenStartedAt : 0;
+      if (onendRetryCount < 5 && elapsed < timeoutMs - 500) {
+        onendRetryCount += 1;
+        console.log(`[ASR] onend empty (${elapsed}ms) — restart attempt ${onendRetryCount}`);
+        _setListenState("reconnect");
+        try {
+          rec.start();
+          listenStartedAt = Date.now();
+          resetSilenceTimer();
+          return;
+        } catch (err) {
+          console.log(`[ASR] onend restart failed: ${err}`);
         }
       }
-      finalTranscript = finalTranscript.trim();
-      // Show "Listening…" while speech is active; after 800ms of silence switch to "waiting".
-      _setListenState("listening");
-      if (waitingTid) clearTimeout(waitingTid);
-      waitingTid = setTimeout(() => {
-        if (!resolved) _setListenState("waiting");
-      }, 1400);
-      // Reset silence timer on every speech event so mid-sentence pauses don't end the turn.
-      resetSilenceTimer();
+      finish("onend");
     };
 
-    // onend is a backup: fires if rec.stop() / rec.abort() is called or browser ends on its own.
-    rec.onend = () => {
-      console.log(`[ASR] onend fired, transcript="${finalTranscript}"`);
-      finish("onend");
+    rec.onstart = () => {
+      micStarted = true;
+      _setListenState("listening");
     };
 
     rec.onerror = (e) => {
       console.log(`[ASR] onerror: ${e.error}`);
       if (e.error === "aborted") return;    // expected when finish() calls rec.abort()
       if (e.error === "no-speech") return;  // let silence/onend handle the empty-speech case
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        finish("permission_denied");
+        return;
+      }
       finish("error");
     };
 
-    setTimeout(() => {
+    function beginListening() {
       if (resolved) return;
-      // Wall-clock limit: only fires if the learner never speaks at all.
       wallClockTid = setTimeout(() => {
         console.log("[ASR] wall-clock timeout fired");
         finish("wall_clock");
       }, timeoutMs);
-      // Silence timer starts immediately — covers "user never speaks" before wall-clock fires.
       resetSilenceTimer();
       try {
         rec.start();
-        _setListenState("listening");
-        emitUITrace({ type: "SPEECH_LISTEN_START", timestamp: new Date().toISOString(), payload: { lang: "zh-CN", silence_ms: SPEECH_SILENCE_MS } });
+        listenStartedAt = Date.now();
+        emitUITrace({
+          type: "SPEECH_LISTEN_START",
+          timestamp: new Date().toISOString(),
+          payload: {
+            lang: "zh-CN",
+            continuous: rec.continuous,
+            silence_ms: preSpeechSilenceMs,
+            min_listen_grace_ms: minListenGraceMs,
+            mobile_listen: isMobileListen,
+          },
+        });
       } catch (err) {
         console.log(`[ASR] rec.start() error: ${err}`);
         finish("start_error");
       }
-    }, postCancelDelayMs);
+    }
+
+    // Mobile: start synchronously in the user-gesture turn (setTimeout breaks iOS permission chain).
+    if (isMobileListen) {
+      beginListening();
+    } else {
+      setTimeout(beginListening, 380);
+    }
   });
 }
 
@@ -3384,6 +3537,35 @@ function syncPartnerHeaderWhenFrameSentenceIsPrimary() {
   else _updatePartnerHeader("", "", "");
 }
 
+/** Keep #frameEnglish vs ?-hint rows from doubling the same English line. */
+function _syncActiveEnglishDisplay() {
+  const fe = document.getElementById("frameEnglish");
+  const hintMeaning = document.getElementById("hintMeaning");
+  const hintPinyin = document.getElementById("hintPinyin");
+  if (!fe) return;
+  if (_challenge.active) {
+    fe.style.display = "none";
+    return;
+  }
+  const enText = (fe.textContent || "").trim();
+  const hintEnVisible =
+    hintMeaning &&
+    hintMeaning.style.display !== "none" &&
+    (hintMeaning.textContent || "").trim();
+  const hintPyVisible =
+    hintPinyin &&
+    hintPinyin.style.display !== "none" &&
+    (hintPinyin.textContent || "").trim();
+  if (hintEnVisible) {
+    fe.style.display = "none";
+    return;
+  }
+  fe.style.display = enText ? "block" : "none";
+  if (hintPyVisible && enText) {
+    fe.style.marginBottom = "4px";
+  }
+}
+
 /** Show or clear the English translation below the active frame sentence.
  *  In challenge mode the English is intentionally hidden until the learner clicks ? twice;
  *  it is revealed there via #hintMeaning, not this element. */
@@ -3397,7 +3579,7 @@ function _setFrameEnglish(enText) {
   }
   const t = (enText || "").trim();
   el.textContent = t;
-  el.style.display = t ? "block" : "none";
+  _syncActiveEnglishDisplay();
 }
 
 /**
@@ -4354,20 +4536,10 @@ function _updatePartnerHeader(partnerName, partnerPrefix, partnerFact) {
   const prefixLine = document.getElementById("partnerPrefixLine");
   const factLine = document.getElementById("partnerFactLine");
   if (!header || !nameLabel || !prefixLine) return;
-  // Challenge Mode: show partner name only — suppress Chinese prefix and discoverable fact
-  if (_challenge.active) {
-    if (partnerName) { nameLabel.textContent = `${partnerName}:`; prefixLine.textContent = ""; header.style.display = "flex"; }
-    else header.style.display = "none";
-    if (factLine) factLine.style.display = "none";
-    return;
-  }
-  if (partnerName) {
-    nameLabel.textContent = `${partnerName}:`;
-    prefixLine.textContent = partnerPrefix || "";
-    header.style.display = "flex";
-  } else {
-    header.style.display = "none";
-  }
+  // Partner is already shown in the top persona bar — keep active panel for the utterance only.
+  nameLabel.textContent = partnerName ? `${partnerName}:` : "";
+  prefixLine.textContent = partnerPrefix || "";
+  header.style.display = "none";
   if (factLine) {
     if (partnerFact) {
       factLine.textContent = partnerFact;
@@ -4696,17 +4868,10 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
   const opt = getRecoveryPanelOption();
   if (!opt) return false;
 
-  const header = document.createElement("div");
-  header.className = "recovery-panel-label";
-  header.textContent = "Need help?";
-  targetContainer.appendChild(header);
-
   const scrollWrap = document.createElement("div");
   scrollWrap.className = "recovery-phrases-scroll";
-  targetContainer.appendChild(scrollWrap);
 
   // Each phrase uses the same flat flex-wrap structure as discovery panels:
-  // op-zh / op-py / op-en are direct card children so they wrap naturally on narrow screens.
   (opt.recoveryPhrases || []).forEach((phrase) => {
     const panel = document.createElement("div");
     panel.className = "option-panel recovery-card";
@@ -4744,9 +4909,10 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
     });
     panel.appendChild(speakBtn);
 
-    // Tap the card to use it (speaker click excluded)
     panel.addEventListener("click", async (ev) => {
       if (ev.target.closest(".op-icon-btn")) return;
+      if (document.body.classList.contains("is-listening")) return;
+      if (Date.now() - (window._micListenArmedAt || 0) < 450) return;
       _tracker.recovery_uses++;
       _tracker._pendingRecovery = true;
       emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
@@ -4826,10 +4992,32 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
 
     scrollWrap.appendChild(panel);
   });
+
+  if (_isMobileLayout()) {
+    const details = document.createElement("details");
+    details.className = "recovery-panel-collapsible";
+    const summary = document.createElement("summary");
+    summary.className = "recovery-panel-label recovery-panel-toggle";
+    summary.textContent = "Need help? Tap for emergency phrases";
+    details.appendChild(summary);
+    details.appendChild(scrollWrap);
+    targetContainer.appendChild(details);
+  } else {
+    const header = document.createElement("div");
+    header.className = "recovery-panel-label";
+    header.textContent = "Need help?";
+    targetContainer.appendChild(header);
+    targetContainer.appendChild(scrollWrap);
+  }
   return true;
 }
 
 function _scrollRecoveryPanelIntoView() {
+  if (_isMobileLayout()) {
+    const host = document.querySelector(".current-turn-options");
+    if (host) host.scrollTop = 0;
+    return;
+  }
   const target = _challenge.active
     ? document.getElementById("challengeRecoveryZone")
     : document.getElementById("sentenceOptionsContainer");
@@ -4837,6 +5025,11 @@ function _scrollRecoveryPanelIntoView() {
   requestAnimationFrame(() => {
     target.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
+}
+
+function _scrollOptionsIntoViewIfDesktop(el) {
+  if (_isMobileLayout() || !el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function renderOptions(options, frameId) {
@@ -5193,7 +5386,7 @@ function renderOptions(options, frameId) {
         return;
       }
 
-      if (opt.card_id && opt.kind !== "FRAME_WITH_SLOTS") {
+      if (opt.card_id && opt.kind !== "FRAME_WITH_SLOTS" && _shouldAlsoOpenCardPanel()) {
         dispatch({ type: "OPEN_CARD", payload: { card_id: opt.card_id } });
         resolveCard(opt.card_id, "tools/cards/out/cards_by_id.json");
       }
@@ -5235,23 +5428,18 @@ function renderSentenceOptions(sentenceOptions, frameId) {
   container.innerHTML = "";
 
   const answers = (sentenceOptions || []).filter(o => o.kind === "SENTENCE" || !o.kind);
-  // Recovery panel lives here too — do not bail before it is appended.
   const hasRecoveryPanel = !!getRecoveryPanelOption();
   if (!answers.length && !hasRecoveryPanel) {
     container.style.display = "none";
     return;
   }
 
-  // Recovery phrases: route to #challengeRecoveryZone in challenge mode so they remain visible
-  // while sentenceOptionsContainer is hidden. Normal mode behaviour is unchanged.
   if (_challenge.active) {
     const zone = document.getElementById("challengeRecoveryZone");
-    if (zone) { zone.innerHTML = ""; renderRecoveryPanelInto(zone, frameId); }
-  } else {
-    renderRecoveryPanelInto(container, frameId);
+    if (zone) zone.innerHTML = "";
   }
 
-  // Build each answer as a standard option-panel so speaker, ?, and word-exploration all work
+  // Build suggested answers first — keeps yellow recovery cards away from the mic strip on mobile.
   answers.forEach((opt, idx) => {
     const hanziStr = (opt.zh || "").trim();
     const pinyin   = (opt.py || "").trim();
@@ -5394,6 +5582,13 @@ function renderSentenceOptions(sentenceOptions, frameId) {
     container.appendChild(panel);
   });
 
+  if (_challenge.active) {
+    const zone = document.getElementById("challengeRecoveryZone");
+    if (zone) renderRecoveryPanelInto(zone, frameId);
+  } else {
+    renderRecoveryPanelInto(container, frameId);
+  }
+
   // Keep the reverseActionsRow clear
   const reverseActionsRow = document.getElementById("reverseActionsRow");
   if (reverseActionsRow) reverseActionsRow.innerHTML = "";
@@ -5401,6 +5596,9 @@ function renderSentenceOptions(sentenceOptions, frameId) {
   container.style.display = "flex";
   if (hasRecoveryPanel || container.querySelector('[data-recovery="true"]')) {
     _scrollRecoveryPanelIntoView();
+  } else if (_isMobileLayout()) {
+    const host = document.querySelector(".current-turn-options");
+    if (host) host.scrollTop = 0;
   }
 }
 
@@ -5817,7 +6015,7 @@ function _resetCurrentSessionState() {
   const progressSaved = document.getElementById("progressSavedMsg");
   if (progressSaved) progressSaved.remove();
 
-  document.body.classList.remove("conversation-active", "session-ended", "mobile-panel-open", "card-sheet-open");
+  document.body.classList.remove("conversation-active", "session-ended", "mobile-panel-open", "card-sheet-open", "mobile-guide-collapsed");
   _syncMobileBackdrop();
   _updateMobileFabLabel();
 
@@ -5904,6 +6102,8 @@ async function runTurn(isNext = false, opts = {}) {
 async function _runTurnInner(isNext = false, opts = {}) {
   // Clear any lingering listening indicator now that the partner is about to respond.
   _setListenState("idle");
+  _closeExploreWordPanelIfMobile();
+  _closeMicroGloss();
   // Challenge Mode: reset per-turn help state before rendering begins
   if (_challenge.active) _resetChallengeHelpState();
   const selected = frameSelect.value;
@@ -6583,8 +6783,8 @@ async function _runTurnInner(isNext = false, opts = {}) {
     });
   }
 
-  // If server returned a card_id, open the card panel
-  if (data.card_id) {
+  // If server returned a card_id, open the card panel (desktop side panel only)
+  if (data.card_id && _shouldAlsoOpenCardPanel()) {
     dispatch({ type: "OPEN_CARD", payload: { card_id: data.card_id } });
     const usingFixtureFrame = String(frameSelect.value || "").includes("tests/fixtures/");
     const cardsPath = usingFixtureFrame
@@ -6725,9 +6925,21 @@ window.addEventListener("load", async () => {
       _dismissOnboardingGuideIfActive();
     });
   }
-  // Phase 7.4: Speak-first — actually listen (Web Speech API), then either advance turn or show recovery
+  // Phase 7.4: Speak-first — Web Speech API; on mobile use touchstart (iOS gesture chain).
   const LISTEN_BEFORE_RECOVERY_MS = 7000;
-  document.getElementById("tryRespondingBtn")?.addEventListener("click", async () => {
+  let _micListenInFlight = false;
+  let _micLastTouchListenAt = 0;
+
+  async function _runChineseMicListen(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (_micListenInFlight) return;
+    _micListenInFlight = true;
+    window._micListenArmedAt = Date.now();
+    _closeMicroGloss();
+    _closeExploreWordPanelIfMobile();
     ttsUnlock();
     const btn = document.getElementById("tryRespondingBtn");
     const frameId = window._lastPartnerFrameId || null;
@@ -6736,12 +6948,13 @@ window.addEventListener("load", async () => {
       ? window._tapOptions
       : (Array.isArray(optionsFromFrame) ? optionsFromFrame : []);
     if (btn) btn.textContent = "Listening…";
+    try {
     if (options.length === 0) {
       emitUITrace({ type: "SPEECH_LISTEN_OPTIONS", timestamp: new Date().toISOString(), payload: { frame_id: frameId, option_count: 0, warning: "No options to match against; use Run Turn first or check frame_options" } });
     } else {
       emitUITrace({ type: "SPEECH_LISTEN_OPTIONS", timestamp: new Date().toISOString(), payload: { frame_id: frameId, option_count: options.length } });
     }
-    const { transcript, matchedOption, asr_confidence } = await listenForResponse(options, LISTEN_BEFORE_RECOVERY_MS);
+    const { transcript, matchedOption, asr_confidence, finishReason } = await listenForResponse(options, LISTEN_BEFORE_RECOVERY_MS);
     emitUITrace({
       type: "SPEECH_RESULT",
       timestamp: new Date().toISOString(),
@@ -6750,11 +6963,33 @@ window.addEventListener("load", async () => {
         transcript_length: (transcript || "").length,
         matched: !!matchedOption,
         asr_confidence: asr_confidence != null ? asr_confidence : null,
+        finish_reason: finishReason || null,
       },
     });
-    if (btn) {
-      btn.textContent = "\uD83C\uDFA4";
-      btn.title = "Speak your answer";
+    const saidTrimmed = (transcript && typeof transcript === "string") ? transcript.trim() : "";
+    // Empty mic session: stay in RESPOND — do not fire partner recovery or increment repair count.
+    if (!saidTrimmed) {
+      const _isActionableError = finishReason === "insecure_origin" || finishReason === "permission_denied"
+        || finishReason === "start_error" || (finishReason === "onend" && !window._lastMicStarted);
+      const _noSpeechMsg = finishReason === "insecure_origin"
+        ? "Mic needs HTTPS — open this app via https:// or use Safari on this device."
+        : finishReason === "permission_denied"
+          ? "Microphone access denied — allow mic in browser settings"
+          : finishReason === "start_error"
+            ? "Mic could not start — check browser mic permission"
+            : finishReason === "error"
+              ? "Speech recognition error — try again"
+              : (finishReason === "onend" && !window._lastMicStarted)
+                ? "Microphone did not open — check browser mic permission"
+                : "No speech heard — tap the mic and try again";
+      _showListenNotice(_noSpeechMsg, _isActionableError ? 6000 : 3500);
+      emitUITrace({
+        type: "SPEECH_EMPTY_NO_RECOVERY",
+        timestamp: new Date().toISOString(),
+        payload: { frame_id: frameId, finish_reason: finishReason || "unknown" },
+      });
+      setUiMode("RESPOND");
+      return;
     }
     if (matchedOption) {
       if (frameId) {
@@ -6766,7 +7001,7 @@ window.addEventListener("load", async () => {
       window._lastRepairKind = null; window._prevRepairKind = null;
       // Understood: update conversation and move to next turn (same as selecting that option)
       emitUITrace({ type: "SPEECH_UNDERSTOOD", timestamp: new Date().toISOString(), payload: { transcript, matched_hanzi: matchedOption.hanzi } });
-      if (matchedOption.card_id && matchedOption.kind !== "FRAME_WITH_SLOTS") {
+      if (matchedOption.card_id && matchedOption.kind !== "FRAME_WITH_SLOTS" && _shouldAlsoOpenCardPanel()) {
         dispatch({ type: "OPEN_CARD", payload: { card_id: matchedOption.card_id } });
         resolveCard(matchedOption.card_id, "tools/cards/out/cards_by_id.json");
       }
@@ -6819,8 +7054,6 @@ window.addEventListener("load", async () => {
       return;
     }
     // No option match but user said something substantial — accept and advance to sustain conversation (no "correct answer" required)
-    const saidTrimmed = (transcript && typeof transcript === "string") ? transcript.trim() : "";
-
     // ASR dedup guard: Edge sometimes fires the same recognition result twice within a few
     // seconds (once as interim, once as final). Suppress if the same text was already accepted
     // for the same frame in the last 6 seconds so we don't get duplicate partner turns.
@@ -7128,7 +7361,33 @@ window.addEventListener("load", async () => {
       ttsSpeak({ text: _displayPhrase.hanzi, lang: "zh-CN" });
       setUiMode("RESPOND");
     }
-  });
+    } finally {
+      if (btn) {
+        btn.textContent = "\uD83C\uDFA4";
+        btn.title = "Speak your answer";
+      }
+      const st = document.getElementById("listenStatus")?.dataset?.state;
+      if (st !== "notice") _setListenState("idle");
+      _micListenInFlight = false;
+    }
+  }
+
+  const tryRespondingBtnEl = document.getElementById("tryRespondingBtn");
+  if (tryRespondingBtnEl) {
+    tryRespondingBtnEl.addEventListener("touchstart", (e) => {
+      e.stopPropagation();
+      window._micListenArmedAt = Date.now();
+      if (_isMobileLayout()) {
+        e.preventDefault();
+        _micLastTouchListenAt = Date.now();
+        _runChineseMicListen(e);
+      }
+    }, { passive: false });
+    tryRespondingBtnEl.addEventListener("click", (e) => {
+      if (_isMobileLayout() && Date.now() - _micLastTouchListenAt < 600) return;
+      _runChineseMicListen(e);
+    });
+  }
   // Phase 7 completion: Play question (TTS for frame sentence)
   document.getElementById('playQuestionBtn')?.addEventListener('click', () => {
     const fs = document.getElementById('frameSentence');
@@ -7222,14 +7481,14 @@ if (showOptionsBtn) showOptionsBtn.addEventListener("click", () => {
     // Challenge Mode: record that suggested responses were revealed
     if (_challenge.active && !isVisible) _challenge.helpLevel = Math.max(_challenge.helpLevel, 4);
     setUiMode("RESPOND");
-    if (!isVisible) sentenceContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!isVisible) _scrollOptionsIntoViewIfDesktop(sentenceContainer);
     return;
   }
   if (hasLegacy && legacyContainer) {
     const isVisible = legacyContainer.style.display !== "none";
     legacyContainer.style.display = isVisible ? "none" : "flex";
     setUiMode("RESPOND");
-    if (!isVisible) legacyContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!isVisible) _scrollOptionsIntoViewIfDesktop(legacyContainer);
     return;
   }
   // Additive post-closing-move fallback: show mirror/user-led questions after a terminal
@@ -7528,7 +7787,7 @@ async function _showPostCloseMirrorOptions() {
   if (soc) {
     soc.style.display = "flex";
     setUiMode("RESPOND");
-    soc.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    _scrollOptionsIntoViewIfDesktop(soc);
   }
 }
 // Expose on window so browser console validation and test scripts can call it directly.
@@ -7544,79 +7803,79 @@ window._showPostCloseMirrorOptions = _showPostCloseMirrorOptions;
 const _FRAME_FALLBACK_QUESTIONS = {
   // ── Identity / name ──────────────────────────────────────────────────────
   f_ask_you_name: [
-    { zh: "你叫什么名字？",         py: "nǐ jiào shénme míngzi?",                en: "What is your name?" },
-    { zh: "你的名字是什么意思？",   py: "nǐ de míngzi shì shénme yìsi?",         en: "What does your name mean?" },
-    { zh: "谁给你取的名字？",       py: "shéi gěi nǐ qǔ de míngzi?",             en: "Who gave you your name?" },
+    { zh: "你叫什么名字？",         py: "nǐ jiào shénme míngzi?",                en: "What is your name?",              topic: "name_what" },
+    { zh: "你的名字是什么意思？",   py: "nǐ de míngzi shì shénme yìsi?",         en: "What does your name mean?",       topic: "name_meaning" },
+    { zh: "谁给你取的名字？",       py: "shéi gěi nǐ qǔ de míngzi?",             en: "Who gave you your name?",         topic: "name_giver" },
   ],
   // ── Place / origin ───────────────────────────────────────────────────────
   f_from_where: [
-    { zh: "你呢？你是哪里人？",     py: "nǐ ne? nǐ shì nǎlǐ rén?",             en: "How about you — where are you from?" },
-    { zh: "你来自哪里？",           py: "nǐ láizì nǎlǐ?",                        en: "Where do you come from?" },
-    { zh: "你现在住哪里？",         py: "nǐ xiànzài zhù nǎlǐ?",                  en: "Where do you live now?" },
-    { zh: "你老家在哪里？",         py: "nǐ lǎojiā zài nǎlǐ?",                   en: "Where is your hometown?" },
+    { zh: "你呢？你是哪里人？",     py: "nǐ ne? nǐ shì nǎlǐ rén?",             en: "How about you — where are you from?", topic: "place_from" },
+    { zh: "你来自哪里？",           py: "nǐ láizì nǎlǐ?",                        en: "Where do you come from?",         topic: "place_from" },
+    { zh: "你现在住哪里？",         py: "nǐ xiànzài zhù nǎlǐ?",                  en: "Where do you live now?",          topic: "place_live_now" },
+    { zh: "你老家在哪里？",         py: "nǐ lǎojiā zài nǎlǐ?",                   en: "Where is your hometown?",         topic: "place_hometown" },
   ],
   // normalised canonical id for f_live_where (server uses frame.location.live_question)
   "frame.location.live_question": [
-    { zh: "你呢？你住哪里？",       py: "nǐ ne? nǐ zhù nǎlǐ?",                  en: "How about you — where do you live?" },
-    { zh: "你住在哪里？",           py: "nǐ zhù zài nǎlǐ?",                      en: "Where do you live?" },
-    { zh: "那里远吗？",             py: "nàlǐ yuǎn ma?",                          en: "Is it far?" },
-    { zh: "你住在城市还是农村？",   py: "nǐ zhù zài chéngshì háishi nóngcūn?",   en: "City or countryside?" },
+    { zh: "你呢？你住哪里？",       py: "nǐ ne? nǐ zhù nǎlǐ?",                  en: "How about you — where do you live?", topic: "place_live_now" },
+    { zh: "你住在哪里？",           py: "nǐ zhù zài nǎlǐ?",                      en: "Where do you live?",              topic: "place_live_now" },
+    { zh: "那里远吗？",             py: "nàlǐ yuǎn ma?",                          en: "Is it far?",                      topic: "place_far_or_not" },
+    { zh: "你住在城市还是农村？",   py: "nǐ zhù zài chéngshì háishi nóngcūn?",   en: "City or countryside?",            topic: "place_special" },
   ],
   f_live_where: [
-    { zh: "你呢？你住哪里？",       py: "nǐ ne? nǐ zhù nǎlǐ?",                  en: "How about you — where do you live?" },
-    { zh: "你住在哪里？",           py: "nǐ zhù zài nǎlǐ?",                      en: "Where do you live?" },
-    { zh: "那里远吗？",             py: "nàlǐ yuǎn ma?",                          en: "Is it far?" },
-    { zh: "你住在城市还是农村？",   py: "nǐ zhù zài chéngshì háishi nóngcūn?",   en: "City or countryside?" },
+    { zh: "你呢？你住哪里？",       py: "nǐ ne? nǐ zhù nǎlǐ?",                  en: "How about you — where do you live?", topic: "place_live_now" },
+    { zh: "你住在哪里？",           py: "nǐ zhù zài nǎlǐ?",                      en: "Where do you live?",              topic: "place_live_now" },
+    { zh: "那里远吗？",             py: "nàlǐ yuǎn ma?",                          en: "Is it far?",                      topic: "place_far_or_not" },
+    { zh: "你住在城市还是农村？",   py: "nǐ zhù zài chéngshì háishi nóngcūn?",   en: "City or countryside?",            topic: "place_special" },
   ],
   // Distance / far
   p2_pl_far: [
-    { zh: "离那儿远吗？",           py: "lí nàr yuǎn ma?",                        en: "Is it far from there?" },
-    { zh: "一般怎么去？",           py: "yìbān zěnme qù?",                        en: "How do you usually get there?" },
-    { zh: "从你那儿到那边要多久？", py: "cóng nǐ nàr dào nàbiān yào duō jiǔ?",  en: "How long does it take?" },
+    { zh: "离那儿远吗？",           py: "lí nàr yuǎn ma?",                        en: "Is it far from there?",           topic: "place_far_or_not" },
+    { zh: "一般怎么去？",           py: "yìbān zěnme qù?",                        en: "How do you usually get there?",   topic: "place_distance_transport" },
+    { zh: "从你那儿到那边要多久？", py: "cóng nǐ nàr dào nàbiān yào duō jiǔ?",  en: "How long does it take?",          topic: "place_distance_time" },
   ],
   // ── Work ─────────────────────────────────────────────────────────────────
   f_what_work: [
-    { zh: "你呢？你做什么工作？",   py: "nǐ ne? nǐ zuò shénme gōngzuò?",        en: "How about you — what do you do?" },
-    { zh: "你喜欢你的工作吗？",     py: "nǐ xǐhuān nǐ de gōngzuò ma?",           en: "Do you like your work?" },
-    { zh: "你做这份工作多久了？",   py: "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",     en: "How long have you been doing this?" },
+    { zh: "你呢？你做什么工作？",   py: "nǐ ne? nǐ zuò shénme gōngzuò?",        en: "How about you — what do you do?", topic: "work_what" },
+    { zh: "你喜欢你的工作吗？",     py: "nǐ xǐhuān nǐ de gōngzuò ma?",           en: "Do you like your work?",          topic: "work_like" },
+    { zh: "你做这份工作多久了？",   py: "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",     en: "How long have you been doing this?", topic: "work_duration" },
   ],
   f_like_work: [
-    { zh: "你为什么喜欢这份工作？", py: "nǐ wèishénme xǐhuān zhèfèn gōngzuò?",  en: "Why do you like this work?" },
-    { zh: "工作中最有趣的是什么？", py: "gōngzuò zhōng zuì yǒuqù de shì shénme?", en: "What's most interesting about your work?" },
-    { zh: "你做这份工作多久了？",   py: "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",     en: "How long have you done this?" },
+    { zh: "你为什么喜欢这份工作？", py: "nǐ wèishénme xǐhuān zhèfèn gōngzuò?",  en: "Why do you like this work?",      topic: "work_like" },
+    { zh: "工作中最有趣的是什么？", py: "gōngzuò zhōng zuì yǒuqù de shì shénme?", en: "What's most interesting about your work?", topic: "work_like" },
+    { zh: "你做这份工作多久了？",   py: "nǐ zuò zhèfèn gōngzuò duōjiǔ le?",     en: "How long have you done this?",    topic: "work_duration" },
   ],
   // ── Family ───────────────────────────────────────────────────────────────
   f_married: [
-    { zh: "你结婚了吗？",           py: "nǐ jiéhūn le ma?",                       en: "Are you married?" },
-    { zh: "你有孩子吗？",           py: "nǐ yǒu háizi ma?",                       en: "Do you have children?" },
-    { zh: "你家里有几个人？",       py: "nǐ jiālǐ yǒu jǐ gè rén?",               en: "How many people are in your family?" },
+    { zh: "你结婚了吗？",           py: "nǐ jiéhūn le ma?",                       en: "Are you married?",                topic: "family_marital" },
+    { zh: "你有孩子吗？",           py: "nǐ yǒu háizi ma?",                       en: "Do you have children?",           topic: "family_children" },
+    { zh: "你家里有几个人？",       py: "nǐ jiālǐ yǒu jǐ gè rén?",               en: "How many people are in your family?", topic: "family_parents" },
   ],
   f_have_children: [
-    { zh: "你有孩子吗？",           py: "nǐ yǒu háizi ma?",                       en: "Do you have children?" },
-    { zh: "你家里有几个人？",       py: "nǐ jiālǐ yǒu jǐ gè rén?",               en: "How many in your family?" },
-    { zh: "你有兄弟姐妹吗？",       py: "nǐ yǒu xiōngdì jiěmèi ma?",              en: "Do you have siblings?" },
+    { zh: "你有孩子吗？",           py: "nǐ yǒu háizi ma?",                       en: "Do you have children?",           topic: "family_children" },
+    { zh: "你家里有几个人？",       py: "nǐ jiālǐ yǒu jǐ gè rén?",               en: "How many in your family?",        topic: "family_parents" },
+    { zh: "你有兄弟姐妹吗？",       py: "nǐ yǒu xiōngdì jiěmèi ma?",              en: "Do you have siblings?",           topic: "family_parents" },
   ],
   f_live_with_who: [
-    { zh: "你和谁一起住？",         py: "nǐ hé shéi yīqǐ zhù?",                  en: "Who do you live with?" },
-    { zh: "你家里有几个人？",       py: "nǐ jiālǐ yǒu jǐ gè rén?",               en: "How many people in your family?" },
-    { zh: "你跟父母住在一起吗？",   py: "nǐ gēn fùmǔ zhù zài yīqǐ ma?",          en: "Do you live with your parents?" },
+    { zh: "你和谁一起住？",         py: "nǐ hé shéi yīqǐ zhù?",                  en: "Who do you live with?",           topic: "family_live_with" },
+    { zh: "你家里有几个人？",       py: "nǐ jiālǐ yǒu jǐ gè rén?",               en: "How many people in your family?", topic: "family_parents" },
+    { zh: "你跟父母住在一起吗？",   py: "nǐ gēn fùmǔ zhù zài yīqǐ ma?",          en: "Do you live with your parents?",  topic: "family_live_with" },
   ],
   // ── Food ─────────────────────────────────────────────────────────────────
   f_place_food: [
-    { zh: "你最喜欢吃什么？",       py: "nǐ zuì xǐhuān chī shénme?",              en: "What do you like eating most?" },
-    { zh: "你喜欢吃辣吗？",         py: "nǐ xǐhuān chī là ma?",                   en: "Do you like spicy food?" },
-    { zh: "你会自己做吗？",         py: "nǐ huì zìjǐ zuò ma?",                    en: "Can you cook that yourself?" },
+    { zh: "你最喜欢吃什么？",       py: "nǐ zuì xǐhuān chī shénme?",              en: "What do you like eating most?",   topic: "food_fav" },
+    { zh: "你喜欢吃辣吗？",         py: "nǐ xǐhuān chī là ma?",                   en: "Do you like spicy food?",         topic: "food_spicy" },
+    { zh: "你会自己做吗？",         py: "nǐ huì zìjǐ zuò ma?",                    en: "Can you cook that yourself?",     topic: "food_fav" },
   ],
   // ── Place depth ──────────────────────────────────────────────────────────
   f_place_special: [
-    { zh: "那里有什么特别的？",     py: "nàlǐ yǒu shénme tèbié de?",              en: "What's special about that place?" },
-    { zh: "你为什么喜欢那里？",     py: "nǐ wèishénme xǐhuān nàlǐ?",             en: "Why do you like it there?" },
-    { zh: "那里有什么好吃的？",     py: "nàlǐ yǒu shénme hǎochī de?",             en: "What's good to eat there?" },
+    { zh: "那里有什么特别的？",     py: "nàlǐ yǒu shénme tèbié de?",              en: "What's special about that place?", topic: "place_special" },
+    { zh: "你为什么喜欢那里？",     py: "nǐ wèishénme xǐhuān nàlǐ?",             en: "Why do you like it there?",       topic: "place_like" },
+    { zh: "那里有什么好吃的？",     py: "nàlǐ yǒu shénme hǎochī de?",             en: "What's good to eat there?",       topic: "food_local" },
   ],
   f_place_like_there: [
-    { zh: "你喜欢那里吗？",         py: "nǐ xǐhuān nàlǐ ma?",                     en: "Do you like it there?" },
-    { zh: "那里有什么特别的？",     py: "nàlǐ yǒu shénme tèbié de?",              en: "What's special about that place?" },
-    { zh: "你为什么喜欢那里？",     py: "nǐ wèishénme xǐhuān nàlǐ?",             en: "Why do you like it there?" },
+    { zh: "你喜欢那里吗？",         py: "nǐ xǐhuān nàlǐ ma?",                     en: "Do you like it there?",           topic: "place_like" },
+    { zh: "那里有什么特别的？",     py: "nàlǐ yǒu shénme tèbié de?",              en: "What's special about that place?", topic: "place_special" },
+    { zh: "你为什么喜欢那里？",     py: "nǐ wèishénme xǐhuān nàlǐ?",             en: "Why do you like it there?",       topic: "place_like" },
   ],
 };
 
@@ -7624,10 +7883,10 @@ const _FRAME_FALLBACK_QUESTIONS = {
  *  but before the learner has asked about specifics.  Less advanced than the full
  *  topic fallback ("那里有什么好吃的？" etc.). */
 const _PLACE_DEPTH_EARLY_QUESTIONS = [
-  { zh: "那是哪里？",               py: "nà shì nǎlǐ?",                          en: "Where is that?" },
-  { zh: "那里远吗？",               py: "nàlǐ yuǎn ma?",                          en: "Is it far from here?" },
-  { zh: "那里大吗？",               py: "nàlǐ dà ma?",                            en: "Is it a big place?" },
-  { zh: "那里好吗？",               py: "nàlǐ hǎo ma?",                           en: "Is it nice there?" },
+  { zh: "那是哪里？",               py: "nà shì nǎlǐ?",                          en: "Where is that?",              topic: "place_from" },
+  { zh: "那里远吗？",               py: "nàlǐ yuǎn ma?",                          en: "Is it far from here?",        topic: "place_far_or_not" },
+  { zh: "那里大吗？",               py: "nàlǐ dà ma?",                            en: "Is it a big place?",          topic: "place_special" },
+  { zh: "那里好吗？",               py: "nàlǐ hǎo ma?",                           en: "Is it nice there?",           topic: "place_like" },
 ];
 
 /** Return frame-stage fallback questions for `frameId`, or [] if not an early-stage frame. */
@@ -7651,34 +7910,34 @@ function _isEarlyPlaceFrame(frameId) {
  *  always take priority (cache is populated before this path is reached). */
 const _TOPIC_FALLBACK_QUESTIONS = {
   work:    [
-    { zh: "你做这个工作多久了？", py: "nǐ zuò zhège gōngzuò duō jiǔ le?",    en: "How long have you done this job?" },
-    { zh: "你喜欢这个工作吗？",   py: "nǐ xǐhuān zhège gōngzuò ma?",           en: "Do you enjoy this job?" },
-    { zh: "你在哪里工作？",       py: "nǐ zài nǎlǐ gōngzuò?",                  en: "Where do you work?" },
+    { zh: "你做这个工作多久了？", py: "nǐ zuò zhège gōngzuò duō jiǔ le?",    en: "How long have you done this job?",    topic: "work_duration" },
+    { zh: "你喜欢这个工作吗？",   py: "nǐ xǐhuān zhège gōngzuò ma?",           en: "Do you enjoy this job?",               topic: "work_like" },
+    { zh: "你在哪里工作？",       py: "nǐ zài nǎlǐ gōngzuò?",                  en: "Where do you work?",                   topic: "work_platform" },
   ],
   travel:  [
-    { zh: "你去过哪里？",         py: "nǐ qù guò nǎlǐ?",                        en: "Where have you been?" },
-    { zh: "你喜欢哪里？",         py: "nǐ xǐhuān nǎlǐ?",                        en: "Which place do you like?" },
-    { zh: "你想去哪里？",         py: "nǐ xiǎng qù nǎlǐ?",                      en: "Where would you like to go?" },
+    { zh: "你去过哪里？",         py: "nǐ qù guò nǎlǐ?",                        en: "Where have you been?",                 topic: "travel_where" },
+    { zh: "你喜欢哪里？",         py: "nǐ xǐhuān nǎlǐ?",                        en: "Which place do you like?",             topic: "travel_fav" },
+    { zh: "你想去哪里？",         py: "nǐ xiǎng qù nǎlǐ?",                      en: "Where would you like to go?",          topic: "travel_where" },
   ],
   place:   [
-    { zh: "你喜欢那里吗？",       py: "nǐ xǐhuān nàlǐ ma?",                     en: "Do you like it there?" },
-    { zh: "那里有什么好吃的？",   py: "nàlǐ yǒu shénme hào chī de?",           en: "What good food is there?" },
-    { zh: "那里有什么特别？",     py: "nàlǐ yǒu shénme tèbié?",                 en: "What's special about that place?" },
+    { zh: "你喜欢那里吗？",       py: "nǐ xǐhuān nàlǐ ma?",                     en: "Do you like it there?",               topic: "place_like" },
+    { zh: "那里有什么好吃的？",   py: "nàlǐ yǒu shénme hào chī de?",           en: "What good food is there?",             topic: "food_local" },
+    { zh: "那里有什么特别？",     py: "nàlǐ yǒu shénme tèbié?",                 en: "What's special about that place?",     topic: "place_special" },
   ],
   family:  [
-    { zh: "你和谁一起住？",       py: "nǐ hé shéi yīqǐ zhù?",                   en: "Who do you live with?" },
-    { zh: "你有兄弟姐妹吗？",     py: "nǐ yǒu xiōngdì jiěmèi ma?",              en: "Do you have siblings?" },
-    { zh: "家里谁最重要？",       py: "jiālǐ shéi zuì zhòngyào?",                en: "Who is most important at home?" },
+    { zh: "你和谁一起住？",       py: "nǐ hé shéi yīqǐ zhù?",                   en: "Who do you live with?",               topic: "family_live_with" },
+    { zh: "你有兄弟姐妹吗？",     py: "nǐ yǒu xiōngdì jiěmèi ma?",              en: "Do you have siblings?",               topic: "family_parents" },
+    { zh: "家里谁最重要？",       py: "jiālǐ shéi zuì zhòngyào?",                en: "Who is most important at home?",       topic: "family_parents" },
   ],
   food:    [
-    { zh: "你最喜欢什么菜？",     py: "nǐ zuì xǐhuān shénme cài?",              en: "What dish do you like most?" },
-    { zh: "你会做饭吗？",         py: "nǐ huì zuò fàn ma?",                      en: "Can you cook?" },
-    { zh: "那里有什么好吃的？",   py: "nàlǐ yǒu shénme hào chī de?",           en: "What good food is there?" },
+    { zh: "你最喜欢什么菜？",     py: "nǐ zuì xǐhuān shénme cài?",              en: "What dish do you like most?",          topic: "food_fav" },
+    { zh: "你会做饭吗？",         py: "nǐ huì zuò fàn ma?",                      en: "Can you cook?",                       topic: "food_fav" },
+    { zh: "那里有什么好吃的？",   py: "nàlǐ yǒu shénme hào chī de?",           en: "What good food is there?",             topic: "food_local" },
   ],
   identity:[
-    { zh: "你叫什么名字？",       py: "nǐ jiào shénme míngzi?",                  en: "What's your name?" },
-    { zh: "你多大？",             py: "nǐ duō dà?",                               en: "How old are you?" },
-    { zh: "你是哪里人？",         py: "nǐ shì nǎlǐ rén?",                       en: "Where are you from?" },
+    { zh: "你叫什么名字？",       py: "nǐ jiào shénme míngzi?",                  en: "What's your name?",                   topic: "name_what" },
+    { zh: "你多大？",             py: "nǐ duō dà?",                               en: "How old are you?",                    topic: "age" },
+    { zh: "你是哪里人？",         py: "nǐ shì nǎlǐ rén?",                       en: "Where are you from?",                 topic: "place_from" },
   ],
 };
 
@@ -7823,6 +8082,7 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
     panel.id = "discoveryPanel";
     // Insert after sentence options so blue mirror questions sit below suggested responses
     const anchor = document.getElementById("optionsContainerParent")
+                || document.querySelector(".current-turn-options")
                 || document.getElementById("sentenceOptionsContainer");
     if (anchor) {
       anchor.after(panel);
@@ -7877,6 +8137,19 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
 
     card.addEventListener("click", () => { ttsUnlock(); submitDiscoveryQuestion(q); });
     card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { ttsUnlock(); submitDiscoveryQuestion(q); } });
+    // iOS: touchstart on divs isn't always forwarded as a click; handle explicitly on mobile.
+    if (_isMobileLayout()) {
+      let _discTouchMoved = false;
+      card.addEventListener("touchstart", () => { _discTouchMoved = false; }, { passive: true });
+      card.addEventListener("touchmove",  () => { _discTouchMoved = true;  }, { passive: true });
+      card.addEventListener("touchend", (ev) => {
+        if (_discTouchMoved) return;
+        if (ev.target.closest(".op-icon-btn")) return;
+        ev.preventDefault();
+        ttsUnlock();
+        submitDiscoveryQuestion(q);
+      }, { passive: false });
+    }
     panel.appendChild(card);
   });
 
@@ -8338,6 +8611,7 @@ function _lookupTranslationOverride(englishInput) {
   // On mobile, the virtual keyboard can push the input out of view.
   // Scroll it into view after a short delay so the keyboard has time to open.
   engInput.addEventListener("focus", () => {
+    if (_isMobileLayout()) return;
     setTimeout(() => engInput.scrollIntoView({ behavior: "smooth", block: "nearest" }), 320);
   });
 
@@ -8352,7 +8626,13 @@ function _lookupTranslationOverride(englishInput) {
       let _engRec = null;
       let _engRecording = false;
 
-      engMicBtn.addEventListener("click", () => {
+      engMicBtn.addEventListener("touchstart", (e) => {
+        e.stopPropagation();
+        window._micListenArmedAt = Date.now();
+      }, { passive: true });
+      engMicBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        window._micListenArmedAt = Date.now();
         if (_engRecording && _engRec) {
           _engRec.stop();
           return;
@@ -8365,6 +8645,8 @@ function _lookupTranslationOverride(englishInput) {
 
         _engRec.onstart = () => {
           _engRecording = true;
+          window._micListenArmedAt = Date.now();
+          document.body.classList.add("is-listening");
           engMicBtn.classList.add("recording");
           engMicBtn.title = "Listening… (click to stop)";
         };
@@ -8373,12 +8655,16 @@ function _lookupTranslationOverride(englishInput) {
           engMicBtn.classList.remove("recording");
           engMicBtn.title = "Speak in English";
           _engRec = null;
+          const st = document.getElementById("listenStatus")?.dataset?.state;
+          if (!st || st === "idle") document.body.classList.remove("is-listening");
         };
         _engRec.onerror = () => {
           _engRecording = false;
           engMicBtn.classList.remove("recording");
           engMicBtn.title = "Speak in English";
           _engRec = null;
+          const st = document.getElementById("listenStatus")?.dataset?.state;
+          if (!st || st === "idle") document.body.classList.remove("is-listening");
         };
         _engRec.onresult = (ev) => {
           const transcript = (ev.results[0]?.[0]?.transcript || "").trim();
@@ -9284,6 +9570,24 @@ function _setConversationActive(active) {
   _updateMobileFabLabel();
 }
 
+function _isMobileGuidePeekVisible() {
+  return (
+    _isMobileLayout() &&
+    !document.body.classList.contains("conversation-active") &&
+    !document.body.classList.contains("session-ended") &&
+    !document.body.classList.contains("mobile-panel-open") &&
+    !document.body.classList.contains("mobile-guide-collapsed")
+  );
+}
+
+function _dismissMobileGuidePeek() {
+  if (!_isMobileLayout()) return;
+  document.body.classList.add("mobile-guide-collapsed");
+  _dismissOnboardingGuideIfActive();
+  _closeMobilePanel();
+  _updateMobileFabLabel();
+}
+
 function _openMobilePanel() {
   if (!_isMobileLayout()) return;
   document.body.classList.add("mobile-panel-open");
@@ -9318,12 +9622,16 @@ function _updateMobileFabLabel() {
   const progressVisible = progressPanel && !progressPanel.hidden;
   const open = document.body.classList.contains("mobile-panel-open");
   const ended = document.body.classList.contains("session-ended");
+  const collapsed = document.body.classList.contains("mobile-guide-collapsed");
   if (open) {
     fab.textContent = "Close";
     if (title) title.textContent = progressVisible ? "Progress" : (ended ? "Session Scorecard" : "Session Guide");
   } else if (ended) {
     fab.textContent = progressVisible ? "View Progress" : "View Scorecard";
     if (title) title.textContent = progressVisible ? "Progress" : "Session Scorecard";
+  } else if (collapsed) {
+    fab.textContent = "Today's Focus";
+    if (title) title.textContent = "Today's Focus";
   } else {
     fab.textContent = progressVisible ? "View Progress" : "Session Guide";
     if (title) title.textContent = progressVisible ? "Progress" : "Session Guide";
@@ -9339,7 +9647,17 @@ function initMobileLayout() {
   if (!fab.dataset.wired) {
     fab.dataset.wired = "1";
     fab.addEventListener("click", () => _toggleMobilePanel());
-    if (closeBtn) closeBtn.addEventListener("click", () => _closeMobilePanel());
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        if (document.body.classList.contains("mobile-panel-open")) {
+          _closeMobilePanel();
+        } else if (_isMobileGuidePeekVisible()) {
+          _dismissMobileGuidePeek();
+        } else {
+          _closeMobilePanel();
+        }
+      });
+    }
     if (backdrop) {
       backdrop.addEventListener("click", () => {
         _closeMobilePanel();
@@ -9348,7 +9666,7 @@ function initMobileLayout() {
     }
     window.matchMedia("(max-width: 768px)").addEventListener("change", () => {
       if (!_isMobileLayout()) {
-        document.body.classList.remove("mobile-panel-open", "card-sheet-open");
+        document.body.classList.remove("mobile-panel-open", "card-sheet-open", "mobile-guide-collapsed");
         _syncMobileBackdrop();
       }
       _updateMobileFabLabel();
@@ -9427,6 +9745,9 @@ async function endSession() {
   // _renderAbilityDashboard() is intentionally NOT called here.
   if (result?.ok) {
     renderScorecard(result);
+    // Remove conversation-active so the Start/Frame controls re-surface on both
+    // mobile and desktop, and the header becomes visible again on mobile.
+    document.body.classList.remove("conversation-active");
     if (_isMobileLayout()) {
       document.body.classList.add("session-ended");
       document.body.classList.add("mobile-panel-open");

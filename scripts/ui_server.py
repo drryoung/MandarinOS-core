@@ -6612,8 +6612,24 @@ class Handler(BaseHTTPRequestHandler):
                 if direction_intent == "mirror":
                     # Learner asked a specific mirror question about the persona
                     topic = (payload.get("direction_question_topic") or "").strip()
-                    stub_result = _mirror_persona_stub(topic, engine_id, persona)
-                    stub, stub_en = stub_result if isinstance(stub_result, tuple) else (stub_result, "")
+                    asked_zh = (payload.get("direction_question_zh") or "").strip()
+                    # Safety net: if the client sent no topic (e.g. from a client-side fallback
+                    # question that was missing the topic field), infer it from the question text
+                    # using the same fuzzy matching the counter-question path uses.
+                    if not topic and asked_zh:
+                        _inferred = _find_mirror_answer(asked_zh, engine_id, persona)
+                        if _inferred:
+                            # _find_mirror_answer already called _mirror_persona_stub internally
+                            stub, stub_en = _inferred[0], _inferred[1]
+                            topic = _inferred[2] if len(_inferred) > 2 else ""
+                            if len(_inferred) > 3 and _inferred[3] not in ("unknown", ""):
+                                engine_id = _inferred[3]
+                        else:
+                            stub_result = _mirror_persona_stub(topic, engine_id, persona)
+                            stub, stub_en = stub_result if isinstance(stub_result, tuple) else (stub_result, "")
+                    else:
+                        stub_result = _mirror_persona_stub(topic, engine_id, persona)
+                        stub, stub_en = stub_result if isinstance(stub_result, tuple) else (stub_result, "")
                     # Derive the engine from the topic so the client can update its engine state
                     # correctly after a user-led question (prevents identity-engine restart after mirror).
                     _TOPIC_TO_ENG: dict = {

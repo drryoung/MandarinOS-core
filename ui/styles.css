@@ -12,7 +12,7 @@ header h1 { margin: 0; font-size: 1.35rem; }
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 .starting-point-label {
   font-size: 0.68rem;
@@ -20,6 +20,8 @@ header h1 { margin: 0; font-size: 1.35rem; }
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.62);
   font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .starting-point-btn {
   font: 0.82rem Arial, Helvetica, sans-serif;
@@ -30,6 +32,10 @@ header h1 { margin: 0; font-size: 1.35rem; }
   color: #fff;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .starting-point-btn:hover,
 .starting-point-btn:focus-visible {
@@ -880,10 +886,48 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
 }
 .controls-btn-row button:hover { background: #e2e8f0; }
 
+/* Transcript history toolbar — one compact size for Display / Speed / Segment */
+.transcript-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.transcript-toolbar label {
+  font: 0.75rem Arial, Helvetica, sans-serif;
+  color: #6b7280;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+.transcript-toolbar select,
+.transcript-toolbar button {
+  font: 0.75rem Arial, Helvetica, sans-serif !important;
+  padding: 2px 5px;
+  height: 22px;
+  min-height: 22px;
+  line-height: 1.2;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.transcript-toolbar select {
+  max-width: 6.5rem;
+}
+#segmentModeToggle {
+  width: 14px;
+  height: 14px;
+  min-height: 14px;
+  margin: 0;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
 /* Mobile input usability: extra thumb padding and safe-area breathing room on iPhone */
 @media (max-width: 600px) {
-  /* Prevent iOS Safari auto-zoom (font must be >= 16px / 1rem on inputs) */
-  input, select, textarea { font-size: 1rem !important; }
+  /* Prevent iOS Safari auto-zoom (font must be >= 16px / 1rem on primary inputs) */
+  input:not(#segmentModeToggle):not(.transcript-toolbar input),
+  select:not(.transcript-toolbar select),
+  textarea { font-size: 1rem !important; }
 
   /* Controls buttons: full 44px touch targets for iPhone */
   .controls-btn-row button {
@@ -1241,13 +1285,181 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
   line-height: 1.4;
 }
 
-/* ── Active-sentence English translation (#frameEnglish) ─────────────────── */
+/* ── Active conversation panel: prompt + mics pinned, options scroll ─────── */
+.current-turn {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.current-turn-focus {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 12;
+  isolation: isolate;
+  background: #fff;
+}
+
+.current-turn-mics {
+  flex-shrink: 0;
+  padding-top: 6px;
+  margin-top: 2px;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+  position: relative;
+  z-index: 13;
+}
+
+.current-turn-mics .action-ladder-btn.mic-only,
+.current-turn-mics .eng-mic-btn {
+  touch-action: manipulation;
+  position: relative;
+  z-index: 14;
+}
+
+.current-turn-options {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 2px solid #e2e8f0;
+  position: relative;
+  z-index: 1;
+}
+
+/* While listening: dim the whole options area so it recedes visually */
+body.is-listening .current-turn-options {
+  opacity: 0.72;
+}
+/* Block accidental sentence-option taps while listening, but keep discovery cards tappable
+   so the user can switch to a blue card if the mic fails */
+body.is-listening #sentenceOptionsContainer,
+body.is-listening #optionsContainer {
+  pointer-events: none;
+  touch-action: none;
+}
+
+.recovery-panel-collapsible {
+  margin-top: 10px;
+}
+
+.recovery-panel-collapsible summary.recovery-panel-toggle {
+  cursor: pointer;
+  list-style: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
+.recovery-panel-collapsible summary.recovery-panel-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.active-partner-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.active-partner-stack .frame-sentence {
+  display: block;
+  width: 100%;
+  line-height: 1.55;
+  margin: 0;
+  min-height: 0;
+  font-size: 1.3rem;
+}
+
+.active-partner-stack .frame-english {
+  margin: 0;
+}
+
+.active-partner-stack .frame-sentence-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 2px;
+}
+
+/* When Chinese text + speaker/? are wrapped in a row, pin them side-by-side */
+.active-partner-stack .frame-sentence-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+.active-partner-stack .frame-sentence-row .frame-sentence {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+}
+.active-partner-stack .frame-sentence-row .frame-sentence-actions {
+  margin-top: 4px;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+.current-turn-mics .action-ladder {
+  margin: 0 0 4px;
+  padding: 0;
+  border: none;
+}
+
+.current-turn-mics .eng-input-panel {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.current-turn #partnerHeader {
+  display: none !important;
+}
+
+.current-turn .word-insight-token {
+  padding: 1px 2px;
+  margin: 0;
+}
+
 .frame-english {
+  display: block;
+  width: 100%;
+  clear: both;
   font-size: 0.82rem;
   color: #64748b;
-  margin-top: 3px;
-  line-height: 1.35;
-  padding-left: 2px;
+  font-style: italic;
+  line-height: 1.45;
+  padding: 0;
+}
+
+.current-turn .hint-row {
+  display: block;
+  width: 100%;
+  clear: both;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.current-turn .hint-pinyin {
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.current-turn .hint-meaning {
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.82rem;
+}
+
+.current-turn .partner-fact-line {
+  margin: 0;
 }
 
 /* ── Trace toggle ─────────────────────────────────────────────────────────── */
@@ -1268,39 +1480,38 @@ body.challenge-mode #challengeRecoveryZone { display: block; margin-top: 10px; }
 .trace-summary:hover { color: #64748b; }
 
 /* ── Speech listening state indicator (#listenStatus) ──────────────────── */
-/* Three visible states: listening (green), waiting (amber), processing (blue).
-   Transitions are driven by _setListenState() in app.js — no conversation logic. */
+/* Subtle line below the mic — visible only after speech starts; cleared when done. */
 .listen-status {
   display: flex;
   align-items: center;
   gap: 7px;
   font-size: 0.8rem;
   font-weight: 500;
+  line-height: 1.35;
   min-height: 0;
   padding: 0;
   overflow: hidden;
   opacity: 0;
   max-height: 0;
-  /* Smooth in/out for listening↔waiting; processing appears instantly (overridden below). */
   transition: opacity 0.18s ease, max-height 0.18s ease, padding 0.18s ease, color 0.3s ease;
   pointer-events: none;
   user-select: none;
 }
 .listen-status[data-state="listening"],
 .listen-status[data-state="waiting"],
-.listen-status[data-state="processing"] {
+.listen-status[data-state="processing"],
+.listen-status[data-state="notice"] {
   opacity: 1;
   max-height: 40px;
   padding: 5px 2px 3px;
 }
-/* Processing arrives instantly — no fade delay that makes it feel sluggish. */
 .listen-status[data-state="processing"] {
   transition: none;
   color: #1e40af;
 }
 .listen-status[data-state="listening"]  { color: #15803d; }
-/* Waiting: visibly dimmer than listening to signal "winding down". */
 .listen-status[data-state="waiting"]    { color: #a16207; opacity: 0.72; }
+.listen-status[data-state="notice"]     { color: #64748b; font-size: 0.78rem; }
 
 .listen-icon { font-size: 1rem; display: inline-block; line-height: 1; }
 
@@ -1408,19 +1619,41 @@ body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after 
 }
 
 @media (max-width: 768px) {
+  html,
+  body {
+    overflow: hidden;
+    height: 100%;
+  }
+
+  .container {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
   main {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     gap: 0;
     padding: 6px;
+    min-height: 0;
+    overflow: hidden;
   }
 
   section.left {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
     min-height: 0;
     padding: 4px 6px;
     border-right: none;
+    overflow: hidden;
+  }
+
+  section.left > .conversation-heading,
+  section.left > .controls,
+  section.left > .remembered-facts {
+    flex-shrink: 0;
   }
 
   section.left > .conversation-heading {
@@ -1433,8 +1666,32 @@ body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after 
     margin-bottom: 4px;
   }
 
+  /* During conversation: pin session actions; hide setup-only controls. */
+  body.conversation-active .controls {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #fff;
+    padding-bottom: 4px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  }
+
+  body.conversation-active .controls .frame-label,
+  body.conversation-active .controls #frameSelect,
+  body.conversation-active .controls #runBtn,
+  body.conversation-active .controls #startFreshBtn,
+  body.conversation-active .controls #challengeModeBtn {
+    display: none !important;
+  }
+
+  body.conversation-active .remembered-facts {
+    display: none !important;
+  }
+
   .conversation-panel {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -1443,14 +1700,113 @@ body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after 
   }
 
   .transcript-panel {
-    flex-shrink: 0;
+    flex: 0 0 auto;
+    max-height: min(20vh, 112px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
-  .current-turn {
-    flex: 1;
+  .transcript-panel-label {
+    display: none;
+  }
+
+  .transcript-toolbar {
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    gap: 4px 6px;
+    margin-bottom: 3px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .transcript-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .transcript-content {
+    flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .current-turn {
+    flex: 1 1 auto;
+    min-height: 8rem;
+    overflow: hidden;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .current-turn-focus {
+    flex-shrink: 0;
+  }
+
+  .active-partner-stack .frame-sentence {
+    font-size: 1.2rem;
+  }
+
+  .current-turn-mics .action-ladder {
+    margin: 0 0 4px;
+    gap: 8px;
+  }
+
+  .current-turn-mics .action-ladder-btn.mic-only {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .current-turn-mics .eng-input-row {
+    gap: 6px;
+  }
+
+  .current-turn-mics .eng-mic-btn {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+
+  .current-turn-mics .eng-input-field {
+    min-height: 40px;
+    padding: 0.45rem 0.55rem;
+  }
+
+  .current-turn-options {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .recovery-panel-collapsible .recovery-phrases-scroll {
+    height: min(160px, 30vh);
+    max-height: min(160px, 30vh);
+  }
+
+  .current-turn-label {
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+  }
+
+  body.conversation-active .conversation-heading {
+    display: none;
+  }
+
+  body.conversation-active .current-turn-label {
+    display: none;
+  }
+
+  /* Hide entire header (starting point + partner) once a session is running */
+  body.conversation-active header {
+    display: none;
+  }
+
+  body.conversation-active .transcript-panel {
+    max-height: min(16vh, 92px);
   }
 
   /* Aside leaves document flow — overlays only */
@@ -1558,21 +1914,46 @@ body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after 
     display: none;
   }
 
-  /* Pre-conversation: compact onboarding strip (top of sheet visible) */
-  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open) .mobile-right-sheet {
+  /* Pre-conversation: compact onboarding strip with dismiss */
+  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open):not(.mobile-guide-collapsed) .mobile-right-sheet {
     transform: translateY(0);
-    max-height: 7.5rem;
+    max-height: 6.5rem;
     overflow: hidden;
     box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
   }
 
-  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open) .mobile-right-sheet .mobile-sheet-header,
-  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open) .mobile-right-sheet .right-panel-tabs {
+  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open):not(.mobile-guide-collapsed) .mobile-right-sheet .mobile-sheet-header {
+    display: flex;
+    padding: 6px 2px 2px;
+    border-bottom: none;
+  }
+
+  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open):not(.mobile-guide-collapsed) .mobile-right-sheet .mobile-sheet-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open):not(.mobile-guide-collapsed) .mobile-right-sheet .right-panel-tabs {
     display: none;
   }
 
-  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open) .mobile-right-sheet #rightPanelProgress {
+  body:not(.conversation-active):not(.session-ended):not(.mobile-panel-open):not(.mobile-guide-collapsed) .mobile-right-sheet #rightPanelProgress {
     display: none !important;
+  }
+
+  /* After dismiss: sheet fully hidden; reopen via FAB pill only */
+  body.mobile-guide-collapsed:not(.mobile-panel-open):not(.session-ended) .mobile-right-sheet {
+    transform: translateY(100%);
+    max-height: 0;
+    overflow: hidden;
+    box-shadow: none;
+  }
+
+  /* Hide FAB while peek strip is visible — use ✕ on strip, then pill reappears */
+  body:not(.mobile-guide-collapsed):not(.conversation-active):not(.session-ended):not(.mobile-panel-open) .mobile-panel-fab {
+    display: none;
   }
 
   /* Active conversation: hide sheet until user asks */
@@ -1630,5 +2011,125 @@ body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after 
 
   body.card-sheet-open .mobile-sheet-backdrop:not(.hidden) {
     z-index: 515;
+  }
+
+  /* ── Mobile button density — less bulk, more conversation space ─────────── */
+  header {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  header h1 {
+    font-size: 1.15rem;
+  }
+
+  .starting-point-bar {
+    gap: 7px;
+  }
+
+  .starting-point-btn {
+    padding: 4px 11px;
+    font-size: 0.78rem;
+  }
+
+  .controls {
+    margin-bottom: 2px;
+  }
+
+  .controls-btn-row {
+    gap: 5px;
+  }
+
+  .controls-btn-row button {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.88rem;
+    min-height: 38px;
+  }
+
+  #frameSelect {
+    min-height: 38px;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .play-question-speaker {
+    width: 38px;
+    height: 38px;
+    font-size: 0.85rem;
+  }
+
+  .frame-sentence-actions {
+    display: inline-flex;
+    gap: 6px;
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  #optionsContainer {
+    gap: 8px;
+    margin: 8px 0;
+    padding: 0 2px;
+  }
+
+  .option-btn {
+    padding: 0.5rem 0.65rem;
+    min-height: 42px;
+    gap: 8px;
+  }
+
+  .option-hint-block {
+    padding: 7px 12px 9px;
+  }
+
+  .option-speaker-btn,
+  .option-hint-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+  }
+
+  .option-panel.discovery-question .op-zh,
+  .option-panel.discovery-ack .op-zh,
+  .option-panel.recovery-card .op-zh {
+    font-size: 1rem;
+  }
+
+  #discoveryPanel {
+    padding: 7px 8px 9px;
+    margin: 5px 0;
+    gap: 5px;
+  }
+
+  .discovery-continue-btn {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.85rem;
+    min-height: 36px;
+  }
+
+  .mobile-panel-fab {
+    padding: 7px 12px;
+    font-size: 0.78rem;
+  }
+
+  .level-gate-option {
+    padding: 10px 12px;
+  }
+
+  .transcript-panel {
+    margin-bottom: 4px;
+    padding: 4px 6px;
+  }
+
+  .conversation-panel {
+    margin: 2px 0 0;
+  }
+
+  .remembered-facts {
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+  }
+
+  .right-panel-tab {
+    padding: 5px 8px;
+    font-size: 0.74rem;
   }
 }

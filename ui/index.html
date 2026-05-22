@@ -16,8 +16,8 @@
         <div class="header-brand">
           <h1>MandarinOS</h1>
           <div class="starting-point-bar" id="startingPointBar">
-            <span class="starting-point-label">Choose Your Starting Point</span>
-            <button id="practiceLevelBtn" type="button" class="starting-point-btn" title="Choose your practice comfort level">Choose your starting point</button>
+            <span class="starting-point-label">Choose starting point</span>
+            <button id="practiceLevelBtn" type="button" class="starting-point-btn" title="Choose your practice comfort level">Select…</button>
           </div>
         </div>
         <!-- Phase 11C: Persona selector — top bar so partner is always visible -->
@@ -74,53 +74,55 @@
                    Conversation window must not contain evaluation or learning guidance. -->
             </div>
             <div class="current-turn">
-              <div class="current-turn-label">Active conversation — last statement</div>
-              <!-- Phase 11C: Partner identity + voice line (shown on EXTEND frames) -->
-              <div id="partnerHeader" class="partner-header" style="display:none;">
-                <span id="partnerNameLabel" class="partner-name-label"></span>
-                <span id="partnerPrefixLine" class="partner-prefix-line"></span>
-              </div>
-              <div class="frame-sentence-row">
-                <div id="frameSentence" class="frame-sentence"></div>
-                <button id="playQuestionBtn" type="button" class="play-question-speaker" title="Speak the question" aria-label="Play question">🔊</button>
-                <button id="hintBtn" class="play-question-speaker hint-icon-btn" style="display:none;" title="Show hints" aria-label="Hint">?</button>
-              </div>
-              <!-- Always-visible English translation for the active partner sentence -->
-              <div id="frameEnglish" class="frame-english" style="display:none;"></div>
-              <!-- Phase 11C: discoverable fact (shown once per engine after depth threshold) -->
-              <div id="partnerFactLine" class="partner-fact-line" style="display:none;"></div>
-              <div id="hintPinyin"  class="hint-row hint-pinyin"  style="display:none;"></div>
-              <div id="hintMeaning" class="hint-row hint-meaning"  style="display:none;"></div>
-              <div id="hintEtymology" class="hint-row hint-etymology" style="display:none;"></div>
-              <div id="actionLadder" class="action-ladder">
-                <button id="tryRespondingBtn" class="action-ladder-btn mic-only" title="Speak your answer" aria-label="Speak your answer">🎤</button>
-                <button id="showOptionsBtn" class="action-ladder-btn" type="button" title="Toggle suggested responses" aria-label="Toggle suggested responses">Suggested responses</button>
-                <div id="reverseActionsRow" class="reverse-actions-row"></div>
-              </div>
-              <!-- Listening state indicator: driven by _setListenState() in app.js, no Chinese text -->
-              <div id="listenStatus" class="listen-status" data-state="idle" aria-live="polite"></div>
-              <!-- English input panel: type OR speak English, get a Chinese translation suggestion -->
-              <div id="engInputPanel" class="eng-input-panel">
-                <div class="eng-input-row">
-                  <button id="engMicBtn" type="button" class="eng-mic-btn" title="Speak in English">🎤</button>
-                  <input id="engInput" type="text" class="eng-input-field" placeholder="Type or speak in English…" autocomplete="off" />
-                  <button id="translateBtn" type="button" class="eng-translate-btn">Translate</button>
+              <div class="current-turn-focus">
+                <div class="current-turn-label">Active conversation — last statement</div>
+                <div id="partnerHeader" class="partner-header" style="display:none;">
+                  <span id="partnerNameLabel" class="partner-name-label"></span>
+                  <span id="partnerPrefixLine" class="partner-prefix-line"></span>
                 </div>
-                <div id="engTranslateResult" class="eng-translate-result" style="display:none;">
-                  <button id="speakTranslationBtn" type="button" class="eng-speak-btn" title="Hear pronunciation">🔊</button>
-                  <div class="eng-translated-block">
-                    <div id="engTranslatedZh" class="eng-translated-zh"></div>
-                    <div id="engTranslatedPy" class="eng-translated-py" style="display:none;"></div>
+                <div class="active-partner-stack">
+                  <div class="frame-sentence-row">
+                    <div id="frameSentence" class="frame-sentence"></div>
+                    <div class="frame-sentence-actions" aria-label="Question controls">
+                      <button id="playQuestionBtn" type="button" class="play-question-speaker" title="Speak the question" aria-label="Play question">🔊</button>
+                      <button id="hintBtn" class="play-question-speaker hint-icon-btn" style="display:none;" title="Show hints" aria-label="Hint">?</button>
+                      <div id="reverseActionsRow" class="reverse-actions-row"></div>
+                    </div>
                   </div>
-                  <button id="useTranslationBtn" type="button" class="eng-use-btn">Use this ↑</button>
+                  <div id="frameEnglish" class="frame-english" style="display:none;"></div>
+                  <div id="partnerFactLine" class="partner-fact-line" style="display:none;"></div>
+                  <div id="hintPinyin" class="hint-row hint-pinyin" style="display:none;"></div>
+                  <div id="hintMeaning" class="hint-row hint-meaning" style="display:none;"></div>
+                  <div id="hintEtymology" class="hint-row hint-etymology" style="display:none;"></div>
+                </div>
+                <div class="current-turn-mics">
+                  <div id="actionLadder" class="action-ladder">
+                    <button id="tryRespondingBtn" class="action-ladder-btn mic-only" title="Speak your answer in Chinese" aria-label="Speak your answer in Chinese">🎤</button>
+                    <button id="showOptionsBtn" class="action-ladder-btn" type="button" title="Toggle suggested responses" aria-label="Toggle suggested responses">Suggested responses</button>
+                  </div>
+                  <div id="listenStatus" class="listen-status" data-state="idle" aria-live="polite" aria-atomic="true"></div>
+                  <div id="engInputPanel" class="eng-input-panel">
+                    <div class="eng-input-row">
+                      <button id="engMicBtn" type="button" class="eng-mic-btn" title="Speak in English" aria-label="Speak in English">🎤</button>
+                      <input id="engInput" type="text" class="eng-input-field" placeholder="Type or speak in English…" autocomplete="off" />
+                      <button id="translateBtn" type="button" class="eng-translate-btn">Translate</button>
+                    </div>
+                    <div id="engTranslateResult" class="eng-translate-result" style="display:none;">
+                      <button id="speakTranslationBtn" type="button" class="eng-speak-btn" title="Hear pronunciation">🔊</button>
+                      <div class="eng-translated-block">
+                        <div id="engTranslatedZh" class="eng-translated-zh"></div>
+                        <div id="engTranslatedPy" class="eng-translated-py" style="display:none;"></div>
+                      </div>
+                      <button id="useTranslationBtn" type="button" class="eng-use-btn">Use this ↑</button>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <!-- Challenge Mode: dedicated recovery zone so "Need help?" buttons stay visible
-                   while sentenceOptionsContainer (green responses) stays hidden by default. -->
-              <div id="challengeRecoveryZone" class="challenge-recovery-zone"></div>
-              <!-- Sentence-level response options: 2-3 answers + recovery panel -->
-              <div id="sentenceOptionsContainer" class="sentence-options-container" style="display:none;"></div>
-              <div id="optionsContainerParent"></div>
+              <div class="current-turn-options">
+                <div id="challengeRecoveryZone" class="challenge-recovery-zone"></div>
+                <div id="sentenceOptionsContainer" class="sentence-options-container" style="display:none;"></div>
+                <div id="optionsContainerParent"></div>
+              </div>
             </div>
           </div>
 
@@ -143,7 +145,7 @@
           <div id="noCard" class="nocard">No card opened</div>
           <div id="mobileRightSheet" class="mobile-right-sheet" aria-hidden="true">
             <div class="mobile-sheet-header">
-              <span id="mobileSheetTitle" class="mobile-sheet-title">Session Guide</span>
+              <span id="mobileSheetTitle" class="mobile-sheet-title">Today's Focus</span>
               <button type="button" id="mobileSheetClose" class="mobile-sheet-close" aria-label="Close panel">✕</button>
             </div>
           <!-- Session / Progress toggle — progress history stays out of the live transcript -->
@@ -176,10 +178,17 @@
     <style>
       section.left { overflow-y: auto; }
       .frame-sentence-row {
-        display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
+        display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap;
         margin-bottom: 0.5rem; min-height: 2.5rem;
       }
       .frame-sentence-row .frame-sentence { flex: 1 1 200px; min-width: 0; }
+      .frame-sentence-actions {
+        display: inline-flex;
+        gap: 6px;
+        flex-wrap: nowrap;
+        align-items: center;
+        flex-shrink: 0;
+      }
       .frame-sentence {
         font-size: 1.4rem; line-height: 1.6; min-height: 2.25rem;
         height: auto; overflow: visible; white-space: normal;
@@ -379,21 +388,17 @@
       }
       .persona-btn-none.active { border-color: #9ca3af; background: #f3f4f6; color: #6b7280; }
 
-      /* Phase 11C: Partner header inside active conversation panel */
-      /* Always-visible English translation below the active frame sentence */
+      /* Phase 11C: Partner header — hidden in panel (persona shown in top bar) */
       .frame-english {
         font-size: 0.82rem;
         color: #6b7280;
         font-style: italic;
-        margin-top: 2px;
-        margin-bottom: 4px;
-        line-height: 1.4;
+        margin: 0 0 8px;
+        line-height: 1.45;
       }
 
       .partner-header {
-        display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
-        margin-bottom: 6px; padding-bottom: 6px;
-        border-bottom: 1px solid #e5e7eb;
+        display: none;
       }
       .partner-name-label {
         font: 600 1rem "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -438,7 +443,62 @@
       }
       @media (max-width: 768px) {
         .transcript-panel {
-          max-height: min(32vh, 220px);
+          max-height: min(20vh, 112px);
+          margin-bottom: 4px;
+          padding: 4px 6px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .transcript-panel-label {
+          display: none;
+        }
+        .transcript-toolbar {
+          flex-wrap: nowrap;
+          gap: 4px 6px;
+          margin-bottom: 3px;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .transcript-content {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+        }
+        .current-turn {
+          padding: 8px 10px;
+          min-height: 8rem;
+        }
+        .current-turn-label {
+          font-size: 0.75rem;
+          margin-bottom: 4px;
+        }
+        .active-partner-stack .frame-sentence {
+          font-size: 1.2rem;
+        }
+        .controls {
+          row-gap: 4px;
+          column-gap: 5px;
+        }
+        .controls-btn-row {
+          gap: 5px;
+        }
+        .persona-bar {
+          min-height: 0;
+          gap: 6px;
+        }
+        .persona-btn {
+          padding: 5px 12px;
+          min-height: 34px;
+          font-size: 0.95rem;
+        }
+        .sentence-options-container {
+          margin-top: 4px;
+        }
+        .sentence-reverse-btn {
+          padding: 0.4rem 0.65rem;
+          font-size: 0.82rem;
         }
       }
       .transcript-content { line-height: 1.5; }
@@ -456,17 +516,7 @@
       .transcript-panel-label {
         font: 0.85rem Arial, Helvetica, sans-serif; color: #6b7280; margin-bottom: 6px;
       }
-      .transcript-toolbar {
-        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-        margin-bottom: 8px;
-      }
-      .transcript-toolbar label {
-        font: 0.75rem Arial, Helvetica, sans-serif; color: #6b7280;
-      }
-      .transcript-toolbar select, .transcript-toolbar button {
-        font: 0.75rem Arial, Helvetica, sans-serif;
-        padding: 3px 6px;
-      }
+      /* Transcript toolbar sizing: styles.css (.transcript-toolbar) */
       .replay-status {
         font: 0.75rem Arial, Helvetica, sans-serif;
         color: #1e40af;
@@ -587,15 +637,11 @@
         white-space: nowrap;
       }
       .run-btn:hover { background: #f0fdf4; }
-      /* Display / Speed dropdowns in transcript toolbar */
-      .transcript-toolbar select {
-        font: 0.75rem Arial, Helvetica, sans-serif;
-      }
     </style>
     <div id="levelGateOverlay" class="level-gate-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="levelGateTitle">
       <div class="level-gate-panel">
-        <h2 id="levelGateTitle">Choose your starting point</h2>
-        <p class="level-gate-sub">Pick the practice comfort level that feels right. You can change this anytime from <strong>Choose Your Starting Point</strong> below the MandarinOS title.</p>
+        <h2 id="levelGateTitle">Choose starting point</h2>
+        <p class="level-gate-sub">Pick the practice comfort level that feels right. You can change this anytime from <strong>Choose starting point</strong> below the MandarinOS title.</p>
         <div class="level-gate-options">
           <button type="button" class="level-gate-option" data-level="beginner">
             <span class="level-gate-option-title">Just getting started</span>

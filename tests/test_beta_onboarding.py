@@ -70,8 +70,11 @@ def test_client_first_time_wiring():
 
 def test_starting_point_label_updated():
     html = (_UI / "index.html").read_text(encoding="utf-8")
-    assert "Choose Your Starting Point" in html
-    assert "Starting point</span>" not in html
+    css = (_UI / "styles.css").read_text(encoding="utf-8")
+    assert "Choose starting point</span>" in html
+    assert "Choose your starting point" not in html
+    assert "Choose Your Starting Point" not in html
+    assert "flex-wrap: nowrap" in css.split(".starting-point-bar")[1].split("}")[0]
 
 
 def test_memory_empty_copy_updated():
