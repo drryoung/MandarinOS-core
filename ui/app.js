@@ -4572,7 +4572,7 @@ function getRecoveryPanelOption() {
  */
 function renderRecoveryPanelInto(targetContainer, frameId) {
   const opt = getRecoveryPanelOption();
-  if (!opt) return;
+  if (!opt) return false;
 
   const header = document.createElement("div");
   header.className = "recovery-panel-label";
@@ -4703,6 +4703,17 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
     });
 
     scrollWrap.appendChild(panel);
+  });
+  return true;
+}
+
+function _scrollRecoveryPanelIntoView() {
+  const target = _challenge.active
+    ? document.getElementById("challengeRecoveryZone")
+    : document.getElementById("sentenceOptionsContainer");
+  if (!target || !target.querySelector('[data-recovery="true"]')) return;
+  requestAnimationFrame(() => {
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
 }
 
@@ -5266,6 +5277,9 @@ function renderSentenceOptions(sentenceOptions, frameId) {
   if (reverseActionsRow) reverseActionsRow.innerHTML = "";
 
   container.style.display = "flex";
+  if (hasRecoveryPanel || container.querySelector('[data-recovery="true"]')) {
+    _scrollRecoveryPanelIntoView();
+  }
 }
 
 function hideSentenceOptions() {

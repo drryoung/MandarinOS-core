@@ -213,6 +213,30 @@ def _flatten_recovery_phrases_for_maps(raw: dict) -> list:
     return out
 
 
+def _recovery_phrases_runtime_payload() -> Optional[dict]:
+    """Build recovery_phrases.runtime.json from content/recovery_phrases.json when artifact is missing."""
+    path = CONTENT_DIR / "recovery_phrases.json"
+    if not path.is_file():
+        return None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        phrases = _flatten_recovery_phrases_for_maps(raw)
+        if not phrases:
+            return None
+        out: dict = {
+            "schema": "recovery_phrases_v1",
+            "phrases": phrases,
+            "default_for_not_understood": raw.get("default_for_not_understood"),
+        }
+        if raw.get("schema_version"):
+            out["schema_version"] = raw["schema_version"]
+        if raw.get("core_set_ids"):
+            out["core_set_ids"] = raw["core_set_ids"]
+        return out
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 # Persona deflect phrases: loaded from content/recovery_phrases.json (use=persona_deflect).
 # Adding/editing a phrase only requires editing that file — no server code change.
 _persona_deflect_phrases: dict = {}     # topic -> [hanzi_str, ...]  (for _persona_deflect picker)
@@ -6376,6 +6400,19 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.startswith("/runtime/"):
             file_path = RUNTIME_DIR / path[len("/runtime/"):]
+            if (
+                file_path.name == "recovery_phrases.runtime.json"
+                and not file_path.is_file()
+            ):
+                payload = _recovery_phrases_runtime_payload()
+                if payload:
+                    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
         elif path.startswith("/data/"):
             # Curated datasets at repo root data/ (e.g. characters_1200.json master copy)
             file_path = REPO_ROOT / path.lstrip("/")

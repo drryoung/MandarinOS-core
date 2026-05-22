@@ -247,6 +247,7 @@
       /* Sentence-level response options — use standard .option-panel structure */
       .sentence-options-container {
         margin-top: 6px; display: flex; flex-direction: column; gap: 0;
+        flex-shrink: 0;
       }
       /* #reverseActionsRow lives inside frame-sentence-row, inline with 🔊 and ? */
       .reverse-actions-row {
@@ -423,6 +424,9 @@
         overflow-y: auto;
         background: #e5e7eb;
         color: #4b5563;
+      }
+      @media (max-height: 780px) {
+        .transcript-panel { max-height: 120px; }
       }
       .transcript-content { line-height: 1.5; }
       .transcript-line { margin-bottom: 6px; display: flex; align-items: baseline; flex-wrap: wrap; }
