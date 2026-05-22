@@ -2411,6 +2411,11 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     # Strip leading fillers so "ne 你是哪里人" / "啊你住哪里" classify correctly.
     # Question-mark check above runs on raw text first so "啊？" still signals confusion.
     text = _strip_leading_fillers(text)
+    # Content-based interrogatives without explicit ？ — e.g. "西安有什么特别啊", "这里有什么好吃的",
+    # "你们那儿怎么样". Checked early so short utterances like "有什么好吃" are caught quickly.
+    _content_q_markers = ("有什么", "什么特别", "什么好", "什么特色", "怎么样")
+    if any(m in text for m in _content_q_markers):
+        return True
     # Turn-around markers AS SUBSTRINGS — catches "我叫X，你呢" / "喜欢你呢" etc.
     _turn_around_markers = ("你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "你来问")
     if any(m in text for m in _turn_around_markers):
@@ -2449,11 +2454,6 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     if "多长时间" in text:
         return True
     if "多久" in text and any(kw in text for kw in ("工作", "做", "学", "住", "用", "从事")):
-        return True
-    # Content-based interrogatives: "有什么特别", "有什么好吃的", "有什么好玩" etc.
-    # Often asked without ？ or 吗 — e.g. "西安有什么特别啊", "这里有什么好吃的".
-    _content_q_markers = ("有什么", "什么特别", "什么好", "什么特色", "怎么样")
-    if any(m in text for m in _content_q_markers):
         return True
     # Elliptical question with sentence-final particles: "喜欢吗", "好吗", "远吗"
     # (already caught by "吗" check above if 吗 present); also cover "啊", "呢" as
@@ -7412,7 +7412,7 @@ class Handler(BaseHTTPRequestHandler):
                 _counter_is_new_mirror = False  # set True when a fresh mirror answer is generated this turn
                 _new_mirror_topic = ""
                 _new_mirror_engine = ""
-                _confusion_about_app_q   = False  # set True when learner confused about frame question (not mirror)
+                _confusion_about_app_q = False  # set True when learner confused about frame question (not mirror)
                 _noisy_location_clarify  = False  # set True when location answer looks garbled → frame override below
 
                 if last_turn_was_answer:

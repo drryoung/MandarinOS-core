@@ -5973,7 +5973,7 @@ function _resetCurrentSessionState() {
   window._lastRecoveryPhraseId = null;
   window._pendingRepairPrompt = false;
   window._lastRepairSubmittedText = "";
-  window._discoveryShownLastTurn = false;
+  window._discoveryShownLastTurn  = false;
   window._consecutiveAppQuestions = 0;
   window._lastPersonaReveal = false;
   window._recentlySeenDiscTopics = [];
@@ -7521,6 +7521,7 @@ function _buildAbilitySummary(metrics) {
   const answerCount   = obs.successful_answers         || 0;
   const questionCount = (obs.question_count || 0) + (obs.mirror_uses || 0);
   const recoveryCount = _tracker.recovery_uses         || 0;
+  const resilCount    = obs.recovery_resilience_count  || 0;
   const hintCount     = obs.hint_clicks                || 0;
   const acceptedCount = obs.successful_answers         || 0;
   const extendedCount = obs.extended_answer_count      || 0;
@@ -7531,7 +7532,9 @@ function _buildAbilitySummary(metrics) {
   // ── 1. Headline — product-aligned when session shows sustained dialogue ───
   let headline = cap.headline || null;
   if (!headline) {
-    if (turnCount >= 6) {
+    if (resilCount >= 2 && turnCount >= 4) {
+      headline = `You kept the conversation going — ${turnCount} turn${turnCount === 1 ? "" : "s"} and worked through misunderstandings naturally.`;
+    } else if (turnCount >= 6) {
       headline = `You completed ${turnCount} turns in Chinese.`;
     } else if (turnCount > 0) {
       headline = `You completed ${turnCount} turn${turnCount === 1 ? "" : "s"} — good start.`;
@@ -7562,14 +7565,25 @@ function _buildAbilitySummary(metrics) {
   }
 
   if (
-    recoveryCount > 0
-    && !strongInitiative
+    !strongInitiative
     && !_serverCapRich
     && !(Array.isArray(cap.progress_lines) && cap.progress_lines.some(
       (l) => l && (l.includes("difficult") || l.includes("unclear")),
     ))
   ) {
-    capability_lines.push(`You kept going after not understanding ${recoveryCount} time${recoveryCount === 1 ? "" : "s"}.`);
+    if (resilCount >= 2) {
+      capability_lines.push("You worked through misunderstandings and kept going.");
+    } else if (resilCount === 1) {
+      capability_lines.push("You kept going after a misunderstanding.");
+    } else if (recoveryCount > 0) {
+      capability_lines.push(`You kept going after not understanding ${recoveryCount} time${recoveryCount === 1 ? "" : "s"}.`);
+    }
+  }
+
+  if (extendedCount >= 2 && !strongInitiative && !_serverCapRich) {
+    capability_lines.push("You gave more detailed answers as the conversation continued.");
+  } else if (extendedCount === 1 && !strongInitiative && !_serverCapRich) {
+    capability_lines.push("You started adding more detail to your answers.");
   }
 
   // Hints: keep as a metric, but do not dominate when initiative was strong.
