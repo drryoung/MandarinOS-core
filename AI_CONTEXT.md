@@ -5,6 +5,40 @@ If you are an AI tool: **read this file first** before proposing or writing code
 
 ---
 
+## Current Era: Phase 11 — Alpha Productisation
+
+MandarinOS has now entered Phase 11. Phase 10.x remains the behavioural stabilisation foundation: deterministic conversation training, recovery ladders, persona discovery, selector hygiene, topic persistence, ASR stabilisation, move_type architecture, and scorecard foundations.
+
+Phase 11 does not replace or rewrite Phase 10 logic. It changes the operating priority from internal conversation stability to real-user alpha readiness.
+
+The core Phase 11 question is:
+Can real users use MandarinOS reliably?
+
+Phase 11 priorities:
+1. Hosting and beta access
+2. Mobile reliability
+3. Onboarding clarity
+4. Progress persistence
+5. Telemetry and feedback loops
+6. Latency and deployment stability
+7. Regression-safe behavioural fixes driven by beta observations
+
+Phase 11 also introduced a **longitudinal capability layer** (Phase 11.2):
+- `scripts/capability_estimator.py` — conservative trend estimation from historical snapshots
+- `content/capability_band_thresholds.json` — versioned heuristic thresholds (heuristic_version=1)
+- `/api/capability` endpoint in `ui_server.py` — read-only, derived from `progress_store` snapshots
+- Capability card in Progress tab — five independent dimensions, no aggregate score
+- Bands: Emerging → Developing → Consolidating → Steady
+- Anti-inflation principles: promotion gates, 60% rolling-window fraction, engine-breadth gate, inactivity observation window, hysteresis
+- Session and longitudinal layers remain strictly separate — session scorecard is warm/encouraging; capability trend is conservative and slow-moving
+
+Future roadmap:
+- Phase 12 — Learning System Refinement
+- Phase 13 — Social Conversational Infrastructure
+- Phase 14 — AI Semantic Orchestration / Release 2 territory
+
+---
+
 ## AI roles (how tools are used)
 
 - **ChatGPT:** Strategist and testing. Use for high-level strategy, acceptance criteria, test scenarios, and review. Does not implement code.

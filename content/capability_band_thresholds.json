@@ -1,0 +1,72 @@
+{
+  "_comment": "MandarinOS longitudinal capability band thresholds. Versioned — bump heuristic_version when changing any value.",
+  "heuristic_version": 1,
+
+  "qualifying_session_min_turns": 6,
+
+  "promotion_gates": {
+    "Emerging_to_Developing":      { "min_qualifying_sessions": 3,  "min_lifetime_turns": 30  },
+    "Developing_to_Consolidating": { "min_qualifying_sessions": 8,  "min_lifetime_turns": 100 },
+    "Consolidating_to_Steady":     { "min_qualifying_sessions": 15, "min_lifetime_turns": 250 }
+  },
+
+  "promotion_fraction": 0.60,
+  "demotion_fraction":  0.70,
+
+  "rolling_window_fast": 5,
+  "rolling_window_slow": 10,
+
+  "inactivity_days": 21,
+  "observation_sessions_after_break": 2,
+
+  "engine_breadth_min_for_consolidating": 3,
+  "engine_breadth_min_for_steady":        4,
+
+  "dimensions": {
+    "sustained_conversation": {
+      "window": "slow",
+      "description": "Ability to hold real conversations across many turns",
+      "band_floors": {
+        "Developing":     { "median_turns_per_session": 8  },
+        "Consolidating":  { "median_turns_per_session": 12 },
+        "Steady":         { "median_turns_per_session": 16 }
+      }
+    },
+    "recovery_resilience": {
+      "window": "fast",
+      "description": "Bounces back from confusion without abandoning the conversation",
+      "band_floors": {
+        "Developing":    { "unclear_rate_max": 0.35, "min_sessions_with_unclear": 1 },
+        "Consolidating": { "unclear_rate_max": 0.20, "min_sessions_with_recovery_or_low_unclear": 2 },
+        "Steady":        { "unclear_rate_max": 0.12 }
+      }
+    },
+    "conversational_initiative": {
+      "window": "slow",
+      "description": "Asks questions back; drives conversation rather than only responding",
+      "band_floors": {
+        "Developing":    { "min_questions_asked_median": 1 },
+        "Consolidating": { "min_questions_asked_median": 2 },
+        "Steady":        { "min_questions_asked_median": 3 }
+      }
+    },
+    "independence": {
+      "window": "slow",
+      "description": "Operates with declining reliance on hints, translation, and suggestions",
+      "band_floors": {
+        "Developing":    { "support_rate_per_turn_max": 0.60 },
+        "Consolidating": { "support_rate_per_turn_max": 0.35 },
+        "Steady":        { "support_rate_per_turn_max": 0.15 }
+      }
+    },
+    "conversational_stability": {
+      "window": "fast",
+      "description": "Conversation stays on track with low unclear-turn rate",
+      "band_floors": {
+        "Developing":    { "min_stability_score": 60 },
+        "Consolidating": { "min_stability_score": 78 },
+        "Steady":        { "min_stability_score": 88 }
+      }
+    }
+  }
+}

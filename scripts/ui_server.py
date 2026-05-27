@@ -41,6 +41,11 @@ try:
     from progress_store import load_all as _ps_load_all
 except ImportError:
     _ps_load_snapshots = _ps_save_snapshot = _ps_load_all = None
+# Longitudinal capability estimator (additive — no scorecard/selector deps)
+try:
+    from capability_estimator import compute as _ce_compute
+except ImportError:
+    _ce_compute = None
 # Beta learner profile (practice comfort level per learner_id)
 try:
     from beta_profile import load_profile as _bp_load_profile
@@ -6102,8 +6107,11 @@ def _format_progress_flow_label(
     if not has_turbulence:
         if score is None:
             return "—"
-        if score >= 95:
+        # Reserve "Smooth" for sessions long enough that a clean run is meaningful.
+        if score >= 95 and total_turns >= 8:
             return "Smooth"
+        if score >= 95 and total_turns < 8:
+            return "Clean short session"
         if score >= 80:
             return "Stable"
         return "Difficult but continued"
@@ -6153,7 +6161,7 @@ def _format_progress_recovery_label(
             return "Kept going"
         return "Stayed on track"
     if unclear_turns == 0 and recovery_uses == 0:
-        return "Smooth"
+        return "No repairs needed"
     if unclear_turns > 0:
         return "Stayed on track"
     return "No system help"
@@ -6408,6 +6416,27 @@ class Handler(BaseHTTPRequestHandler):
                     "snapshots": snapshots,
                     "is_first_time_beta_user": _is_first_time_beta_user(learner_id),
                 },
+                ensure_ascii=False,
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/capability":
+            learner_id = (qs.get("learner_id", [""])[0] or "").strip()
+            if not learner_id:
+                self._json_error(400, "missing learner_id")
+                return
+            if not _ps_load_snapshots or not _ce_compute:
+                self._json_error(503, "capability estimator unavailable")
+                return
+            snapshots = _ps_load_snapshots(learner_id)
+            capability = _ce_compute(snapshots)
+            data = json.dumps(
+                {"ok": True, "learner_id": learner_id, "capability": capability},
                 ensure_ascii=False,
             ).encode("utf-8")
             self.send_response(200)

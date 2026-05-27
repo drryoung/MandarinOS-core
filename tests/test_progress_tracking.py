@@ -422,7 +422,7 @@ def test_progress_recovery_smooth_clean_session():
         srv,
         {"unmatched_responses": 0, "recovery_uses": 0},
     )
-    assert snap["recovery_display_label"] == "Smooth"
+    assert snap["recovery_display_label"] == "No repairs needed"
 
 
 def test_progress_recovery_used_support_when_phrase_cards():

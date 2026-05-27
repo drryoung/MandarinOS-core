@@ -9542,7 +9542,10 @@ function switchRightPanel(view) {
     tabProgress.setAttribute("aria-selected", showProgress ? "true" : "false");
   }
 
-  if (showProgress) renderProgressView();
+  if (showProgress) {
+    renderProgressView();
+    renderCapabilityCard();
+  }
   _updateMobileFabLabel();
 }
 
@@ -9691,6 +9694,111 @@ function initMobileLayout() {
   _updateMobileFabLabel();
 }
 
+// ---------------------------------------------------------------------------
+// Longitudinal capability card — additive; does not touch session scorecard
+// ---------------------------------------------------------------------------
+
+const _BAND_LABELS = {
+  "Emerging":      { label: "Emerging",      note: "Building foundations" },
+  "Developing":    { label: "Developing",     note: "Growing steadily" },
+  "Consolidating": { label: "Consolidating",  note: "Becoming reliable" },
+  "Steady":        { label: "Steady",         note: "Consistently capable" },
+};
+
+const _DIM_DISPLAY = {
+  sustained_conversation:    "Sustained conversation",
+  recovery_resilience:       "Recovery resilience",
+  conversational_initiative: "Conversational initiative",
+  independence:              "Independence",
+  conversational_stability:  "Conversational stability",
+};
+
+const _BAND_ORDER = ["Emerging", "Developing", "Consolidating", "Steady"];
+
+function _capabilityBandBar(band) {
+  const idx = _BAND_ORDER.indexOf(band);
+  const html = _BAND_ORDER.map((b, i) => {
+    const active = i === idx ? " capability-band-pip--active" : "";
+    const past   = i < idx  ? " capability-band-pip--past"   : "";
+    return `<span class="capability-band-pip${active}${past}" title="${b}"></span>`;
+  }).join("");
+  return `<span class="capability-band-bar">${html}</span>`;
+}
+
+async function renderCapabilityCard() {
+  const card = document.getElementById("capabilityCard");
+  if (!card) return;
+
+  const learnerId = window._learnerId || "";
+  if (!learnerId) {
+    card.style.display = "none";
+    return;
+  }
+
+  card.style.display = "block";
+  card.innerHTML = `<div class="capability-card__loading">Loading capability history…</div>`;
+
+  let capability;
+  try {
+    const res = await fetch(`/api/capability?learner_id=${encodeURIComponent(learnerId)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    capability = json.capability;
+  } catch (e) {
+    card.innerHTML = `<div class="capability-card__error">Capability history unavailable.</div>`;
+    return;
+  }
+
+  const nSessions = capability.qualifying_session_count || 0;
+  if (nSessions === 0) {
+    card.innerHTML = `
+      <div class="capability-card__empty">
+        <p class="capability-card__empty-title">Your capability trend will appear here.</p>
+        <p class="capability-card__empty-body">Complete a few sessions to start building your history. Trends take time to form — that's what makes them meaningful.</p>
+      </div>`;
+    return;
+  }
+
+  const dims = capability.dimensions || {};
+  const notes = capability.trend_notes || [];
+  const inactive = capability.inactive;
+  const obsLocked = capability.observation_locked;
+
+  let inactivityHtml = "";
+  if (inactive) {
+    const days = capability.inactivity_days || 0;
+    inactivityHtml = `<p class="capability-card__inactive-note">No sessions in ${days} days — trends paused until you return.</p>`;
+  } else if (obsLocked) {
+    inactivityHtml = `<p class="capability-card__inactive-note">Welcome back! Your first few sessions after a break are observation-only. Trends will update soon.</p>`;
+  }
+
+  const dimRows = Object.entries(_DIM_DISPLAY).map(([key, label]) => {
+    const d = dims[key] || {};
+    const band = d.band || "Emerging";
+    const bl = _BAND_LABELS[band] || _BAND_LABELS["Emerging"];
+    return `
+      <div class="capability-dim-row">
+        <span class="capability-dim-name">${label}</span>
+        <span class="capability-dim-band">${bl.label}</span>
+        ${_capabilityBandBar(band)}
+      </div>`;
+  }).join("");
+
+  const notesHtml = notes.length
+    ? `<ul class="capability-card__notes">${notes.map(n => `<li>${n}</li>`).join("")}</ul>`
+    : "";
+
+  card.innerHTML = `
+    <div class="capability-card__inner">
+      <h3 class="capability-card__title">Capability trend</h3>
+      <p class="capability-card__subtitle">Based on ${nSessions} qualifying session${nSessions === 1 ? "" : "s"} · conservative estimates</p>
+      ${inactivityHtml}
+      <div class="capability-dims">${dimRows}</div>
+      ${notesHtml}
+      <p class="capability-card__disclaimer">Trends move slowly by design. Progress here reflects sustained patterns, not any single session.</p>
+    </div>`;
+}
+
 function initRightPanelTabs() {
   const tabSession = document.getElementById("rightTabSession");
   const tabProgress = document.getElementById("rightTabProgress");
@@ -9712,6 +9820,7 @@ window.renderStabilityChart           = renderStabilityChart;
 window.renderProgressView             = renderProgressView;
 window.switchRightPanel               = switchRightPanel;
 window.initRightPanelTabs             = initRightPanelTabs;
+window.renderCapabilityCard           = renderCapabilityCard;
 
 async function endSession() {
   const t = _tracker;

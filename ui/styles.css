@@ -2133,3 +2133,118 @@ body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after 
     font-size: 0.74rem;
   }
 }
+
+/* ── Longitudinal Capability Card ─────────────────────────────────────── */
+.capability-card {
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+}
+.capability-card__inner {
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.5;
+}
+.capability-card__title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 2px;
+}
+.capability-card__subtitle {
+  font-size: 0.76rem;
+  color: #64748b;
+  margin: 0 0 10px;
+}
+.capability-card__loading,
+.capability-card__error {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  padding: 8px 0;
+}
+.capability-card__empty {
+  padding: 6px 0;
+}
+.capability-card__empty-title {
+  font-weight: 500;
+  margin: 0 0 4px;
+  color: #475569;
+}
+.capability-card__empty-body {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0;
+}
+.capability-card__inactive-note {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0 0 8px;
+}
+.capability-dims {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.capability-dim-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+.capability-dim-name {
+  color: #475569;
+}
+.capability-dim-band {
+  color: #1e293b;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 80px;
+  text-align: right;
+}
+.capability-band-bar {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.capability-band-pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  display: inline-block;
+}
+.capability-band-pip--past {
+  background: #94a3b8;
+}
+.capability-band-pip--active {
+  background: #0ea5e9;
+}
+.capability-card__notes {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.capability-card__notes li {
+  font-size: 0.76rem;
+  color: #64748b;
+  padding-left: 12px;
+  position: relative;
+}
+.capability-card__notes li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #0ea5e9;
+}
+.capability-card__disclaimer {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0;
+}
