@@ -1124,7 +1124,7 @@ _SEED_FAMILY_KEYWORDS: frozenset = frozenset({
 })
 _SEED_PLACE_KEYWORDS: frozenset = frozenset({
     "苏州", "北京", "上海", "广州", "深圳", "杭州", "南京", "成都", "重庆", "武汉", "西安",
-    "青岛", "厦门", "天津", "昆明", "新西兰", "澳大利亚", "美国", "英国", "加拿大", "法国",
+    "青岛", "厦门", "天津", "昆明", "兰州", "新西兰", "澳大利亚", "美国", "英国", "加拿大", "法国",
     "德国", "日本", "韩国", "新加坡",
 })
 
@@ -1898,7 +1898,7 @@ _TRAVEL_SUBREGIONS: frozenset = frozenset({
     "台湾", "香港", "澳门",
     # Cities
     "苏州", "杭州", "成都", "深圳", "广州", "南京", "西安", "青岛", "厦门",
-    "武汉", "昆明", "天津", "大连", "哈尔滨", "长沙", "郑州", "沈阳",
+    "武汉", "昆明", "天津", "大连", "哈尔滨", "长沙", "郑州", "沈阳", "兰州",
 })
 
 # Tier 2: country-level destinations → narrowing ("which city?") rather than depth ("why?")
@@ -2428,6 +2428,7 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     # Direct questions about the persona (no explicit "？" needed)
     _direct_starts = (
         "你叫什么", "你的名字", "你名字", "你是哪里人", "你从哪里来", "你老家在哪",
+        "你老家", "你的老家", "你家乡",
         "你住在哪", "你住哪里", "你做什么工作", "你的工作", "你是做什么",
         "你喜欢什么", "你有什么爱好", "你有家人", "你有没有家人",
         "你结婚了吗", "你有孩子", "你多大", "你几岁", "你今年多大",
@@ -2588,12 +2589,16 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
     name        = _assistant_name_from_persona(persona)
     _recent_set: set = set(recent_replies or [])
 
-    # Origin / hometown
-    if any(p in t for p in ("你是哪里人", "你从哪里来", "你老家", "你哪里人")):
+    # Persona-self hometown precedence — always answer in first person; never let these
+    # fall through to _CITY_LOCATION_BRIEF or encyclopedic place-fact tables.
+    _PERSONA_HOMETOWN_MARKERS = (
+        "你老家", "你的老家", "你家乡", "你是哪里人", "你从哪里来", "你哪里人",
+    )
+    if any(m in t for m in _PERSONA_HOMETOWN_MARKERS):
         hometown = (profile.get("hometown") or "").strip()
         if hometown:
-            return f"我是{hometown}人。"
-        return voice_lines.get("place") or "我是中国人。"
+            return f"我老家在{hometown}。"
+        return voice_lines.get("place") or "我老家在中国。"
 
     # Current city / where partner lives
     if any(p in t for p in ("你住在哪", "你住哪", "你现在住", "你住的地方")):
@@ -3002,6 +3007,19 @@ def _is_place_description(text: str) -> bool:
     """
     t = (text or "").strip()
     return bool(t) and any(w in t for w in _PLACE_DESC_WORDS)
+
+
+_WHY_LIKE_MARKERS: tuple = (
+    "为什么喜欢", "为啥喜欢", "怎么喜欢上的", "为什么喜欢这个", "为什么喜欢那个",
+    "喜欢的原因", "为什么觉得好",
+)
+
+
+def _is_why_like_follow_up(user_text: str) -> bool:
+    """True when the learner asks why the partner likes something (adjacency guard for F2)."""
+    if not user_text:
+        return False
+    return any(m in user_text for m in _WHY_LIKE_MARKERS)
 
 
 def _is_relevant_to_frame(text: str, frame_id: str) -> bool:
@@ -7544,6 +7562,32 @@ class Handler(BaseHTTPRequestHandler):
                                 _counter_result        = _caq_pc
                                 _confusion_about_app_q = True
                     if _counter_result is None:
+                        # Adjacency guard (F2): if the learner asks "why do you like X?" and
+                        # the most recent mirror answer was work/hobby/place/food, reply with
+                        # the relevant voice_line explanation rather than letting the selector
+                        # pick a socially implausible unrelated frame (e.g. meet-up question).
+                        _submitted_for_why = (
+                            (last_answer.get("submitted_text") or "").strip()
+                            if isinstance(last_answer, dict) else ""
+                        )
+                        _why_like_engines = ("work", "hobby", "place", "food", "travel")
+                        if (
+                            _is_why_like_follow_up(_submitted_for_why)
+                            and _cs_mirror_engine in _why_like_engines
+                            and persona
+                        ):
+                            _wl = (persona.get("voice_lines") or {}).get(_cs_mirror_engine, "")
+                            if _wl:
+                                _counter_result = (
+                                    f"因为{_wl[:30].rstrip('。，！')}，所以觉得挺有意思的。",
+                                    "",
+                                )
+                            else:
+                                _counter_result = (
+                                    "因为觉得很有意思，慢慢就越来越喜欢了。",
+                                    "Because I find it really interesting — I grew to like it more and more.",
+                                )
+
                         # Mirror answers only fire when the user genuinely asked a question.
                         # Statements (e.g. "我跟家人一起住。") must never match the mirror bank —
                         # the fuzzy keyword pass would otherwise match topic keywords in any answer.
@@ -7604,6 +7648,18 @@ class Handler(BaseHTTPRequestHandler):
                         cs["last_mirror_engine"]     = ""
                         cs["mirror_confusion_count"] = 0
 
+                # Repair state hygiene (F4) — clear stale repair counters after a successful
+                # non-confusion turn so they don't keep dominating selection on future turns.
+                if isinstance(cs, dict):
+                    _g4_text = (_last_text_for_counter or "").strip()
+                    if (
+                        _g4_text
+                        and not _is_confusion_signal(_g4_text)
+                        and not _is_plain_affirmation(_g4_text)
+                    ):
+                        cs["repair_attempt_count"]   = 0
+                        cs["recent_confusion_count"] = 0
+
                 # Dedup guard: if this counter_reply is identical to the one we gave last turn,
                 # replace it with a gentle variation so the persona doesn't sound stuck.
                 if _counter_reply and _counter_reply.strip() == _prev_counter_reply:
@@ -7625,6 +7681,17 @@ class Handler(BaseHTTPRequestHandler):
                     int(cs.get("consecutive_not_understood") or 0),     # client-tracked
                 )
                 _repair_escalation_level = min(_repair_attempt_count, 3) if _repair_attempt_count else 0
+                # Persona-self-question short-circuit: if the learner's text is a direct
+                # question about the partner's residence or hometown, never escalate to
+                # "换个话题吧" even when repair counters are stale from earlier turns.
+                _PERSONA_SELF_Q_MARKERS = (
+                    "你现在住", "你住在哪", "你住哪", "你住的地方",
+                    "你老家", "你的老家", "你是哪里人", "你哪里人",
+                    "你家在哪",
+                )
+                _suppress_change_topic_deflect = bool(
+                    answer_text and any(m in answer_text for m in _PERSONA_SELF_Q_MARKERS)
+                )
                 if (
                     last_turn_was_answer
                     and _is_confusion_signal(answer_text)
@@ -7644,6 +7711,9 @@ class Handler(BaseHTTPRequestHandler):
                         if _repair_cand:
                             _counter_reply    = f"你是说\u201c{_repair_cand}\u201d吗？"
                             _counter_reply_en = f"Did you mean \u201c{_repair_cand}\u201d?"
+                        elif _suppress_change_topic_deflect:
+                            _counter_reply    = "你可以再说一遍吗？"
+                            _counter_reply_en = "Could you say that again?"
                         else:
                             _counter_reply    = "没关系，我们换个话题吧。"
                             _counter_reply_en = "No worries, let's talk about something else."

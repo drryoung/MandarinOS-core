@@ -813,6 +813,12 @@ def main() -> None:
     test_t52_age_not_evasive()
     test_t53_parent_age_not_location()
     test_t54_travel_question_answered()
+    test_alpha_a1_residence_question_does_not_change_topic()
+    test_alpha_a2_why_like_after_work_statement_stays_on_work()
+    test_alpha_a3_hometown_question_returns_first_person()
+    test_alpha_a4_repair_state_clears_after_success()
+    test_alpha_a5_lanzhou_recognised_as_travel_city()
+    test_alpha_a6_change_topic_phrase_gated()
 
     total  = len(_results)
     passed = sum(1 for _, ok in _results if ok)
@@ -2388,6 +2394,290 @@ def test_t67_standalone_affirmation_preserved() -> None:
             not any(m in ft for m in LOOP_MARKERS),
             f"frame_text={ft!r}",
         )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Alpha Coherence Case A — five safety-tuning guards (F1–F5)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_alpha_a1_residence_question_does_not_change_topic() -> None:
+    """[A1] '你现在住在哪里啊' must never surface 换个话题吧 — even with stale repair counters."""
+    print("\n[A1] Residence question → no '换个话题' (F1 guard)")
+
+    turn = simulate_turn(
+        "你现在住在哪里啊",
+        frame_id="f_live_where",
+        engine="place",
+        extra_cs={
+            "persona_id":           "meiling",
+            "repair_attempt_count": 3,   # stale counter that previously triggered the fallback
+            "recent_confusion_count": 3,
+        },
+    )
+    if turn is None:
+        skip("A1", "server not available"); return
+
+    cr       = turn.get("counter_reply", "")
+    combined = all_text(turn)
+    print(f"    counter_reply : {cr!r}")
+    print(f"    frame_text    : {turn.get('frame_text', '')!r}")
+
+    check(
+        "A1a — response does NOT contain '换个话题'",
+        "换个话题" not in combined,
+        f"combined: {combined[:120]!r}",
+    )
+    check(
+        "A1b — response contains a location or persona answer",
+        any(p in combined for p in ("我住", "我在", "上海", "北京", "南京", "我老家", "我是")),
+        f"combined: {combined[:120]!r}",
+    )
+
+
+def test_alpha_a2_why_like_after_work_statement_stays_on_work() -> None:
+    """[A2] '你为什么喜欢这个' after work context must not produce 什么时候见面 (F2 guard)."""
+    print("\n[A2] '你为什么喜欢这个' → stays on work topic, not meet-when frame (F2)")
+
+    turn = simulate_turn(
+        "你为什么喜欢这个",
+        frame_id="p2_wk_1",
+        engine="work",
+        extra_cs={
+            "persona_id":        "meiling",
+            "last_mirror_engine": "work",
+            "last_mirror_topic":  "work",
+        },
+    )
+    if turn is None:
+        skip("A2", "server not available"); return
+
+    cr       = turn.get("counter_reply", "")
+    combined = all_text(turn)
+    print(f"    counter_reply : {cr!r}")
+    print(f"    frame_text    : {turn.get('frame_text', '')!r}")
+
+    check(
+        "A2a — response does NOT contain '什么时候见面'",
+        "什么时候见面" not in combined,
+        f"combined: {combined[:120]!r}",
+    )
+    check(
+        "A2b — response contains a reason clause or persona content",
+        any(p in combined for p in ("因为", "觉得", "喜欢", "有意思", "有成就感", "工作")),
+        f"combined: {combined[:120]!r}",
+    )
+
+
+def test_alpha_a3_hometown_question_returns_first_person() -> None:
+    """[A3] '你老家在哪' and '你老家呢你老家在哪' must return first-person persona answer (F3)."""
+    print("\n[A3] Hometown question → first-person answer, no encyclopedia (F3)")
+
+    ENCYCLOPEDIA_MARKERS = ("省会", "东边", "历史也挺长", "东部", "的首都")
+
+    for text in ("你老家在哪", "你老家呢你老家在哪"):
+        turn = simulate_turn(
+            text,
+            frame_id="f_from_where",
+            engine="place",
+            extra_cs={"persona_id": "meiling"},
+        )
+        if turn is None:
+            skip(f"A3 [{text}]", "server not available"); continue
+
+        cr = turn.get("counter_reply", "")
+        print(f"    {text!r} → counter_reply: {cr!r}")
+
+        check(
+            f"A3a [{text[:8]}] — no encyclopedia markers",
+            not any(m in cr for m in ENCYCLOPEDIA_MARKERS),
+            f"counter_reply={cr!r}",
+        )
+        check(
+            f"A3b [{text[:8]}] — contains first-person persona marker",
+            any(p in cr for p in ("我老家", "我是", "我来自", "我在")),
+            f"counter_reply={cr!r}",
+        )
+
+
+def test_alpha_a4_repair_state_clears_after_success() -> None:
+    """[A4] After a successful non-confusion turn, repair/confusion counters reset to 0 (F4)."""
+    print("\n[A4] Repair state clears after successful answer (F4)")
+    import json as _json, urllib.request as _ur
+
+    if not _server_alive():
+        skip("A4", "server not available"); return
+
+    # Turn 1: simulate a confusion signal to set repair state
+    cs1 = make_cs(engine="place", extra={
+        "persona_id":           "meiling",
+        "repair_attempt_count": 0,
+        "recent_confusion_count": 0,
+    })
+    cs1["last_answer"] = make_answer("f_from_where", "啊？")
+    payload1 = json.dumps({
+        "turn_uid": "a4_turn1",
+        "next_question": True,
+        "conversation_state": cs1,
+    }).encode("utf-8")
+    req1 = urllib.request.Request(
+        f"{SERVER}/api/run_turn",
+        data=payload1,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req1, timeout=10) as r1:
+            resp1 = json.loads(r1.read().decode("utf-8"))
+    except Exception:
+        skip("A4", "server error on turn1"); return
+
+    # Turn 3: successful answer — repair state should clear in returned cs
+    cs3 = make_cs(engine="place", extra={
+        "persona_id":             "meiling",
+        "repair_attempt_count":   2,
+        "recent_confusion_count": 2,
+    })
+    cs3["last_answer"] = make_answer("f_from_where", "我是新西兰人")
+    payload3 = json.dumps({
+        "turn_uid": "a4_turn3",
+        "next_question": True,
+        "conversation_state": cs3,
+    }).encode("utf-8")
+    req3 = urllib.request.Request(
+        f"{SERVER}/api/run_turn",
+        data=payload3,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req3, timeout=10) as r3:
+            resp3 = json.loads(r3.read().decode("utf-8"))
+    except Exception:
+        skip("A4", "server error on turn3"); return
+
+    # The returned conversation_state should have zeroed counters
+    returned_cs = resp3.get("conversation_state") or {}
+    rac = returned_cs.get("repair_attempt_count", "not_present")
+    rcc = returned_cs.get("recent_confusion_count", "not_present")
+    print(f"    repair_attempt_count   → {rac!r}")
+    print(f"    recent_confusion_count → {rcc!r}")
+    print(f"    counter_reply          → {resp3.get('counter_reply', '')!r}")
+
+    # Primary assertion: counter_reply after a clear successful turn must not be 换个话题
+    cr3 = resp3.get("counter_reply", "")
+    check(
+        "A4a — '换个话题' not in response after successful turn",
+        "换个话题" not in cr3,
+        f"counter_reply={cr3!r}",
+    )
+    # Secondary: if cs is returned, counters should be 0
+    if rac != "not_present":
+        check(
+            "A4b — repair_attempt_count reset to 0 after success",
+            rac == 0,
+            f"repair_attempt_count={rac!r}",
+        )
+
+
+def test_alpha_a5_lanzhou_recognised_as_travel_city() -> None:
+    """[A5] '我想去兰州' must be recognised as a travel destination, not trigger '那你说的是哪里' (F5)."""
+    print("\n[A5] 兰州 recognised as travel city — no 'which place?' clarification (F5)")
+
+    import sys as _sys, importlib.util as _iu, pathlib as _pl
+    _srv_path = _pl.Path(__file__).resolve().parent.parent / "scripts" / "ui_server.py"
+    _spec = _iu.spec_from_file_location("ui_server", _srv_path)
+    _mod  = _iu.module_from_spec(_spec)
+    try:
+        _spec.loader.exec_module(_mod)
+    except Exception as e:
+        skip("A5", f"could not import ui_server: {e}"); return
+
+    tier1 = getattr(_mod, "_TRAVEL_SUBREGIONS", None)  # actual variable name
+    seed  = getattr(_mod, "_SEED_PLACE_KEYWORDS", None)
+
+    check(
+        "A5a — 兰州 in _TRAVEL_SUBREGIONS (depth-ready travel tier 1)",
+        tier1 is not None and "兰州" in tier1,
+        f"_TRAVEL_SUBREGIONS={'<missing>' if tier1 is None else '(found)'}",
+    )
+    check(
+        "A5b — 兰州 in _SEED_PLACE_KEYWORDS",
+        seed is not None and "兰州" in seed,
+        f"_SEED_PLACE_KEYWORDS={'<missing>' if seed is None else '(found)'}",
+    )
+
+    # Live check: '我想去兰州' must not get "那你说的是哪里？" which is the city-unknown clarification
+    turn = simulate_turn(
+        "我想去兰州",
+        frame_id="f_travel_where",
+        engine="travel",
+        extra_cs={"persona_id": "meiling"},
+    )
+    if turn is None:
+        skip("A5c (live)", "server not available")
+    else:
+        combined = all_text(turn)
+        print(f"    combined: {combined[:120]!r}")
+        check(
+            "A5c — '那你说的是哪里' not triggered for 兰州",
+            "那你说的是哪里" not in combined,
+            f"combined={combined[:100]!r}",
+        )
+
+
+def test_alpha_a6_change_topic_phrase_gated() -> None:
+    """[A6] Static: every '换个话题吧' occurrence in ui_server.py outside deflect phrases table
+    is guarded by a known guard variable or repair-count gate."""
+    print("\n[A6] Static: '换个话题吧' is gated by known guard (F1 guard coverage)")
+
+    import pathlib as _pl
+    _srv_path = _pl.Path(__file__).resolve().parent.parent / "scripts" / "ui_server.py"
+    src = _srv_path.read_text(encoding="utf-8")
+
+    # Split into lines to inspect each '换个话题吧' occurrence
+    lines = src.splitlines()
+    KNOWN_GUARDS = (
+        "_suppress_change_topic_deflect",
+        "_repair_attempt_count",
+        "_repair_escalation_level",
+        "persona_deflect_phrases",
+        "recovery_phrases",
+        "huan_ge_hua_ti_ba",
+        "deflect_change_topic",
+    )
+    INLINE_DATA_MARKERS = (
+        # Lines inside the deflect-phrases dict or recovery JSON reference — always safe
+        '"hanzi"',
+        '"id"',
+        'deflect',
+        'recovery_phrases',
+    )
+
+    ungated_occurrences = []
+    for i, line in enumerate(lines):
+        if "换个话题吧" not in line:
+            continue
+        # Skip lines that are data definitions, not code
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        if any(m in stripped for m in INLINE_DATA_MARKERS):
+            continue
+
+        # Search the surrounding 30 lines for a guard
+        window_start = max(0, i - 30)
+        window       = "\n".join(lines[window_start: i + 1])
+        if not any(g in window for g in KNOWN_GUARDS):
+            ungated_occurrences.append((i + 1, stripped))
+
+    check(
+        "A6 — all '换个话题吧' occurrences in code are guarded",
+        len(ungated_occurrences) == 0,
+        (f"ungated at lines: {[ln for ln, _ in ungated_occurrences]}"
+         if ungated_occurrences else ""),
+    )
+    for ln, text in ungated_occurrences:
+        print(f"    ✗ ungated at line {ln}: {text[:80]!r}")
 
 
 if __name__ == "__main__":
