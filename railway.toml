@@ -3,3 +3,21 @@ builder = "NIXPACKS"
 
 [deploy]
 startCommand = "python scripts/ui_server.py"
+
+# ── Persistent storage ────────────────────────────────────────────────────────
+# Progress snapshots, learner memory, and beta profiles are written to
+# BASE_DATA_DIR = os.environ.get("MANDARINOS_DATA_DIR", "<repo>/data").
+#
+# Without a persistent volume, all learner data is lost on every redeploy
+# or container restart (the repo-local data/ directory is ephemeral and
+# is .gitignore-d so it is never part of the deployed image).
+#
+# Required Railway dashboard steps to make progress history durable:
+#   1. Railway dashboard → your service → Volumes tab
+#      → Add Volume, mount path: /data
+#   2. Railway dashboard → your service → Variables tab
+#      → Add  MANDARINOS_DATA_DIR = /data
+#
+# The app reads MANDARINOS_DATA_DIR at startup (progress_store.py,
+# beta_profile.py, learner_memory.py all use it) — no code changes needed
+# once the volume and variable are set.

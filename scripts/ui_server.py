@@ -121,6 +121,12 @@ print("[ui_server] REPO_ROOT =", REPO_ROOT)
 print("[ui_server] UI_DIR    =", UI_DIR)
 print("[ui_server] RUNTIME_DIR =", RUNTIME_DIR)
 
+# ── Data directory — log effective path so Railway logs make storage issues obvious ──
+_DATA_DIR_ENV = os.environ.get("MANDARINOS_DATA_DIR", "")
+_DATA_DIR_EFFECTIVE = _DATA_DIR_ENV if _DATA_DIR_ENV else str(REPO_ROOT / "data")
+print(f"[ui_server] DATA_DIR  = {_DATA_DIR_EFFECTIVE}  "
+      f"{'(from MANDARINOS_DATA_DIR env)' if _DATA_DIR_ENV else '(default — ephemeral on Railway; set MANDARINOS_DATA_DIR to a persistent volume path)'}")
+
 # Windows console can be cp1252; avoid crashing on printing Hanzi in payload logs.
 try:
     if os.name == "nt":
