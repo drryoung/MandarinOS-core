@@ -4718,6 +4718,37 @@ except RuntimeError:
 except Exception as _cm_e:
     raise RuntimeError(f"[MandarinOS] mirror_core_map load failed: {_cm_e}") from _cm_e
 
+# E4: deterministic topic-to-engine mapping used by the initiative-follow handoff.
+# When the learner's question is answered confidently from the mirror bank or working memory,
+# cs["current_engine"] is updated to the mapped engine so the next frame stays on-topic.
+_QUESTION_TOPIC_TO_ENGINE: dict = {
+    # Travel
+    "travel_where": "travel", "travel_memorable": "travel",
+    "travel_fav": "travel", "travel_why_fav": "travel", "travel_next": "travel",
+    # Food
+    "food_fav": "food", "food_local": "food", "food_spicy": "food",
+    "food_why_like": "food", "food_cook": "food",
+    # Place
+    "place_from": "place", "place_special": "place", "place_why_like": "place",
+    "place_like": "place", "place_food": "place", "place_still_live": "place",
+    "place_far": "place", "place_never_been": "place", "place_far_or_not": "place",
+    "place_distance_ref": "place", "place_distance_time": "place",
+    "place_distance_transport": "place",
+    # Work
+    "work_what": "work", "work_like": "work", "work_why": "work",
+    "work_duration": "work", "work_interesting": "work",
+    "work_students": "work", "work_platform": "work",
+    # Family
+    "family_size": "family", "family_siblings": "family", "family_live": "family",
+    "family_weekend": "family", "marriage": "family", "children": "family",
+    # Hobby
+    "hobby_what": "hobby", "hobby_duration": "hobby",
+    "hobby_why": "hobby", "hobby_how_started": "hobby",
+    # Identity
+    "name_meaning": "identity", "name_giver": "identity",
+    "name_story": "identity", "age": "identity",
+}
+
 # Fuzzy-match table built from optional 'paraphrases' arrays in the JSON bank.
 # Each entry: (keyword_tuple, topic, engine). Matching: all keywords must be present in input.
 # To add a paraphrase variant, add it to the JSON entry — no Python edit required.
@@ -5281,6 +5312,36 @@ def _answer_from_working_memory(text: str, facts: dict, persona: Optional[dict])
         if members:
             return (f"我家里有{members[0]}。", "")
 
+    return None
+
+
+def _infer_wm_topic_engine(text: str) -> Optional[str]:
+    """
+    Infer which engine a working-memory answer belongs to, based on the learner's question text.
+    Returns an engine string or None when classification is uncertain.
+    Pure function — no side effects.
+    """
+    t = (text or "").strip().rstrip("？?！!。，, ")
+    if not t:
+        return None
+    # Travel
+    if any(k in t for k in ("最喜欢", "去过哪", "旅游过", "旅行", "哪个地方", "哪里好玩")):
+        return "travel"
+    # Food
+    if any(k in t for k in ("喜欢辣", "辣", "吃什么", "喜欢吃", "食物")):
+        return "food"
+    # Place / hometown
+    if any(k in t for k in ("老家", "家乡", "住哪", "住在哪", "现在住", "是哪里人")):
+        return "place"
+    # Work
+    if any(k in t for k in ("工作", "做什么", "职业", "上班")):
+        return "work"
+    # Family
+    if any(k in t for k in ("家里有", "几口人", "家人", "兄弟", "姐妹", "父母", "孩子", "结婚", "兄弟姐妹")):
+        return "family"
+    # Hobby
+    if any(k in t for k in ("爱好", "兴趣", "喜欢做什么")):
+        return "hobby"
     return None
 
 
@@ -7856,6 +7917,21 @@ class Handler(BaseHTTPRequestHandler):
                 _counter_reply    = _counter_result[0] if _counter_result else None
                 _counter_reply_en = _counter_result[1] if _counter_result else ""
 
+                # ── E4: Initiative Follow — resolve engine handoff ────────────────────────
+                # Only performed when: user asked a question, AND the answer came from the
+                # mirror bank or working memory (confident answer, not a weak fallback).
+                # If gated conditions pass, the resolved engine is written to state_update
+                # so the next frame stays on the learner's redirected topic.
+                _e4_engine_handoff: Optional[str] = None
+                if user_asked_question and _counter_result:
+                    if _counter_is_new_mirror and _new_mirror_topic:
+                        _e4_engine_handoff = _QUESTION_TOPIC_TO_ENGINE.get(_new_mirror_topic)
+                    elif _counter_is_working_memory:
+                        _e4_q_text = (
+                            (last_answer.get("submitted_text") or "") if isinstance(last_answer, dict) else ""
+                        ).strip()
+                        _e4_engine_handoff = _infer_wm_topic_engine(_e4_q_text)
+
                 # ── Mirror confusion state update ────────────────────────────────────────
                 # Write to cs so the next turn's escalation ladder has correct context.
                 if isinstance(cs, dict):
@@ -9295,6 +9371,14 @@ class Handler(BaseHTTPRequestHandler):
                     # Track recent persona replies for exact-repeat suppression (keep last 3).
                     _updated_recent = (_recent_persona_replies + [_counter_reply])[-3:]
                     response["state_update"]["recent_persona_replies"] = _updated_recent
+
+                # E4: emit topic handoff engine when a confident answer was produced.
+                # Writing current_engine into state_update causes the client to track this
+                # engine for the next /api/next_question call, keeping the conversation on
+                # the learner's redirected topic instead of snapping back to the old ladder.
+                if _e4_engine_handoff:
+                    response["state_update"] = response.get("state_update") or {}
+                    response["state_update"]["current_engine"] = _e4_engine_handoff
 
                 # ── Blue panel — pre-computation (trigger flags) ───────────────
                 # Consecutive app questions: how many back-to-back app questions the

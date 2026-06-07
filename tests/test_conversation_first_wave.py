@@ -281,3 +281,72 @@ def test_answer_prefix_uses_topic_aware_fallback():
     src = (_pl.Path(__file__).resolve().parent.parent / "scripts" / "ui_server.py").read_text(encoding="utf-8")
     apqp_block = src.split("def _answer_user_question_prefix")[1].split("\ndef _")[0]
     assert "_topic_aware_honest_fallback" in apqp_block
+
+
+# ── F: E4 topic handoff static and unit tests ─────────────────────────────────
+
+def test_question_topic_to_engine_exists():
+    """Static check: _QUESTION_TOPIC_TO_ENGINE dict is present in ui_server.py."""
+    import pathlib as _pl
+    src = (_pl.Path(__file__).resolve().parent.parent / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    assert "_QUESTION_TOPIC_TO_ENGINE" in src
+    assert '"travel_fav": "travel"' in src or "'travel_fav': 'travel'" in src
+    assert "_infer_wm_topic_engine" in src
+    assert "_e4_engine_handoff" in src
+
+
+@pytest.mark.parametrize("topic,expected_engine", [
+    ("travel_fav",      "travel"),
+    ("travel_where",    "travel"),
+    ("travel_memorable","travel"),
+    ("food_spicy",      "food"),
+    ("food_fav",        "food"),
+    ("place_from",      "place"),
+    ("place_like",      "place"),
+    ("work_what",       "work"),
+    ("work_like",       "work"),
+    ("family_size",     "family"),
+    ("marriage",        "family"),
+    ("hobby_what",      "hobby"),
+])
+def test_topic_to_engine_mapping(topic, expected_engine):
+    srv = _load_server()
+    assert srv._QUESTION_TOPIC_TO_ENGINE.get(topic) == expected_engine
+
+
+@pytest.mark.parametrize("text,expected_engine", [
+    ("你最喜欢哪个地方",  "travel"),
+    ("你去过哪里旅游过",  "travel"),
+    ("你喜欢辣吗",        "food"),
+    ("你老家在哪里",      "place"),
+    ("你做什么工作",      "work"),
+    ("你家里有几口人",    "family"),
+])
+def test_infer_wm_topic_engine(text, expected_engine):
+    srv = _load_server()
+    assert srv._infer_wm_topic_engine(text) == expected_engine
+
+
+def test_infer_wm_topic_engine_unknown_returns_none():
+    srv = _load_server()
+    assert srv._infer_wm_topic_engine("你多大了") is None
+    assert srv._infer_wm_topic_engine("") is None
+
+
+def test_e4_no_handoff_after_weak_fallback():
+    """E4: no engine handoff when _counter_is_new_mirror and _counter_is_working_memory are both False."""
+    import pathlib as _pl
+    src = (_pl.Path(__file__).resolve().parent.parent / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    # Guard: handoff is conditioned on _counter_is_new_mirror OR _counter_is_working_memory
+    e4_block = src.split("_e4_engine_handoff: Optional[str] = None")[1].split("# ── Mirror confusion state update")[0]
+    assert "_counter_is_new_mirror" in e4_block
+    assert "_counter_is_working_memory" in e4_block
+
+
+def test_e4_handoff_emitted_to_state_update():
+    """Static check: _e4_engine_handoff is written into state_update when set."""
+    import pathlib as _pl
+    src = (_pl.Path(__file__).resolve().parent.parent / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    # Locate the state_update emission block
+    su_block = src.split('response["state_update"]["current_engine"] = _e4_engine_handoff')[0][-200:]
+    assert "_e4_engine_handoff" in su_block

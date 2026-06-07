@@ -5668,11 +5668,12 @@ function applyPartnerStubToActiveSentence(stub, data, turnUid) {
   if (!t) return;
   const uid = turnUid || "partner_stub";
   setActivePartnerStatement(t, uid);
-  window._sentenceHint = {
-    pinyin: fillSentenceHintPinyin(t, data?.frame_pinyin),
-    text_en: data?.frame_text_en != null ? String(data.frame_text_en).trim() : "",
-  };
-  _setFrameEnglish(window._sentenceHint.text_en);
+  _initActiveTurnRecord(
+    t,
+    data?.frame_text_en != null ? String(data.frame_text_en).trim() : "",
+    data?.frame_pinyin || "",
+    uid,
+  );
   lastClickedWordId = null;
   window.lastClickedWordId = null;
   window._currentHintAffordance = { visible: true };
@@ -8257,8 +8258,7 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
                 frame_id: meta.frame_id || "",
               });
               renderTranscript();
-              window._sentenceHint = { pinyin: fillSentenceHintPinyin(pending, meta.pinyin || ""), text_en: meta.text_en || "" };
-              _setFrameEnglish(meta.text_en || "");
+              _initActiveTurnRecord(pending, meta.text_en || "", meta.pinyin || "", meta.frame_id || "");
               syncPartnerHeaderWhenFrameSentenceIsPrimary();
               renderFrameSentence({ id: meta.frame_id || "", text: pending });
               ttsSpeak({ text: pending, lang: "zh-CN" });
@@ -8293,8 +8293,7 @@ function renderDiscoveryPanel(questions, pendingFrameText) {
         frame_id: meta.frame_id || "",
       });
       renderTranscript();
-      window._sentenceHint = { pinyin: fillSentenceHintPinyin(pending, meta.pinyin || ""), text_en: meta.text_en || "" };
-      _setFrameEnglish(meta.text_en || "");
+      _initActiveTurnRecord(pending, meta.text_en || "", meta.pinyin || "", meta.frame_id || "");
       syncPartnerHeaderWhenFrameSentenceIsPrimary();
       renderFrameSentence({ id: meta.frame_id || "", text: pending });
       ttsSpeak({ text: pending, lang: "zh-CN" });

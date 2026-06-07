@@ -29,6 +29,23 @@ def test_gloss_syncs_active_display():
     assert "function _refreshActiveDisplayFromTurnRecord" in src
 
 
+def test_active_turn_record_is_single_source_of_truth():
+    """Every path that sets the active sentence must go through _initActiveTurnRecord."""
+    src = _src()
+    # Stub path (direction/mirror/probe) must use _initActiveTurnRecord, not raw _sentenceHint
+    stub_block = src.split("function applyPartnerStubToActiveSentence")[1].split("function runDirectionTurn")[0]
+    assert "_initActiveTurnRecord(" in stub_block
+    assert "window._sentenceHint = {" not in stub_block
+    # Discovery card ack handler must use _initActiveTurnRecord
+    disc_block = src.split("function renderDiscoveryPanel")[1].split("function hideDiscoveryPanel")[0]
+    assert "_initActiveTurnRecord(" in disc_block
+    # Continue → handler must use _initActiveTurnRecord
+    cont_idx = src.rfind("继续聊  Continue →")
+    assert cont_idx >= 0
+    cont_block = src[cont_idx : cont_idx + 900]
+    assert "_initActiveTurnRecord(" in cont_block
+
+
 def test_active_turn_record_prevents_stale_gloss():
     """Async gloss must update _activeTurnRecord before re-rendering EN."""
     src = _src()
