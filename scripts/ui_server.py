@@ -2431,11 +2431,22 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     _turn_around_markers = ("你呢", "那你呢", "你怎么想", "为什么这么问", "为什么这样问", "换我问", "你来问")
     if any(m in text for m in _turn_around_markers):
         return True
+    # Repeated / clarification re-asks — often no explicit ？ (ASR or typed follow-up).
+    _repeat_q_markers = ("我问你", "我是说", "我是问你", "那我问你")
+    if any(m in text for m in _repeat_q_markers):
+        return True
+    # Favourite-place questions — common learner initiative, sometimes without ？
+    if "最喜欢" in text and any(k in text for k in ("地方", "哪里", "哪儿", "哪个", "什么")):
+        return True
+    # Spicy-food preference — short 吗-questions without other food keywords
+    if "喜欢辣" in text or ("辣" in text and "喜欢" in text and ("吗" in text or len(text) <= 8)):
+        return True
     # Direct questions about the persona (no explicit "？" needed)
     _direct_starts = (
         "你叫什么", "你的名字", "你名字", "你是哪里人", "你从哪里来", "你老家在哪",
         "你老家", "你的老家", "你家乡",
         "你住在哪", "你住哪里", "你做什么工作", "你的工作", "你是做什么",
+        "你最喜欢", "你喜欢辣",
         "你喜欢什么", "你有什么爱好", "你有家人", "你有没有家人",
         "你结婚了吗", "你有孩子", "你多大", "你几岁", "你今年多大",
         # Travel
@@ -2645,6 +2656,13 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
             return travel_fact
         return voice_lines.get("travel") or "我去过几个城市，很有意思。"
 
+    # Favourite place — "你最喜欢哪个地方/哪里" (mirror bank may also handle; this is backup).
+    if "最喜欢" in t and any(k in t for k in ("地方", "哪里", "哪儿", "哪个", "什么")):
+        travel_fav = (_facts.get("travel_where") or _facts.get("travel") or "").strip()
+        if travel_fav:
+            return travel_fav
+        return voice_lines.get("travel") or "我去过几个地方，各有特色。"
+
     # "你喜欢[place/city/hobby/food]吗" — intent is PREFERENCE, not place description.
     # IMPORTANT: never return voice_lines["place"] (a location/residence description)
     # as the answer to a preference question — that answers "where" not "do you like it".
@@ -2680,7 +2698,7 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
         # Generic hobby/food preference — route to the right voice_line
         if any(kw in t for kw in ("书法", "绘画", "音乐", "运动", "旅行", "下棋", "羽毛球")):
             return voice_lines.get("hobby") or "挺喜欢的，这是我的爱好。"
-        if any(kw in t for kw in ("吃", "食物", "菜", "火锅", "饺子", "面")):
+        if any(kw in t for kw in ("吃", "食物", "菜", "火锅", "饺子", "面", "辣")):
             return voice_lines.get("food") or "挺喜欢的，我对吃的很感兴趣。"
         return "还挺喜欢的，你呢？"
 
@@ -3486,6 +3504,12 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     _soft = _soft_persona_fallback(t, persona)
     if _soft:
         return (_soft, "")
+    # E2: Topic-aware honest fallback — fires before the generic '电脑角色' disclaimer.
+    # When the learner asked a recognisable question about travel, food, or work preference
+    # but no specific persona data matched, return a conversational on-topic response.
+    _topic_honest = _topic_aware_honest_fallback(t, persona)
+    if _topic_honest:
+        return _topic_honest
     # Transparent limitation fallback: the learner asked a clear question we can't
     # specifically answer.  "这个不好说" / "这个还是秘密" is opaque and frustrating;
     # a brief honest acknowledgment is better UX.
@@ -5112,6 +5136,188 @@ def _find_mirror_answer(text: str, engine_id: str, persona: Optional[dict]) -> O
         if all(kw in t_norm for kw in keywords):
             zh, en = _mirror_persona_stub(topic, eng, persona)
             return (zh, en, topic, eng)
+
+    return None
+
+
+# ── E3: Persona Working Memory ───────────────────────────────────────────────────────────────
+# Known place names for bounded extraction (major travel destinations + Chinese cities).
+_WM_KNOWN_PLACES: tuple = (
+    "西藏", "云南", "北京", "上海", "成都", "重庆", "广州", "深圳",
+    "苏州", "杭州", "西安", "南京", "武汉", "厦门", "青岛", "兰州",
+    "丽江", "桂林", "三亚", "哈尔滨", "乌鲁木齐", "九寨沟",
+    "黄山", "张家界", "敦煌", "西双版纳", "大理", "香港", "澳门",
+)
+
+
+def _extract_persona_facts_from_recent(recent_replies: list) -> dict:
+    """
+    Bounded, deterministic extraction of structured facts from recent persona replies.
+    Scans the last 5 entries only. Pure read — does not write to cs or disk.
+
+    Returns a dict that may contain:
+        travel_visited: list[str]   — known place names mentioned
+        travel_fav:     str          — place explicitly stated as favourite/most memorable
+        city_now:       str          — stated current city
+        hometown:       str          — stated hometown
+        food_spicy:     bool         — True=likes spicy, False=doesn't
+        family_members: list[str]    — family members mentioned
+        work_desc:      str          — brief work description fragment
+    """
+    facts: dict = {}
+    if not recent_replies:
+        return facts
+    window = list(recent_replies)[-5:]
+    combined = " ".join(window)
+
+    # ── Travel: places mentioned ─────────────────────────────────────────────────
+    _tv: list = []
+    for _place in _WM_KNOWN_PLACES:
+        if _place in combined and _place not in _tv:
+            _tv.append(_place)
+    if _tv:
+        facts["travel_visited"] = _tv
+
+    # Travel: explicitly stated favourite / most memorable
+    for _reply in window:
+        for _place in _WM_KNOWN_PLACES:
+            if (
+                f"最喜欢{_place}" in _reply
+                or f"最难忘的是在{_place}" in _reply
+                or f"最难忘的是{_place}" in _reply
+                or f"觉得{_place}最" in _reply
+            ):
+                facts["travel_fav"] = _place
+                break
+
+    # ── Place / home ─────────────────────────────────────────────────────────────
+    for _reply in window:
+        for _place in _WM_KNOWN_PLACES:
+            if f"我住在{_place}" in _reply or f"住在{_place}" in _reply:
+                facts["city_now"] = _place
+            if f"我是{_place}人" in _reply or f"我老家在{_place}" in _reply:
+                facts["hometown"] = _place
+
+    # ── Food / spicy ─────────────────────────────────────────────────────────────
+    # Check negation first — "不太能吃辣" contains "能吃辣" so order matters.
+    if any(m in combined for m in ("不太能吃辣", "不能吃辣", "不喜欢辣", "有点怕辣")):
+        facts["food_spicy"] = False
+    elif any(m in combined for m in ("能吃辣", "挺能吃辣", "很能吃辣", "喜欢吃辣", "很喜欢辣")):
+        facts["food_spicy"] = True
+
+    # ── Family ───────────────────────────────────────────────────────────────────
+    _fam_members = ("姐姐", "哥哥", "妹妹", "弟弟", "女儿", "儿子", "孩子")
+    for _reply in window:
+        for _member in _fam_members:
+            if f"有{_member}" in _reply or f"我{_member}" in _reply:
+                if "family_members" not in facts:
+                    facts["family_members"] = []
+                if _member not in facts["family_members"]:
+                    facts["family_members"].append(_member)
+
+    # ── Work ─────────────────────────────────────────────────────────────────────
+    import re as _re_wm
+    for _reply in window:
+        _wm_match = _re_wm.search(r"我(?:是做|做)([\u4e00-\u9fff]{2,10})(?:的|工作|，|。)", _reply)
+        if _wm_match:
+            facts["work_desc"] = _wm_match.group(0).rstrip("，。") + "。"
+            break
+
+    return facts
+
+
+def _answer_from_working_memory(text: str, facts: dict, persona: Optional[dict]) -> Optional[tuple]:
+    """
+    Derive a persona answer from working-memory facts extracted from recent replies.
+    Returns (zh, en) tuple or None if no relevant fact is found.
+    Pure function — does not modify facts or cs.
+
+    Sourcing priority: travel_fav > travel_visited > food_spicy > hometown > city_now > family.
+    """
+    if not facts or not text:
+        return None
+    t = text.strip().rstrip("？?！!。，, ")
+
+    # ── Travel: favourite place ───────────────────────────────────────────────────
+    if "最喜欢" in t and any(k in t for k in ("地方", "哪里", "哪儿", "哪个")):
+        fav = facts.get("travel_fav")
+        visited = facts.get("travel_visited") or []
+        if fav:
+            return (f"我觉得{fav}最难忘，那里真的很特别。", f"I think {fav} is the most memorable — it's really special.")
+        if len(visited) >= 2:
+            return (f"我去过{visited[0]}和{visited[1]}，最喜欢{visited[0]}。", "")
+        if len(visited) == 1:
+            return (f"我去过的地方里，最喜欢{visited[0]}。", "")
+
+    # ── Travel: visited places ────────────────────────────────────────────────────
+    if any(m in t for m in ("去过哪里", "去过哪些", "去过哪", "旅游过")):
+        visited = facts.get("travel_visited") or []
+        if visited:
+            return (f"我去过{'和'.join(visited[:3])}，都挺有意思的。", "")
+
+    # ── Food: spicy preference ────────────────────────────────────────────────────
+    if "喜欢辣" in t or ("辣" in t and "喜欢" in t):
+        spicy = facts.get("food_spicy")
+        if spicy is True:
+            return ("我挺能吃辣的，还挺喜欢。", "I can handle spicy food pretty well — I like it.")
+        if spicy is False:
+            return ("我不太能吃辣，有点怕辣。", "I can't really handle spicy food.")
+
+    # ── Place: hometown ───────────────────────────────────────────────────────────
+    if any(m in t for m in ("老家", "家乡", "是哪里人")):
+        hometown = facts.get("hometown")
+        if hometown:
+            return (f"我老家在{hometown}。", f"My hometown is {hometown}.")
+
+    # ── Place: current city ───────────────────────────────────────────────────────
+    if any(m in t for m in ("住在哪", "住哪", "现在住")):
+        city = facts.get("city_now")
+        if city:
+            return (f"我住在{city}。", f"I live in {city}.")
+
+    # ── Family ────────────────────────────────────────────────────────────────────
+    if any(m in t for m in ("有没有孩子", "有孩子", "有没有姐", "有没有哥", "有没有妹", "有没有弟")):
+        members = facts.get("family_members") or []
+        if members:
+            return (f"我家里有{members[0]}。", "")
+
+    return None
+
+
+def _topic_aware_honest_fallback(t: str, persona: Optional[dict]) -> Optional[tuple]:
+    """
+    Topic-aware honest acknowledgment for questions the persona cannot specifically answer.
+    Returns (zh, en) or None. Placed BEFORE the generic '电脑角色' limitation disclaimer so the
+    learner receives a conversational response that stays in topic domain.
+    """
+    if not t:
+        return None
+    _vl  = (persona or {}).get("voice_lines") or {}
+    _fcts = (persona or {}).get("discoverable_facts") or {}
+
+    # Travel / place: favourite preference
+    if "最喜欢" in t and any(k in t for k in ("地方", "哪里", "哪儿", "哪个")):
+        _tvl = (_vl.get("travel") or "").rstrip("。，")
+        _suffix = f"，{_tvl[:20]}。" if _tvl else "，每个地方都有自己的特点。"
+        return (f"这个问题不好说{_suffix}", "That's hard to say… but I enjoy travelling.")
+
+    # Food: spicy
+    if "喜欢辣" in t or ("辣" in t and "喜欢" in t):
+        _fvl = _vl.get("food") or ""
+        if _fvl:
+            return (f"我呢，{_fvl}", "")
+        return ("我能吃一点辣，但不是特别能吃。", "I can eat a little spicy food, but not too much.")
+
+    # Food: general preference
+    if any(k in t for k in ("喜欢吃", "最爱吃", "爱吃什么")):
+        _ff = _fcts.get("food") or ""
+        if _ff:
+            return (_ff[:40].rstrip("，") + "。", "")
+        return ("我挺喜欢吃东西的，各种口味都能接受。", "I quite enjoy food.")
+
+    # Work preference
+    if "工作" in t and any(k in t for k in ("喜欢", "怎么样", "好不好")):
+        return ("这个工作还挺有意思，学到了不少东西。", "The work is pretty interesting — I've learned a lot.")
 
     return None
 
@@ -7462,7 +7668,8 @@ class Handler(BaseHTTPRequestHandler):
                 _cs_mirror_conf   = int(cs.get("mirror_confusion_count") or 0) if isinstance(cs, dict) else 0
 
                 _counter_result = None
-                _counter_is_new_mirror = False  # set True when a fresh mirror answer is generated this turn
+                _counter_is_new_mirror = False    # set True when a fresh mirror answer is generated this turn
+                _counter_is_working_memory = False # set True when working memory produced the answer (E3)
                 _new_mirror_topic = ""
                 _new_mirror_engine = ""
                 _confusion_about_app_q = False  # set True when learner confused about frame question (not mirror)
@@ -7567,11 +7774,11 @@ class Handler(BaseHTTPRequestHandler):
                             if _caq_pc:
                                 _counter_result        = _caq_pc
                                 _confusion_about_app_q = True
+                    # ── F2: Adjacency guard ─────────────────────────────────────────────────
+                    # If the learner asks "why do you like X?" and the most recent mirror
+                    # answer was work/hobby/place/food, reply with the relevant voice_line
+                    # rather than letting the selector pick an unrelated frame.
                     if _counter_result is None:
-                        # Adjacency guard (F2): if the learner asks "why do you like X?" and
-                        # the most recent mirror answer was work/hobby/place/food, reply with
-                        # the relevant voice_line explanation rather than letting the selector
-                        # pick a socially implausible unrelated frame (e.g. meet-up question).
                         _submitted_for_why = (
                             (last_answer.get("submitted_text") or "").strip()
                             if isinstance(last_answer, dict) else ""
@@ -7594,9 +7801,25 @@ class Handler(BaseHTTPRequestHandler):
                                     "Because I find it really interesting — I grew to like it more and more.",
                                 )
 
-                        # Mirror answers only fire when the user genuinely asked a question.
-                        # Statements (e.g. "我跟家人一起住。") must never match the mirror bank —
-                        # the fuzzy keyword pass would otherwise match topic keywords in any answer.
+                    # ── E3: Persona working memory ──────────────────────────────────────────
+                    # Consult recent persona replies before the mirror bank.
+                    # Gives conversational continuity: "I said I went to Tibet — now you're
+                    # asking which place I like most → I can answer from what I just said."
+                    # Bounded to last 5 replies. Read-only — does not write to cs.
+                    if _counter_result is None and user_asked_question and _recent_persona_replies:
+                        _wm_facts  = _extract_persona_facts_from_recent(_recent_persona_replies)
+                        _wm_answer = _answer_from_working_memory(
+                            _last_text_for_counter or "", _wm_facts, persona
+                        )
+                        if _wm_answer:
+                            _counter_result          = _wm_answer
+                            _counter_is_working_memory = True
+
+                    # ── Mirror bank + general answer ────────────────────────────────────────
+                    # Mirror answers only fire when the user genuinely asked a question.
+                    # Statements (e.g. "我跟家人一起住。") must never match the mirror bank —
+                    # the fuzzy keyword pass would otherwise match topic keywords in any answer.
+                    if _counter_result is None:
                         _raw_mirror = _find_mirror_answer(
                             (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or ""),
                             "", persona

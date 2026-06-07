@@ -206,6 +206,7 @@ function maybeRequestGlossForEntry(entry) {
   if (glossLineCache.has(key)) {
     entry.text_en = glossLineCache.get(key);
     if (entry.role === "user") userTranslationIndex[key] = entry.text_en;
+    if (entry.role === "partner") _syncActiveEnglishFromGloss(entry, entry.text_en);
     return;
   }
   if (_glossFetchInFlight.has(key)) return;
@@ -279,18 +280,58 @@ function partnerTranscriptExtrasFromData(data, zh) {
 }
 
 /** When async gloss completes, keep active #frameEnglish in sync if this is still the spoken partner line. */
+function _initActiveTurnRecord(zh, en, pinyin, turnUid) {
+  const z = (zh || "").trim();
+  window._activeTurnRecord = {
+    zh: z,
+    en: (en || "").trim(),
+    pinyin: fillSentenceHintPinyin(z, pinyin || ""),
+    turnUid: turnUid || "",
+  };
+  window._sentenceHint = {
+    pinyin: window._activeTurnRecord.pinyin,
+    text_en: window._activeTurnRecord.en,
+  };
+  if (z) window._lastPartnerSpokenText = z;
+  _refreshActiveDisplayFromTurnRecord();
+}
+
+function _updateActiveTurnRecordEn(en) {
+  const rec = window._activeTurnRecord;
+  if (!rec) return;
+  const val = (en || "").trim();
+  if (!val) return;
+  rec.en = val;
+  window._sentenceHint = { ...(window._sentenceHint || {}), text_en: val };
+  _refreshActiveDisplayFromTurnRecord();
+}
+
+/** Re-render EN/PY hint surfaces from the single active turn record (prevents cross-turn desync). */
+function _refreshActiveDisplayFromTurnRecord() {
+  const rec = window._activeTurnRecord;
+  if (!rec || !rec.zh) return;
+  const recordKey = _normalizeTranscriptText(rec.zh);
+  const activeKey = _normalizeTranscriptText(window._lastPartnerSpokenText || "");
+  if (activeKey && recordKey && activeKey !== recordKey) return;
+  _setFrameEnglish(rec.en || "");
+}
+
 function _syncActiveEnglishFromGloss(entry, en) {
   if (!entry || entry.role !== "partner" || !(en || "").trim()) return;
   const entryKey = _normalizeTranscriptText(entry.text_zh || entry.text || "");
+  const rec = window._activeTurnRecord;
+  const recordKey = rec ? _normalizeTranscriptText(rec.zh || "") : "";
   const activeKey = _normalizeTranscriptText(window._lastPartnerSpokenText || "");
-  if (!entryKey || entryKey !== activeKey) return;
-  const hint = window._sentenceHint || { pinyin: "", text_en: "" };
-  window._sentenceHint = { ...hint, text_en: en };
-  _setFrameEnglish(en);
+  if (!entryKey || (recordKey && entryKey !== recordKey && entryKey !== activeKey)) return;
+  _updateActiveTurnRecordEn(en);
 }
 
 /** Refresh active English from current sentence hint (e.g. after recovery repeat). */
 function _refreshActiveEnglishFromSentenceHint() {
+  if (window._activeTurnRecord && window._activeTurnRecord.zh) {
+    _refreshActiveDisplayFromTurnRecord();
+    return;
+  }
   const en = ((window._sentenceHint || {}).text_en || "").trim();
   if (en) _setFrameEnglish(en);
 }
@@ -6005,6 +6046,7 @@ function _resetCurrentSessionState() {
   if (challengeZone) challengeZone.innerHTML = "";
 
   window._sentenceHint = { pinyin: "", text_en: "" };
+  window._activeTurnRecord = null;
   window._currentHintAffordance = { visible: false };
   window._currentTurnUid = null;
   hint_cascade_state = { level: 0, turn_uid: null };
@@ -6515,14 +6557,23 @@ async function _runTurnInner(isNext = false, opts = {}) {
     // When in user-led mode the pending question is stored in _pendingFrameMeta and
     // shown after the learner taps "Continue →". So we skip renderFrameSentence here.
     setActivePartnerStatement(_counterReply, payload.turn_uid || "counter_reply");
-    // Override _sentenceHint so the ? button shows the persona answer's EN, not the next question's EN.
-    window._sentenceHint = { pinyin: fillSentenceHintPinyin(_counterReply, _counterReplyPinyin), text_en: _counterReplyEn };
-    _setFrameEnglish(_counterReplyEn);
+    _initActiveTurnRecord(
+      _counterReply,
+      _counterReplyEn,
+      _counterReplyPinyin,
+      payload.turn_uid || "counter_reply",
+    );
     window._lastPartnerTurnText = _counterReply;
   } else {
     // No counter_reply — render the app's next question into the main frame as normal.
     window._lastPartnerTurnText = fallbackText;
     renderFrameSentence({ id: frameId, text: fallbackText });
+    _initActiveTurnRecord(
+      fallbackText,
+      data.frame_text_en ?? "",
+      data.frame_pinyin || "",
+      frameId,
+    );
   }
   // Phase 8: append partner question to transcript — but only when NOT in discovery mode.
   // When user_led:true the frame question is held as a pending question; adding it now would
@@ -6677,17 +6728,6 @@ async function _runTurnInner(isNext = false, opts = {}) {
   const hintAffordance = _frameData.hint_affordance || { visible: true };
   const turnUid        = frameId;
 
-  // Sentence-level hints (pinyin → English); used when no word is selected.
-  // When counter_reply is active, the active sentence shows the persona's answer,
-  // not the pending frame — so preserve the counter_reply hint set earlier.
-  // Only overwrite with frame metadata when no counter_reply is displayed.
-  if (!_counterReply) {
-    window._sentenceHint = {
-      pinyin: fillSentenceHintPinyin(fallbackText, data.frame_pinyin),
-      text_en: data.frame_text_en ?? "",
-    };
-    _setFrameEnglish(window._sentenceHint.text_en);
-  }
   lastClickedWordId = null;
   window.lastClickedWordId = null;
 

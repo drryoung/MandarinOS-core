@@ -48,7 +48,10 @@
       },
       {
         "zh": "你喜欢吃辣吗？", "py": "nǐ xǐhuān chī là ma?", "en": "Do you like spicy food?",
-        "kind": "SENTENCE", "topic": "food_spicy"
+        "kind": "SENTENCE", "topic": "food_spicy",
+        "paraphrases": [
+          ["喜欢", "辣"]
+        ]
       },
       {
         "zh": "为什么喜欢这道菜？", "py": "wèishénme xǐhuān zhè dào cài?", "en": "Why do you like this dish?",
@@ -156,7 +159,13 @@
       },
       {
         "zh": "你最喜欢哪个地方？", "py": "nǐ zuì xǐhuān nǎ ge dìfāng?", "en": "Which place do you like most?",
-        "kind": "SENTENCE", "topic": "travel_fav", "curiosity": true
+        "kind": "SENTENCE", "topic": "travel_fav", "curiosity": true,
+        "paraphrases": [
+          ["最喜欢", "地方"],
+          ["最喜欢", "哪里"],
+          ["最喜欢", "哪儿"],
+          ["最喜欢", "哪个"]
+        ]
       },
       {
         "zh": "为什么喜欢那个地方？", "py": "wèishénme xǐhuān nàge dìfāng?", "en": "Why do you like that place?",

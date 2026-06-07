@@ -819,6 +819,9 @@ def main() -> None:
     test_alpha_a4_repair_state_clears_after_success()
     test_alpha_a5_lanzhou_recognised_as_travel_city()
     test_alpha_a6_change_topic_phrase_gated()
+    test_alpha_a7_favourite_place_question_not_ignored()
+    test_alpha_a8_persona_working_memory_travel()
+    test_alpha_a9_spicy_food_no_identity_fallback()
 
     total  = len(_results)
     passed = sum(1 for _, ok in _results if ok)
@@ -2678,6 +2681,106 @@ def test_alpha_a6_change_topic_phrase_gated() -> None:
     )
     for ln, text in ungated_occurrences:
         print(f"    ✗ ungated at line {ln}: {text[:80]!r}")
+
+
+def test_alpha_a7_favourite_place_question_not_ignored() -> None:
+    """[A7] '你最喜欢哪个地方？' must produce an on-topic counter_reply and no unrelated identity frame."""
+    print("\n[A7] Favourite-place question → on-topic answer, no identity frame (E1/E2)")
+
+    turn = simulate_turn(
+        "你最喜欢哪个地方？",
+        frame_id="p2_tr_1",
+        engine="travel",
+        extra_cs={"persona_id": "meiling"},
+    )
+    if turn is None:
+        skip("A7", "server not available"); return
+
+    cr      = turn.get("counter_reply", "")
+    ft      = turn.get("frame_text", "")
+    combined = all_text(turn)
+    print(f"    counter_reply : {cr!r}")
+    print(f"    frame_text    : {ft!r}")
+
+    check(
+        "A7a — counter_reply is set (question obligation fulfilled)",
+        bool(cr.strip()),
+        f"got empty counter_reply; frame_text={ft!r}",
+    )
+    check(
+        "A7b — counter_reply contains on-topic content",
+        any(p in cr for p in ("最喜欢", "喜欢", "旅行", "地方", "去过", "西藏", "云南",
+                              "不好说", "难忘", "有意思", "特别")),
+        f"counter_reply={cr!r}",
+    )
+    check(
+        "A7c — frame_text does NOT contain identity question (你是哪里人 / 叫我小明)",
+        not any(p in combined for p in ("你是哪里人", "叫我小明", "你可以叫我")),
+        f"combined={combined[:120]!r}",
+    )
+
+
+def test_alpha_a8_persona_working_memory_travel() -> None:
+    """[A8] Working memory: persona said '我去过西藏和云南' → answers '你最喜欢哪个地方' from memory."""
+    print("\n[A8] Working memory travel → favourite-place answer cites Tibet/Yunnan (E3)")
+
+    turn = simulate_turn(
+        "你最喜欢哪个地方？",
+        frame_id="p2_tr_1",
+        engine="travel",
+        extra_cs={
+            "persona_id": "meiling",
+            "recent_persona_replies": [
+                "我去过西藏和云南，最难忘的是在西藏看到满天的星星。",
+            ],
+        },
+    )
+    if turn is None:
+        skip("A8", "server not available"); return
+
+    cr       = turn.get("counter_reply", "")
+    combined = all_text(turn)
+    print(f"    counter_reply : {cr!r}")
+
+    check(
+        "A8a — counter_reply mentions 西藏 or 云南 (from working memory)",
+        any(p in cr for p in ("西藏", "云南")),
+        f"counter_reply={cr!r}",
+    )
+    check(
+        "A8b — response does not contain unrelated identity content",
+        not any(p in combined for p in ("叫我小明", "你可以叫我", "你是哪里人")),
+        f"combined={combined[:120]!r}",
+    )
+
+
+def test_alpha_a9_spicy_food_no_identity_fallback() -> None:
+    """[A9] '你喜欢辣吗？' must not produce identity fallback (叫我小明 / 你可以叫我)."""
+    print("\n[A9] Spicy-food preference → no identity fallback (E1/E2)")
+
+    turn = simulate_turn(
+        "你喜欢辣吗？",
+        frame_id="p2_fo_1",
+        engine="food",
+        extra_cs={"persona_id": "meiling"},
+    )
+    if turn is None:
+        skip("A9", "server not available"); return
+
+    cr      = turn.get("counter_reply", "")
+    combined = all_text(turn)
+    print(f"    counter_reply : {cr!r}")
+
+    check(
+        "A9a — response does NOT contain identity name fallback",
+        not any(p in combined for p in ("叫我小明", "你可以叫我", "我叫", "你好我叫")),
+        f"combined={combined[:120]!r}",
+    )
+    check(
+        "A9b — counter_reply contains food/spicy content or is set",
+        bool(cr.strip()),
+        f"empty counter_reply",
+    )
 
 
 if __name__ == "__main__":

@@ -25,6 +25,16 @@ def test_gloss_syncs_active_display():
     src = _src()
     assert "function _syncActiveEnglishFromGloss" in src
     assert "_syncActiveEnglishFromGloss(entry, en)" in src
+    assert "function _initActiveTurnRecord" in src
+    assert "function _refreshActiveDisplayFromTurnRecord" in src
+
+
+def test_active_turn_record_prevents_stale_gloss():
+    """Async gloss must update _activeTurnRecord before re-rendering EN."""
+    src = _src()
+    sync_block = src.split("function _syncActiveEnglishFromGloss")[1].split("function _refreshActiveEnglishFromSentenceHint")[0]
+    assert "_updateActiveTurnRecordEn(en)" in sync_block
+    assert "entryKey !== recordKey" in sync_block or "entryKey !== recordKey && entryKey !== activeKey" in sync_block
 
 
 def test_recovery_repeat_uses_transcript_extras_in_render_options():
