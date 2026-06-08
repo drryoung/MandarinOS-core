@@ -165,6 +165,46 @@ def test_client_matching_applies_spoken_register():
     assert "_normalizeSpokenRegister" in sm_block
 
 
+def test_progress_sync_does_not_touch_conversation_dom():
+    """renderProgressView must only touch #progressView; server sync must not mutate conversation state."""
+    src = _src()
+    # renderProgressView scoped to progressView element only
+    rv_block = src.split("function renderProgressView")[1].split("\nfunction ")[0]
+    assert 'getElementById("progressView")' in rv_block
+    # renderProgressView must NOT touch conversation-critical elements
+    for bad in ("chatHistory", "transcriptPanel", "optionsContainer", "sentenceOptionsContainer", "_activeTurnRecord"):
+        assert bad not in rv_block, f"renderProgressView must not touch {bad!r}"
+    # _syncServerProgressIfEmpty must call renderProgressView, not touch conversation DOM
+    sync_block = src.split("async function _syncServerProgressIfEmpty")[1].split("\nasync function ")[0]
+    assert "renderProgressView()" in sync_block
+    assert "_activeTurnRecord" not in sync_block
+
+
+def test_dedupe_progress_snapshots_function_exists():
+    """_dedupeProgressSnapshots must exist and be used inside saveProgressSnapshot."""
+    src = _src()
+    assert "function _dedupeProgressSnapshots" in src
+    save_block = src.split("function saveProgressSnapshot")[1].split("\nfunction ")[0]
+    assert "_dedupeProgressSnapshots" in save_block
+
+
+def test_end_session_button_disabled_during_save():
+    """endSession must disable #endSessionBtn before the fetch to prevent double-submission."""
+    src = _src()
+    end_block = src.split("async function endSession")[1].split("\nwindow.endSession")[0]
+    assert "endSessionBtn" in end_block
+    assert "_btn.disabled = true" in end_block
+    assert "Saving" in end_block
+
+
+def test_beforeunload_guard_exists():
+    """beforeunload handler must be registered and conditioned on conversation-active."""
+    src = _src()
+    assert 'addEventListener("beforeunload"' in src
+    bl_block = src.split('addEventListener("beforeunload"')[1][:300]
+    assert "conversation-active" in bl_block
+
+
 def test_curated_response_patterns_unchanged():
     """Curated JSON content must not be modified by this layer."""
     patterns = (ROOT / "content" / "response_patterns.json").read_text(encoding="utf-8")

@@ -1666,6 +1666,13 @@ body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after 
     margin-bottom: 4px;
   }
 
+  /* Prevent iOS pull-to-refresh gesture from wiping an active session.
+     overscroll-behavior: none suppresses the native elastic bounce that triggers
+     page reload on mobile Chrome; beforeunload JS covers iOS Safari. */
+  body.conversation-active {
+    overscroll-behavior: none;
+  }
+
   /* During conversation: pin session actions; hide setup-only controls. */
   body.conversation-active .controls {
     position: sticky;

@@ -9126,11 +9126,27 @@ function applyRetention(history, tier) {
   return history.slice(-10);
 }
 
-/** Append one snapshot and persist with tier retention. */
+/**
+ * Deduplicate an array of progress snapshots by session_id (or created_at fallback).
+ * When duplicates exist, the LAST occurrence wins (most recent stats).
+ * @param {object[]} snapshots
+ * @returns {object[]}
+ */
+function _dedupeProgressSnapshots(snapshots) {
+  if (!Array.isArray(snapshots)) return [];
+  const seen = new Map();
+  for (const snap of snapshots) {
+    if (!snap || typeof snap !== "object") continue;
+    const key = snap.session_id || snap.created_at || JSON.stringify(snap);
+    seen.set(key, snap); // last write wins
+  }
+  return Array.from(seen.values());
+}
+
+/** Append one snapshot and persist with tier retention + session_id deduplication. */
 function saveProgressSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== "object") return;
-  const history = loadProgressHistory();
-  history.push(snapshot);
+  const history = _dedupeProgressSnapshots([...loadProgressHistory(), snapshot]);
   const trimmed = applyRetention(history, getUserTier());
   try {
     localStorage.setItem(_PROGRESS_HISTORY_KEY, JSON.stringify(trimmed));
@@ -9164,29 +9180,44 @@ function _renderProgressSavedMessage() {
   el.textContent = "Saved to Progress";
 }
 
+// Guard: fetch at most once per page load to avoid hammering the server.
+let _serverProgressSyncDone = false;
+
 /**
- * When localStorage has no progress history, silently fetch from the server and
- * populate localStorage so renderProgressView can show the actual saved sessions.
- * Fire-and-forget: re-renders the progress view when data arrives.
+ * Merge server progress history into localStorage (additive, deduplicated by session_id).
+ * Called when the Progress tab opens with an empty localStorage, but also merges safely
+ * when localStorage already has local-only sessions not yet on the server.
+ * Fire-and-forget: re-renders the progress view when new data arrives.
  */
 async function _syncServerProgressIfEmpty() {
   const learnerId = window._learnerId;
   if (!learnerId) return;
-  if (loadProgressHistory().length > 0) return; // already have local data
+  if (_serverProgressSyncDone) return; // already synced this page load
+  _serverProgressSyncDone = true;
   try {
     const r = await fetch("/api/progress?learner_id=" + encodeURIComponent(learnerId));
     if (!r.ok) return;
     const data = await r.json();
     if (data.ok && Array.isArray(data.snapshots) && data.snapshots.length > 0) {
-      try {
-        localStorage.setItem(
-          _PROGRESS_HISTORY_KEY,
-          JSON.stringify(applyRetention(data.snapshots, getUserTier()))
-        );
-      } catch (_) {}
-      renderProgressView();
+      // MERGE server snapshots with local; deduplicate by session_id so neither
+      // local-only sessions nor server-only sessions are lost.
+      const local = loadProgressHistory();
+      const merged = _dedupeProgressSnapshots([...data.snapshots, ...local]);
+      // local entries take precedence (appear last in merged, win the deduplication)
+      if (merged.length > local.length) {
+        try {
+          localStorage.setItem(
+            _PROGRESS_HISTORY_KEY,
+            JSON.stringify(applyRetention(merged, getUserTier()))
+          );
+        } catch (_) {}
+        renderProgressView();
+      } else {
+        // No new server data — just update the status note
+        const note = document.getElementById("_progressServerNote");
+        if (note) note.remove();
+      }
     } else {
-      // Server confirmed empty — update note to avoid showing stale "Checking…"
       const note = document.getElementById("_progressServerNote");
       if (note) note.textContent = "No saved sessions found on server (" + learnerId + ").";
     }
@@ -9906,6 +9937,14 @@ window.initRightPanelTabs             = initRightPanelTabs;
 window.renderCapabilityCard           = renderCapabilityCard;
 
 async function endSession() {
+  // Prevent double-submission (e.g. double-tap on iOS)
+  const _btn = document.getElementById("endSessionBtn");
+  if (_btn && _btn.disabled) return;
+  if (_btn) {
+    _btn.disabled = true;
+    _btn.textContent = "Saving\u2026";
+  }
+
   const t = _tracker;
   const _startedAt = window._sessionStartedAt || Date.now();
   const payload = {
@@ -9943,6 +9982,11 @@ async function endSession() {
     result = await res.json();
   } catch (err) {
     console.error("[endSession] request failed:", err);
+    if (_btn) {
+      _btn.disabled = false;
+      _btn.textContent = "End Session";
+      _btn.title = "Save failed — tap to retry";
+    }
     return null;
   }
 
@@ -9950,6 +9994,10 @@ async function endSession() {
   // renderScorecard now includes the ability reflection section at the top.
   // _renderAbilityDashboard() is intentionally NOT called here.
   if (result?.ok) {
+    if (_btn) {
+      _btn.textContent = "Saved \u2713";
+      // Keep disabled — session is over; re-enable is handled by startFresh / page load
+    }
     renderScorecard(result);
     // Remove conversation-active so the Start/Frame controls re-surface on both
     // mobile and desktop, and the header becomes visible again on mobile.
@@ -9981,6 +10029,18 @@ async function endSession() {
 window.endSession    = endSession;
 window.renderScorecard = renderScorecard;
 window._resetCurrentSessionState = _resetCurrentSessionState;
+
+// ── iOS / mobile: warn before page unload during active session ───────────────
+// Prevents accidental pull-to-refresh or browser-back from discarding an unsaved session.
+// Only fires when the body has conversation-active class (set by the conversation start flow).
+window.addEventListener("beforeunload", function (e) {
+  if (document.body.classList.contains("conversation-active")) {
+    e.preventDefault();
+    // Chrome requires returnValue to be set; other browsers use the return value.
+    e.returnValue = "Your session is in progress. Leaving now will lose your unsaved progress.";
+    return e.returnValue;
+  }
+});
 
 
 
