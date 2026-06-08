@@ -9164,6 +9164,38 @@ function _renderProgressSavedMessage() {
   el.textContent = "Saved to Progress";
 }
 
+/**
+ * When localStorage has no progress history, silently fetch from the server and
+ * populate localStorage so renderProgressView can show the actual saved sessions.
+ * Fire-and-forget: re-renders the progress view when data arrives.
+ */
+async function _syncServerProgressIfEmpty() {
+  const learnerId = window._learnerId;
+  if (!learnerId) return;
+  if (loadProgressHistory().length > 0) return; // already have local data
+  try {
+    const r = await fetch("/api/progress?learner_id=" + encodeURIComponent(learnerId));
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.ok && Array.isArray(data.snapshots) && data.snapshots.length > 0) {
+      try {
+        localStorage.setItem(
+          _PROGRESS_HISTORY_KEY,
+          JSON.stringify(applyRetention(data.snapshots, getUserTier()))
+        );
+      } catch (_) {}
+      renderProgressView();
+    } else {
+      // Server confirmed empty — update note to avoid showing stale "Checking…"
+      const note = document.getElementById("_progressServerNote");
+      if (note) note.textContent = "No saved sessions found on server (" + learnerId + ").";
+    }
+  } catch (_) {
+    const note = document.getElementById("_progressServerNote");
+    if (note) note.remove();
+  }
+}
+
 // ── Progress view (Phase 2: UI only — reads manos_progress_history) ───────────
 
 const _PROGRESS_CHART_MAX_STANDARD = 10;
@@ -9496,6 +9528,17 @@ function renderProgressView() {
     b.className = "progress-empty-body";
     b.textContent = _PROGRESS_EMPTY_BODY;
     empty.appendChild(b);
+
+    // Beta clarity: show which learner_id is being checked and attempt a server fetch.
+    const lid = window._learnerId;
+    if (lid) {
+      const note = document.createElement("p");
+      note.id = "_progressServerNote";
+      note.className = "progress-server-note";
+      note.textContent = "Checking server for saved sessions\u2026 (" + lid + ")";
+      empty.appendChild(note);
+      _syncServerProgressIfEmpty(); // async — re-renders if server has data
+    }
 
     root.appendChild(empty);
     return;
@@ -9851,6 +9894,7 @@ function initRightPanelTabs() {
 
 window.getUserTier                    = getUserTier;
 window.loadProgressHistory            = loadProgressHistory;
+window._syncServerProgressIfEmpty     = _syncServerProgressIfEmpty;
 window.applyRetention                 = applyRetention;
 window.saveProgressSnapshot           = saveProgressSnapshot;
 window.getProgressSessionsForDisplay  = getProgressSessionsForDisplay;
