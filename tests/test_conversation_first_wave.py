@@ -350,3 +350,96 @@ def test_e4_handoff_emitted_to_state_update():
     # Locate the state_update emission block
     su_block = src.split('response["state_update"]["current_engine"] = _e4_engine_handoff')[0][-200:]
     assert "_e4_engine_handoff" in su_block
+
+
+# ── G: Phase 11 Final — Fix 1: {TIME} slot safety net ────────────────────────
+
+def test_time_slot_not_in_ui_server_source():
+    """Static check: {TIME} fill safety net exists in slot-fill section."""
+    import pathlib as _pl
+    src = (_pl.Path(__file__).resolve().parent.parent / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    assert '"{TIME}"' in src or "'{TIME}'" in src, "No {TIME} safety net found"
+    assert "最近" in src, "Safety net fallback 最近 missing"
+
+
+# ── H: Phase 11 Final — Fix 2: Work/professor capture ────────────────────────
+
+def _load_capture():
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location(
+        "lmc_phase11",
+        Path(__file__).resolve().parent.parent / "scripts" / "learner_memory_capture.py",
+    )
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.mark.parametrize("text,expected_job", [
+    ("我退休了",                    "退休"),
+    ("我退休了啊",                   "退休"),
+    ("我以前是教授",                 "教授"),
+    ("我以前是大学老师",             "大学老师"),
+    ("我以前在大学教书",             "大学老师"),
+    ("不是啊，我以前是教授",         "教授"),
+    ("啊，我曾经是工程师",           "工程师"),
+])
+def test_extract_job_retirement_and_former_roles(text, expected_job):
+    cap = _load_capture()
+    job, _ = cap._extract_job_and_company_from_hanzi(text)
+    assert job == expected_job, f"text={text!r}: got {job!r}, want {expected_job!r}"
+
+
+# ── I: Phase 11 Final — Fix 3: City routing (question-clause priority) ────────
+
+_PERSONA_CHENGDU = {
+    "display_name": "建国",
+    "profile": {"name": "建国", "hometown": "上海", "city": "上海"},
+    "discoverable_facts": {"identity": "我叫建国，是因为我出生在建国后不久，家里人觉得这个名字有历史感。"},
+    "discoverable_facts_en": {},
+    "voice_lines": {},
+    "voice_lines_en": {},
+}
+
+
+def test_city_routing_prefers_question_focus():
+    """When question says '成都有什么特别？' after mentioning 上海, answer about 成都."""
+    srv = _load_server()
+    text = "我不喜欢上海，成都有什么特别？"
+    answer = srv._direct_persona_answer(text, _PERSONA_CHENGDU)
+    assert answer is not None
+    assert "成都" in answer, f"Expected 成都 in answer, got: {answer!r}"
+    assert "上海" not in answer or "成都" in answer
+
+
+def test_city_routing_simple_chengdu_question():
+    srv = _load_server()
+    answer = srv._direct_persona_answer("成都有什么特别？", _PERSONA_CHENGDU)
+    assert answer is not None
+    assert "成都" in answer
+
+
+# ── J: Phase 11 Final — Fix 4: Persona name-story routing ────────────────────
+
+def test_name_story_by_actual_name_with_story():
+    """'建国有一个故事吗？' should route to discoverable_facts['identity']."""
+    srv = _load_server()
+    ans = srv._direct_persona_answer("建国有一个故事吗？", _PERSONA_CHENGDU)
+    assert ans is not None
+    assert "建国" in ans or "历史" in ans or "家里" in ans
+
+
+def test_name_story_why_called():
+    """'为什么叫建国？' should route to discoverable_facts['identity']."""
+    srv = _load_server()
+    ans = srv._direct_persona_answer("为什么叫建国？", _PERSONA_CHENGDU)
+    assert ans is not None
+    assert "建国" in ans or "历史" in ans
+
+
+def test_name_story_name_meaning_via_actual_name():
+    """'建国这个名字有什么意思？' should route to discoverable_facts['identity']."""
+    srv = _load_server()
+    ans = srv._direct_persona_answer("建国这个名字有什么意思？", _PERSONA_CHENGDU)
+    assert ans is not None
+    assert "建国" in ans or "历史" in ans

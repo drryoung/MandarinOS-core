@@ -2636,6 +2636,14 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
                              "名字谁给", "谁给你取", "谁取的", "谁起的名字", "名字是谁")):
         fact = (_facts.get("identity") or "").strip()
         return fact if fact else "我的名字有一个小故事，家里人取的，有机会再说给你听。"
+    # Name story / meaning via persona's actual name — catches:
+    #   "建国有一个故事吗？" / "为什么叫建国？" / "建国这个名字有什么意思？"
+    if name and (
+        (name in t and any(k in t for k in ("故事", "意思", "这个名字", "名字怎么", "来历", "为什么叫", "为什么起")))
+        or (any(t.startswith(p) for p in ("为什么叫", "为什么起")) and name in t)
+    ):
+        fact = (_facts.get("identity") or "").strip()
+        return fact if fact else f"我的名字{name}，背后有一点故事，是家里人取的。"
 
     # Name / how to address (who-are-you / what-should-I-call-you)
     if any(p in t for p in ("你叫什么", "你叫啥", "怎么叫你", "你叫什么名字",
@@ -2766,7 +2774,23 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
             "苏州": ["苏州的园林很有名，特别有诗意。", "苏州的古镇和水乡很有特色，景色很美。"],
             "中关村": ["中关村是北京的科技中心，很多科技公司都在这里。", "中关村非常现代，科技氛围很浓。"],
         }
-        # 1. Check if question mentions a specific city/place
+        # 1. Extract the question clause (segment nearest the feature marker) so that
+        #    the focus city of the question wins over background mentions.
+        #    e.g. "我不喜欢上海，成都有什么特别？" → clause = "成都有什么特别？"
+        _question_clause = t
+        for _fmk in _feature_markers:
+            if _fmk in t:
+                _fidx = t.rfind(_fmk)
+                for _bnd in ("。", "！", "？", "，"):
+                    _bidx = t.rfind(_bnd, 0, _fidx)
+                    if _bidx >= 0:
+                        _question_clause = t[_bidx + 1:].strip()
+                        break
+                break
+        # Check question clause first; then full text as fallback.
+        for _loc, _pool in _CITY_FEATURE_POOL.items():
+            if _loc in _question_clause:
+                return _pick_not_in(_pool, f"feature|{_loc}|{t}", _recent_set)
         for _loc, _pool in _CITY_FEATURE_POOL.items():
             if _loc in t:
                 return _pick_not_in(_pool, f"feature|{_loc}|{t}", _recent_set)
@@ -9280,6 +9304,11 @@ class Handler(BaseHTTPRequestHandler):
             if "{NAME}" in (response.get("frame_text") or ""):
                 _name_fill = _assistant_name_from_persona(persona) if persona else ""
                 response["frame_text"] = response["frame_text"].replace("{NAME}", _name_fill or "我")
+            # Safety net: {TIME} slot — no resolver exists yet; fall back to 最近 so it never leaks raw.
+            for _tf in ("frame_text", "frame_pinyin", "frame_text_en"):
+                _tv = response.get(_tf) or ""
+                if "{TIME}" in _tv:
+                    response[_tf] = _tv.replace("{TIME}", "最近")
             # EFC: {ENTITY} slot — fill from current efc_entity; update efc_depth in state_update.
             if "{ENTITY}" in (response.get("frame_text") or ""):
                 _entity_val = (_efc_entity_state.get("value") or "").strip()

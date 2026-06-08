@@ -128,6 +128,32 @@ def _extract_job_and_company_from_hanzi(hanzi: str) -> tuple:
     if m:
         return None, m.group(1).strip() or None
 
+    # Retirement: 我退休了 / 我已经退休了 / 我退休了啊
+    # Also catches compound "我退休了，我以前是教授" — extract former role if present.
+    if "退休" in first:
+        m_prev = re.search(r"(?:以前|曾经|从前)\s*(?:是|当|做)\s*([^，。！？\s]{1,10})", first)
+        if m_prev:
+            former = m_prev.group(1).strip()
+            if former:
+                return former, None
+        m_teach = re.search(r"(?:以前|曾经)\s*在\s*(.+?)\s*(?:教书|教学|教过书)", first)
+        if m_teach:
+            return m_teach.group(1).strip() + "老师", None
+        return "退休", None
+
+    # Fallback: re.search for compound sentences where 以前/曾经 is not at position 0
+    # e.g. "不是啊，我以前是大学老师" / "啊，我以前是教授"
+    m_search = re.search(r"(?:以前|曾经)\s*(?:是|当|做)\s*([^，。！？\s]{1,10})", first)
+    if m_search:
+        candidate = m_search.group(1).strip()
+        if candidate and len(candidate) <= 10:
+            return candidate, None
+
+    # Fallback: 以前在[PLACE]教书
+    m_teach = re.search(r"(?:以前|曾经)\s*在\s*(.+?)\s*(?:教书|教学|教过书)", first)
+    if m_teach:
+        return m_teach.group(1).strip() + "老师", None
+
     return None, None
 
 
