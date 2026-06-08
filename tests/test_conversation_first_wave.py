@@ -443,3 +443,46 @@ def test_name_story_name_meaning_via_actual_name():
     ans = srv._direct_persona_answer("建国这个名字有什么意思？", _PERSONA_CHENGDU)
     assert ans is not None
     assert "建国" in ans or "历史" in ans
+
+
+# ── K: Phase 11 Final — Fix 6: Fallback overuse / unmatched question polish ──
+
+@pytest.mark.parametrize("text", [
+    "你那里叫什么名字？",
+    "你那里叫什么名字",
+    "你老家在哪？",
+    "你老家在哪",
+    "成都有什么特别？",
+    "成都有什么特别",
+])
+def test_item6_questions_are_recognized(text):
+    """All three audit example questions must be recognised as user questions."""
+    srv = _load_server()
+    ans = {"submitted_text": text, "frame_id": "f_home_where", "selected_option_hanzi": ""}
+    assert srv._is_user_question(ans) is True, f"Not recognised as question: {text!r}"
+
+
+@pytest.mark.parametrize("text", [
+    "你那里叫什么名字？",
+    "你那里叫什么名字",
+])
+def test_item6_nali_place_name_answered(text):
+    """'你那里叫什么名字' must return the persona's city name, not None."""
+    srv = _load_server()
+    ans = srv._direct_persona_answer(text, _PERSONA_CHENGDU)
+    assert ans is not None
+    assert "上海" in ans or "住" in ans or "叫" in ans
+
+
+def test_item6_laojia_answered():
+    srv = _load_server()
+    ans = srv._direct_persona_answer("你老家在哪", _PERSONA_CHENGDU)
+    assert ans is not None
+    assert "上海" in ans or "老家" in ans
+
+
+def test_item6_chengdu_feature_answered():
+    srv = _load_server()
+    ans = srv._direct_persona_answer("成都有什么特别", _PERSONA_CHENGDU)
+    assert ans is not None
+    assert "成都" in ans

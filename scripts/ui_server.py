@@ -2424,7 +2424,7 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     text = _strip_leading_fillers(text)
     # Content-based interrogatives without explicit ？ — e.g. "西安有什么特别啊", "这里有什么好吃的",
     # "你们那儿怎么样". Checked early so short utterances like "有什么好吃" are caught quickly.
-    _content_q_markers = ("有什么", "什么特别", "什么好", "什么特色", "怎么样")
+    _content_q_markers = ("有什么", "什么特别", "什么好", "什么特色", "怎么样", "叫什么")
     if any(m in text for m in _content_q_markers):
         return True
     # Turn-around markers AS SUBSTRINGS — catches "我叫X，你呢" / "喜欢你呢" etc.
@@ -2605,6 +2605,16 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
     voice_lines = (persona or {}).get("voice_lines") or {}
     name        = _assistant_name_from_persona(persona)
     _recent_set: set = set(recent_replies or [])
+
+    # "你那里叫什么名字？" / "你那儿叫什么名字？" — learner asking for the name of where the
+    # persona lives. Return city (current residence) before hometown as the primary answer.
+    if any(p in t for p in ("那里叫什么", "那儿叫什么", "你那里叫", "你那儿叫")):
+        city = (profile.get("city") or "").strip()
+        hometown = (profile.get("hometown") or "").strip()
+        loc = city or hometown
+        if loc:
+            return f"我住的地方叫{loc}。"
+        return voice_lines.get("place") or "我住在中国，你有没有来过？"
 
     # Persona-self hometown precedence — always answer in first person; never let these
     # fall through to _CITY_LOCATION_BRIEF or encyclopedic place-fact tables.
