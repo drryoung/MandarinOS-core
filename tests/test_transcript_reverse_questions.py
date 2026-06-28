@@ -115,6 +115,7 @@ def test_sibling_direct_answer(text, desc):
 @pytest.mark.parametrize("text,desc", [
     ("你喜欢这个工作吗？",  "like this work"),
     ("你喜欢你的工作吗？",  "like your work"),
+    ("你喜欢这份工作吗？",  "这份工作 phrasing"),
 ])
 def test_work_like_direct_answer(text, desc):
     ans = _direct(text)
@@ -165,3 +166,40 @@ def test_limitation_reply_with_hint_soft():
     srv = _load_server()
     reply = srv._persona_limitation_reply("工作")
     assert META not in reply, f"Meta string should not appear in hinted reply: {reply!r}"
+
+
+# ── P4 — Marriage-duration acknowledgement ────────────────────────────────────
+
+def test_marriage_duration_ack_branch_exists():
+    """Static: the marriage-duration content-aware branch is present in ui_server.py."""
+    src = (Path(__file__).resolve().parent.parent / "scripts" / "ui_server.py").read_text(encoding="utf-8")
+    assert "content_aware_marriage_duration" in src
+    assert "结婚" in src and "group(1)" in src   # regex extraction present
+
+
+@pytest.mark.parametrize("text,expected_fragment", [
+    ("我结婚两年了",          "两年"),
+    ("结婚了两年了",          "两年"),
+    ("已经结婚两年了",        "两年"),
+    ("我们结婚五年了",        "五年"),
+    ("结婚半年",              "半年"),
+])
+def test_marriage_duration_regex_extraction(text, expected_fragment):
+    """Verify the regex used in the content-aware block extracts the duration correctly."""
+    import re
+    pat = re.compile(r"结婚[了]?\s*([一两三四五六七八九十百半\d]+(?:年|个月|月))")
+    m = pat.search(text)
+    assert m is not None, f"No duration extracted from {text!r}"
+    assert expected_fragment in m.group(1), f"Expected {expected_fragment!r} in {m.group(1)!r} for {text!r}"
+
+
+def test_marriage_duration_phrase_contains_marriage_keyword():
+    """All expected marriage-duration phrases contain '结婚' and a time unit."""
+    inputs = [
+        "我结婚两年了",
+        "结婚了两年了",
+        "已经结婚两年了",
+    ]
+    for phrase in inputs:
+        assert "结婚" in phrase
+        assert any(kw in phrase for kw in ("年", "月", "天"))

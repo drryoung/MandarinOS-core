@@ -7780,6 +7780,15 @@ class Handler(BaseHTTPRequestHandler):
                     elif (current_engine or "").strip().lower() == "work" and any(kw in _at for kw in ("老师", "教书", "教学", "讲课", "大学老师", "教授")):
                         reaction_prefix_text = "听起来很有意思。"
                         _rxn_trace["composition_mode"] = "content_aware_teaching"
+                    elif "结婚" in _at and any(kw in _at for kw in ("年", "月", "多年", "好几年")):
+                        # Marriage-duration answer: "我结婚两年了" / "结婚了两年了" / "已经结婚两年了"
+                        # Echo the duration back so the learner feels heard.
+                        _dur_m = re.search(r"结婚[了]?\s*([一两三四五六七八九十百半\d]+(?:年|个月|月))", _at)
+                        if _dur_m:
+                            reaction_prefix_text = f"结婚{_dur_m.group(1)}了，挺好的。"
+                        else:
+                            reaction_prefix_text = "结婚了，挺好的。"
+                        _rxn_trace["composition_mode"] = "content_aware_marriage_duration"
 
                 # Multi-destination reaction: learner listed 3+ places in a single travel/place answer.
                 # Override whatever stance was generated with an enthusiastic acknowledgment.
