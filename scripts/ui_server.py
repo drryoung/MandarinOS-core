@@ -2726,8 +2726,9 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
         interests = profile.get("interests") or []
         return voice_lines.get("hobby") or (f"我喜欢{interests[0]}。" if interests else "我也有很多爱好。")
 
-    # Who partner lives with (与谁住 / 跟谁住 phrasings — no 吗, no 你们住在一起 needed)
-    if any(p in t for p in ("与谁住", "跟谁住", "和谁住", "与谁同住", "跟谁同住", "和谁同住")):
+    # Who partner lives with — expanded to include "跟谁一起住" / "和谁一起住" / "一起住" forms.
+    if any(p in t for p in ("与谁住", "跟谁住", "和谁住", "与谁同住", "跟谁同住", "和谁同住",
+                             "跟谁一起住", "和谁一起住", "跟谁一起", "一起住")):
         return voice_lines.get("family") or "我现在自己住，但和家人经常联系。"
 
     # Family — has family / siblings
@@ -2760,6 +2761,50 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
         if hometown:
             return f"我父母在{hometown}。"
         return "我父母住得不太远。"
+
+    # Sibling (姐姐/哥哥/弟弟/妹妹) — age, work, or location questions.
+    # Mirrors the parent block: derive plausible age; use city for work location; stay in-character.
+    _SIBLING_WORDS = ("姐姐", "哥哥", "弟弟", "妹妹")
+    _sib = next((s for s in _SIBLING_WORDS if s in t), None)
+    if _sib:
+        city = (profile.get("city") or "").strip()
+        hometown = (profile.get("hometown") or "").strip()
+        _my_age = profile.get("age")
+        # Age intent: "你姐姐多大" / "你哥哥几岁"
+        if any(aw in t for aw in ("多大", "几岁", "年龄")):
+            if _my_age and isinstance(_my_age, (int, float)):
+                _offset = _stable_pick([2, 3, 5], f"sib_age_offset|{_my_age}|{_sib}")
+                _sib_age_approx = int(_my_age) + (_offset if _sib in ("姐姐", "哥哥") else -_offset)
+                return f"我{_sib}大概{max(18, _sib_age_approx)}岁左右。"
+            return f"我{_sib}比我大几岁，具体我记不太清了。" if _sib in ("姐姐", "哥哥") else f"我{_sib}比我小几岁。"
+        # Work intent: "你姐姐做什么工作" / "你姐姐的工作"
+        if any(aw in t for aw in ("做什么工作", "工作", "做什么", "职业", "上班")):
+            if city:
+                return f"她在{city}工作，具体做什么我不太清楚。"
+            if hometown:
+                return f"她在{hometown}那边，具体做什么我不太清楚。"
+            return f"我{_sib}有工作，但具体做什么我没问过她。"
+        # Location / default: "你姐姐在哪里" / bare mention
+        if any(aw in t for aw in ("在哪", "住哪", "哪里", "哪儿")):
+            loc = city or hometown
+            if loc:
+                return f"我{_sib}住在{loc}。"
+            return f"我{_sib}住得不太远。"
+        # Bare mention with no recognised sub-intent — return something helpful
+        if city:
+            return f"我有一个{_sib}，她在{city}那边。"
+        return f"我有一个{_sib}，我们偶尔联系。"
+
+    # Work like / enjoyment — "你喜欢这个工作吗？" / "你喜欢你的工作吗？"
+    # Must fire BEFORE the generic hobby/interest handler to avoid mismatch.
+    if "喜欢" in t and any(k in t for k in ("工作", "这份", "这个工作", "你的工作")):
+        _work_like = voice_lines.get("work_like") or (_facts.get("work") or "").strip()
+        if _work_like:
+            return _work_like
+        _occ = (profile.get("occupation") or "").strip()
+        if _occ:
+            return f"还挺喜欢的，做{_occ}可以学到很多。"
+        return "还挺喜欢的，慢慢就越来越有意思了。"
 
     # City/place feature questions — e.g. "北京有什么特别啊", "重庆有什么好玩？", "那里有什么特别的？"
     # Intent: "what's special/interesting about this place?" — must answer WITH FEATURES, not origin facts.
@@ -2892,9 +2937,12 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
         return "很多地方都有很长的历史，你慢慢看会发现很多细节。"
 
     # Work duration — must come BEFORE the travel-time handler which also matches 多长时间.
-    # e.g. "你做这个工作多久了", "你从事软件开发工作多长时间了", "工作多少年了"
+    # e.g. "你做这个工作多久了", "你从事软件开发工作多长时间了", "工作多少年了", bare "做多久了"
+    # Bare "做多久了" / "做多久" is included; gated to work context by surrounding conversation
+    # but safe here because the work block fires only after identity/place/hobby are ruled out.
     if any(p in t for p in ("工作多久", "做这个多久", "做了多久", "从事", "工作多长时间", "这份工作多久",
-                             "这个工作多久", "工作了多久", "做了多长时间", "工作多少年")):
+                             "这个工作多久", "工作了多久", "做了多长时间", "工作多少年",
+                             "做多久了", "做多久", "做多长时间")):
         _work_fact    = (_facts.get("work") or "").strip()
         _work_origin  = (_facts.get("work_origin") or "").strip()
         _occ          = (profile.get("occupation") or "").strip()
@@ -3293,11 +3341,21 @@ _CITY_LOCATION_BRIEF: dict = {
 
 
 def _persona_limitation_reply(topic_hint: str = "") -> str:
-    """Transparent limitation phrase for questions the persona cannot answer.
-    Shorter than a full sentence — honest, not evasive."""
+    """In-character uncertainty for questions the persona cannot specifically answer.
+    Uses natural uncertainty phrasing; reserves '电脑角色' for genuinely off-domain / meta questions."""
+    # Rotate through natural in-character phrases rather than always exposing the meta disclaimer.
+    _natural_pool = [
+        "这个我不太清楚。",
+        "这个我不太确定，你可以问问别人。",
+        "我没问过具体的，不太清楚。",
+        "我真的不太了解这个，不好说。",
+    ]
     if topic_hint:
-        return f"这个我不太清楚。我只是一个练习用的电脑角色，不过可以继续聊{topic_hint}。"
-    return "这个我不太确定。我只是一个练习用的电脑角色。"
+        return f"这个我不太清楚，不过我们可以聊聊{topic_hint}。"
+    import hashlib as _hlib
+    import time as _time
+    _slot = int(_time.time() // 600) % len(_natural_pool)
+    return _natural_pool[_slot]
 
 
 def _soft_persona_fallback(t: str, persona: Optional[dict]) -> Optional[str]:

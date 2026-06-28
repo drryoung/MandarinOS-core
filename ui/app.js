@@ -6085,32 +6085,41 @@ function _resetCurrentSessionState() {
 }
 
 /**
- * Reset all session state and clear learner memory on the server, then restart from the greeting.
- * Called by the "Clear memory" button so the app treats the user as a first-time learner.
+ * Clear current conversation memory (persona facts) for the current learner.
+ * Does NOT rotate learner_id, does NOT wipe progress history, does NOT delete
+ * saved sessions. Only clears per-session conversation facts on the server and
+ * resets the current in-flight session state.
  */
 async function startFreshLearner() {
-  const oldId = window._learnerId;
-  setLearnerId("learner_" + Date.now());
+  const currentId = window._learnerId;
 
-  // Best-effort: clear the previous learner's memory on the server.
+  // Clear persona facts on the server for the current learner — progress snapshots untouched.
   try {
-    if (oldId) {
+    if (currentId) {
       await fetch("/api/reset_memory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ learner_id: oldId }),
+        body: JSON.stringify({ learner_id: currentId }),
       });
     }
   } catch (_) {}
 
+  // Reset in-flight session state (tracker, transcript, frame counters).
+  // This does NOT touch localStorage["manos_progress_history"].
   _resetCurrentSessionState();
 
   // Clear the "Remembered:" facts banner
   _renderMemoryBanner({});
 
+  // Log what happened — confirm learner_id is preserved, progress untouched.
+  console.info(
+    "[clearMemory] persona/conversation facts cleared for learner_id=" + (currentId || "(none)") +
+    "; learner_id preserved; manos_progress_history NOT touched; server progress snapshots NOT touched."
+  );
+
   // Show a brief status message — do NOT auto-start a turn.
   const statusEl = document.getElementById("statusMsg") || document.createElement("div");
-  statusEl.textContent = "Memory cleared — ready for a new conversation.";
+  statusEl.textContent = "Conversation facts cleared — your progress history is kept.";
   statusEl.style.cssText = "color:#0891b2;font-size:0.85rem;padding:6px 14px;";
   if (!document.getElementById("statusMsg")) {
     statusEl.id = "statusMsg";
@@ -6118,10 +6127,9 @@ async function startFreshLearner() {
   }
   setTimeout(() => { statusEl.textContent = ""; }, 4000);
 
+  // Refresh the session objective panel — do NOT call _applyFirstTimeBetaHygiene()
+  // (that would wipe progress cache); just re-initialise the profile read-only.
   await initBetaProfile();
-  if (window._isFirstTimeBetaUser) {
-    _applyFirstTimeBetaHygiene();
-  }
   renderSessionObjective();
 }
 
