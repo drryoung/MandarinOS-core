@@ -2731,6 +2731,42 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
                              "跟谁一起住", "和谁一起住", "跟谁一起", "一起住")):
         return voice_lines.get("family") or "我现在自己住，但和家人经常联系。"
 
+    # Sibling presence questions: "你有姐妹吗？" / "你有兄弟吗？" / "你有没有姐？"
+    # Distinct from sibling-detail questions (those carry the sibling word + action word).
+    _SIB_PRESENCE_MARKERS = ("你有姐妹", "你有没有姐妹", "你有兄弟", "你有没有兄弟",
+                              "你有没有哥", "你有没有弟", "你有没有姐", "你有没有妹",
+                              "你有哥", "你有弟", "你有姐", "你有妹")
+    if any(p in t for p in _SIB_PRESENCE_MARKERS):
+        sib_fact = (_facts.get("family_siblings") or "").strip()
+        if sib_fact:
+            # First clause is usually the most direct answer
+            _sib_short = re.split(r"[。！？，]", sib_fact)[0].strip()
+            return _sib_short or sib_fact
+        fam_fact = (_facts.get("family") or "").strip()
+        if fam_fact and any(kw in fam_fact for kw in ("独生", "没有兄弟", "没有姐妹")):
+            return fam_fact
+        return "我有几个兄弟姐妹，大家关系挺好的。"
+
+    # Parents: "你有爸爸妈妈吗？" / basic acknowledgment
+    if any(p in t for p in ("你有爸爸妈妈", "你有没有爸爸", "你有没有妈妈")):
+        _my_age = profile.get("age")
+        if _my_age and isinstance(_my_age, (int, float)):
+            _p_age = int(_my_age) + _stable_pick([22, 25, 28], f"parent_age_offset|{_my_age}")
+            return f"有的，他们大概{int(_p_age)}多岁了，住在老家。"
+        return "有的，我爸妈都在，住在老家。"
+
+    # Family location: "你的家人在哪里？"
+    if any(p in t for p in ("你的家人在哪", "你家人在哪", "家人住在哪", "家人在哪里")):
+        fam_live = (_facts.get("family_live") or "").strip()
+        if fam_live:
+            return fam_live
+        ht = (profile.get("hometown") or "").strip()
+        city = (profile.get("city") or "").strip()
+        if ht and city and ht != city:
+            return f"我现在住在{city}，家人大多在{ht}那边。"
+        loc = ht or city
+        return f"家人在{loc}那边。" if loc else "家人住得不太远。"
+
     # Family — has family / siblings
     if any(p in t for p in ("你有家人", "你有没有家人", "你的家人")):
         return voice_lines.get("family") or "我也有家人。"
@@ -2805,6 +2841,52 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
         if _occ:
             return f"还挺喜欢的，做{_occ}可以学到很多。"
         return "还挺喜欢的，慢慢就越来越有意思了。"
+
+    # ── Hobby follow-up handlers ──────────────────────────────────────────────────
+    # These use hobby-specific keywords (玩, 练, 学, 爱好) to avoid collisions with
+    # the work-duration block (which uses 做, 工作, 这份工作 etc.).
+
+    # How long doing the hobby: "你玩这个多久了？" / "你练这个多久了？" / "这个爱好多长时间了？"
+    _HOBBY_DUR_MARKERS = ("玩这个多久", "练这个多久", "学这个多久", "打这个多久",
+                           "玩多久了", "练多久了", "学多久了",
+                           "爱好多久", "爱好多长时间", "爱好多少年")
+    if any(m in t for m in _HOBBY_DUR_MARKERS):
+        _hobby_fact = (_facts.get("hobby") or "").strip()
+        if _hobby_fact:
+            # hobby fact often starts with the duration ("我打羽毛球打了快二十年了，…")
+            return _hobby_fact
+        return "已经玩了好几年了，越来越喜欢。"
+
+    # How the hobby started: "你是怎么开始这个爱好的？" / "你怎么学会的？" / "怎么接触到的？"
+    _HOBBY_ORIGIN_MARKERS = ("怎么开始这个爱好", "怎么开始这个", "怎么学会", "怎么接触", "怎么喜欢上",
+                              "怎么开始打", "怎么开始玩", "怎么开始练", "怎么开始学",
+                              "为什么学", "为什么练", "为什么开始")
+    if any(m in t for m in _HOBBY_ORIGIN_MARKERS):
+        _origin_fact = (_facts.get("hobby_origin") or "").strip()
+        if _origin_fact:
+            return _origin_fact
+        return "小时候接触到，慢慢就喜欢上了，一直坚持到现在。"
+
+    # Favourite aspect: "你最喜欢这个爱好的哪一点？" / "这个爱好哪里好？"
+    _HOBBY_BEST_MARKERS = ("最喜欢这个爱好的哪一点", "爱好哪里好", "爱好最喜欢", "这个爱好有什么好",
+                            "你喜欢这个爱好的什么", "最喜欢哪一点", "你最喜欢这个爱好")
+    if any(m in t for m in _HOBBY_BEST_MARKERS):
+        _best_fact = (_facts.get("hobby_best") or "").strip()
+        if _best_fact:
+            return _best_fact
+        return "让我放松的那种感觉，做完以后心情很好。"
+
+    # Why like the hobby: "你为什么喜欢这个？" / "为什么喜欢这个爱好？"
+    _HOBBY_WHY_MARKERS = ("为什么喜欢这个爱好", "为什么喜欢打", "为什么喜欢玩", "为什么喜欢练",
+                           "为什么喜欢这个", "喜欢这个的原因")
+    if any(m in t for m in _HOBBY_WHY_MARKERS):
+        _best_fact = (_facts.get("hobby_best") or "").strip()
+        if _best_fact:
+            return _best_fact
+        _origin_fact = (_facts.get("hobby_origin") or "").strip()
+        if _origin_fact:
+            return _origin_fact
+        return "很难说具体原因，就是喜欢那种感觉，做了就停不下来。"
 
     # City/place feature questions — e.g. "北京有什么特别啊", "重庆有什么好玩？", "那里有什么特别的？"
     # Intent: "what's special/interesting about this place?" — must answer WITH FEATURES, not origin facts.
@@ -3062,7 +3144,8 @@ def _is_confusion_signal(t: str) -> bool:
     markers = (
         "哪里啊", "不懂",  # confusion about which place / general incomprehension
         "啊？", "啊！", "我不懂", "有点不懂", "听不懂", "没听懂", "没懂", "不明白",
-        "看不懂", "什么意思", "没太懂", "再说一遍", "慢一点", "慢一",
+        "看不懂", "什么意思", "没太懂", "再说一遍", "再说一次", "再说一起", "再说一下",
+        "请再说", "慢一点", "慢一",
         "不知道", "等一下", "我听不懂",
     )
     return any(m in s for m in markers)
@@ -3419,6 +3502,28 @@ def _place_followup_reply(t: str, persona: Optional[dict],
     # "在哪儿" / "在哪里" — location question
     if any(m in t for m in ("在哪儿", "在哪里", "在哪", "哪里啊", "哪儿啊")):
         loc_desc = _CITY_LOCATION_BRIEF.get(_asked_city or "") or _CITY_LOCATION_BRIEF.get(_own_city or "")
+        # Persona-directed location question: "你住在哪里？" / "你老家在哪儿？" / "你在哪里工作？"
+        # Must answer personally first ("我住在X") then optionally add city description.
+        # Only personalise when no specific city is named in the question itself.
+        _PERSONA_LOC_MARKERS = ("你住", "你老家", "你的老家", "你现在在", "你在哪里工作", "你在哪工作", "你工作在哪")
+        _is_persona_loc_q = any(m in t for m in _PERSONA_LOC_MARKERS) and not _asked_city
+        if _is_persona_loc_q:
+            # Determine which kind of location is being asked about.
+            _is_hometown_q = any(m in t for m in ("老家", "家乡", "是哪里人", "哪里人"))
+            _is_work_loc_q = any(m in t for m in ("工作在哪", "在哪里工作", "在哪工作", "工作的地方"))
+            if _is_hometown_q:
+                _personal_loc = hometown or city
+                _personal_prefix = f"我老家在{_personal_loc}。" if _personal_loc else ""
+            elif _is_work_loc_q:
+                _personal_loc = city or hometown
+                _personal_prefix = f"我在{_personal_loc}工作。" if _personal_loc else ""
+            else:
+                _personal_loc = city or hometown
+                _personal_prefix = f"我住在{_personal_loc}。" if _personal_loc else ""
+            if loc_desc and _personal_prefix:
+                return (f"{_personal_prefix}{loc_desc}", "")
+            if _personal_prefix:
+                return (_personal_prefix, "")
         if loc_desc:
             return (loc_desc, "")
         if _asked_city:
@@ -3500,6 +3605,18 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     # Normalise formal 您 → informal 你 so all downstream pattern checks (mirror bank,
     # _direct_persona_answer substrings, etc.) work without duplicating every entry.
     t = t.replace("您", "你")
+
+    # Confusion / repeat signal (e.g. "再说一遍？", "再说一起可以吗？") — do NOT route to
+    # _persona_limitation_reply.  Return None so run_turn's clarify_app_question path handles it.
+    # Guard: genuine persona-directed questions that happen to contain a confusion substring
+    # (e.g. "你住在哪里啊" contains "哪里啊") must NOT be early-exited here.
+    _PERSONA_Q_STARTS = (
+        "你住", "你老家", "你的老家", "你在哪", "你有", "你喜欢", "你做", "你叫",
+        "你是", "你从", "你多大", "你几岁", "你最", "你平时", "你跟", "你和",
+        "你今年", "你去过", "你结婚", "你父母", "你爸", "你妈",
+    )
+    if _is_confusion_signal(t) and not any(t.startswith(p) for p in _PERSONA_Q_STARTS):
+        return None
 
     # Context-aware place follow-ups ("远不远啊" / "在哪儿" etc.) — must come BEFORE
     # the generic _place_distance_counter_reply which doesn't use city context.
@@ -8013,6 +8130,21 @@ class Handler(BaseHTTPRequestHandler):
                                     _caq = _clarify_app_question(_pfx_aq)
                                     if _caq:
                                         _counter_result = _caq
+                                        _confusion_about_app_q = True
+                            # Confusion signal that arrived WITH a question mark
+                            # (e.g. "再说一起可以吗？", "什么意思？").
+                            # _answer_user_question_prefix returned None for it; route here
+                            # the same way as the non-question confusion path.
+                            if (
+                                user_asked_question
+                                and not _counter_result
+                                and _is_confusion_signal(answer_text)
+                            ):
+                                _pfx_aq_c = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                                if _pfx_aq_c:
+                                    _caq_c = _clarify_app_question(_pfx_aq_c)
+                                    if _caq_c:
+                                        _counter_result = _caq_c
                                         _confusion_about_app_q = True
 
                 _counter_reply    = _counter_result[0] if _counter_result else None
