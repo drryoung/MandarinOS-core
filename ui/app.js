@@ -6086,6 +6086,16 @@ function _resetCurrentSessionState() {
   const progressSaved = document.getElementById("progressSavedMsg");
   if (progressSaved) progressSaved.remove();
 
+  // Reset the End Session button so it is active for the new session.
+  // The button is left disabled + "Saved ✓" after a successful end-session;
+  // that state must not leak into a subsequent session.
+  const _endBtn = document.getElementById("endSessionBtn");
+  if (_endBtn) {
+    _endBtn.disabled = false;
+    _endBtn.textContent = "End Session";
+    _endBtn.title = "End this session and see your scorecard";
+  }
+
   document.body.classList.remove("conversation-active", "session-ended", "mobile-panel-open", "card-sheet-open", "mobile-guide-collapsed");
   _syncMobileBackdrop();
   _updateMobileFabLabel();

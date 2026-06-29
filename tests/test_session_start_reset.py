@@ -130,3 +130,32 @@ def test_start_fresh_uses_shared_reset():
     src = _app_src()
     assert "startFreshLearner" in src
     assert src.count("_resetCurrentSessionState();") >= 2
+
+
+# ── End-session button state reset ───────────────────────────────────────────
+
+def test_reset_reenables_end_session_button():
+    """_resetCurrentSessionState must re-enable endSessionBtn for the new session.
+
+    The button is left disabled + 'Saved ✓' after a successful end-session.
+    Without an explicit reset, the second session has no way to end normally.
+    """
+    src = _app_src()
+    reset_block = src.split("function _resetCurrentSessionState")[1].split("async function startFreshLearner")[0]
+    assert 'getElementById("endSessionBtn")' in reset_block
+    assert "_endBtn.disabled = false" in reset_block
+
+
+def test_reset_restores_end_session_button_text():
+    """_resetCurrentSessionState must restore the button label to 'End Session'."""
+    src = _app_src()
+    reset_block = src.split("function _resetCurrentSessionState")[1].split("async function startFreshLearner")[0]
+    assert '_endBtn.textContent = "End Session"' in reset_block
+
+
+def test_end_session_sets_saved_state():
+    """endSession() must set button text to 'Saved ✓' on success (regression guard)."""
+    src = _app_src()
+    end_block = src.split("async function endSession")[1].split("window.endSession")[0]
+    assert "Saved" in end_block
+    assert "_btn.disabled = true" in end_block
