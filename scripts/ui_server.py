@@ -6909,6 +6909,108 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
 
+        # ── Session Intelligence admin export (Phase 0 Slice 4, read-only) ─────
+        # Same admin_token gate as /api/progress/all.  Read-only: these
+        # endpoints never write, modify, or delete any file.
+
+        if path == "/api/sessions/list":
+            token = (qs.get("admin_token", [""])[0] or "").strip()
+            if not _BETA_ADMIN_TOKEN or token != _BETA_ADMIN_TOKEN:
+                self._json_error(403, "invalid or missing admin_token")
+                return
+            sessions_root = Path(_DATA_DIR_EFFECTIVE) / "sessions"
+            listing = []
+            if sessions_root.is_dir():
+                for p in sorted(sessions_root.rglob("*.json")):
+                    try:
+                        raw = p.read_text(encoding="utf-8")
+                        rec = json.loads(raw)
+                        if not isinstance(rec, dict):
+                            continue
+                        if rec.get("schema") != "session_record_v1":
+                            continue
+                        # relative path under sessions root only — no absolute FS paths
+                        rel = p.relative_to(sessions_root)
+                        listing.append({
+                            "learner_id":            rec.get("learner_id"),
+                            "session_id":            rec.get("session_id"),
+                            "path_relative":         str(rel).replace("\\", "/"),
+                            "schema_version":        rec.get("schema"),
+                            "created_at":            rec.get("created_at"),
+                            "persona_id":            rec.get("persona_id"),
+                            "mode":                  rec.get("mode"),
+                            "transcript_turn_count": len(rec.get("transcript") or []),
+                            "file_size_bytes":       p.stat().st_size,
+                            "modified_time":         datetime.datetime.fromtimestamp(
+                                p.stat().st_mtime, tz=datetime.timezone.utc
+                            ).isoformat(timespec="seconds"),
+                        })
+                    except Exception:
+                        continue
+            data = json.dumps(
+                {"ok": True, "sessions_root": "data/sessions", "total_sessions": len(listing), "sessions": listing},
+                ensure_ascii=False,
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/sessions/get":
+            token = (qs.get("admin_token", [""])[0] or "").strip()
+            if not _BETA_ADMIN_TOKEN or token != _BETA_ADMIN_TOKEN:
+                self._json_error(403, "invalid or missing admin_token")
+                return
+            learner_id = (qs.get("learner_id", [""])[0] or "").strip()
+            session_id = (qs.get("session_id", [""])[0] or "").strip()
+            if not learner_id:
+                self._json_error(400, "missing learner_id")
+                return
+            if not session_id:
+                self._json_error(400, "missing session_id")
+                return
+            # Security: reject IDs containing path-traversal or unsafe characters.
+            # Only alphanumerics, hyphens, and underscores are allowed —
+            # the same regex as session_intelligence._SAFE_LEARNER_ID / _SAFE_SESSION_ID.
+            import re as _re
+            if not _re.match(r'^[a-zA-Z0-9_\-]{1,64}$', learner_id):
+                self._json_error(400, "invalid learner_id")
+                return
+            if not _re.match(r'^[a-zA-Z0-9_\-\.]{1,128}$', session_id):
+                self._json_error(400, "invalid session_id")
+                return
+            session_file = Path(_DATA_DIR_EFFECTIVE) / "sessions" / learner_id / f"{session_id}.json"
+            # Confirm the resolved path is still inside data/sessions/ (defence-in-depth)
+            sessions_root = Path(_DATA_DIR_EFFECTIVE) / "sessions"
+            try:
+                session_file.resolve().relative_to(sessions_root.resolve())
+            except ValueError:
+                self._json_error(400, "invalid path")
+                return
+            if not session_file.is_file():
+                self._json_error(404, "session not found")
+                return
+            try:
+                raw = session_file.read_text(encoding="utf-8")
+                rec = json.loads(raw)
+            except Exception:
+                self._json_error(500, "failed to read session file")
+                return
+            if not isinstance(rec, dict) or rec.get("schema") != "session_record_v1":
+                self._json_error(422, "file exists but is not a valid session_record_v1")
+                return
+            data = json.dumps(rec, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        # ── end Session Intelligence admin export ─────────────────────────────
+
         if path == "/api/progress":
             learner_id = (qs.get("learner_id", [""])[0] or "").strip()
             if not learner_id:

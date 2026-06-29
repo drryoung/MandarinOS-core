@@ -422,7 +422,145 @@ None. Files written to `data/review_exports/batches/` as specified in §4. No ap
 | Manifest drift (session file moved/deleted after batching) | Manifest records `source_path` at time of export; a missing file on re-run is silently skipped. |
 | False "already reviewed" exclusion | Manifest tracks by `session_id` not path, so moved files are still correctly excluded. |
 
-### Next steps
+### Next steps after Slice 3
 
-1. Slice 4: structured findings writer — CLI to save the AI's Section G (`product_intel_rollup_v1`) output as a JSON file under `data/product_intel/rollups/`.
-2. Slice 5: daily/weekly scheduled batch (cron or Railway scheduled task).
+1. ~~Slice 4: read-only admin endpoints to retrieve session files from Railway.~~ → **Complete (below)**
+2. Slice 5: structured findings writer — save AI Section G (`product_intel_rollup_v1`) output.
+3. Slice 6: daily/weekly scheduled batch.
+
+---
+
+## Phase 0 Slice 4 — Read-only admin session export endpoints
+
+**Date:** 2026-06-29  
+**Directive:** MandarinOS Phase 0 Slice 4 — Add read-only admin session export endpoints
+
+### Summary
+
+Two read-only admin-gated endpoints added to `ui_server.py`, following exactly the same `MANDARINOS_BETA_ADMIN_TOKEN` pattern as the existing `/api/progress/all` endpoint. They allow listing and downloading `session_record_v1` files from the Railway volume without shell access.
+
+### Files changed
+
+| File | Change type | Notes |
+|---|---|---|
+| `scripts/ui_server.py` | **Extended** | +~90 lines: `/api/sessions/list` and `/api/sessions/get` inside `do_GET()` |
+| `tests/test_session_admin_endpoints.py` | **New** | 34 tests (static source + handler unit tests) |
+| `docs/session_intelligence_implementation_report.md` | Updated | This Slice 4 section |
+
+### Endpoints
+
+#### `GET /api/sessions/list?admin_token=TOKEN`
+
+Returns a JSON listing of all valid `session_record_v1` files on the server.
+
+```json
+{
+  "ok": true,
+  "sessions_root": "data/sessions",
+  "total_sessions": 4,
+  "sessions": [
+    {
+      "learner_id": "learner_1779441865679",
+      "session_id": "session_1780000000000",
+      "path_relative": "learner_1779441865679/session_1780000000000.json",
+      "schema_version": "session_record_v1",
+      "created_at": "2026-06-29T14:00:00+12:00",
+      "persona_id": "jianguo",
+      "mode": "normal",
+      "transcript_turn_count": 12,
+      "file_size_bytes": 8421,
+      "modified_time": "2026-06-29T02:00:00+00:00"
+    }
+  ]
+}
+```
+
+**Security:** Invalid JSON files and files with wrong schema are silently skipped. No absolute filesystem paths are returned.
+
+#### `GET /api/sessions/get?learner_id=LID&session_id=SID&admin_token=TOKEN`
+
+Returns the exact `session_record_v1` JSON for one session.
+
+**Security:** `learner_id` and `session_id` are validated against `^[a-zA-Z0-9_\-]{1,64}$` and `^[a-zA-Z0-9_\-\.]{1,128}$` respectively. A second defence-in-depth check confirms the resolved path is inside `data/sessions/`. Returns 400 for invalid IDs, 404 for missing files, 422 if the file exists but has the wrong schema.
+
+### PowerShell commands: list → download → batch export
+
+Set your app URL and token once:
+
+```powershell
+$APP = "https://YOUR-APP.up.railway.app"
+$TOKEN = "beta_export_local"   # or your MANDARINOS_BETA_ADMIN_TOKEN
+```
+
+**Step 1 — List all captured sessions:**
+
+```powershell
+curl "$APP/api/sessions/list?admin_token=$TOKEN" | python -m json.tool
+```
+
+**Step 2 — Download one session:**
+
+```powershell
+$LID = "learner_1779441865679"
+$SID = "session_1780000000000"
+
+New-Item -ItemType Directory -Force -Path "data\sessions\$LID" | Out-Null
+curl "$APP/api/sessions/get?learner_id=$LID&session_id=$SID&admin_token=$TOKEN" `
+     -o "data\sessions\$LID\$SID.json"
+```
+
+**Step 3 — Download ALL sessions in one loop:**
+
+```powershell
+$APP = "https://YOUR-APP.up.railway.app"
+$TOKEN = "beta_export_local"
+
+$list = curl "$APP/api/sessions/list?admin_token=$TOKEN" | ConvertFrom-Json
+foreach ($s in $list.sessions) {
+    $lid = $s.learner_id
+    $sid = $s.session_id
+    New-Item -ItemType Directory -Force -Path "data\sessions\$lid" | Out-Null
+    $out = "data\sessions\$lid\$sid.json"
+    if (-not (Test-Path $out)) {
+        curl "$APP/api/sessions/get?learner_id=$lid&session_id=$sid&admin_token=$TOKEN" -o $out
+        Write-Host "Downloaded: $out"
+    } else {
+        Write-Host "Already exists: $out"
+    }
+}
+```
+
+**Step 4 — Run the batch exporter:**
+
+```powershell
+python scripts/export_unreviewed_sessions_batch.py --dry-run
+python scripts/export_unreviewed_sessions_batch.py --write --no-stdout
+```
+
+Batch prompt written to: `data/review_exports/batches/batch_<date>_01.md`
+
+### Security design
+
+| Threat | Mitigation |
+|---|---|
+| Unauthorized access | `MANDARINOS_BETA_ADMIN_TOKEN` required; 403 on mismatch or absent |
+| Path traversal via `learner_id` / `session_id` | Strict alphanumeric+hyphen+underscore regex (64/128 char max) |
+| Symlink or path-escape attack | `Path.resolve().relative_to()` check after regex (defence-in-depth) |
+| Returning non-session files | Schema check: only `session_record_v1` returned; all others → 404/422 |
+| Mutation | No write/delete operations in either handler |
+
+### Tests added
+
+File: `tests/test_session_admin_endpoints.py` — **34 tests, 34 passing**
+
+| Class | Coverage |
+|---|---|
+| `TestSourceStructure` | Endpoint routing, admin-token gate position, regex present, schema check, no-write guard, progress/all regression |
+| `TestListEndpoint` | 403 on wrong/missing token; 200 empty; valid sessions returned; invalid JSON ignored; wrong schema ignored |
+| `TestGetEndpoint` | 403 unauthorized; 400 missing params; path-traversal rejection (5 learner_id × 4 session_id variants); 404 not found; 200 exact JSON; 422 wrong schema |
+| `TestNoMutation` | File mtime and content unchanged after list; unchanged after get |
+| `TestProgressAllRegression` | `/api/progress/all` still returns 200 + `learners` key |
+
+### Deviations from the architecture document
+
+None. Read-only export endpoints are exactly the kind of additive tooling described in §Phase 1 of the architecture document.
