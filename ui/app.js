@@ -7201,6 +7201,50 @@ window.addEventListener("load", async () => {
       return;
     }
 
+    // Spoken recovery intercept: if the learner speaks a recovery phrase (再说一遍, 慢一点说,
+    // 我不明白, 什么意思 etc.), simulate the same action as a recovery panel tap — before the
+    // normal accept/reject ASR path — so it never falls through to the rejected-speech partner
+    // repair prompt (which feels like "generic uncertainty" instead of repeating the question).
+    const _spokenRecoveryPhrase = matchTranscriptToLearnerPhrase(
+        saidTrimmed,
+        learnerRecoveryPhrases(recoveryPhrasesRuntime || window._recoveryPhrases)
+    );
+    if (_spokenRecoveryPhrase) {
+        const _srpAction = getRecoveryAction(_spokenRecoveryPhrase);
+        if (_srpAction === "repeat" || _srpAction === "slower" || _srpAction === "meaning") {
+            addTranscriptEntry("user", saidTrimmed, { text_en: _spokenRecoveryPhrase.meaning || "" });
+            renderTranscript();
+            _tracker.recovery_uses++;
+            _siLogEvent("recovery_use", { frame_id: frameId, kind: (_spokenRecoveryPhrase.id || "spoken_recovery") });
+            if (_challenge.active) {
+                _challenge.recoveryCount++;
+                _challenge.helpLevel = Math.max(_challenge.helpLevel, _srpAction === "slower" ? 2 : 1);
+                if (_challenge.recoveryCount >= 2) _challengeRevealText();
+            }
+            const _srpQ = (window._lastPartnerSpokenText || window._currentFrameText || "").trim();
+            const _srpLine = _srpAction === "slower"
+                ? (_srpQ ? "好的，慢一点：" + _srpQ : "好的，慢一点。")
+                : (_srpQ || "好。");
+            addTranscriptEntry("partner", _srpLine, transcriptExtrasForRecoveryPartnerRepeat(_srpAction));
+            renderTranscript();
+            setActivePartnerStatement(_srpLine, "recovery_repeat",
+                (_srpQ || "").split("").map((c) => ({ t: c })));
+            ttsSpeak({
+                text: saidTrimmed, lang: "zh-CN",
+                onEvent: (e) => {
+                    if (e?.payload?.completed)
+                        ttsSpeak({ text: _srpLine, lang: "zh-CN",
+                            rate: _srpAction === "slower" ? 0.82 : undefined, queue: true });
+                },
+            });
+            lastClickedWordId = null;
+            window.lastClickedWordId = null;
+            setUiMode("READ");
+            return;
+        }
+        // next_turn phrases (好吧 / 换个话题): fall through to normal runTurn flow
+    }
+
     const unmatchedCount = frameId ? (window._unmatchedByFrame?.[frameId] || 0) : 0;
     const unmatchedDecision = classifyUnmatchedFreeAnswerDecision(saidTrimmed, options, frameId, unmatchedCount);
     const substantialAnswer = unmatchedDecision.accept;

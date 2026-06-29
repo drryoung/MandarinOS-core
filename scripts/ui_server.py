@@ -1006,6 +1006,14 @@ _CURIOSITY_REACTIONS_BY_ENGINE: dict = {
 }
 _CURIOSITY_REACTIONS_GENERIC: list = ["真是不简单！", "听起来很有意思！", "是吗，很好啊！", "哦，真没想到！", "真是特别啊！"]
 
+# Repeat-request markers: explicit "say it again / say it slower" signals from the learner.
+# These must always route to _clarify_app_question regardless of _prev_counter_reply.
+# Kept separate from _is_confusion_signal (which is broader) so the short-circuit is tight.
+_REPEAT_REQUEST_MARKERS: tuple = (
+    "再说一遍", "再说一次", "再说一起", "再说一下", "请再说",
+    "慢一点", "说慢", "慢慢说",
+)
+
 # Soft closing reactions: emitted when late-session + topic completion suppress bridge
 # and no next move (probe or ladder frame) is available. Terminal / pause move — no follow-up.
 # Format: (hanzi, pinyin, english)
@@ -8134,13 +8142,29 @@ class Handler(BaseHTTPRequestHandler):
                 _noisy_location_clarify  = False  # set True when location answer looks garbled → frame override below
 
                 if last_turn_was_answer:
+                    # Repeat-request short-circuit: 再说一遍 / 慢一点 / bare 什么意思
+                    # always means "repeat the app question" — route to _clarify_app_question
+                    # before lexical-definition and confusion-pool branches, and regardless of
+                    # _prev_counter_reply (so it never falls to the generic confusion pool).
+                    _is_rr = bool(
+                        _last_text_for_counter
+                        and (
+                            any(m in _last_text_for_counter for m in _REPEAT_REQUEST_MARKERS)
+                            or (len(_last_text_for_counter.strip()) <= 5 and "什么意思" in _last_text_for_counter)
+                        )
+                    )
                     # Lexical definition: skip for genuine user questions about the persona.
                     # "你做什么工作啊？" must not trigger vocabulary explanation; it should reach
                     # the mirror-lookup path so the persona answers with its own work description.
                     _lex_ct = _lexical_definition_reply(_last_text_for_counter) if (
                         _last_text_for_counter and not user_asked_question
                     ) else None
-                    if _lex_ct:
+                    if _is_rr:
+                        _rr_frame_text = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                        if _rr_frame_text:
+                            _counter_result = _clarify_app_question(_rr_frame_text)
+                            _confusion_about_app_q = True
+                    elif _lex_ct:
                         _counter_result = _lex_ct
                     elif (
                         _prev_counter_reply
