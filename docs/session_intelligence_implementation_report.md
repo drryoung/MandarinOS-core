@@ -724,3 +724,138 @@ File: `tests/test_session_review_pipeline.py` — **41 tests, 41 passing**
 None. This slice automates the manual download steps already described in the
 Slice 4 "PowerShell download commands" section, without adding any new data
 structures or LLM calls.
+
+---
+
+## Phase 0 Slice 6 — Saving manual AI analysis output
+
+**Date:** 2026-06-29  
+**Directive:** MandarinOS Phase 0 Slice 6 — Save manual AI batch analysis output
+
+### Summary
+
+Phase 0 Slice 6 is complete. A new script validates and saves the Markdown
+output produced by ChatGPT/Claude when given a batch review prompt.
+It extracts the structured sections (rollup JSON, Cursor task list) and
+persists them to the product intelligence directory tree.
+
+---
+
+### Files added
+
+| File | Purpose |
+|---|---|
+| `scripts/save_batch_review_analysis.py` | Validate and save a manual AI analysis file. |
+| `tools/save_analysis.ps1` | PowerShell convenience wrapper. |
+| `tests/test_save_batch_review_analysis.py` | 45 tests (all passing). |
+
+---
+
+### Complete everyday workflow
+
+**Step 1** — Fetch + export batch prompt:
+
+```powershell
+.\review.ps1
+```
+
+**Step 2** — Copy the batch prompt into ChatGPT or Claude.  
+Make sure the AI response includes sections A–H.
+
+**Step 3** — Save the AI response as a Markdown file:
+
+```
+data/review_outputs/inbox/batch_2026-06-29_01_analysis.md
+```
+
+**Step 4** — Save and validate:
+
+```powershell
+python scripts/save_batch_review_analysis.py `
+    data\review_outputs\inbox\batch_2026-06-29_01_analysis.md
+```
+
+Or with the wrapper:
+
+```powershell
+.\tools\save_analysis.ps1 data\review_outputs\inbox\batch_2026-06-29_01_analysis.md
+```
+
+**Step 5** — Review saved artifacts:
+
+```
+data/review_outputs/analyses/<batch_id>_analysis.md   ← full analysis copy
+data/product_intel/rollups/<batch_id>_rollup.json     ← structured findings
+data/product_intel/cursor_tasks/<batch_id>_tasks.md   ← ready-to-paste tasks
+data/product_intel/manifests/<batch_id>_analysis_manifest.json
+```
+
+---
+
+### Output tree
+
+```
+data/
+  review_outputs/
+    inbox/                   ← drop AI response here
+    analyses/                ← validated full copy
+  product_intel/
+    rollups/                 ← product_intel_rollup_v1 JSON
+    cursor_tasks/            ← Section H Markdown task list
+    manifests/               ← manifest per analysis
+```
+
+---
+
+### Validation rules
+
+| Check | Behaviour on failure |
+|---|---|
+| Source file not found | exit 1 |
+| Section G missing | exit 2 (ValidationError) |
+| No ```json``` block in Section G | exit 2 |
+| Invalid JSON in Section G | exit 2 |
+| Schema ≠ `product_intel_rollup_v1` | exit 2 |
+| `top_findings` not a list | exit 2 |
+| No batch_id in rollup AND filename | exit 2 |
+| Section H missing | warn, skip tasks file, save rollup |
+| Outputs already exist | exit 3 (FileExistsError); pass `--overwrite` |
+
+---
+
+### Flags
+
+| Flag | Effect |
+|---|---|
+| `--dry-run` | Validate only; print paths; write nothing |
+| `--overwrite` | Replace existing output files atomically |
+| `--analysis-root DIR` | Override analysis archive location |
+| `--rollup-root DIR` | Override rollup JSON location |
+| `--tasks-root DIR` | Override Cursor task list location |
+| `--manifest-root DIR` | Override manifest location |
+
+---
+
+### Tests added
+
+File: `tests/test_save_batch_review_analysis.py` — **45 tests, 45 passing**
+
+| Category | Tests |
+|---|---|
+| Happy path | saves all four files, correct content, correct batch_id |
+| Manifest | required fields, top_findings_count, paths |
+| Section G validation | invalid JSON, missing section, no JSON block, wrong schema, missing fields |
+| Section H | missing warns, rollup still saved, tasks_path None in manifest |
+| Idempotency | existing outputs raise without --overwrite; --overwrite succeeds |
+| Dry-run | writes nothing, still returns batch_id |
+| batch_id resolution | from rollup, from filename, both missing raises |
+| Input safety | original file not modified |
+| Helper functions | extract_section, find_json_block, detect_batch_id_from_filename |
+| Source checks | script exists, ps1 exists, no hardcoded tokens |
+
+---
+
+### Deviations from the architecture document
+
+None. This slice implements the "Manual / external AI review interim stage"
+described in §Long-Term Product Learning Loop of `docs/session_intelligence_architecture.md`.
