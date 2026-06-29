@@ -7812,7 +7812,10 @@ class Handler(BaseHTTPRequestHandler):
                     "composition_mode": "none",
                 }
                 # Spec §3: after ANY user answer, bias to reaction (not only when "meaningful").
-                if last_turn_was_answer:
+                # Exception: suppress reaction prefix when learner asked us a question — the
+                # counter_reply IS the response; a 挺好/真不错 prefix would feel like an
+                # acknowledgement instead of an answer.
+                if last_turn_was_answer and not user_asked_question:
                     # Include last_answer_fid in seed for more entropy — avoids hash collision
                     # when the same engine is active across consecutive turns with similar exchange counts.
                     seed = f"{cs.get('session_id','')}/{len(recent)}/{current_engine}/{last_answer_fid}"
@@ -9106,7 +9109,9 @@ class Handler(BaseHTTPRequestHandler):
                 _cm_chosen_preemptible = bool(chosen and chosen in _LATE_SESSION_PREEMPTIBLE_FRAMES)
 
                 # Suppressed-reason trace — always populated so every turn is auditable.
-                if not _cm_late_session:
+                if user_asked_question:
+                    _closing_suppressed_reason = "user_asked_question"
+                elif not _cm_late_session:
                     _closing_suppressed_reason = "not_late_session"
                 elif not _cm_no_probe:
                     _closing_suppressed_reason = "probe_already_chosen"
@@ -9125,6 +9130,7 @@ class Handler(BaseHTTPRequestHandler):
                     and _cm_late_session
                     and _topic_completion_suppresses_bridge
                     and _cm_no_probe
+                    and not user_asked_question
                 )
                 _cm_extended = (
                     _cm_late_session
@@ -9151,7 +9157,7 @@ class Handler(BaseHTTPRequestHandler):
                 _closing_preempted_frame = chosen if _cm_preemptible else None
                 _closing_move_fired = False
                 _closing_reason = ""
-                if _cm_original or _cm_extended or _cm_preemptible:
+                if (_cm_original or _cm_extended or _cm_preemptible) and not user_asked_question and not _counter_reply:
                     _closing_move_fired = True
                     _closing_reason = "meaningful_answer_no_next_move"
                     _cl_trigger = "preemptible" if _cm_preemptible else ("extended" if _cm_extended else "original")
