@@ -18,3 +18,6 @@ __pycache__/
 **/__pycache__/
 runtime/out_phase7/
 tools/cards/out/
+
+# Local session-review credentials (never commit real tokens)
+tools/session_review.local.ps1

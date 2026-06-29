@@ -13,6 +13,15 @@
 
 $ErrorActionPreference = "Stop"
 
+# ── Load local config if present (dot-sourced; never committed) ─────────────
+# Copy tools\session_review.local.example.ps1 to tools\session_review.local.ps1
+# and fill in your real values. That file is .gitignored.
+
+$localConfig = Join-Path $PSScriptRoot "session_review.local.ps1"
+if (Test-Path $localConfig) {
+    . $localConfig
+}
+
 # ── Check required environment variables ────────────────────────────────────
 
 $appUrl    = $env:MANDARINOS_APP_URL

@@ -594,18 +594,23 @@ prompt — in a single command.
 
 ### Normal user workflow
 
-**First-time setup** (run once per terminal session):
+**First-time setup** — copy the example local config and fill in real values
+(this file is `.gitignore`d and never committed):
 
 ```powershell
-$env:MANDARINOS_APP_URL          = "https://mandarinos-core-production.up.railway.app"
-$env:MANDARINOS_BETA_ADMIN_TOKEN = "beta_export_local"
+Copy-Item tools\session_review.local.example.ps1 tools\session_review.local.ps1
+# Then edit tools\session_review.local.ps1 with real URL and token.
 ```
 
-**Every review run:**
+**Every review run** — from the repo root:
 
 ```powershell
-.\tools\session_review.ps1
+.\review.ps1
 ```
+
+The script automatically dot-sources `tools\session_review.local.ps1` (if
+present) before reading environment variables, so no manual `$env:` setup is
+needed once the local config file exists.
 
 **Expected output:**
 
