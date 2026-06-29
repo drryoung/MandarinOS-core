@@ -67,6 +67,29 @@ const _tracker = {
 };
 window._sessionTracker = _tracker;
 
+// ── Session Intelligence — lightweight UX event log (Phase 0 Slice 1) ─────
+// Accumulates UX events during the session for capture in the session_record.
+// Entries: { t_offset_ms, type, frame_id?, kind?, engine? }
+// Populated by _siLogEvent(); cleared in _resetCurrentSessionState().
+window._siEventLog = [];
+window._siSessionStart = Date.now();
+
+/**
+ * Append a UX event to the session intelligence event log.
+ * No-op outside a conversation (guard: total_turns === 0 and no event yet).
+ * Called from existing event handlers — never changes UI or tracker behaviour.
+ */
+function _siLogEvent(type, extras) {
+  try {
+    const entry = Object.assign(
+      { t_offset_ms: Date.now() - (window._siSessionStart || Date.now()), type: type },
+      extras || {}
+    );
+    window._siEventLog.push(entry);
+  } catch (_) {}
+}
+window._siLogEvent = _siLogEvent;
+
 // Duration answer pattern — used in acceptance logic, semantic detection, and tracking.
 // Matches "20年", "5天", "二十年", "三个月" (Arabic or Chinese numeral + 年/月/天).
 const _DURATION_ANSWER_PAT = /\d+[年月天]|[一二三四五六七八九十百千万零两][年月天]/;
@@ -905,6 +928,7 @@ async function _openCardForWordId(wordId) {
   emitUITrace({ type: "OPEN_CARD", timestamp: new Date().toISOString(),
     payload: { engine_id: engineId, frame_id: frameId, card_id: cardId, reason: "token_click" } });
   _tracker.card_opens++;
+  _siLogEvent("card_open", { frame_id: frameId, engine: engineId });
   dispatch({ type: "OPEN_CARD", payload: { card_id: cardId } });
   await resolveCard(cardId, "tools/cards/out/cards_by_id.json");
   // NOTE: does NOT advance turn, reset hints, or change ui_mode
@@ -1962,7 +1986,7 @@ function toggleLineEnglish(lineId) {
       maybeRequestGlossForEntry(entry);
     }
   }
-  if (!st.showEn) _tracker.display_en_clicks++;
+  if (!st.showEn) { _tracker.display_en_clicks++; _siLogEvent("display_en_click"); }
   transcriptLineUiState[lineId] = { ...st, showEn: !st.showEn };
   renderTranscript();
 }
@@ -4956,6 +4980,7 @@ function renderRecoveryPanelInto(targetContainer, frameId) {
       if (Date.now() - (window._micListenArmedAt || 0) < 450) return;
       _tracker.recovery_uses++;
       _tracker._pendingRecovery = true;
+      _siLogEvent("recovery_use", { frame_id: frameId, kind: phrase.id || "recovery" });
       emitUITrace({ type: "OPTION_SELECTED", timestamp: new Date().toISOString(),
         payload: { frame_id: frameId, card_id: "recovery:" + (phrase.id || ""), kind: "RECOVERY" } });
       window._learnerObs.recovery_uses++;     // Phase L1 observation
@@ -6035,6 +6060,9 @@ function _resetCurrentSessionState() {
   conversationTranscript = [];
   transcriptLineUiState = {};
   transcriptReplayToken += 1;
+  // Reset SI event log and session-start timestamp for the new session.
+  window._siEventLog = [];
+  window._siSessionStart = Date.now();
   transcriptReplayState = { active: false, activeLineId: null, queue: [] };
   transcriptSelectedLineIds = [];
   renderTranscript();
@@ -9978,6 +10006,25 @@ async function endSession() {
     unmatched_responses:        t.unmatched_responses,
     soft_unmatched_responses:   t.soft_unmatched_responses,
     engines_used:               Array.from(t.engines_used),
+
+    // ── Session Intelligence capture fields (Phase 0 Slice 1) ─────────────
+    // These are optional: the server ignores them when MANDARINOS_SESSION_CAPTURE
+    // is not set, and the endpoint must still succeed if they are absent.
+    // We send a sanitised copy — only the fields defined in session_record_v1.
+    transcript: (conversationTranscript || []).map(function(e) {
+      return {
+        idx:        e._idx !== undefined ? e._idx : undefined,
+        id:         e.id         || undefined,
+        role:       e.role       || undefined,
+        text_zh:    e.text_zh    || undefined,
+        text_en:    e.text_en    || undefined,
+        pinyin:     e.pinyin     || undefined,
+        frame_id:   e.frame_id   || undefined,
+        turn_uid:   e.turn_uid   || undefined,
+        created_at: e.created_at || undefined,
+      };
+    }),
+    event_log: (window._siEventLog || []).slice(),
   };
 
   let result = null;

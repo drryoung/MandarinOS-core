@@ -52,6 +52,15 @@ try:
     from beta_profile import save_profile as _bp_save_profile
 except ImportError:
     _bp_load_profile = _bp_save_profile = None
+# Session Intelligence — Phase 0 capture layer (additive, flag-gated)
+try:
+    from session_intelligence import (
+        is_enabled        as _si_is_enabled,
+        build_session_record as _si_build_record,
+        save_session_record  as _si_save_record,
+    )
+except ImportError:
+    _si_is_enabled = _si_build_record = _si_save_record = None
 
 _LEARNER_MEMORY_FIELD_KEYS = (
     "learner_name",
@@ -10200,6 +10209,30 @@ class Handler(BaseHTTPRequestHandler):
                     print(f"[ui_server] /api/end_session: saved to {_PROGRESS_HISTORY_PATH}", flush=True)
                 except Exception as exc:
                     print(f"[ui_server] /api/end_session: failed to save progress history: {exc}", flush=True)
+
+            # ── Session Intelligence capture (Phase 0 Slice 1, flag-gated) ──────
+            # Runs AFTER the existing progress save so a capture failure can never
+            # affect progress persistence.  Wrapped in try/except; any error is
+            # logged and silently discarded — it must not alter the response.
+            if _si_is_enabled and _si_is_enabled() and _si_build_record and _si_save_record:
+                try:
+                    _si_transcript = sess.get("transcript")
+                    _si_event_log  = sess.get("event_log")
+                    _si_record = _si_build_record(
+                        sess,
+                        metrics,
+                        progress_snapshot,
+                        transcript=_si_transcript,
+                        event_log=_si_event_log,
+                    )
+                    _si_ok = _si_save_record(learner_id, session_id, _si_record)
+                    print(
+                        f"[session_intelligence] capture {'saved' if _si_ok else 'skipped/failed'}"
+                        f" for {learner_id!r}/{session_id!r}",
+                        flush=True,
+                    )
+                except Exception as _si_exc:
+                    print(f"[session_intelligence] capture error (non-fatal): {_si_exc}", flush=True)
 
             result = {
                 "ok":                True,
