@@ -192,6 +192,7 @@ def build_session_record(
             "depth_responses":                     max(0, int(sess.get("depth_responses", 0) or 0)),
             "unmatched_responses":                 max(0, int(sess.get("unmatched_responses", 0) or 0)),
             "soft_unmatched_responses":            max(0, int(sess.get("soft_unmatched_responses", 0) or 0)),
+            "turbulence_events":                   max(0, int(sess.get("turbulence_events", 0) or 0)),
             "engines_used": (
                 list(sess.get("engines_used") or [])
                 if isinstance(sess.get("engines_used"), (list, set))

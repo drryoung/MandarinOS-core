@@ -61,6 +61,7 @@ const _tracker = {
   depth_responses: 0,            // user turns containing a depth/extension marker
   unmatched_responses: 0,        // hard-fail turns (no Chinese signal / nonsense) — used in scorecard stability
   soft_unmatched_responses: 0,   // soft-fail turns (partial meaning, not routable) — weighted at 0.5 in scorecard
+  turbulence_events: 0,          // informational turbulence count: ASR rejects + confusion signals + repair loops + challenge reveals
   engines_used: new Set(),       // engine IDs seen in responses this session
   _pendingRecovery: false,       // transient: true if last user action was a recovery tap (cleared on next turn)
   _pendingNaturalRecovery: false, // transient: true if natural re-attempt after rejection (cleared on next turn)
@@ -6438,8 +6439,15 @@ async function _runTurnInner(isNext = false, opts = {}) {
       window._efcEntity = data.state_update.efc_entity;
     if (data.state_update.efc_depth !== undefined)
       window._efcDepth = data.state_update.efc_depth;
-    if (data.state_update.repair_attempt_count !== undefined)
+    if (data.state_update.repair_attempt_count !== undefined) {
+      const _prevRepair = window._repairAttemptCount || 0;
       window._repairAttemptCount = data.state_update.repair_attempt_count;
+      // Turbulence signal: repair loop entered or deepened — informational only.
+      if (window._repairAttemptCount >= 2 && window._repairAttemptCount > _prevRepair) {
+        _tracker.turbulence_events++;
+        _siLogEvent("turbulence_moment", { kind: "repair_loop", frame_id: frameId });
+      }
+    }
     // Discovery/blue-panel state — must be round-tripped so server accumulates correctly
     if (data.state_update.discovery_shown_last_turn !== undefined)
       window._discoveryShownLastTurn = !!data.state_update.discovery_shown_last_turn;
@@ -7280,6 +7288,9 @@ window.addEventListener("load", async () => {
         if (_isStrongConfusionText(saidTrimmed)) {
           window._recentConfusionCount = Math.max((window._recentConfusionCount || 0) + 1, 1);
           window._lastTurnWasNoisyOrConfusion = true;
+          // Turbulence signal: explicit strong confusion — informational only.
+          _tracker.turbulence_events++;
+          _siLogEvent("turbulence_moment", { kind: "confusion_signal", frame_id: frameId });
           // Save the current app question so _runTurnInner can append a simplified rephrase.
           window._confusionFrameText = (window._currentFrameText || "").trim();
           // Submit only the bare confusion signal so the server focuses on clarification
@@ -7350,8 +7361,12 @@ window.addEventListener("load", async () => {
     if ((unmatchedDecision.fail_level || "hard") === "soft") {
       _tracker.soft_unmatched_responses++;
       window._learnerObs.soft_unmatched_count++;
+      _tracker.turbulence_events++;
+      _siLogEvent("turbulence_moment", { kind: "asr_soft_reject", frame_id: frameId });
     } else {
       _tracker.unmatched_responses++;
+      _tracker.turbulence_events++;
+      _siLogEvent("turbulence_moment", { kind: "asr_hard_reject", frame_id: frameId });
     }
     window._learnerObs.asr_rejections++;        // Phase L1 observation (all rejections, regardless of level)
     window._lastTurnWasNoisyOrConfusion = true; // filler-blocker: suppress generic filler on next server response
@@ -7578,6 +7593,9 @@ function _challengeRevealText() {
   document.body.classList.add("challenge-text-revealed");
   // Text is now visible — let normal hint affordance render
   renderHintAffordance(window._currentHintAffordance || { visible: false }, window._currentTurnUid || null, "tap");
+  // Turbulence signal: challenge text had to be revealed — informational only, not used for promotion/demotion.
+  _tracker.turbulence_events++;
+  _siLogEvent("turbulence_moment", { kind: "challenge_text_revealed", frame_id: window._lastPartnerFrameId || undefined });
 }
 
 function toggleChallengeMode() {
@@ -10065,6 +10083,7 @@ async function endSession() {
     depth_responses:       t.depth_responses,
     unmatched_responses:        t.unmatched_responses,
     soft_unmatched_responses:   t.soft_unmatched_responses,
+    turbulence_events:          t.turbulence_events || 0,
     engines_used:               Array.from(t.engines_used),
 
     // ── Session Intelligence capture fields (Phase 0 Slice 1) ─────────────

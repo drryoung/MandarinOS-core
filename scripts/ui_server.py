@@ -6559,6 +6559,7 @@ def _compute_scorecard(sess: dict) -> dict:
     depth_responses       = max(0, int(sess.get("depth_responses",         0) or 0))
     unmatched_responses   = max(0, int(sess.get("unmatched_responses",     0) or 0))
     soft_unmatched        = max(0, int(sess.get("soft_unmatched_responses", 0) or 0))
+    turbulence_events     = max(0, int(sess.get("turbulence_events",        0) or 0))
     return {
         "flow":          _scorecard_flow(total_turns),
         "recovery":      _scorecard_recovery(
@@ -6572,6 +6573,13 @@ def _compute_scorecard(sess: dict) -> dict:
         "depth":         _scorecard_depth(depth_responses),
         "stability":     _scorecard_stability(unmatched_responses, total_turns, soft_unmatched),
         "conversation_capability": _scorecard_conversation_capability(sess),
+        # Informational turbulence signal — not used for promotion/demotion.
+        # Sources: ASR hard/soft rejects, strong confusion signals, repair loops, challenge text reveals.
+        "turbulence": {
+            "raw_events":  turbulence_events,
+            "per_turn":    round(turbulence_events / max(1, total_turns), 3),
+            "label":       "informational",
+        },
     }
 
 
@@ -10398,6 +10406,15 @@ class Handler(BaseHTTPRequestHandler):
             print(
                 f"[ui_server] /api/end_session session_id={session_id!r} mode={mode!r} "
                 f"turns={sess.get('total_turns', 0)} flow={metrics['flow']['label']!r}",
+                flush=True,
+            )
+            _turb_raw = metrics.get("turbulence", {}).get("raw_events", 0)
+            _turb_per = metrics.get("turbulence", {}).get("per_turn", 0.0)
+            print(
+                f"[TURBULENCE] session_id={session_id!r} events={_turb_raw} "
+                f"per_turn={_turb_per:.3f} "
+                f"(asr_rejects={int(sess.get('unmatched_responses',0))+int(sess.get('soft_unmatched_responses',0))} "
+                f"stability={metrics['stability']['label']!r})",
                 flush=True,
             )
 
