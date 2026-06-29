@@ -196,12 +196,18 @@ function _isConversationalRecoveryAttempt(text) {
 }
 
 function addTranscriptEntry(role, textZh, extras = {}) {
+  const _zh = textZh || "";
+  const _isPartner = role === "partner";
   const entry = {
     id: "line_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
-    role: role === "partner" ? "partner" : "user",
-    text_zh: textZh || "",
+    role: _isPartner ? "partner" : "user",
+    text_zh: _zh,
     text_en: extras.text_en || "",
-    pinyin: extras.pinyin || "",
+    // Partner turns: always derive pinyin from lexicon when the server didn't supply it.
+    // fillSentenceHintPinyin returns the server value when non-empty, otherwise builds
+    // from the character lexicon — so curated frame pinyin is never overwritten.
+    // User turns: no pinyin is stored (not needed for capture).
+    pinyin: _isPartner ? fillSentenceHintPinyin(_zh, extras.pinyin || "") : (extras.pinyin || ""),
     frame_id: extras.frame_id || "",
     turn_uid: extras.turn_uid || "",
     replayable: true,
