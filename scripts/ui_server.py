@@ -2897,6 +2897,39 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
             return _origin_fact
         return "很难说具体原因，就是喜欢那种感觉，做了就停不下来。"
 
+    # ── Food-specific place questions — "X有什么好吃的？" ──────────────────────────────────────
+    # Separated from the general feature block so food questions always get food answers,
+    # not history/culture facts (the generic pool has both and random selection was the bug).
+    _food_question_markers = ("有什么好吃", "有什么吃的", "有什么特色小吃", "有什么美食", "好吃的有什么")
+    if any(m in t for m in _food_question_markers):
+        _CITY_FOOD_POOL: dict = {
+            "西安": ["西安的小吃非常有名！凉皮和肉夹馍是我最喜欢的，特别好吃。",
+                     "西安有很多特色小吃，凉皮、肉夹馍、羊肉泡馍，每一样都很值得尝试。"],
+            "成都": ["成都美食太丰富了，火锅最有名，但担担面、龙抄手也很好吃。",
+                     "成都的火锅和串串香都很出名，小吃种类也非常多。"],
+            "重庆": ["重庆的小面和火锅都很有名，喜欢辣的话一定要去试试！",
+                     "重庆的火锅比成都的还辣，小面的汤底也特别香。"],
+            "上海": ["上海的本帮菜很有特色，红烧肉和清蒸鱼都非常好吃，还有生煎包。",
+                     "上海有很多本地小吃，生煎包、小笼包都是经典，值得一试。"],
+            "南京": ["南京的鸭血粉丝汤特别有名，还有各种鸭肉做的菜，非常有特色。"],
+            "北京": ["北京的烤鸭最有名，炸酱面也很有特色，还有豆汁这种老北京独特的饮品。"],
+            "杭州": ["杭州有东坡肉、西湖醋鱼，还有龙井虾仁，都非常好吃。"],
+        }
+        city = (profile.get("city") or "").strip()
+        hometown = (profile.get("hometown") or "").strip()
+        for _loc, _fpool in _CITY_FOOD_POOL.items():
+            if _loc in t:
+                # If it's the persona's own city/hometown, give a first-person personal answer
+                _food_personal = (_facts.get("food") or "").strip()
+                if _loc in (hometown, city) and _food_personal:
+                    return _food_personal
+                return _pick_not_in(_fpool, f"food_q|{_loc}|{t}", _recent_set)
+        # No specific place named — use persona's own food fact
+        _pf = (_facts.get("food") or "").strip()
+        if _pf:
+            return _pf
+        # Fall through to general feature handler
+
     # City/place feature questions — e.g. "北京有什么特别啊", "重庆有什么好玩？", "那里有什么特别的？"
     # Intent: "what's special/interesting about this place?" — must answer WITH FEATURES, not origin facts.
     _feature_markers = ("有什么特别", "有什么好玩", "有什么有意思", "有什么特色", "有什么好", "怎么样啊", "怎么样呢")
@@ -2933,6 +2966,27 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
                         _question_clause = t[_bidx + 1:].strip()
                         break
                 break
+
+        # 1a. Persona travel-fact lookup for foreign/overseas places not in the pool.
+        #     e.g. "日本有什么特别的？" → xiaoming's travel_where: "…最喜欢日本，拉面和温泉印象特别深"
+        #          "法国有什么特别的？" → zhiyuan's travel_where: "…最喜欢法国，觉得他们对历史和艺术的态度很有意思"
+        _tf_where = (_facts.get("travel_where") or _facts.get("travel") or "").strip()
+        if _tf_where:
+            # Extract 2–4 char place-name tokens from the question clause
+            _qplace_candidates = re.findall(r'([\u4e00-\u9fff]{2,4})(?=有什么|有啥|怎么样|好玩|特别|特色)', _question_clause or t)
+            for _qp in _qplace_candidates:
+                if _qp in _CITY_FEATURE_POOL:
+                    break  # handled by pool below; don't intercept
+                if _qp in _tf_where:
+                    # Persona has travelled there — find the clause that mentions it
+                    _tf_clauses = [c.strip() for c in re.split(r'[，。！？、,]', _tf_where) if c.strip()]
+                    _best = next((c for c in _tf_clauses if _qp in c and len(c) > 4), None)
+                    if _best:
+                        _suffix = "。" if _best[-1] not in "。！？" else ""
+                        return _best + _suffix
+                    # Fallback: the full travel fact (first clause)
+                    return _first_clause(_tf_where)
+
         # Check question clause first; then full text as fallback.
         for _loc, _pool in _CITY_FEATURE_POOL.items():
             if _loc in _question_clause:
@@ -5118,6 +5172,15 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
             en = f"Usually by {transport}."
             return (zh, en)
 
+    if topic == "place_food":
+        # "那里有什么好吃的？" — answer from persona's food facts, grounded in hometown knowledge.
+        food_fact = (facts.get("food") or "").strip()
+        if food_fact:
+            return (food_fact, _fact_en("food"))
+        if city_home:
+            return (f"{city_home}的食物很有特色，我很喜欢当地的味道。", "")
+        return ("我觉得当地的食物非常有特色，有机会试试！", "")
+
     if topic in ("place_from", "place_like", "place_special", "place_far", "place_far_or_not", "place_never_been"):
         fact = (facts.get("place") or "").strip()
         if topic == "place_special":
@@ -5396,6 +5459,8 @@ _WM_KNOWN_PLACES: tuple = (
     "苏州", "杭州", "西安", "南京", "武汉", "厦门", "青岛", "兰州",
     "丽江", "桂林", "三亚", "哈尔滨", "乌鲁木齐", "九寨沟",
     "黄山", "张家界", "敦煌", "西双版纳", "大理", "香港", "澳门",
+    # Overseas / foreign travel destinations mentioned by personas
+    "日本", "法国", "泰国", "韩国", "台湾", "欧洲", "越南", "新加坡",
 )
 
 
