@@ -277,7 +277,152 @@ None. The tool writes to `data/review_exports/` exactly as specified in §4 of t
 | `data/review_exports/` not gitignored | Covered by the existing `data/` gitignore rule — no additional change needed. |
 | Long transcripts → large prompt | Transcript already capped at 200 entries by `session_intelligence.py`; no additional cap needed here. Reviewer can further trim manually. |
 
+### Next steps after Slice 2
+
+1. ~~Slice 3: batch export of unreviewed sessions.~~ → **Complete (below)**
+2. Slice 4: structured findings writer — save AI Section G output as `product_intel_v1`.
+3. Slice 5: aggregation rollup — aggregate findings into `product_intel_rollup_v1`.
+
+---
+
+## Phase 0 Slice 3 — Batch export of unreviewed sessions
+
+**Date:** 2026-06-29  
+**Directive:** MandarinOS Phase 0 Slice 3 — Batch export unreviewed sessions for manual AI analysis
+
+### Summary
+
+Slice 3 is complete. A standalone script scans `data/sessions/` for `session_record_v1` files not yet included in any previous batch, then produces a combined Markdown prompt and a manifest JSON. Running the same script again picks up only new sessions. The system is idempotent and additive.
+
+### Files changed
+
+| File | Change type | Notes |
+|---|---|---|
+| `scripts/export_unreviewed_sessions_batch.py` | **New** | Full batch export logic + CLI |
+| `tests/test_export_unreviewed_sessions_batch.py` | **New** | 40 tests |
+| `docs/session_intelligence_implementation_report.md` | Updated | Added this Slice 3 section |
+
+### How to use
+
+```powershell
+# Preview which sessions would be included (no files written):
+python scripts/export_unreviewed_sessions_batch.py --dry-run
+
+# Export unreviewed sessions to batch prompt + manifest:
+python scripts/export_unreviewed_sessions_batch.py --write
+
+# Custom paths:
+python scripts/export_unreviewed_sessions_batch.py \
+    --sessions-root data/sessions \
+    --out-dir data/review_exports/batches \
+    --max-sessions 20 \
+    --write
+
+# Re-export everything (including already-batched sessions):
+python scripts/export_unreviewed_sessions_batch.py --include-reviewed --write
+
+# Write without printing the prompt to stdout:
+python scripts/export_unreviewed_sessions_batch.py --write --no-stdout
+```
+
+### Output files
+
+```
+data/review_exports/batches/
+├── batch_2026-06-29_01.md                    ← batch prompt (paste into ChatGPT/Claude)
+├── batch_2026-06-29_01_manifest.json         ← manifest (tracks what was included)
+├── batch_2026-06-29_02.md                    ← next batch same day
+└── batch_2026-06-29_02_manifest.json
+```
+
+Batch filename: `batch_<YYYY-MM-DD>_<seq>.md` — sequence number increments automatically so re-running the same day never overwrites a previous batch.
+
+### Manifest schema (`batch_manifest_v1`)
+
+```json
+{
+  "schema": "batch_manifest_v1",
+  "batch_id": "batch_2026-06-29_01",
+  "created_at": "2026-06-29T16:10:00+12:00",
+  "sessions_root": "/data/sessions",
+  "output_prompt_path": "/data/review_exports/batches/batch_2026-06-29_01.md",
+  "session_count": 3,
+  "included_sessions": [
+    {
+      "learner_id": "learner_abc",
+      "session_id": "session_001",
+      "source_path": "/data/sessions/learner_abc/session_001.json",
+      "timestamp": "2026-06-29T14:00:00+12:00",
+      "transcript_turn_count": 12
+    }
+  ],
+  "status": "exported_for_manual_ai_review"
+}
+```
+
+### Batch prompt structure
+
+| Part | Content |
+|---|---|
+| Header | Batch ID, session count, learner IDs, date range, total turns, AI constraint warnings |
+| Part 1 — Inventory | Table: session_id / learner_id / persona / mode / timestamp / turns |
+| Part 2 — Evidence | Per-session blocks: counters, event log summary, full transcript table |
+| Part 3 — Scorecards | All scorecard metrics per session |
+| Part 4 — Review tasks | Cross-session instructions for sections A–H |
+
+**Review tasks (A–H) asked of the AI:**
+
+| Task | Output |
+|---|---|
+| A. Learner feedback patterns | Prose (2–3 sentences per learner type) |
+| B. Better Mandarin response patterns | Cross-session table |
+| C. Repeated recovery phrase opportunities | Cross-session table |
+| D. Suspected bugs | JSON array, classified `confirmed`/`suspected`/`observe-only` |
+| E. UX issues | JSON array with classification |
+| F. Conversation-design findings | JSON array with classification |
+| G. Product intel rollup | Complete `product_intel_rollup_v1` JSON block |
+| H. Prioritised Cursor task list | P0/P1/P2/Observe groups |
+
+**AI constraint warnings embedded in every prompt:**
+- Do not overgeneralise from a small number of sessions.
+- Separate learner-specific issues from app/product issues.
+- Cite evidence by session_id and turn index.
+- Do not recommend large architecture changes unless strongly justified.
+- Classify findings: `confirmed` (≥3 occurrences) / `suspected` (2) / `observe-only` (1).
+- Prefer small, testable Cursor tasks.
+
+### Tests added
+
+File: `tests/test_export_unreviewed_sessions_batch.py` — **40 tests, 40 passing**
+
+| Class | Coverage |
+|---|---|
+| `TestFindAllSessions` | Recursive discovery; ignores invalid JSON, wrong schema, arrays, missing dir |
+| `TestReviewedIds` | Reads previous manifests; handles missing dir and malformed files |
+| `TestReviewedExclusion` | Excludes reviewed; `--include-reviewed` overrides |
+| `TestFileOutput` | Prompt and manifest created; schema/fields; included_sessions; originals unmodified |
+| `TestDryRunAndEmpty` | `--dry-run` writes nothing; no-sessions exits 1; all-reviewed exits 1 |
+| `TestMaxSessions` | Caps at `--max-sessions` |
+| `TestBatchFilename` | Date in filename; sequence increments on second call |
+| `TestRenderBatchPrompt` | All 4 Parts; inventory table; Chinese text; tasks A–H; rollup schema; warnings; UTF-8 |
+| `TestCLI` | `--dry-run` no files; no-flags exits 0; `--dry-run --write` exits 1 |
+| `TestSorting` | Sessions sorted oldest-first |
+| `TestNextBatchPath` | Creates dir; increments when files exist |
+
+### Deviations from the architecture document
+
+None. Files written to `data/review_exports/batches/` as specified in §4. No application code modified.
+
+### Risks
+
+| Risk | Mitigation |
+|---|---|
+| Large batch prompt overwhelming the AI context window | `--max-sessions` flag caps sessions per batch (default 20). Split into smaller batches if needed. |
+| PII in batch prompt | Same as Slice 2 — local file, not transmitted. |
+| Manifest drift (session file moved/deleted after batching) | Manifest records `source_path` at time of export; a missing file on re-run is silently skipped. |
+| False "already reviewed" exclusion | Manifest tracks by `session_id` not path, so moved files are still correctly excluded. |
+
 ### Next steps
 
-1. Phase 2: structured findings writer — save the AI's Section G output as a `product_intel_v1` JSON file via a tiny CLI/helper.
-2. Phase 3: aggregation rollup — aggregate `product_intel_v1` files into `product_intel_rollup_v1`.
+1. Slice 4: structured findings writer — CLI to save the AI's Section G (`product_intel_rollup_v1`) output as a JSON file under `data/product_intel/rollups/`.
+2. Slice 5: daily/weekly scheduled batch (cron or Railway scheduled task).
