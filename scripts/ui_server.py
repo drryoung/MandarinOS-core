@@ -9653,10 +9653,10 @@ class Handler(BaseHTTPRequestHandler):
                 # Always advance the retry counter so the next noisy attempt moves to the next level.
                 response.setdefault("state_update", {})["location_retry_count"] = _loc_retry + 1
 
-            # Phase 13A: slot substitution — fill {CITY}/{PLACE}/[CITY] from learner memory
+            # Phase 13A: slot substitution — fill {CITY}/{PLACE}/{HOMETOWN}/[CITY]/[HOMETOWN] from learner memory
             _needs_city_slot = (
-                any(tok in (response.get("frame_text") or "") for tok in ("{CITY}", "{PLACE}"))
-                or "{CITY}" in (response.get("frame_pinyin") or "")
+                any(tok in (response.get("frame_text") or "") for tok in ("{CITY}", "{PLACE}", "{HOMETOWN}"))
+                or any(tok in (response.get("frame_pinyin") or "") for tok in ("{CITY}", "{HOMETOWN}"))
             )
             if _needs_city_slot:
                 _slot_mem = memory if isinstance(memory, dict) else None
@@ -9666,25 +9666,35 @@ class Handler(BaseHTTPRequestHandler):
                     if _sl_lid:
                         _slot_mem = _lm_load(_sl_lid)
                 if isinstance(_slot_mem, dict):
+                    # {CITY}/{PLACE}: current residence (lives_in → hometown fallback)
                     _city = (_slot_mem.get("lives_in") or _slot_mem.get("hometown") or "").strip()
                     if _city:
-                        if "{CITY}" in (response.get("frame_text") or ""):
-                            response["frame_text"] = response["frame_text"].replace("{CITY}", _city)
-                        if "{PLACE}" in (response.get("frame_text") or ""):
-                            response["frame_text"] = response["frame_text"].replace("{PLACE}", _city)
+                        for _tok in ("{CITY}", "{PLACE}"):
+                            if _tok in (response.get("frame_text") or ""):
+                                response["frame_text"] = response["frame_text"].replace(_tok, _city)
                         if "{CITY}" in (response.get("frame_pinyin") or ""):
                             response["frame_pinyin"] = response["frame_pinyin"].replace("{CITY}", _city)
                         if "[CITY]" in (response.get("frame_text_en") or ""):
                             response["frame_text_en"] = response["frame_text_en"].replace("[CITY]", _city)
-                # Safety net: if any {CITY}/{PLACE} token survived (no memory, or memory load failed),
+                    # {HOMETOWN}: specifically the origin/hometown place
+                    _hometown = (_slot_mem.get("hometown") or "").strip()
+                    if _hometown:
+                        if "{HOMETOWN}" in (response.get("frame_text") or ""):
+                            response["frame_text"] = response["frame_text"].replace("{HOMETOWN}", _hometown)
+                        if "{HOMETOWN}" in (response.get("frame_pinyin") or ""):
+                            response["frame_pinyin"] = response["frame_pinyin"].replace("{HOMETOWN}", _hometown)
+                        if "[HOMETOWN]" in (response.get("frame_text_en") or ""):
+                            response["frame_text_en"] = response["frame_text_en"].replace("[HOMETOWN]", _hometown)
+                # Safety net: if any slot token survived (no memory or memory load failed),
                 # replace with 那儿 so the raw placeholder never reaches the learner UI.
-                for _tok, _fb in (("{CITY}", "那儿"), ("{PLACE}", "那儿")):
+                for _tok, _fb in (("{CITY}", "那儿"), ("{PLACE}", "那儿"), ("{HOMETOWN}", "那儿")):
                     if _tok in (response.get("frame_text") or ""):
                         response["frame_text"] = response["frame_text"].replace(_tok, _fb)
                     if _tok in (response.get("frame_pinyin") or ""):
                         response["frame_pinyin"] = response["frame_pinyin"].replace(_tok, "nàr")
-                if "[CITY]" in (response.get("frame_text_en") or ""):
-                    response["frame_text_en"] = response["frame_text_en"].replace("[CITY]", "there")
+                for _en_tok, _en_fb in (("[CITY]", "there"), ("[HOMETOWN]", "there")):
+                    if _en_tok in (response.get("frame_text_en") or ""):
+                        response["frame_text_en"] = response["frame_text_en"].replace(_en_tok, _en_fb)
             # Safety net: {NAME} slot — fill from persona display_name; never reach the learner as raw token.
             if "{NAME}" in (response.get("frame_text") or ""):
                 _name_fill = _assistant_name_from_persona(persona) if persona else ""
