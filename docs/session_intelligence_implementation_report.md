@@ -564,3 +564,158 @@ File: `tests/test_session_admin_endpoints.py` — **34 tests, 34 passing**
 ### Deviations from the architecture document
 
 None. Read-only export endpoints are exactly the kind of additive tooling described in §Phase 1 of the architecture document.
+
+---
+
+## Phase 0 Slice 5 — One-command local review pipeline
+
+**Date:** 2026-06-29  
+**Directive:** MandarinOS Session Intelligence — Add one-command local review pipeline
+
+### Summary
+
+Phase 0 Slice 5 is complete. Three new files automate the full operational
+workflow — from downloading Railway session files to producing a batch review
+prompt — in a single command.
+
+---
+
+### Files added
+
+| File | Purpose |
+|---|---|
+| `scripts/import_sessions_from_server.py` | Download missing `session_record_v1` files from Railway via the Slice 4 admin endpoints. Safe to run repeatedly; skips existing files by default. |
+| `scripts/run_session_review_pipeline.py` | Orchestrates import → batch export → print/open in one command. |
+| `tools/session_review.ps1` | PowerShell wrapper — reads env vars, calls the pipeline, prints next-step instructions. |
+| `tools/session_review_sample_env.ps1` | Placeholder env file (no real secrets) for first-time setup reference. |
+| `tests/test_session_review_pipeline.py` | 41 tests (all passing). |
+
+---
+
+### Normal user workflow
+
+**First-time setup** (run once per terminal session):
+
+```powershell
+$env:MANDARINOS_APP_URL          = "https://mandarinos-core-production.up.railway.app"
+$env:MANDARINOS_BETA_ADMIN_TOKEN = "beta_export_local"
+```
+
+**Every review run:**
+
+```powershell
+.\tools\session_review.ps1
+```
+
+**Expected output:**
+
+```
+MandarinOS Session Review Pipeline
+===================================
+App URL    : https://...railway.app
+Token      : beta****
+
+[pipeline] Step 1: Importing sessions from Railway…
+[import] 4 session(s) listed on server
+[import] [local] sess_abc  (learner_xyz)
+[import] [ok] sess_def  learner=learner_xyz  turns=12  → data/sessions/...
+
+[pipeline] Step 2: Exporting unreviewed sessions…
+
+[pipeline] Done.
+
+  Batch prompt : data\review_exports\batches\batch_2026-06-29_01.md
+  Manifest     : data\review_exports\batches\batch_2026-06-29_01_manifest.json
+
+  Next steps:
+  1. Open the batch prompt file above.
+  2. Copy the entire contents.
+  3. Paste into ChatGPT or Claude (Projects recommended).
+  4. Save the AI response as a product_intel_v1 document.
+```
+
+---
+
+### Script reference
+
+#### `import_sessions_from_server.py`
+
+```powershell
+# Preview (no files written):
+python scripts/import_sessions_from_server.py --dry-run
+
+# Download missing sessions:
+python scripts/import_sessions_from_server.py `
+    --app-url $env:MANDARINOS_APP_URL `
+    --admin-token $env:MANDARINOS_BETA_ADMIN_TOKEN
+
+# Force re-download of existing files:
+python scripts/import_sessions_from_server.py `
+    --app-url $env:MANDARINOS_APP_URL `
+    --admin-token $env:MANDARINOS_BETA_ADMIN_TOKEN `
+    --overwrite
+```
+
+Flags: `--app-url`, `--admin-token`, `--out-root`, `--dry-run`, `--overwrite`, `--quiet`
+
+#### `run_session_review_pipeline.py`
+
+```powershell
+# Full pipeline:
+python scripts/run_session_review_pipeline.py `
+    --app-url $env:MANDARINOS_APP_URL `
+    --admin-token $env:MANDARINOS_BETA_ADMIN_TOKEN `
+    --open
+
+# Skip import, use only local sessions:
+python scripts/run_session_review_pipeline.py --skip-import
+
+# Dry-run (shows what would happen):
+python scripts/run_session_review_pipeline.py --dry-run
+```
+
+Flags: `--app-url`, `--admin-token`, `--skip-import`, `--dry-run`, `--open`,
+`--max-sessions`, `--include-reviewed`, `--sessions-root`, `--out-dir`
+
+---
+
+### Security design
+
+| Concern | Mitigation |
+|---|---|
+| No hardcoded tokens | `--admin-token` from flag or `$MANDARINOS_BETA_ADMIN_TOKEN` env var only |
+| Path traversal via `learner_id` / `session_id` | `_is_valid_path_component()` rejects `/`, `\`, `..`, empty, and other unsafe chars |
+| Wrong schema written to disk | Schema check before `_atomic_write_json()`; failed sessions counted in `result.failed` |
+| Existing files overwritten silently | Default: skip; `--overwrite` required explicitly |
+| Multiple simultaneous runs | Atomic temp-file write (`tempfile.mkstemp` + `shutil.move`) |
+
+---
+
+### Tests added
+
+File: `tests/test_session_review_pipeline.py` — **41 tests, 41 passing**
+
+| Category | Tests |
+|---|---|
+| HTTP fetch: list endpoint | success, 403, 401, 500, connection error |
+| Import: download | downloads missing, writes valid JSON, creates subdirectory |
+| Import: skip | skips already-local, --overwrite re-downloads |
+| Import: schema guard | rejects wrong schema, does not write bad file |
+| Import: dry-run | skips all, writes nothing |
+| Import: auth | 403 raises PermissionError |
+| Import: path safety | path traversal in learner_id, session_id, empty IDs, parametrized path component tests |
+| Pipeline: full flow | creates batch + manifest after import |
+| Pipeline: clean exit | exits 1 cleanly when all sessions already reviewed |
+| Pipeline: skip-import | runs batch export against local sessions only |
+| PowerShell wrapper | file exists, no real tokens, reads env vars, calls pipeline script |
+| Sample env file | file exists, placeholder-only content |
+| ImportResult | summary lines, ok() true/false |
+| Source checks | scripts exist, no hardcoded tokens, correct imports |
+
+---
+
+### Deviations from the architecture document
+
+None. This slice automates the manual download steps already described in the
+Slice 4 "PowerShell download commands" section, without adding any new data
+structures or LLM calls.
