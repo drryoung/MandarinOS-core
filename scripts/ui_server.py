@@ -2636,7 +2636,8 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
     # Persona-self hometown precedence — always answer in first person; never let these
     # fall through to _CITY_LOCATION_BRIEF or encyclopedic place-fact tables.
     _PERSONA_HOMETOWN_MARKERS = (
-        "你老家", "你的老家", "你家乡", "你是哪里人", "你从哪里来", "你哪里人",
+        "你老家", "你的老家", "你家乡", "你的家乡", "家乡在哪", "家乡是哪",
+        "你是哪里人", "你从哪里来", "你哪里人",
     )
     if any(m in t for m in _PERSONA_HOMETOWN_MARKERS):
         hometown = (profile.get("hometown") or "").strip()
@@ -2677,8 +2678,9 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
                              "你的名字叫", "你名字叫")):
         return (f"你可以叫我{name}。" if name else None)
 
-    # Job / work
-    if any(p in t for p in ("你做什么工作", "你的工作", "你是做什么", "你工作")):
+    # Job / work — include "什么类型/什么样的工作" so work-type questions answer job.
+    if any(p in t for p in ("你做什么工作", "你的工作", "你是做什么", "你工作",
+                             "什么类型的工作", "类型的工作", "什么样的工作", "哪种工作")):
         occ = (profile.get("occupation") or "").strip()
         return voice_lines.get("work") or (f"我是{occ}。" if occ else "我也有工作。")
 
@@ -3097,14 +3099,16 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
                              "这个工作多久", "工作了多久", "做了多长时间", "工作多少年",
                              "做多久了", "做多久", "做多长时间")):
         _work_fact    = (_facts.get("work") or "").strip()
-        _work_origin  = (_facts.get("work_origin") or "").strip()
         _occ          = (profile.get("occupation") or "").strip()
-        if _work_origin:
-            return _work_origin
+        # Duration must answer "how long" — prefer a clause that actually contains a
+        # duration marker (年/久/教了/做了/开始/以来/毕业).  Never return work_origin
+        # here: that is the *reason* the persona took the job, not its duration.
+        _dur_markers = ("年", "久", "教了", "做了", "开始", "以来", "毕业", "一直")
         if _work_fact:
-            depth = _nth_clause(_work_fact, 1) if _work_fact else ""
-            if depth:
-                return depth
+            _clauses = [c.strip() for c in re.split(r"[，。！？,]", _work_fact) if c.strip()]
+            _dur_clause = next((c for c in _clauses if any(m in c for m in _dur_markers)), "")
+            if _dur_clause:
+                return _dur_clause + ("。" if not _dur_clause.endswith("。") else "")
         if _occ:
             return f"做{_occ}已经好几年了，越来越有经验了。"
         return "已经做了几年了，越做越有意思。"
@@ -3254,7 +3258,28 @@ def _is_plain_affirmation(text: str) -> bool:
 _PLACE_DESC_WORDS: frozenset = frozenset({
     "安静", "方便", "热闹", "繁华", "冷清", "漂亮", "风景", "好看", "景色",
     "美丽", "城市", "市区", "郊区", "农村", "海边", "山边", "湖边",
+    # Broadened semantic content so descriptive place answers advance (see
+    # place_special regression): scenery, nature, food, cleanliness, ports.
+    "山", "水", "动物", "牛肉", "羊肉", "冰淇淋", "干净", "海", "港口", "食物",
 })
+
+# Extra content words accepted specifically for the "有什么特别的？" place-special
+# question.  Superset of _PLACE_DESC_WORDS plus a few single-char tokens that are
+# too broad for generic location validation but valid as place-special content.
+_PLACE_SPECIAL_CONTENT_WORDS: frozenset = _PLACE_DESC_WORDS | frozenset({
+    "羊", "小",
+})
+
+
+def _is_place_special_answer(text: str) -> bool:
+    """Return True when `text` contains broad place-special semantic content.
+
+    Used to mark a "这里/那里/你的家乡/…有什么特别的？" question as answered so the
+    conversation advances instead of re-asking. Accepts scenery, nature, animals,
+    food, and quality descriptors (风景/山/水/动物/羊/牛肉/港口/干净/…).
+    """
+    t = (text or "").strip()
+    return bool(t) and any(w in t for w in _PLACE_SPECIAL_CONTENT_WORDS)
 
 
 def _is_place_description(text: str) -> bool:
@@ -3576,7 +3601,7 @@ def _place_followup_reply(t: str, persona: Optional[dict],
         # Persona-directed location question: "你住在哪里？" / "你老家在哪儿？" / "你在哪里工作？"
         # Must answer personally first ("我住在X") then optionally add city description.
         # Only personalise when no specific city is named in the question itself.
-        _PERSONA_LOC_MARKERS = ("你住", "你老家", "你的老家", "你现在在", "你在哪里工作", "你在哪工作", "你工作在哪")
+        _PERSONA_LOC_MARKERS = ("你住", "你老家", "你的老家", "你家乡", "你的家乡", "你现在在", "你在哪里工作", "你在哪工作", "你工作在哪")
         _is_persona_loc_q = any(m in t for m in _PERSONA_LOC_MARKERS) and not _asked_city
         if _is_persona_loc_q:
             # Determine which kind of location is being asked about.
@@ -3653,6 +3678,108 @@ def _place_distance_counter_reply(t: str, persona: Optional[dict]) -> Optional[t
     zh, en = pool[i]
     zh_out = f"我呢，{zh}" if not zh.startswith(("我", "嗯")) else zh
     return (zh_out, en)
+
+
+# ── Reverse fact map ──────────────────────────────────────────────────────────
+# Distinct persona answers per direct-question intent, derived from persona data
+# (no hardcoded persona strings — extensible across personas).  Restores clear
+# separation so hometown/work questions don't collapse into one generic answer.
+
+def _detect_reverse_fact_intent(text: str) -> Optional[str]:
+    """Classify a direct persona question into a reverse-fact intent, or None."""
+    t = _strip_leading_fillers((text or "").strip()).replace("您", "你")
+    if not t:
+        return None
+    if any(p in t for p in ("结婚", "对象", "成家", "单身", "男朋友", "女朋友")):
+        return "marriage"
+    if any(p in t for p in ("多大", "几岁", "年龄", "今年多大")):
+        return "age"
+    if any(p in t for p in ("好吃", "美食")) or ("有什么" in t and "吃" in t):
+        return "hometown_food"
+    if any(p in t for p in ("特别", "特色", "有名")):
+        return "hometown_special"
+    if any(p in t for p in ("工作多久", "做多久", "做多长时间", "工作多长时间",
+                             "工作多少年", "这个工作多久", "这份工作多久")):
+        return "work_duration"
+    if any(p in t for p in ("为什么当", "为什么做", "为什么选", "为什么想当", "怎么会当")):
+        return "work_reason"
+    if any(p in t for p in ("做什么工作", "什么工作", "类型的工作", "什么样的工作",
+                             "你的工作", "你是做什么")):
+        return "job"
+    if any(p in t for p in ("家乡", "老家", "哪里人", "从哪里来")):
+        # location vs identity: "家乡在哪" asks where → hometown_where
+        return "hometown_where"
+    return None
+
+
+def _reverse_fact_answer(intent: str, persona: Optional[dict]) -> str:
+    """Return a distinct persona answer for a reverse-fact intent, derived from
+    persona profile / voice_lines / discoverable_facts.  Returns "" when unknown."""
+    profile = (persona or {}).get("profile") or {}
+    facts   = (persona or {}).get("discoverable_facts") or {}
+    vl      = (persona or {}).get("voice_lines") or {}
+    ht      = (profile.get("hometown") or "").strip()
+    city    = (profile.get("city") or "").strip()
+    occ     = (profile.get("occupation") or "").strip()
+    age     = profile.get("age")
+
+    if intent == "hometown_where":
+        if ht:
+            return f"我老家在{ht}。"
+        return (vl.get("place") or "").strip()
+    if intent == "hometown_location":
+        brief = _CITY_LOCATION_BRIEF.get(ht) or _CITY_LOCATION_BRIEF.get(city)
+        if brief:
+            return brief
+        return f"{ht}在中国。" if ht else ""
+    if intent == "hometown_special":
+        return (facts.get("place") or "").strip()
+    if intent == "hometown_food":
+        return (facts.get("food") or "").strip()
+    if intent == "job":
+        return (vl.get("work") or facts.get("work") or (f"我是{occ}。" if occ else "")).strip()
+    if intent == "work_duration":
+        _work_fact = (facts.get("work") or "").strip()
+        if _work_fact:
+            _markers = ("年", "久", "教了", "做了", "开始", "以来", "毕业", "一直")
+            _clauses = [c.strip() for c in re.split(r"[，。！？,]", _work_fact) if c.strip()]
+            _dur = next((c for c in _clauses if any(m in c for m in _markers)), "")
+            if _dur:
+                return _dur + ("。" if not _dur.endswith("。") else "")
+        return "已经做了几年了。"
+    if intent == "work_reason":
+        return (facts.get("work_origin") or "").strip()
+    if intent == "age":
+        if age and isinstance(age, (int, float)):
+            return f"我今年{int(age)}岁。"
+        return ""
+    if intent == "marriage":
+        _m = (facts.get("marriage") or "").strip()
+        if _m:
+            return _m
+        return _persona_deflect("marriage", "")
+    return ""
+
+
+def _dedupe_persona_answer(candidate: str, recent_replies: Optional[list],
+                            text: str, persona: Optional[dict]) -> str:
+    """Anti-repetition guard: if `candidate` was already given recently, re-run
+    intent matching for `text` and return a distinct reverse-fact answer instead.
+
+    Prevents the persona from emitting the same answer (e.g. the city-location
+    brief) twice in a row to different questions.
+    """
+    cand = (candidate or "").strip()
+    recent = [r for r in (recent_replies or []) if r]
+    if not cand or cand not in recent:
+        return candidate
+    intent = _detect_reverse_fact_intent(text)
+    if intent:
+        alt = _reverse_fact_answer(intent, persona)
+        if alt and alt.strip() != cand and alt.strip() not in recent:
+            return alt
+    # Fall back to a gentle generic variation rather than repeating verbatim.
+    return _persona_deflect("generic", cand)
 
 
 def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[dict],
@@ -4535,6 +4662,94 @@ def _text_signals_travel_intent(text: str) -> bool:
     if any(k in text for k in _TRAVEL_INTENT_KEYWORDS):
         return True
     return any(k in text for k in ("旅行", "旅游", "去过"))
+
+
+# Volunteered travel intent — an explicit "I want/plan to go to X" statement, or a
+# future-time marker + 去 X.  Distinct from _has_strong_travel_signal (enthusiasm
+# phrases like 很喜欢旅行) so a plain "我想去甘肃" also routes to travel.
+_TRAVEL_INTENT_VERBS: tuple = ("想去", "要去", "打算去", "计划去", "希望去", "准备去")
+_TRAVEL_TIME_MARKERS: tuple = (
+    "明年", "下个月", "下周", "下星期", "明天", "后天", "以后", "将来", "过几天",
+    "一月", "二月", "三月", "四月", "五月", "六月",
+    "七月", "八月", "九月", "十月", "十一月", "十二月",
+)
+
+
+def _has_volunteered_travel_intent(text: str) -> bool:
+    """True when the learner volunteers a concrete travel plan.
+
+    Matches: 我想去 X / 我要去 X / 我打算去 X / …, or a time marker (九月/明年/…) + 去 X.
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    if any(v in t for v in _TRAVEL_INTENT_VERBS):
+        return True
+    if "去" in t and any(m in t for m in _TRAVEL_TIME_MARKERS):
+        return True
+    return False
+
+
+def _extract_travel_destination(text: str) -> str:
+    """Extract the destination from a volunteered travel-intent statement.
+
+    Prefers the destination after an intent verb (想去/要去/…); falls back to the
+    place after a time-marker + 去.  Returns "" when nothing plausible is found.
+    """
+    t = (text or "").strip()
+    if not t:
+        return ""
+    # Prefer the intent-verb destination (want to go > will go somewhere).
+    for verb in _TRAVEL_INTENT_VERBS:
+        idx = t.rfind(verb)
+        if idx != -1:
+            tail = t[idx + len(verb):]
+            dest = re.split(r"[，,。.！!？?、\s]", tail, maxsplit=1)[0].strip()
+            dest = dest.strip("的了吧呢啊")
+            if dest and re.fullmatch(r"[\u4e00-\u9fffA-Za-z]+", dest):
+                return dest[:6]
+    # Fall back to the place after a bare 去 (first occurrence).
+    m = re.search(r"去([\u4e00-\u9fff]{2,6})", t)
+    if m:
+        return m.group(1).strip("的了吧呢啊")
+    return ""
+
+
+def _travel_intent_followup(text: str) -> tuple:
+    """Return (zh, en) travel follow-up for a volunteered travel intent.
+
+    e.g. "甘肃很有意思。你为什么想去甘肃？"  Falls back to a generic travel probe
+    when the destination cannot be extracted.
+    """
+    dest = _extract_travel_destination(text)
+    if dest:
+        zh = f"{dest}很有意思。你为什么想去{dest}？"
+        en = f"{dest} is interesting. Why do you want to go to {dest}?"
+        return (zh, en)
+    return ("听起来你想去旅行。你最想去哪里？", "Sounds like you'd love to travel. Where would you most like to go?")
+
+
+def _should_route_to_travel(
+    answer_text: str,
+    current_engine: str,
+    user_asked_question: bool,
+    slot_names: Optional[list] = None,
+) -> bool:
+    """Whether a learner turn should bridge the conversation to the travel engine.
+
+    Fires on volunteered travel intent (我想去 X / 九月…去 X) regardless of the
+    current frame's slot, OR on an enthusiasm phrase while a TRAVEL slot is active.
+    """
+    if user_asked_question:
+        return False
+    if (current_engine or "").strip().lower() == "travel":
+        return False
+    if _has_volunteered_travel_intent(answer_text):
+        return True
+    _slots = slot_names or []
+    if "TRAVEL" in _slots and _has_strong_travel_signal(answer_text):
+        return True
+    return False
 
 
 def _text_signals_family_disclosure(text: str) -> bool:
@@ -7594,10 +7809,9 @@ class Handler(BaseHTTPRequestHandler):
                 # a question. Double-gated (slot + strong signal) for precision.
                 force_travel_bridge = (
                     last_turn_was_answer
-                    and not user_asked_question
-                    and current_engine != "travel"
-                    and "TRAVEL" in slot_names
-                    and _has_strong_travel_signal(answer_text)
+                    and _should_route_to_travel(
+                        answer_text, current_engine, user_asked_question, slot_names,
+                    )
                 )
                 # Early sentinel: some code below writes to _sel_trace before the full init.
                 # Initialize empty here; the full dict replaces it a few lines later.
@@ -8409,11 +8623,20 @@ class Handler(BaseHTTPRequestHandler):
                         cs["repair_attempt_count"]   = 0
                         cs["recent_confusion_count"] = 0
 
-                # Dedup guard: if this counter_reply is identical to the one we gave last turn,
-                # replace it with a gentle variation so the persona doesn't sound stuck.
-                if _counter_reply and _counter_reply.strip() == _prev_counter_reply:
-                    _counter_reply = _persona_deflect("generic", _counter_reply)
-                    _counter_reply_en = _persona_deflect_en(_counter_reply)
+                # Dedup guard: if this counter_reply repeats the previous one OR any of the
+                # last few persona replies, re-run intent matching (reverse_fact_map) so a
+                # different-intent question gets its own distinct answer instead of a repeat.
+                _dedup_pool = ([_prev_counter_reply] if _prev_counter_reply else []) + list(_recent_persona_replies or [])
+                if _counter_reply and _counter_reply.strip() in _dedup_pool:
+                    _deduped = _dedupe_persona_answer(
+                        _counter_reply, _dedup_pool, _last_text_for_counter, persona,
+                    )
+                    if _deduped and _deduped.strip() != _counter_reply.strip():
+                        _counter_reply = _deduped
+                        _counter_reply_en = _en_for_counter_reply(_counter_reply, _counter_reply) or ""
+                    else:
+                        _counter_reply = _persona_deflect("generic", _counter_reply)
+                        _counter_reply_en = _persona_deflect_en(_counter_reply)
 
                 # ── Repair escalation ───────────────────────────────────────────
                 # When the learner repeatedly signals confusion (啊？ / 我不懂 / etc.),

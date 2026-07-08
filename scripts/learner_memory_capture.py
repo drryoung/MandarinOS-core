@@ -9,6 +9,86 @@ No persistence; ui_server applies updates and persists by learner_id.
 import re
 from typing import Dict, Optional
 
+# ── Place normalisation (STT sanity check) ────────────────────────────────────
+# Raw ASR output must never be promoted into user memory / template variables
+# without a sanity check.  Corrupted prefixes (e.g. "等你等") are rejected and the
+# entity is snapped to a known place name where possible.
+
+# Known ASR-junk fragments that sometimes prefix a real place in noisy STT.
+_ASR_JUNK_FRAGMENTS: tuple = (
+    "等你等", "等一等", "等等你", "等你", "那个那个", "就是就是", "呃呃", "嗯嗯",
+)
+
+# Canonical place names, checked longest-first so specific regions win.
+# Includes the learner-facing NZ places from the regression plus common cities.
+_KNOWN_PLACES_CANONICAL: tuple = (
+    "新西兰南岛", "新西兰南部", "新西兰北岛", "新西兰",
+    "达尼丁", "奥克兰", "惠灵顿", "基督城",
+    "北京", "上海", "广州", "深圳", "杭州", "南京", "苏州", "成都", "重庆",
+    "武汉", "西安", "青岛", "厦门", "天津", "昆明", "兰州", "甘肃",
+    "澳大利亚", "澳洲", "美国", "英国", "加拿大", "日本", "韩国", "法国",
+    "德国", "新加坡", "马来西亚", "泰国", "中国",
+)
+
+# English → Hanzi normalisation for common learner place names.
+_PLACE_ALIASES: dict = {
+    "dunedin": "达尼丁",
+    "auckland": "奥克兰",
+    "wellington": "惠灵顿",
+    "christchurch": "基督城",
+    "new zealand": "新西兰",
+}
+
+
+def normalize_place_name(raw: Optional[str]) -> Optional[str]:
+    """Normalise a raw (possibly ASR-corrupted) place string.
+
+    Rules:
+      - Strip known ASR-junk fragments (e.g. "等你等").
+      - Map English aliases (Dunedin → 达尼丁).
+      - Snap to the longest matching canonical place name.
+      - "新西兰...南方/南部/南" → 新西兰南岛 (cautious canonicalisation).
+      - Return None when nothing plausible remains (reject rather than store garbage).
+    """
+    if not raw or not isinstance(raw, str):
+        return None
+    s = raw.strip()
+    if not s:
+        return None
+
+    # English aliases (case-insensitive, exact or contained).
+    low = s.lower()
+    for alias, canon in _PLACE_ALIASES.items():
+        if alias in low:
+            if alias == "new zealand":
+                # fall through to south-island handling below via canon substitution
+                s = s.replace(s, canon) if s.lower() == alias else (canon + s)
+            else:
+                return canon
+
+    # Remove ASR-junk fragments anywhere in the string.
+    for junk in _ASR_JUNK_FRAGMENTS:
+        s = s.replace(junk, "")
+    s = s.strip("的 ，,。.、").strip()
+    if not s:
+        return None
+
+    # New Zealand south-region cautious canonicalisation.
+    if "新西兰" in s and ("南岛" in s or "南方" in s or "南部" in s or s.endswith("南")):
+        return "新西兰南岛"
+
+    # Snap to the longest matching canonical place name.
+    for place in _KNOWN_PLACES_CANONICAL:
+        if place in s:
+            return place
+
+    # No known place matched.  Accept only if the remainder looks like a plausible
+    # short place token (2-6 CJK chars, no residual latin/spaces); else reject.
+    if 2 <= len(s) <= 6 and re.fullmatch(r"[\u4e00-\u9fff]+", s):
+        return s
+    return None
+
+
 # Frame IDs that map to a single learner_memory field (no ambiguity)
 _NAME_FRAMES = ("f_ask_you_name",)
 _ORIGIN_FRAMES = ("f_from_where",)   # → hometown (origin/nationality)
@@ -65,34 +145,52 @@ def _extract_origin_from_hanzi(hanzi: str) -> Optional[str]:
         return None
     s = hanzi.strip()
     first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
+    raw = None
     m = re.match(r"我是\s*(.+?)人\s*$", first)
     if m:
-        return m.group(1).strip() or None
-    if "人" in first and "我是" in first:
+        raw = m.group(1).strip() or None
+    elif "人" in first and "我是" in first:
         idx = first.find("我是") + 2
         end = first.rfind("人")
         if end > idx:
-            return first[idx:end].strip() or None
+            raw = first[idx:end].strip() or None
+    if not raw:
+        return None
+    # Normalise origin too, but fall back to the raw token when it is a plausible
+    # short Chinese place that isn't in the canonical list (e.g. small towns).
+    norm = normalize_place_name(raw)
+    if norm:
+        return norm
+    if 2 <= len(raw) <= 6 and re.fullmatch(r"[\u4e00-\u9fff]+", raw):
+        return raw
     return None
 
 
 def _extract_city_from_hanzi(hanzi: str) -> Optional[str]:
-    """Extract city from '我现在住在XXX。' or '我现在住XXX。' → XXX."""
+    """Extract city from '我现在住在XXX。' or '我现在住XXX。' → XXX.
+
+    The extracted entity is normalised (ASR-junk stripped, snapped to a known
+    place) before being returned so corrupted STT (e.g. "等你等新西兰的南方") is
+    never promoted into learner memory / template variables.
+    """
     if not hanzi or not isinstance(hanzi, str):
         return None
     s = hanzi.strip()
     first = re.split(r"[。.]", s, maxsplit=1)[0].strip()
+    raw = None
     # Match 住在XXX and 住XXX (with or without 在, with or without 我/现在 prefix)
     m = re.match(r"(?:我)?(?:现在)?住(?:在)?\s*(.+?)\s*$", first)
     if m:
-        return m.group(1).strip() or None
-    if "住在" in first:
+        raw = m.group(1).strip() or None
+    elif "住在" in first:
         idx = first.find("住在") + 2
-        return first[idx:].strip() or None
-    if "住" in first:
+        raw = first[idx:].strip() or None
+    elif "住" in first:
         idx = first.find("住") + 1
-        return first[idx:].strip() or None
-    return None
+        raw = first[idx:].strip() or None
+    if not raw:
+        return None
+    return normalize_place_name(raw)
 
 
 def _extract_job_and_company_from_hanzi(hanzi: str) -> tuple:
