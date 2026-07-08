@@ -290,3 +290,60 @@ class TestAntiRepetition:
         cand = "西安在中国西北，是个历史很悠久的古都。"
         out = srv._dedupe_persona_answer(cand, [cand], "西安有什么特别的", meiling)
         assert out != cand
+
+
+# ── Dedupe alternative answers must carry a non-empty English translation ───────
+
+class TestDedupeTranslation:
+    """When dedupe swaps in an alternative reverse-fact answer, the English gloss
+    must not be empty for dynamically-built answers (e.g. "我老家在西安。")."""
+
+    _BRIEF = "西安在中国西北，是个历史很悠久的古都。"
+
+    def test_helper_exists(self, srv):
+        assert hasattr(srv, "_persona_answer_en")
+        assert hasattr(srv, "_reverse_fact_answer_en")
+
+    def _deduped_pair(self, srv, meiling, question):
+        alt = srv._dedupe_persona_answer(self._BRIEF, [self._BRIEF], question, meiling)
+        intent = srv._detect_reverse_fact_intent(question)
+        en = srv._persona_answer_en(meiling, alt, intent)
+        return alt, en
+
+    def test_hometown_where_alt_has_zh_and_en(self, srv, meiling):
+        alt, en = self._deduped_pair(srv, meiling, "你老家在哪")
+        assert alt.strip() and alt.strip() != self._BRIEF
+        assert "西安" in alt                     # dynamic "我老家在西安。"
+        assert en.strip()                        # non-empty English
+
+    def test_hometown_food_alt_has_zh_and_en(self, srv, meiling):
+        alt, en = self._deduped_pair(srv, meiling, "你老家有什么好吃的")
+        assert alt.strip() and alt.strip() != self._BRIEF
+        assert en.strip()
+
+    def test_dynamic_hometown_where_translation_nonempty(self, srv, meiling):
+        # Directly translate a dynamic reverse-fact answer.
+        en = srv._persona_answer_en(meiling, "我老家在西安。", "hometown_where")
+        assert en.strip()
+
+    def test_dynamic_work_duration_translation_nonempty(self, srv, meiling):
+        en = srv._persona_answer_en(meiling, "我已经教了八年了。", "work_duration")
+        assert en.strip()
+
+    def test_age_translation_nonempty(self, srv, meiling):
+        en = srv._persona_answer_en(meiling, "我今年32岁。", "age")
+        assert en.strip()
+        assert "32" in en
+
+    def test_voice_line_translation_still_works(self, srv, meiling):
+        # A persona voice_line must map to its voice_lines_en counterpart.
+        zh = meiling["voice_lines"]["place"]
+        en = srv._persona_answer_en(meiling, zh)
+        assert en.strip() == meiling["voice_lines_en"]["place"].strip()
+
+    def test_deflection_translation_still_works(self, srv, meiling):
+        # A predefined deflection phrase must still resolve via the deflection map.
+        phrase = srv._persona_deflect("marriage", "")
+        expected = srv._persona_deflect_en(phrase)
+        if expected:  # only assert when a curated EN gloss exists
+            assert srv._persona_answer_en(meiling, phrase).strip() == expected.strip()

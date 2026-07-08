@@ -3761,6 +3761,72 @@ def _reverse_fact_answer(intent: str, persona: Optional[dict]) -> str:
     return ""
 
 
+def _reverse_fact_answer_en(intent: str, persona: Optional[dict]) -> str:
+    """English counterpart to _reverse_fact_answer for dynamically-constructed
+    reverse-fact answers (e.g. "我老家在西安。" / "我今年32岁。").  Derived from the
+    persona *_en maps / profile so the dedupe path never emits an empty English
+    translation.  Returns "" when no English source exists."""
+    profile  = (persona or {}).get("profile") or {}
+    facts_en = (persona or {}).get("discoverable_facts_en") or {}
+    vl_en    = (persona or {}).get("voice_lines_en") or {}
+    ht       = (profile.get("hometown") or "").strip()
+    age      = profile.get("age")
+
+    if intent == "hometown_where":
+        return (vl_en.get("place") or facts_en.get("place_from")
+                or (f"My hometown is {ht}." if ht else "")).strip()
+    if intent == "hometown_location":
+        return (facts_en.get("place") or vl_en.get("place") or "").strip()
+    if intent == "hometown_special":
+        return (facts_en.get("place") or "").strip()
+    if intent == "hometown_food":
+        return (facts_en.get("food") or "").strip()
+    if intent == "job":
+        return (vl_en.get("work") or facts_en.get("work") or "").strip()
+    if intent == "work_duration":
+        return (facts_en.get("work") or vl_en.get("work") or "").strip()
+    if intent == "work_reason":
+        return (facts_en.get("work_origin") or "").strip()
+    if intent == "age":
+        if age and isinstance(age, (int, float)):
+            return f"I'm {int(age)} years old."
+        return ""
+    if intent == "marriage":
+        return (facts_en.get("marriage") or "").strip()
+    return ""
+
+
+def _persona_answer_en(persona: Optional[dict], zh: str,
+                       intent: Optional[str] = None) -> str:
+    """Single translation path for Chinese persona answers.
+
+    Resolution order (same precedence used by _direct_persona_answer):
+      1. persona voice_line → _voice_line_en_for_zh
+      2. predefined deflection phrase → _en_for_counter_reply (handles 我呢， wrapper)
+      3. dynamic reverse-fact answer (given `intent`) → _reverse_fact_answer_en
+
+    Returns "" only when no English source exists at all.
+    """
+    d = (zh or "").strip()
+    if not d:
+        return ""
+    inner = d[len("我呢，"):].strip() if d.startswith("我呢，") else d
+    # 1) deflection phrase (fixed) — mirrors the direct-answer path precedence.
+    en = _en_for_counter_reply(d, inner)
+    if en:
+        return en
+    # 2) persona voice line (match full string or inner phrase).
+    en = _voice_line_en_for_zh(persona, d) or _voice_line_en_for_zh(persona, inner)
+    if en:
+        return en
+    # 3) dynamic reverse-fact answer, keyed by intent.
+    if intent:
+        en = _reverse_fact_answer_en(intent, persona)
+        if en:
+            return en
+    return ""
+
+
 def _dedupe_persona_answer(candidate: str, recent_replies: Optional[list],
                             text: str, persona: Optional[dict]) -> str:
     """Anti-repetition guard: if `candidate` was already given recently, re-run
@@ -3835,7 +3901,7 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     _direct = _direct_persona_answer(t, persona, recent_replies=recent_replies)
     if _direct:
         zh = f"我呢，{_direct}" if not _direct.startswith("我") else _direct
-        en = _en_for_counter_reply(zh, _direct) or _voice_line_en_for_zh(persona, _direct)
+        en = _persona_answer_en(persona, zh, _detect_reverse_fact_intent(t))
         return (zh, en)
 
     # Generic 你呢 — whether standalone or at end of a compound answer
@@ -8633,10 +8699,16 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     if _deduped and _deduped.strip() != _counter_reply.strip():
                         _counter_reply = _deduped
-                        _counter_reply_en = _en_for_counter_reply(_counter_reply, _counter_reply) or ""
+                        # Translate via the shared persona-answer path so dynamic
+                        # reverse-fact answers (e.g. "我老家在西安。") get a real English
+                        # gloss instead of an empty string.
+                        _counter_reply_en = _persona_answer_en(
+                            persona, _counter_reply,
+                            _detect_reverse_fact_intent(_last_text_for_counter),
+                        )
                     else:
                         _counter_reply = _persona_deflect("generic", _counter_reply)
-                        _counter_reply_en = _persona_deflect_en(_counter_reply)
+                        _counter_reply_en = _persona_answer_en(persona, _counter_reply)
 
                 # ── Repair escalation ───────────────────────────────────────────
                 # When the learner repeatedly signals confusion (啊？ / 我不懂 / etc.),
