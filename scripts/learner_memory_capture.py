@@ -56,13 +56,19 @@ def normalize_place_name(raw: Optional[str]) -> Optional[str]:
     if not s:
         return None
 
-    # English aliases (case-insensitive, exact or contained).
+    # English aliases (case-insensitive, substring match).
     low = s.lower()
     for alias, canon in _PLACE_ALIASES.items():
         if alias in low:
             if alias == "new zealand":
-                # fall through to south-island handling below via canon substitution
-                s = s.replace(s, canon) if s.lower() == alias else (canon + s)
+                # Replace the English name with the canonical Chinese form (case-
+                # insensitive substring replacement — NOT concatenation) and translate
+                # directional qualifiers so "south/north new zealand" canonicalise via
+                # the NZ region handling below.
+                s = re.sub(re.escape(alias), canon, s, flags=re.IGNORECASE)
+                s = re.sub(r"(?i)\bsouth\b", "南岛", s)
+                s = re.sub(r"(?i)\bnorth\b", "北岛", s)
+                break
             else:
                 return canon
 
@@ -73,9 +79,11 @@ def normalize_place_name(raw: Optional[str]) -> Optional[str]:
     if not s:
         return None
 
-    # New Zealand south-region cautious canonicalisation.
+    # New Zealand region cautious canonicalisation.
     if "新西兰" in s and ("南岛" in s or "南方" in s or "南部" in s or s.endswith("南")):
         return "新西兰南岛"
+    if "新西兰" in s and ("北岛" in s or "北部" in s):
+        return "新西兰北岛"
 
     # Snap to the longest matching canonical place name.
     for place in _KNOWN_PLACES_CANONICAL:

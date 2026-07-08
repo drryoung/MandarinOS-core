@@ -80,6 +80,27 @@ class TestPlaceNormalization:
     def test_plain_city_preserved(self, lmc):
         assert lmc.normalize_place_name("北京") == "北京"
 
+    def test_new_zealand_english_alias(self, lmc):
+        assert lmc.normalize_place_name("new zealand") == "新西兰"
+        assert lmc.normalize_place_name("New Zealand") == "新西兰"
+
+    def test_south_new_zealand_english_not_concatenated(self, lmc):
+        # Regression: must NOT produce "新西兰south new zealand"; the English text
+        # must be replaced (not concatenated) and canonicalised to an NZ south form.
+        out = lmc.normalize_place_name("south new zealand")
+        assert out is not None
+        assert "new zealand" not in out.lower()
+        assert not any("a" <= c.lower() <= "z" for c in out)
+        assert out in ("新西兰南岛", "新西兰南部")
+
+    def test_north_new_zealand_english(self, lmc):
+        assert lmc.normalize_place_name("north new zealand") == "新西兰北岛"
+
+    def test_english_alias_result_has_no_latin(self, lmc):
+        for raw in ("new zealand", "South New Zealand", "north new zealand"):
+            out = lmc.normalize_place_name(raw)
+            assert out is None or not any("a" <= c.lower() <= "z" for c in out)
+
     def test_extract_city_never_returns_garbage(self, lmc):
         out = lmc._extract_city_from_hanzi("我现在住在等你等新西兰的南方")
         assert out is None or "等你等" not in out
