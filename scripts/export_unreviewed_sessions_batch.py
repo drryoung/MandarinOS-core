@@ -135,6 +135,72 @@ def find_all_sessions(sessions_root: Path) -> List[Tuple[Path, Dict]]:
     return results
 
 
+# ── Session type classification ───────────────────────────────────────────────
+
+def classify_session_type(record: Dict) -> str:
+    """Return a session-type label based on conversational content.
+
+    Labels (mutually exclusive, ordered from most-degenerate to normal):
+
+    aborted_session       — No transcript at all (capture started, immediately ended).
+    empty_session         — Transcript present but zero conversational turns (both
+                            partner and user roles absent, or only the opening frame).
+    recovery_only_session — Only recovery/repair moves, no genuine learner answer
+                            and no substantive partner reply.
+    normal_session        — At least one real learner answer and one partner reply.
+
+    Empty / aborted / recovery-only sessions are excluded from normal session-health
+    averages in review exports unless --include-empty is passed.
+    """
+    transcript = record.get("transcript") or []
+    if not transcript:
+        return "aborted_session"
+
+    partner_turns = [t for t in transcript if t.get("role") == "partner"]
+    learner_turns  = [t for t in transcript if t.get("role") == "user"]
+
+    if not partner_turns and not learner_turns:
+        return "empty_session"
+
+    # Count substantive turns:
+    # - partner: must have text_zh with more than a single clarification/rephrase prefix
+    # - learner: must have text_zh (not empty)
+    _REPHRASE_PREFIXES = ("我是问：", "我是在问：", "我刚刚问的是：", "我的意思是：")
+    _RECOVERY_ONLY_TEXT = frozenset({
+        "再说一遍", "再说一次", "慢一点", "说慢", "啊", "嗯", "什么意思",
+    })
+
+    def _is_substantive_partner(turn: dict) -> bool:
+        zh = (turn.get("text_zh") or "").strip()
+        if not zh:
+            return False
+        # Opening frame with no learner context counts as substantive.
+        # Clarification-only lines (我是问：…) are NOT substantive on their own.
+        return not any(zh.startswith(p) for p in _REPHRASE_PREFIXES)
+
+    def _is_substantive_learner(turn: dict) -> bool:
+        zh = (turn.get("text_zh") or "").strip()
+        return bool(zh) and zh not in _RECOVERY_ONLY_TEXT and len(zh) >= 2
+
+    substantive_partner = sum(1 for t in partner_turns if _is_substantive_partner(t))
+    substantive_learner = sum(1 for t in learner_turns  if _is_substantive_learner(t))
+
+    if substantive_learner == 0:
+        # Learner never gave a substantive response.
+        if len(learner_turns) == 0:
+            # No learner turns at all — only an opening frame (or nothing).
+            return "empty_session"
+        # Learner turns exist but are all recovery phrases (再说一遍, 啊, etc.)
+        return "recovery_only_session"
+
+    return "normal_session"
+
+
+def is_excluded_session_type(session_type: str) -> bool:
+    """True for session types that should be excluded from normal health averages."""
+    return session_type in ("aborted_session", "empty_session", "recovery_only_session")
+
+
 # ── Manifest tracking ─────────────────────────────────────────────────────────
 
 def _load_reviewed_session_ids(out_dir: Path) -> Set[str]:
@@ -536,6 +602,34 @@ def build_manifest(
     }
 
 
+def _render_excluded_sessions_appendix(
+    excluded: List[Tuple[Path, Dict, str]],
+) -> str:
+    """Render a Markdown appendix listing excluded sessions without including them
+    in session-health averages.  Excluded sessions are classified but not analysed."""
+    lines = [
+        "",
+        "---",
+        "",
+        "## Appendix — Excluded Sessions (not in health averages)",
+        "",
+        "> These sessions were **not** included in the analysis above because they contain",
+        "> zero conversational turns, were aborted before the learner responded, or consist",
+        "> only of recovery/repair moves.  They are recorded here for completeness.",
+        "> Use `--include-empty` to include them in a future normal batch.",
+        "",
+        "| Session ID | Learner | Timestamp | Type | Transcript turns |",
+        "|---|---|---|---|---|",
+    ]
+    for p, r, stype in excluded:
+        sid   = (r.get("session_id") or "").strip() or "*(unknown)*"
+        lid   = (r.get("learner_id") or "").strip() or "*(unknown)*"
+        ts    = _session_timestamp(r, p)[:19]
+        turns = len(r.get("transcript") or [])
+        lines.append(f"| `{sid}` | {lid} | {ts} | `{stype}` | {turns} |")
+    return "\n".join(lines) + "\n"
+
+
 # ── Main logic ────────────────────────────────────────────────────────────────
 
 def run_batch_export(
@@ -544,11 +638,16 @@ def run_batch_export(
     out_dir: Path,
     max_sessions: int,
     include_reviewed: bool,
+    include_empty: bool,
     dry_run: bool,
     stdout: bool,
 ) -> int:
     """
     Core logic. Returns exit code (0 = ok, 1 = nothing to do).
+
+    Unless include_empty=True, aborted / empty / recovery-only sessions are
+    excluded from the normal batch and listed in a separate side-section of the
+    batch prompt so reviewers are aware of them without skewing health averages.
     """
     # 1. Find all valid session files
     all_sessions = find_all_sessions(sessions_root)
@@ -564,14 +663,26 @@ def run_batch_export(
         reviewed_ids = _load_reviewed_session_ids(out_dir)
 
     # 3. Filter to unreviewed
-    candidates = [
+    unreviewed = [
         (p, r) for p, r in all_sessions
         if (r.get("session_id") or "").strip() not in reviewed_ids
     ]
 
-    if not candidates:
+    if not unreviewed:
         print("No unreviewed sessions found. All sessions are already included in previous batches.", file=sys.stderr)
         return 1
+
+    # 3b. Separate excluded (empty/aborted/recovery-only) from normal sessions.
+    normal_candidates: List[Tuple[Path, Dict]] = []
+    excluded_sessions: List[Tuple[Path, Dict, str]] = []  # (path, record, session_type)
+    for p, r in unreviewed:
+        stype = classify_session_type(r)
+        if not include_empty and is_excluded_session_type(stype):
+            excluded_sessions.append((p, r, stype))
+        else:
+            normal_candidates.append((p, r))
+
+    candidates = normal_candidates
 
     # 4. Cap to max_sessions
     selected = candidates[:max_sessions]
@@ -579,7 +690,7 @@ def run_batch_export(
 
     # 5. Dry run: report and exit
     if dry_run:
-        print(f"[dry-run] {len(selected)} session(s) would be included in next batch:")
+        print(f"[dry-run] {len(selected)} normal session(s) would be included in next batch:")
         for p, r in selected:
             sid = (r.get("session_id") or "?").strip()
             lid = (r.get("learner_id") or "?").strip()
@@ -588,18 +699,44 @@ def run_batch_export(
             print(f"  {sid}  learner={lid}  ts={ts}  turns={turns}  path={p}")
         if skipped:
             print(f"  (+{skipped} more would be deferred to subsequent batches)")
+        if excluded_sessions:
+            print(f"  ({len(excluded_sessions)} excluded: aborted/empty/recovery-only — use --include-empty to include)")
+            for p, r, stype in excluded_sessions:
+                sid = (r.get("session_id") or "?").strip()
+                turns = len(r.get("transcript") or [])
+                print(f"    [excluded:{stype}]  {sid}  turns={turns}")
         return 0
+
+    if not selected and not excluded_sessions:
+        print("No sessions to export.", file=sys.stderr)
+        return 1
 
     # 6. Determine batch paths
     today = datetime.date.today().isoformat()
     prompt_path, manifest_path, batch_id = _next_batch_path(out_dir, today)
 
-    # 7. Render and write prompt
-    prompt = render_batch_prompt(selected, batch_id)
+    # 7. Render and write prompt (normal sessions + excluded appendix)
+    if selected:
+        prompt = render_batch_prompt(selected, batch_id)
+    else:
+        prompt = f"# MandarinOS — Batch Review Prompt\n\n> **Batch ID:** `{batch_id}`\n\n*(No normal sessions in this batch.)*\n"
+
+    if excluded_sessions:
+        prompt += _render_excluded_sessions_appendix(excluded_sessions)
+
     _atomic_write(prompt_path, prompt)
 
-    # 8. Build and write manifest
-    manifest = build_manifest(batch_id, selected, sessions_root, out_dir, prompt_path)
+    # 8. Build and write manifest (includes both normal and excluded for tracking)
+    all_selected_for_manifest = [(p, r) for p, r in selected] + [
+        (p, r) for p, r, _ in excluded_sessions
+    ]
+    manifest = build_manifest(batch_id, all_selected_for_manifest, sessions_root, out_dir, prompt_path)
+    # Annotate excluded sessions in manifest
+    manifest["excluded_session_count"] = len(excluded_sessions)
+    manifest["excluded_session_ids"] = [
+        {"session_id": (r.get("session_id") or "").strip(), "type": stype}
+        for _, r, stype in excluded_sessions
+    ]
     _atomic_write(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2))
 
     # 9. Report
@@ -610,6 +747,8 @@ def run_batch_export(
     )
     if skipped:
         summary += f"\n[batch export] {skipped} additional session(s) deferred (--max-sessions={max_sessions})"
+    if excluded_sessions:
+        summary += f"\n[batch export] {len(excluded_sessions)} excluded (aborted/empty/recovery-only — not in health averages)"
     print(summary, file=sys.stderr)
 
     if stdout:
@@ -672,6 +811,15 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Suppress stdout output of the batch prompt (useful with --write).",
     )
+    p.add_argument(
+        "--include-empty",
+        action="store_true",
+        default=False,
+        help=(
+            "Include aborted / empty / recovery-only sessions in normal health averages. "
+            "By default these are listed in a separate appendix and excluded from analysis."
+        ),
+    )
     return p
 
 
@@ -694,6 +842,7 @@ def main(argv=None):
         out_dir=args.out_dir.resolve(),
         max_sessions=max(1, args.max_sessions),
         include_reviewed=args.include_reviewed,
+        include_empty=args.include_empty,
         dry_run=args.dry_run,
         stdout=(not args.no_stdout) and args.write,
     )

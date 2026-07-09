@@ -385,32 +385,78 @@ def test_challenge_reveal_text_exists(app_js_src):
 
 
 # ---------------------------------------------------------------------------
-# 8. Frame-advance guard: learner_skip_confusion path not triggered for
-#    strong confusion (我不明白) — strong confusion goes to server, not silent skip
+# 8. Confusion routing guards — strong vs weak skip vs spoken recovery
 # ---------------------------------------------------------------------------
+
+def _learner_skip_signal_handler(app_js_src: str) -> str:
+    """Return the learner_skip_signal handler block (anchor → end of weak-skip runTurn)."""
+    start = app_js_src.find('if (unmatchedDecision.reason === "learner_skip_signal")')
+    if start == -1:
+        return ""
+    end_marker = "runTurn(true, { learner_skip_confusion: true });"
+    end = app_js_src.find(end_marker, start)
+    if end == -1:
+        return app_js_src[start: start + 2500]
+    return app_js_src[start: end + len(end_marker)]
+
+
+def _spoken_recovery_intercept_block(app_js_src: str) -> str:
+    """Return the spoken recovery intercept block (anchor → early return)."""
+    start = app_js_src.find("_spokenRecoveryPhrase")
+    if start == -1:
+        return ""
+    ret = app_js_src.find("return;", start)
+    if ret == -1:
+        return app_js_src[start: start + 2500]
+    return app_js_src[start: ret + len("return;")]
+
 
 def test_strong_confusion_does_not_weak_skip(app_js_src):
     """'不明白' is caught by _isStrongConfusionText so it should NOT weak-skip.
     Verify _isStrongConfusionText regex includes 不明白."""
-    idx = app_js_src.find("_isStrongConfusionText")
+    idx = app_js_src.find("function _isStrongConfusionText")
     assert idx != -1
     body = app_js_src[idx: idx + 500]
     assert "不明白" in body
 
 
+def test_strong_confusion_routes_to_server_recovery(app_js_src):
+    """Strong confusion in learner_skip_signal must submit 我听不懂 and call runTurn with last_turn_was_answer."""
+    block = _learner_skip_signal_handler(app_js_src)
+    assert block, "learner_skip_signal handler not found"
+    assert "_isStrongConfusionText" in block
+    strong_branch_end = block.find("} else {")
+    assert strong_branch_end != -1, "Must have else branch after strong-confusion if"
+    strong_branch = block[:strong_branch_end]
+    assert 'submitted_text: "我听不懂"' in strong_branch
+    assert "last_turn_was_answer: true" in strong_branch
+    assert "learner_skip_confusion" not in strong_branch
+
+
 def test_weak_skip_only_for_truly_weak_confusion(app_js_src):
-    """learner_skip_confusion (frame advance) must only trigger in the else branch
-    (not strong confusion), not for any confusion with 不明白."""
-    # Find the learner_skip_signal handler block that contains the isStrongConfusionText check
-    idx = app_js_src.find("if (unmatchedDecision.reason === \"learner_skip_signal\")")
-    assert idx != -1, "learner_skip_signal handler not found"
-    block = app_js_src[idx: idx + 1200]
-    assert "_isStrongConfusionText" in block, "_isStrongConfusionText check must be in handler"
-    assert "learner_skip_confusion" in block, "learner_skip_confusion must be in handler"
-    # learner_skip_confusion must be in the else branch (not the strong-confusion if branch)
-    strong_idx = block.find("_isStrongConfusionText")
-    else_idx = block.find("} else {")
-    skip_idx = block.find("learner_skip_confusion")
-    assert else_idx != -1, "Must have else branch after _isStrongConfusionText"
-    assert else_idx < skip_idx, "learner_skip_confusion must be in the else branch"
-    assert strong_idx < else_idx, "_isStrongConfusionText check must precede else branch"
+    """learner_skip_confusion must only appear in the else branch (weak confusion skip)."""
+    block = _learner_skip_signal_handler(app_js_src)
+    assert block, "learner_skip_signal handler not found"
+    strong_branch_end = block.find("} else {")
+    assert strong_branch_end != -1, "Must have else branch after _isStrongConfusionText"
+    weak_branch = block[strong_branch_end:]
+    assert "learner_skip_confusion" in weak_branch
+    assert 'submitted_text: "我听不懂"' not in weak_branch
+
+
+def test_spoken_recovery_repeat_slower_meaning_no_runTurn(app_js_src):
+    """Spoken repeat/slower/meaning recovery must return early without runTurn (no frame advance)."""
+    block = _spoken_recovery_intercept_block(app_js_src)
+    assert block, "_spokenRecoveryPhrase intercept not found"
+    assert '"repeat"' in block or "'repeat'" in block
+    assert '"slower"' in block or "'slower'" in block
+    assert '"meaning"' in block or "'meaning'" in block
+    assert "runTurn" not in block, "spoken recovery intercept must not call runTurn"
+
+
+def test_spoken_recovery_before_unmatched_classification(app_js_src):
+    """Spoken recovery intercept must run before classifyUnmatchedFreeAnswerDecision."""
+    srp = app_js_src.find("_spokenRecoveryPhrase")
+    classify = app_js_src.find("classifyUnmatchedFreeAnswerDecision(saidTrimmed")
+    assert srp != -1 and classify != -1
+    assert srp < classify

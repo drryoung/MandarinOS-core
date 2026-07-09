@@ -163,6 +163,9 @@ def build_session_record(
     clean_transcript = _sanitise_transcript(transcript)
     clean_event_log = _sanitise_event_log(event_log)
 
+    # Compute qualitative friction signals from the transcript.
+    friction = compute_friction_signals(clean_transcript)
+
     return {
         "schema": SCHEMA_VERSION,
         "capture_source": "end_session_payload",
@@ -212,6 +215,12 @@ def build_session_record(
         # Lightweight UX event timeline
         "event_log": clean_event_log,
 
+        # Qualitative friction signals derived from the transcript.
+        # These are not included in basic aggregate counters (unmatched_responses etc.)
+        # and are used to downgrade Stability/Flow labels when repeated misunderstanding
+        # occurs that the counters alone would not detect.
+        "friction_signals": friction,
+
         "capture_flags": {
             "transcript_present": bool(clean_transcript),
             "event_log_present":  bool(clean_event_log),
@@ -249,6 +258,125 @@ def save_session_record(
         # Safe: log but never propagate into /api/end_session.
         print(f"[session_intelligence] save failed for {learner_id}/{session_id}: {exc}", flush=True)
         return False
+
+
+def compute_friction_signals(transcript: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Compute qualitative friction signals from a session transcript.
+
+    Signals tracked:
+        repeated_generic_fallback   — partner emits the same closing/generic text ≥ 2 times
+        near_duplicate_persona_replies — consecutive partner turns that are near-identical
+        unanswered_direct_questions  — learner turn ends in ？ and next partner turn does not
+                                       address it (heuristic: partner turn is a clarification
+                                       or continuation rather than an answer)
+        premature_closing_count     — closing move (这样挺好 / 真不错) right after a learner
+                                       confusion signal (什么意思 / 听不懂 / 再说一遍)
+        learner_frustration_count   — learner turns that contain frustration markers
+
+    Returns a dict with integer counts for each signal plus a boolean flag
+    `has_significant_friction` when any signal exceeds its threshold.
+    """
+    _GENERIC_FALLBACK_TEXTS: frozenset = frozenset({
+        "这样挺好", "真不错啊", "真不错", "明白了", "这样啊",
+        "我觉得都挺有意思的", "主要负责语音识别项目", "这个我不太清楚",
+        "我是问：", "我是在问：",
+    })
+    _CONFUSION_SIGNALS: frozenset = frozenset({
+        "什么意思", "听不懂", "没听懂", "再说一遍", "不懂", "啊？",
+    })
+    _CLOSING_TEXTS: frozenset = frozenset({
+        "这样挺好", "真不错啊", "真不错", "真是不简单", "听起来很有意思",
+    })
+    _FRUSTRATION_MARKERS: tuple = (
+        "太难了", "算了", "听不懂", "放弃", "好难", "不会", "不明白",
+        "我不知道", "搞不清楚", "别说了",
+    )
+
+    if not isinstance(transcript, list):
+        return _empty_friction()
+
+    partner_texts: List[str] = []
+    repeated_generic = 0
+    near_duplicate_persona = 0
+    unanswered_direct_q = 0
+    premature_closing = 0
+    learner_frustration = 0
+
+    prev_partner_zh = ""
+    prev_was_confusion = False
+
+    for i, turn in enumerate(transcript):
+        if not isinstance(turn, dict):
+            continue
+        role = turn.get("role", "")
+        zh   = (turn.get("text_zh") or "").strip()
+
+        if role == "user":
+            # Frustration markers
+            if any(m in zh for m in _FRUSTRATION_MARKERS):
+                learner_frustration += 1
+            # Confusion signal — mark for next partner turn check
+            prev_was_confusion = any(m in zh for m in _CONFUSION_SIGNALS)
+            # Unanswered direct question: turn ends with ？ and next partner is a rephrase
+            if zh.endswith("？") or zh.endswith("?"):
+                # Look ahead for next partner turn
+                for j in range(i + 1, min(i + 3, len(transcript))):
+                    nxt = transcript[j] if isinstance(transcript[j], dict) else {}
+                    if nxt.get("role") == "partner":
+                        nxt_zh = (nxt.get("text_zh") or "").strip()
+                        if any(nxt_zh.startswith(p) for p in ("我是问：", "我是在问：", "这样挺好", "真不错")):
+                            unanswered_direct_q += 1
+                        break
+
+        elif role == "partner":
+            partner_texts.append(zh)
+
+            # Generic fallback repeated ≥ 2 consecutive times
+            if any(g in zh for g in _GENERIC_FALLBACK_TEXTS):
+                if any(g in prev_partner_zh for g in _GENERIC_FALLBACK_TEXTS):
+                    repeated_generic += 1
+
+            # Near-duplicate: ≥ 80% shared characters with previous partner turn
+            if prev_partner_zh and zh and len(zh) >= 5:
+                common = sum(1 for c in set(zh) if c in prev_partner_zh)
+                ratio = common / max(len(set(zh)), 1)
+                if ratio >= 0.8 and abs(len(zh) - len(prev_partner_zh)) <= 4:
+                    near_duplicate_persona += 1
+
+            # Premature closing: closing text emitted right after a learner confusion signal
+            if prev_was_confusion and any(cl in zh for cl in _CLOSING_TEXTS):
+                premature_closing += 1
+
+            prev_partner_zh = zh
+            prev_was_confusion = False  # reset after partner responds
+
+    has_significant_friction = (
+        repeated_generic >= 2
+        or near_duplicate_persona >= 2
+        or unanswered_direct_q >= 3
+        or premature_closing >= 1
+        or learner_frustration >= 2
+    )
+
+    return {
+        "repeated_generic_fallback":       repeated_generic,
+        "near_duplicate_persona_replies":  near_duplicate_persona,
+        "unanswered_direct_questions":     unanswered_direct_q,
+        "premature_closing_after_confusion": premature_closing,
+        "learner_frustration_count":       learner_frustration,
+        "has_significant_friction":        has_significant_friction,
+    }
+
+
+def _empty_friction() -> Dict[str, Any]:
+    return {
+        "repeated_generic_fallback":       0,
+        "near_duplicate_persona_replies":  0,
+        "unanswered_direct_questions":     0,
+        "premature_closing_after_confusion": 0,
+        "learner_frustration_count":       0,
+        "has_significant_friction":        False,
+    }
 
 
 def load_session_record(
