@@ -79,6 +79,21 @@ def normalize_place_name(raw: Optional[str]) -> Optional[str]:
     if not s:
         return None
 
+    # Strip an orphaned trailing "等" wait-particle from short strings.
+    # "等" is never a place-name component when it stands alone at the tail.
+    # Example: "丹尼等" → "丹尼", "那等" → "那" (too short → rejected below).
+    if s.endswith("等") and len(s) <= 4:
+        s = s[:-1].strip("的 ，,。.、").strip()
+        if not s:
+            return None
+
+    # Reject strings that begin with grammatical verb/pronoun particles and do
+    # not contain any canonical place — these are ASR-junk residuals, not places.
+    # Example: "是圣希兰南方" starts with "是" and contains no known place → None.
+    _NON_PLACE_STARTS = ("是", "在了", "了是")
+    if s[:1] in ("是",) and not any(place in s for place in _KNOWN_PLACES_CANONICAL):
+        return None
+
     # New Zealand region cautious canonicalisation.
     if "新西兰" in s and ("南岛" in s or "南方" in s or "南部" in s or s.endswith("南")):
         return "新西兰南岛"
