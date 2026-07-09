@@ -3001,6 +3001,10 @@ function _isLikelyCleanSentence(text) {
 function _isUserDirectedQuestion(text) {
   if (!text) return false;
   const t = (text || "").trim();
+  // Guard: learner disclosures starting with "你知道吗" + first-person family/health content
+  // must NOT be classified as persona questions — "你知道吗" contains 你+吗 but is a
+  // disclosure opener, not a turn-around question.
+  if (/^你知道吗/.test(t) && /我(妈|爸|家|孩子|家人|身体|最近很担心)/.test(t)) return false;
   if (/你/.test(t) && /[吗？?]/.test(t)) return true;   // 你…吗 / 你…?
   if (/[？?]$/.test(t)) return true;                      // explicit question mark
   if (/吗[？?]?$/.test(t)) return true;                   // sentence-final 吗

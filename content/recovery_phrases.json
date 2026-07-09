@@ -552,6 +552,71 @@
       "response_role": "REPAIR",
       "repair_kind": "apology_repair",
       "priority": 90
+    },
+    {
+      "id": "disclosure_empathy_family_concern",
+      "hanzi": "哦，听起来不容易。家里现在怎么样？",
+      "pinyin": "ō, tīng qǐ lái bù róng yì. jiā lǐ xiàn zài zěn me yàng?",
+      "text_en": "Oh, that sounds tough. How is your family doing now?",
+      "level": "P2",
+      "use": "learner_disclosure_empathy",
+      "recovery_action": "next_turn",
+      "move_type": "LOOP",
+      "response_role": "EMPATHY",
+      "repair_kind": "empathy_followup",
+      "priority": 100
+    },
+    {
+      "id": "disclosure_empathy_concern_follow",
+      "hanzi": "你一定很担心吧。他/她好一点了吗？",
+      "pinyin": "nǐ yī dìng hěn dān xīn ba. tā hǎo yī diǎn le ma?",
+      "text_en": "You must be really worried. Are they feeling a bit better?",
+      "level": "P2",
+      "use": "learner_disclosure_empathy",
+      "recovery_action": "next_turn",
+      "move_type": "LOOP",
+      "response_role": "EMPATHY",
+      "repair_kind": "empathy_followup",
+      "priority": 90
+    },
+    {
+      "id": "disclosure_empathy_sorry_to_hear",
+      "hanzi": "对不起听到这个。你现在还好吗？",
+      "pinyin": "duì bù qǐ tīng dào zhè ge. nǐ xiàn zài hái hǎo ma?",
+      "text_en": "Sorry to hear that. How are you holding up?",
+      "level": "P2",
+      "use": "learner_disclosure_empathy",
+      "recovery_action": "next_turn",
+      "move_type": "LOOP",
+      "response_role": "EMPATHY",
+      "repair_kind": "empathy_followup",
+      "priority": 80
+    },
+    {
+      "id": "persona_challenge_china_history",
+      "hanzi": "哈哈，是啊。中国历史很长，文化很丰富。你最感兴趣的是哪个方面？",
+      "pinyin": "hā hā, shì a. zhōng guó lì shǐ hěn cháng, wén huà hěn fēng fù. nǐ zuì gǎn xìng qù de shì nǎ ge fāng miàn?",
+      "text_en": "Ha, yes! China has a very long history and rich culture. What aspect interests you most?",
+      "level": "P2",
+      "use": "persona_challenge",
+      "recovery_action": "next_turn",
+      "move_type": "LOOP",
+      "response_role": "ANSWER",
+      "repair_kind": "challenge_reply",
+      "priority": 100
+    },
+    {
+      "id": "persona_challenge_china_general",
+      "hanzi": "对啊。中国很大，各地都有不一样的特色。你最想了解哪里？",
+      "pinyin": "duì a. zhōng guó hěn dà, gè dì dōu yǒu bù yī yàng de tè sè. nǐ zuì xiǎng liǎo jiě nǎ lǐ?",
+      "text_en": "Right! China is huge and every region has its own character. Which place do you most want to learn about?",
+      "level": "P2",
+      "use": "persona_challenge",
+      "recovery_action": "next_turn",
+      "move_type": "LOOP",
+      "response_role": "ANSWER",
+      "repair_kind": "challenge_reply",
+      "priority": 90
     }
   ]
 }

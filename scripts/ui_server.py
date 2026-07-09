@@ -310,6 +310,8 @@ _persona_deflect_en_map: dict = {}      # hanzi_str -> text_en       (for hint l
 _persona_deflect_pinyin_map: dict = {}  # hanzi_str -> pinyin      (for counter_reply_pinyin)
 _frustration_repair_phrases: list = []  # [(hanzi, text_en), ...]  (use=frustration_repair)
 _travel_intent_followup_templates: dict = {}  # "dest" -> (zh_tpl, en_tpl), "generic" -> (zh, en)
+_disclosure_empathy_phrases: list = []  # [(hanzi, text_en), ...]  (use=learner_disclosure_empathy)
+_persona_challenge_phrases: list = []   # [(hanzi, text_en), ...]  (use=persona_challenge)
 _recovery_phrase_legacy_id_alias: dict[str, str] = {}  # legacy phrase id -> canonical id (v1.2)
 _rp_path = CONTENT_DIR / "recovery_phrases.json"
 try:
@@ -344,6 +346,14 @@ try:
                     _travel_intent_followup_templates["dest"] = (_hz_ti, _en_ti)
                 elif _pid_ti == "travel_intent_generic_followup" and _hz_ti:
                     _travel_intent_followup_templates["generic"] = (_hz_ti, _en_ti)
+            if _p.get("use") == "learner_disclosure_empathy":
+                _hz = (_p.get("hanzi") or "").strip()
+                if _hz:
+                    _disclosure_empathy_phrases.append((_hz, (_p.get("text_en") or "").strip()))
+            if _p.get("use") == "persona_challenge":
+                _hz = (_p.get("hanzi") or "").strip()
+                if _hz:
+                    _persona_challenge_phrases.append((_hz, (_p.get("text_en") or "").strip()))
             _pid = (_p.get("id") or "").strip()
             if _pid:
                 for _lid in _p.get("legacy_ids") or []:
@@ -426,6 +436,78 @@ def _frustration_repair_reply(seed: str = "") -> tuple:
     zh = _stable_pick([p[0] for p in _frustration_repair_phrases], seed or "frustration") \
          or _frustration_repair_phrases[0][0]
     en = next((e for (z, e) in _frustration_repair_phrases if z == zh), "")
+    return (zh, en)
+
+
+_DISCLOSURE_FAMILY_WORDS: frozenset = frozenset({
+    "妈妈", "妈", "爸爸", "爸", "家人", "家里", "爷爷", "奶奶", "爱人",
+    "老婆", "丈夫", "孩子", "儿子", "女儿", "弟弟", "妹妹", "哥哥", "姐姐",
+})
+_DISCLOSURE_HEALTH_WORDS: frozenset = frozenset({
+    "身体", "生病", "不好", "住院", "手术", "很担心", "不舒服", "出事", "病了",
+    "出了事", "有点问题", "不太好", "不大好", "去世", "走了",
+})
+
+
+def _is_learner_disclosure(text: str) -> bool:
+    """True when the learner discloses a family health/concern situation.
+
+    Matches: 我(妈妈|爸爸|家人…)(身体不好|生病|很担心…) / 我最近很担心 / etc.
+    Deliberately NOT gated on user_asked_question — disclosures are statements.
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    # Bare worry expression without a specific family member:
+    # only "我最近很担心" is narrow enough to be a disclosure; bare "我很担心" alone is ambiguous.
+    if "我最近很担心" in t:
+        return True
+    # First-person + family word present
+    if "我" not in t:
+        return False
+    has_family = any(fw in t for fw in _DISCLOSURE_FAMILY_WORDS)
+    has_health = any(hw in t for hw in _DISCLOSURE_HEALTH_WORDS)
+    return has_family and has_health
+
+
+def _disclosure_empathy_reply(seed: str = "") -> tuple:
+    """Return (zh, en) empathy response for a learner family/health disclosure.
+    Loaded from content/recovery_phrases.json (use=learner_disclosure_empathy).
+    Returns ("", "") when the phrase bank has not been loaded (fail-safe)."""
+    if not _disclosure_empathy_phrases:
+        return ("", "")
+    zh = _stable_pick([p[0] for p in _disclosure_empathy_phrases], seed or "disclosure") \
+         or _disclosure_empathy_phrases[0][0]
+    en = next((e for (z, e) in _disclosure_empathy_phrases if z == zh), "")
+    return (zh, en)
+
+
+_PERSONA_CHALLENGE_PATTERNS: tuple = (
+    r"你是中国人.*应该知道",
+    r"你应该知道(吧|啊|啦)",
+    r"中国人.*应该知道",
+    r"你知道.{0,6}(中国|历史|文化).{0,6}(吗|吧|啦)",
+)
+_PERSONA_CHALLENGE_RE = re.compile("|".join(_PERSONA_CHALLENGE_PATTERNS))
+
+
+def _is_persona_challenge(text: str) -> bool:
+    """True when the learner issues a playful challenge to the persona's Chinese knowledge."""
+    t = (text or "").strip()
+    if not t:
+        return False
+    return bool(_PERSONA_CHALLENGE_RE.search(t))
+
+
+def _persona_challenge_reply(seed: str = "") -> tuple:
+    """Return (zh, en) response for a persona challenge / common-knowledge prompt.
+    Loaded from content/recovery_phrases.json (use=persona_challenge).
+    Returns ("", "") when the phrase bank has not been loaded (fail-safe)."""
+    if not _persona_challenge_phrases:
+        return ("", "")
+    zh = _stable_pick([p[0] for p in _persona_challenge_phrases], seed or "challenge") \
+         or _persona_challenge_phrases[0][0]
+    en = next((e for (z, e) in _persona_challenge_phrases if z == zh), "")
     return (zh, en)
 
 
@@ -5111,6 +5193,18 @@ def _extract_travel_destination(text: str) -> str:
         idx = t.rfind(verb)
         if idx != -1:
             tail = t[idx + len(verb):]
+            # Strip leading filler characters that ASR inserts between verb and destination.
+            tail = tail.lstrip("啊哦呢吧嗯哈")
+            # Strip leading time marker (e.g. "九月上去中国" → "上去中国").
+            for _tm in _TRAVEL_TIME_MARKERS:
+                if tail.startswith(_tm):
+                    tail = tail[len(_tm):]
+                    break
+            # Strip leading directional complements from ASR noise (e.g. "上去中国" → "中国").
+            for _dc in ("上去", "下去", "过去", "回去", "进去", "出去"):
+                if tail.startswith(_dc):
+                    tail = tail[len(_dc):]
+                    break
             dest = re.split(r"[，,。.！!？?、\s]", tail, maxsplit=1)[0].strip()
             dest = dest.strip("的了吧呢啊")
             if dest and re.fullmatch(r"[\u4e00-\u9fffA-Za-z]+", dest):
@@ -8943,6 +9037,22 @@ class Handler(BaseHTTPRequestHandler):
                                 _counter_result = _fr
                                 reaction_prefix_text = ""   # suppress positive acknowledgement
                                 _rxn_trace["composition_mode"] = "frustration_repair"
+                        elif _is_learner_disclosure(answer_text):
+                            # Learner discloses a family health/concern situation.
+                            # Reply with empathy before any persona-question routing fires.
+                            _de = _disclosure_empathy_reply(seed=_counter_seed)
+                            if _de and _de[0]:
+                                _counter_result = _de
+                                reaction_prefix_text = ""   # suppress positive acknowledgement
+                                _rxn_trace["composition_mode"] = "learner_disclosure_empathy"
+                        elif _is_persona_challenge(answer_text):
+                            # Learner challenges the persona's Chinese knowledge.
+                            # Play along rather than giving generic praise.
+                            _ch = _persona_challenge_reply(seed=_counter_seed)
+                            if _ch and _ch[0]:
+                                _counter_result = _ch
+                                reaction_prefix_text = ""
+                                _rxn_trace["composition_mode"] = "persona_challenge_reply"
                         elif (not user_asked_question) and _has_volunteered_travel_intent(answer_text):
                             _ti = _travel_intent_followup(answer_text)
                             if _ti and _ti[0]:
