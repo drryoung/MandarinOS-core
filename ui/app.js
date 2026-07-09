@@ -6153,8 +6153,13 @@ async function startFreshLearner() {
   // This does NOT touch localStorage["manos_progress_history"].
   _resetCurrentSessionState();
 
-  // Clear the "Remembered:" facts banner
+  // Clear within-session place anchor so it cannot re-fill templates after reset.
+  window._lastMentionedPlace = null;
+
+  // Clear the "Remembered:" facts banner immediately, then re-fetch from server
+  // to confirm the reset actually persisted (catches server-side failures).
   _renderMemoryBanner({});
+  await _refreshMemoryBanner();
 
   // Log what happened — confirm learner_id is preserved, progress untouched.
   console.info(

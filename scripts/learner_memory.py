@@ -101,7 +101,12 @@ def load(learner_id: str) -> Dict[str, Optional[str]]:
 
 
 def save(learner_id: str, memory: Dict[str, Optional[str]]) -> None:
-    """Save learner memory for learner_id. Updates cache and writes persistence file."""
+    """Save learner memory for learner_id. Updates cache and writes persistence file.
+
+    Uses merge semantics: a field present in *memory* with a non-None value overwrites
+    the stored value; a None value leaves the stored value unchanged.  Use `clear()`
+    when you need to erase all fields unconditionally (e.g. user-initiated reset).
+    """
     if not learner_id or not isinstance(learner_id, str):
         return
     lid = learner_id.strip()
@@ -112,4 +117,18 @@ def save(learner_id: str, memory: Dict[str, Optional[str]]) -> None:
     existing = _store.get(lid) or empty_memory()
     merged = {k: memory.get(k) if memory.get(k) is not None else existing.get(k) for k in LEARNER_MEMORY_KEYS}
     _store[lid] = merged
+    _save_file()
+
+
+def clear(learner_id: str) -> None:
+    """Erase all learner memory for learner_id — unconditional, no merge.
+
+    Use this for user-initiated "clear previous-session memory" flows.
+    Unlike save(), passing all-None values here genuinely resets every field to None
+    and writes the result to the persistence file.
+    """
+    if not learner_id or not isinstance(learner_id, str):
+        return
+    lid = learner_id.strip()
+    _store[lid] = empty_memory()
     _save_file()

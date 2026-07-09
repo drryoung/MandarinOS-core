@@ -30,10 +30,14 @@ if str(_SCRIPTS_DIR) not in sys.path:
 # Phase 10: learner memory (fact-capture applied after a response turn)
 try:
     from learner_memory import load as _lm_load, save as _lm_save, apply_updates as _lm_apply_updates
+    from learner_memory import clear as _lm_clear
     from learner_memory_capture import capture_from_turn as _capture_from_turn, get_memory_field_for_frame as _get_memory_field_for_frame
+    from learner_memory_capture import normalize_place_name as _normalize_place_name
 except ImportError:
     _lm_load = _lm_save = _lm_apply_updates = _capture_from_turn = None
+    _lm_clear = None
     _get_memory_field_for_frame = None
+    _normalize_place_name = None
 # Beta progress persistence (per-learner snapshot files)
 try:
     from progress_store import load_snapshots as _ps_load_snapshots
@@ -290,6 +294,8 @@ def _recovery_phrases_runtime_payload() -> Optional[dict]:
 _persona_deflect_phrases: dict = {}     # topic -> [hanzi_str, ...]  (for _persona_deflect picker)
 _persona_deflect_en_map: dict = {}      # hanzi_str -> text_en       (for hint lookup)
 _persona_deflect_pinyin_map: dict = {}  # hanzi_str -> pinyin      (for counter_reply_pinyin)
+_frustration_repair_phrases: list = []  # [(hanzi, text_en), ...]  (use=frustration_repair)
+_travel_intent_followup_templates: dict = {}  # "dest" -> (zh_tpl, en_tpl), "generic" -> (zh, en)
 _recovery_phrase_legacy_id_alias: dict[str, str] = {}  # legacy phrase id -> canonical id (v1.2)
 _rp_path = CONTENT_DIR / "recovery_phrases.json"
 try:
@@ -306,6 +312,24 @@ try:
                     _py = (_p.get("pinyin") or "").strip()
                     if _py:
                         _persona_deflect_pinyin_map[_hz] = _py
+            if _p.get("use") == "frustration_repair":
+                _hz = (_p.get("hanzi") or "").strip()
+                if _hz:
+                    _frustration_repair_phrases.append((_hz, (_p.get("text_en") or "").strip()))
+                    _en = (_p.get("text_en") or "").strip()
+                    if _en:
+                        _persona_deflect_en_map[_hz] = _en
+                    _py = (_p.get("pinyin") or "").strip()
+                    if _py:
+                        _persona_deflect_pinyin_map[_hz] = _py
+            if _p.get("use") == "travel_intent_followup":
+                _pid_ti = (_p.get("id") or "").strip()
+                _hz_ti  = (_p.get("hanzi") or "").strip()
+                _en_ti  = (_p.get("text_en") or "").strip()
+                if _pid_ti == "travel_intent_dest_followup" and _hz_ti:
+                    _travel_intent_followup_templates["dest"] = (_hz_ti, _en_ti)
+                elif _pid_ti == "travel_intent_generic_followup" and _hz_ti:
+                    _travel_intent_followup_templates["generic"] = (_hz_ti, _en_ti)
             _pid = (_p.get("id") or "").strip()
             if _pid:
                 for _lid in _p.get("legacy_ids") or []:
@@ -377,6 +401,39 @@ def _persona_deflect(topic: str, seed: str = "") -> str:
     if pool:
         return _stable_pick(pool, seed or topic) or pool[0]
     return "这个嘛……说来话长，有空再聊！"   # absolute last resort only
+
+
+def _frustration_repair_reply(seed: str = "") -> tuple:
+    """Return (zh, en) apology/repair for a frustrated or insulting learner turn.
+    Loaded from content/recovery_phrases.json (use=frustration_repair).
+    Returns ("", "") when the phrase bank has not been loaded (fail-safe — no inline Chinese)."""
+    if not _frustration_repair_phrases:
+        return ("", "")
+    zh = _stable_pick([p[0] for p in _frustration_repair_phrases], seed or "frustration") \
+         or _frustration_repair_phrases[0][0]
+    en = next((e for (z, e) in _frustration_repair_phrases if z == zh), "")
+    return (zh, en)
+
+
+# ASR-junk fragments that must never surface inside a rendered learner-facing line
+# (e.g. a corrupted stored place "等你等新西兰的南方" filling a "…有什么特别的？" frame).
+_ASR_JUNK_OUTPUT_FRAGMENTS: tuple = (
+    "等你等", "等一等", "等等你", "等你", "那个那个", "就是就是", "呃呃", "嗯嗯",
+)
+
+
+def _repair_asr_junk_text(text: Optional[str]) -> str:
+    """Strip known ASR-junk fragments from learner-facing Chinese so corrupted
+    stored/echoed values never reach the learner (regression: '等你等…')."""
+    if not text:
+        return text or ""
+    out = text
+    for junk in _ASR_JUNK_OUTPUT_FRAGMENTS:
+        if junk in out:
+            out = out.replace(junk, "")
+    # Collapse a leftover leading connective particle from the removed junk.
+    out = out.lstrip("的，,。.、 ")
+    return out
 
 
 # ── Phase 11C: Persona layer ──────────────────────────────────────────────────
@@ -1006,13 +1063,25 @@ _CURIOSITY_REACTIONS_BY_ENGINE: dict = {
 }
 _CURIOSITY_REACTIONS_GENERIC: list = ["真是不简单！", "听起来很有意思！", "是吗，很好啊！", "哦，真没想到！", "真是特别啊！"]
 
-# Repeat-request markers: explicit "say it again / say it slower" signals from the learner.
-# These must always route to _clarify_app_question regardless of _prev_counter_reply.
-# Kept separate from _is_confusion_signal (which is broader) so the short-circuit is tight.
+# Recovery-request markers — split by recovery type so each gets a tailored response.
+# _REPEAT_REQUEST_MARKERS : explicit "say it again" → _clarify_app_question (re-read Chinese)
+# _SLOWER_REQUEST_MARKERS : "say it slower"       → _clarify_app_question (client slows TTS)
+# _MEANING_REQUEST_MARKERS: "what does this mean" → _meaning_recovery_reply (English + simpler)
+# _EXAMPLE_REQUEST_MARKERS: "give me an example"  → _example_recovery_reply
 _REPEAT_REQUEST_MARKERS: tuple = (
     "再说一遍", "再说一次", "再说一起", "再说一下", "请再说",
-    "慢一点", "说慢", "慢慢说",
 )
+_SLOWER_REQUEST_MARKERS: tuple = (
+    "慢一点", "说慢", "慢慢说", "慢一些", "慢点说",
+)
+_MEANING_REQUEST_MARKERS: tuple = (
+    "什么意思", "意思是什么", "是什么意思",
+)
+_EXAMPLE_REQUEST_MARKERS: tuple = (
+    "给我一个例子", "举个例子",
+)
+# Very short bare-repeat utterances (≤ 2 CJK chars + optional punct).
+_BARE_REPEAT_UTTERANCES: frozenset = frozenset({"啊", "啊？", "嗯？", "哦？", "啥", "啥？"})
 
 # Soft closing reactions: emitted when late-session + topic completion suppress bridge
 # and no next move (probe or ladder frame) is available. Terminal / pause move — no follow-up.
@@ -2545,6 +2614,27 @@ def _assistant_name_from_persona(persona: Optional[dict]) -> str:
     return "MandarinOS"
 
 
+def _is_direct_persona_question(t: str) -> bool:
+    """
+    True when learner text is a direct question about the partner persona's own facts.
+    Used to override stale last_counter_reply / mirror-confusion state on topic switches
+    (e.g. marriage answer → learner asks about work).
+    """
+    if not (t or "").strip():
+        return False
+    t = _strip_leading_fillers((t or "").strip()).replace("您", "你")
+    if _is_confusion_signal(t):
+        return False
+    if _find_mirror_answer(t, "", None):
+        return True
+    if _direct_persona_answer(t, None):
+        return True
+    _bare_work_q = ("做什么工作", "干什么工作", "什么工作", "做啥工作")
+    if any(p in t for p in _bare_work_q):
+        return True
+    return _is_user_question({"submitted_text": t, "selected_option_hanzi": t})
+
+
 def _persona_reply_for_ni_ne(frame_id: str, persona: Optional[dict]) -> Optional[str]:
     """
     Generate a short, natural first-person answer from the persona when the user says 你呢？
@@ -2678,6 +2768,19 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
                              "你的名字叫", "你名字叫")):
         return (f"你可以叫我{name}。" if name else None)
 
+    # "你现在还住在那里吗？" / "你还住在那里吗" — still-live-there question
+    if any(p in t for p in ("还住在那里", "还住在那儿", "还在那里住", "还在那儿住",
+                             "现在还住", "还是住在")):
+        city_now = (profile.get("city") or "").strip()
+        hometown = (profile.get("hometown") or "").strip()
+        if city_now and hometown and city_now == hometown:
+            return f"是的，我一直住在{city_now}，没有搬过。"
+        if city_now and hometown and city_now != hometown:
+            return f"现在主要住在{city_now}，不过老家还是{hometown}。"
+        if city_now:
+            return f"是的，我现在还住在{city_now}。"
+        return "是的，我还在这边，没什么特别的变动。"
+
     # Job / work — include "什么类型/什么样的工作" so work-type questions answer job.
     if any(p in t for p in ("你做什么工作", "你的工作", "你是做什么", "你工作",
                              "什么类型的工作", "类型的工作", "什么样的工作", "哪种工作")):
@@ -2699,6 +2802,20 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
         if travel_fav:
             return travel_fav
         return voice_lines.get("travel") or "我去过几个地方，各有特色。"
+
+    # Food-preference comparison — "你喜欢A菜还是B菜" / "你最喜欢成都菜和上海菜" /
+    # "A菜好还是B菜". Intent is a preference between named cuisines; answer with a simple
+    # persona preference rather than a location/uncertainty fallback.
+    if ("菜" in t or "吃" in t) and any(m in t for m in ("还是", "和", "跟")) \
+            and any(k in t for k in ("喜欢", "最喜欢", "爱吃", "好吃", "更")):
+        _seg = re.sub(r'(最喜欢|喜欢|爱吃|好吃|更)', " ", t)
+        _dishes = list(dict.fromkeys(re.findall(r'([\u4e00-\u9fff]{2,3}菜)', _seg)))
+        if len(_dishes) >= 2:
+            _a, _b = _dishes[0], _dishes[1]
+            return f"两个我都挺喜欢的，不过{_a}更合我的口味，比较有味道。"
+        if len(_dishes) == 1:
+            return f"我挺喜欢{_dishes[0]}的，很有味道。"
+        return "两个我都喜欢，各有各的味道。"
 
     # "你喜欢[place/city/hobby/food]吗" — intent is PREFERENCE, not place description.
     # IMPORTANT: never return voice_lines["place"] (a location/residence description)
@@ -3057,6 +3174,38 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
             return f"我今年{_age_i}岁。"
         return _persona_deflect("age", t)
 
+    # Family closeness — e.g. "你和爸爸妈妈近吗？" / "你跟爸爸妈妈亲近吗？" / "你和父母近吗？"
+    _FAM_CLOSE_MARKERS = ("和爸爸妈妈近", "跟爸爸妈妈近", "和父母近", "跟父母近",
+                           "和爸妈近", "跟爸妈近", "爸妈近吗", "父母亲近", "和家人近",
+                           "跟家人近", "家人亲近")
+    if any(m in t for m in _FAM_CLOSE_MARKERS):
+        _fam_live = (_facts.get("family_live") or "").strip()
+        if _fam_live:
+            return _fam_live
+        _fam_fact = (_facts.get("family") or "").strip()
+        if _fam_fact:
+            return _first_clause(_fam_fact)
+        return "挺近的，虽然不住在一起，但经常打电话联系。"
+
+    # Why like a place — "你为什么喜欢那里？" / "你为什么喜欢那个地方？" / "为什么觉得那里好？"
+    # Companion to travel_why_fav in _mirror_persona_stub; handles 你-prefixed and informal phrasings.
+    _WHY_LIKE_PLACE_MARKERS = ("为什么喜欢那里", "为什么喜欢那个地方", "为什么觉得那里", "为什么那里好",
+                                "为什么那么喜欢", "你为什么喜欢", "喜欢那里的原因")
+    if any(m in t for m in _WHY_LIKE_PLACE_MARKERS):
+        _travel_fact = (_facts.get("travel") or _facts.get("travel_where") or "").strip()
+        _why_markers = ("觉得", "因为", "喜欢", "特别", "最", "印象", "历史", "文化", "艺术", "诗意", "有意思")
+        _clauses = [c.strip() for c in re.split(r'[，。！？,]', _travel_fact) if c.strip()] if _travel_fact else []
+        _why = next((c for c in _clauses if any(m in c for m in _why_markers)), None)
+        if _why:
+            return _why + "。"
+        if _travel_fact:
+            return _first_clause(_travel_fact)
+        _place_fact = (_facts.get("place") or "").strip()
+        if _place_fact:
+            return _first_clause(_place_fact)
+        city = (profile.get("city") or profile.get("hometown") or "").strip()
+        return f"感觉那里很有特色，生活节奏和文化都挺吸引人的。"
+
     # Bare 为什么 / 为啥 — follow-up to the partner's last statement (city, life, preference).
     # Without this, _answer_user_question_prefix falls through to _persona_deflect("generic")
     # and can surface 换个话题吧 mid-conversation (unnatural bridge).
@@ -3216,6 +3365,14 @@ def _is_confusion_signal(t: str) -> bool:
     # Avoid matching genuine content questions (哪里好玩 = real question, not confusion)
     if "是什么" in s or re.search(r"新西兰|哪里.*好玩|哪里.*有趣|哪里.*特别", s):
         return False
+    # Genuine second-person persona questions ("你住在哪里啊", "你去过哪里啊") merely
+    # *contain* a confusion substring ("哪里啊"); they are real questions directed at the
+    # persona, not the learner's own non-understanding signal.  "我问你…" is an explicit
+    # persona-question opener and must never be read as confusion.
+    if "我问你" in s:
+        return False
+    if re.search(r"你.{0,6}(住|去过|去|喜欢|老家|家乡|工作|做什么|叫什么|多大|结婚|有什么|最)", s):
+        return False
     markers = (
         "哪里啊", "不懂",  # confusion about which place / general incomprehension
         "啊？", "啊！", "我不懂", "有点不懂", "听不懂", "没听懂", "没懂", "不明白",
@@ -3224,6 +3381,98 @@ def _is_confusion_signal(t: str) -> bool:
         "不知道", "等一下", "我听不懂",
     )
     return any(m in s for m in markers)
+
+
+_CLOSING_BLOCK_FRUSTRATION: tuple = (
+    "太难了", "太难", "好难啊", "好难", "这太难了",
+    "算了", "算了吧",
+    "你说得太快", "太快了", "说太快", "讲太快",
+    "跟不上", "我跟不上",
+    "放弃",
+)
+
+# Frustration / insult markers directed at the persona.  These require a social
+# repair (apology) — never a generic positive acknowledgement ("这样挺好").
+_FRUSTRATION_INSULT_MARKERS: tuple = (
+    "傻瓜", "笨蛋", "白痴", "蠢货", "神经病",
+    "不喜欢跟你说话", "不喜欢跟你说", "不想跟你说", "不想跟你聊", "不想跟你讲",
+    "你听不懂", "你不懂", "你不明白", "你没用", "你真没用",
+    "讨厌你", "烦死了", "不说了", "没意思",
+)
+
+
+def _is_frustration_or_insult(text: str) -> bool:
+    """Learner is frustrated or insulting the persona — needs an apology / repair,
+    not a positive acknowledgement.  Covers both explicit give-up frustration and
+    persona-directed insults."""
+    t = (text or "").strip()
+    if not t:
+        return False
+    if any(m in t for m in _FRUSTRATION_INSULT_MARKERS):
+        return True
+    if any(m in t for m in _CLOSING_BLOCK_FRUSTRATION):
+        return True
+    return False
+
+_CLOSING_BLOCK_CONTINUATION: tuple = (
+    "继续", "继续说", "请继续",
+    "然后呢", "然后", "那然后",
+    "接着", "接着说", "接着讲",
+    "下面", "接下来",
+    "还有吗", "还有呢", "然后怎么样", "还有什么",
+)
+
+_CLOSING_BLOCK_POST_FALLBACK: tuple = (
+    "电脑角色",
+    "这个我不太清楚",
+    "这个我不太确定",
+    "不好说",
+    "不太了解这个",
+    "我真的不太了解",
+    "不太清楚，不过我们可以聊聊",
+)
+
+
+def _is_closing_blocked_by_learner_signal(
+    answer_text: str,
+    prev_partner_text: str = "",
+) -> tuple:
+    """Return (blocked: bool, reason: str) for closing-move gate.
+
+    Blocks closing_move when the conversation is visibly broken or the learner
+    is seeking more content rather than wrapping up.  Reasons:
+
+    confusion_or_recovery  — learner signalled non-understanding (再说一遍, 什么意思…)
+    frustration            — explicit difficulty / give-up signal (太难了, 算了…)
+    continuation_request   — learner asked for more (继续, 然后呢…)
+    low_asr_confidence     — very short / non-CJK input; likely ASR junk
+    post_generic_fallback  — last partner turn was a generic limitation reply
+    """
+    t = (answer_text or "").strip()
+
+    if _is_confusion_signal(t):
+        return (True, "confusion_or_recovery")
+
+    if any(m in t for m in _CLOSING_BLOCK_FRUSTRATION) or any(m in t for m in _FRUSTRATION_INSULT_MARKERS):
+        return (True, "frustration")
+
+    if any(m in t for m in _CLOSING_BLOCK_CONTINUATION):
+        return (True, "continuation_request")
+
+    # Low-confidence ASR: single visible character, or entirely non-CJK text
+    # (Latin, numerals, punctuation alone) when a real learner answer is expected.
+    _cjk_chars = [c for c in t if "\u4e00" <= c <= "\u9fff"]
+    _visible = t.strip("。！？，,.!? \t\n")
+    if _visible and len(_visible) == 1 and not _cjk_chars:
+        return (True, "low_asr_confidence")
+    if _visible and not _cjk_chars and len(_visible) >= 1:
+        # Entirely non-CJK input of any length — ASR junk or accidentally tapped
+        return (True, "low_asr_confidence")
+
+    if prev_partner_text and any(m in prev_partner_text for m in _CLOSING_BLOCK_POST_FALLBACK):
+        return (True, "post_generic_fallback")
+
+    return (False, "")
 
 
 def _is_explicit_topic_switch(text: str) -> bool:
@@ -3439,6 +3688,80 @@ def _confusion_recovery_reply(t: str, prev_zh: str, seed: str = "") -> Optional[
     ]
     idx = sum(ord(c) for c in (seed + prev_zh + t)) % len(pool)
     return pool[idx]
+
+
+# Meaning-recovery lookup table: (keywords_in_frame_text) → (simpler_zh, en_gloss, example_answer)
+# Matched longest / most-specific first. Each entry covers one common frame pattern.
+_MEANING_RECOVERY_TABLE: list = [
+    # Distance
+    (("远", "多远"),     "多远？",           "How far is it?",              "大概两个小时。"),
+    (("远",),            "远不远？",          "Is it far?",                  "不太远。"),
+    # Location / where
+    (("住", "哪里"),     "你住哪儿？",        "Where do you live?",          "我住在上海。"),
+    (("住", "在哪"),     "你住哪儿？",        "Where do you live?",          "我在北京。"),
+    (("在哪里",),        "你在哪里？",        "Where are you?",              "我在中国。"),
+    # Food
+    (("好吃", "什么"),   "那儿有什么好吃的？","What good food is there?",    "有很多好吃的！"),
+    (("有什么", "吃"),   "好吃的有什么？",    "What's good to eat?",         "很多！"),
+    # Work
+    (("做什么", "工作"), "你做什么工作？",    "What's your job?",            "我是老师。"),
+    (("工作", "怎么样"), "工作好不好？",      "How's your work?",            "还不错！"),
+    (("工作",),          "你做什么工作？",    "What work do you do?",        "我在公司上班。"),
+    # Travel
+    (("想去", "哪"),     "你想去哪里？",      "Where do you want to go?",    "我想去日本！"),
+    (("去过", "哪"),     "你去过哪里？",      "Where have you been?",        "我去过北京。"),
+    # Special / features
+    (("特别", "什么"),   "那有什么特别的？",  "What's special there?",       "风景很好看。"),
+    (("特色",),          "有什么特色？",      "What's unique about it?",     "当地食物很有名。"),
+    # Duration
+    (("多久",),          "要多长时间？",      "How long does it take?",      "大概两个小时。"),
+    (("多大",),          "多大了？",          "How old?",                    "快三十了。"),
+    # Family
+    (("家人",),          "家人怎么样？",      "How's your family?",          "都还好。"),
+    (("孩子",),          "你有孩子吗？",      "Do you have children?",       "有一个孩子。"),
+    # Feelings / preference
+    (("喜欢", "为什么"), "你为什么喜欢？",    "Why do you like it?",         "因为很方便。"),
+    (("喜欢",),          "你喜欢吗？",        "Do you like it?",             "很喜欢！"),
+]
+
+
+def _meaning_recovery_reply(prev_frame_text: str) -> Optional[tuple]:
+    """Return (zh, en) counter_reply for 什么意思啊 / meaning requests.
+
+    Instead of repeating the same Chinese, surfaces:
+      • A short English gloss of the question
+      • A simpler Chinese paraphrase
+      • One example learner answer
+
+    Regression: session_1782907566569 turn 8 must not repeat 离那儿远吗.
+    """
+    ft = (prev_frame_text or "").strip().rstrip("？?").strip()
+    if not ft:
+        return None
+    # Strip existing clarification wrappers so we never re-wrap the wrapper.
+    for pfx in ("我是问：", "我是在问：", "我刚刚问的是：", "我的意思是："):
+        if ft.startswith(pfx):
+            ft = ft[len(pfx):].strip().rstrip("？?").strip()
+            break
+    # Strip leading echo acknowledgement (e.g. "哦，美玲！") before the question.
+    ft = re.sub(r'^哦，[^！]{1,25}！\s*', '', ft).strip().rstrip("？?").strip()
+    if not ft:
+        return None
+    # Match keywords longest-first; sort by tuple length descending on each call
+    # (table is already ordered specific → general within each semantic group).
+    for keywords, simpler_zh, en_gloss, example in _MEANING_RECOVERY_TABLE:
+        if all(kw in ft for kw in keywords):
+            zh = f"\uff08{en_gloss}\uff09\u7b80\u5355\u8bf4\uff1a\u300c{simpler_zh}\u300d \u6bd4\u5982\u4f60\u53ef\u4ee5\u8bf4\uff1a\u300c{example}\u300d"
+            en = f"({en_gloss}) Simpler: \u300c{simpler_zh}\u300d \u2014 e.g. \u300c{example}\u300d"
+            return (zh, en)
+    # Generic fallback: at least give the English translation of the frame text.
+    zh = (
+        "\u610f\u601d\u662f\uff1a\u300c" + ft + "\uff1f\u300d "
+        "\u6bd4\u5982\u4f60\u53ef\u4ee5\u8bf4\uff1a"
+        "\u300c\u4e0d\u77e5\u9053\u300d\u3001\u300c\u8fd8\u6ca1\u6709\u300d\u3001\u300c\u6709\u4e00\u70b9\u300d\u3002"
+    )
+    en = "Meaning: \u300c" + ft + "?\u300d \u2014 e.g. \u300c\u4e0d\u77e5\u9053\u300d (don't know), \u300c\u8fd8\u6ca1\u6709\u300d (not yet)."
+    return (zh, en)
 
 
 def _clarify_app_question(prev_frame_text: str) -> Optional[tuple]:
@@ -3859,8 +4182,6 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     recent_replies: list of recent persona counter_replies for exact-repeat suppression.
     context_reply: the persona's preceding counter_reply (used for context-aware place follow-ups).
     """
-    if not _is_user_question(last_answer):
-        return None
     t = (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
     if not t:
         return None
@@ -3869,6 +4190,8 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     # Normalise formal 您 → informal 你 so all downstream pattern checks (mirror bank,
     # _direct_persona_answer substrings, etc.) work without duplicating every entry.
     t = t.replace("您", "你")
+    if not _is_user_question(last_answer) and not _is_direct_persona_question(t):
+        return None
 
     # Confusion / repeat signal (e.g. "再说一遍？", "再说一起可以吗？") — do NOT route to
     # _persona_limitation_reply.  Return None so run_turn's clarify_app_question path handles it.
@@ -4053,19 +4376,23 @@ def _build_sentence_options(frame_rec: dict, memory: Optional[dict]) -> list:
         chosen = _SENTENCE_OPTIONS_GENERIC
 
     result = []
-    for i, t in enumerate(chosen[:3]):
+    for t in chosen:
+        if len(result) >= 3:
+            break
         zh = t["zh"]
         # Fill known memory facts into placeholders
         if "___" in zh:
             if name and ("叫" in zh or "名字" in zh):
                 zh = zh.replace("___", name)
-            elif city and ("住" in zh or "人" in zh):
+            elif city and ("住" in zh or "人" in zh or "去过" in zh):
                 zh = zh.replace("___", city)
             elif food and "吃" in zh:
                 zh = zh.replace("___", food)
-            # else leave ___ as visual hint that user should fill in their own detail
+        # Skip any option that still has an unfilled slot — never emit raw ___ to learner.
+        if "___" in zh:
+            continue
         result.append({
-            "id":   f"__sent_{i}",
+            "id":   f"__sent_{len(result)}",
             "zh":   zh,
             "py":   t["py"],
             "en":   t["en"],
@@ -4784,15 +5111,20 @@ def _extract_travel_destination(text: str) -> str:
 def _travel_intent_followup(text: str) -> tuple:
     """Return (zh, en) travel follow-up for a volunteered travel intent.
 
-    e.g. "甘肃很有意思。你为什么想去甘肃？"  Falls back to a generic travel probe
-    when the destination cannot be extracted.
+    Templates are loaded from content/recovery_phrases.json (use=travel_intent_followup).
+    The destination-specific template has a {DEST} slot that is filled at runtime.
+    Falls back to the generic template when no destination is extractable, and to
+    empty strings if the phrase bank has not been loaded (fail-safe, no inline Chinese).
     """
     dest = _extract_travel_destination(text)
     if dest:
-        zh = f"{dest}很有意思。你为什么想去{dest}？"
-        en = f"{dest} is interesting. Why do you want to go to {dest}?"
-        return (zh, en)
-    return ("听起来你想去旅行。你最想去哪里？", "Sounds like you'd love to travel. Where would you most like to go?")
+        tpl_zh, tpl_en = _travel_intent_followup_templates.get("dest", ("", ""))
+        if tpl_zh:
+            return (tpl_zh.replace("{DEST}", dest), tpl_en.replace("{DEST}", dest))
+        # phrase bank not loaded — return empty so caller falls through safely
+        return ("", "")
+    zh, en = _travel_intent_followup_templates.get("generic", ("", ""))
+    return (zh, en)
 
 
 def _should_route_to_travel(
@@ -5470,6 +5802,40 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
             return (f"{city_home}的食物很有特色，我很喜欢当地的味道。", "")
         return ("我觉得当地的食物非常有特色，有机会试试！", "")
 
+    if topic == "place_still_live":
+        # "你现在还住在那里吗？" — confirm current residence as a standalone branch
+        # (must be outside the place_from/like/special block whose outer guard excluded it).
+        city_now = (profile.get("city") or "").strip()
+        hometown = (profile.get("hometown") or "").strip()
+        if city_now and hometown and city_now == hometown:
+            zh = f"是的，我一直住在{city_now}，没有搬过。"
+            en = f"Yes, I've always lived in {city_now}."
+        elif city_now and hometown and city_now != hometown:
+            zh = f"现在主要住在{city_now}，不过老家还是{hometown}。"
+            en = f"I mainly live in {city_now} now — but my hometown is still {hometown}."
+        elif city_now:
+            zh = f"是的，我现在还住在{city_now}。"
+            en = f"Yes, I still live in {city_now}."
+        else:
+            zh = "是的，我还在这边，没什么特别的变动。"
+            en = "Yes, still here — nothing much has changed."
+        return (zh, en)
+
+    if topic == "place_why_like":
+        # "你为什么喜欢那里？" — explain why the persona likes their city/hometown.
+        fact = (facts.get("place") or "").strip()
+        zh_vl = vl.get("place") or ""
+        _why_markers = ("觉得", "因为", "喜欢", "特别", "最", "历史", "文化", "自豪", "有趣", "方便")
+        _clauses = [c.strip() for c in re.split(r'[，。！？,]', fact) if c.strip()] if fact else []
+        _why = next((c for c in _clauses if any(m in c for m in _why_markers)), None)
+        if _why:
+            return (_why + "。", _fact_en("place"))
+        if zh_vl:
+            return (zh_vl, _vl_en("place"))
+        if city_home:
+            return (f"因为我从小就在{city_home}长大，有感情，喜欢这里的生活节奏。", "")
+        return ("因为已经习惯了，感觉挺有感情的，生活也比较方便。", "")
+
     if topic in ("place_from", "place_like", "place_special", "place_far", "place_far_or_not", "place_never_been"):
         fact = (facts.get("place") or "").strip()
         if topic == "place_special":
@@ -5517,8 +5883,57 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         zh = _first_clause(fact) if fact else "我去过几个城市，最喜欢有美食的地方。"
         return (zh, _fact_en("travel"))
 
+    if topic == "travel_why_fav":
+        # "为什么喜欢那个地方？" / "你为什么喜欢那里？" — explain why the persona likes the fav destination.
+        fact = (facts.get("travel") or "").strip()
+        fav_key = (facts.get("travel_where") or "").strip()
+        # Look for clauses containing evaluative/reason markers.
+        _why_markers = ("觉得", "因为", "喜欢", "特别", "最", "印象", "历史", "文化", "艺术", "诗意")
+        _clauses = [c.strip() for c in re.split(r'[，。！？,]', fact) if c.strip()] if fact else []
+        _why = next((c for c in _clauses if any(m in c for m in _why_markers)), None)
+        if _why:
+            return (_why + "。", "")
+        if fav_key:
+            # Extract a why-flavoured clause from the travel_where line
+            _tw_clauses = [c.strip() for c in re.split(r'[，。！？,]', fav_key) if c.strip()]
+            _tw_why = next((c for c in _tw_clauses if any(m in c for m in _why_markers)), None)
+            if _tw_why:
+                return (_tw_why + "。", "")
+        if fact:
+            return (_first_clause(fact), _fact_en("travel"))
+        return ("感觉很有意思，文化和风景都让我印象深刻。", "")
+
+    if topic == "travel_next":
+        # "下次想去哪里？" — future travel intent; most personas don't have this fact explicitly.
+        fact = (facts.get("travel_next") or "").strip()
+        if fact:
+            return (fact, _fact_en("travel_next") or "")
+        # Derive a plausible answer from existing travel data
+        traveled = (facts.get("travel_where") or facts.get("travel") or "").strip()
+        _clauses = [c.strip() for c in re.split(r'[，。！？,]', traveled) if c.strip()] if traveled else []
+        # Pick a place the persona has mentioned or give a natural deflect
+        if city_home:
+            return (f"还没定好，不过一直想多了解一些新地方，也许去没去过的城市看看。", "")
+        return ("还没想好，想找一个自然风景比较好的地方去放松一下。", "")
+
     # ── Work ─────────────────────────────────────────────────────────────────────
-    if topic in ("work_what", "work_like", "work_duration", "work_platform", "work_company", "work_origin"):
+    if topic == "work_interesting":
+        # "工作中最有趣的是什么？" — extract the most engaging aspect from the work fact.
+        fact = (facts.get("work") or "").strip()
+        occ  = (profile.get("occupation") or "").strip()
+        # Look for clauses containing positive sentiment or student/project/result markers.
+        _interesting_markers = ("学生", "进步", "有趣", "最喜欢", "最棒", "成就", "作品", "有意思", "好玩")
+        _clauses = [c.strip() for c in re.split(r'[，。！？,]', fact) if c.strip()] if fact else []
+        _best = next((c for c in _clauses if any(m in c for m in _interesting_markers)), None)
+        if _best:
+            return (_best + "。", "")
+        if fact:
+            return (_first_clause(fact), _fact_en("work"))
+        if occ:
+            return (f"我觉得{occ}这个工作每天都有新的挑战，挺有意思的。", "")
+        return ("每天都在做不一样的事，感觉很有意思，一直学新东西。", "")
+
+    if topic in ("work_what", "work_like", "work_duration", "work_platform", "work_company", "work_origin", "work_students", "work_why"):
         fact = (facts.get("work") or "").strip()
         if topic == "work_like":
             # Prefer a dedicated sentiment line; never return the job-description line
@@ -5533,8 +5948,9 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
             _dur_clause = next((c for c in _clauses if any(m in c for m in _dur_markers)), None)
             if _dur_clause:
                 return (_dur_clause + "。", "")
-            depth = _nth_clause(fact, 1) if fact else ""
-            return (depth or "已经做了几年了，越做越有意思。", "")
+            # Do NOT fall back to a non-duration work clause (_nth_clause) — it would surface
+            # role/project descriptions that don't answer "how long". Use a safe generic instead.
+            return ("已经做了几年了，越做越有意思。", "")
         if topic == "work_platform":
             depth = _nth_clause(fact, 1) if fact else ""
             return (depth or "我在网上分享，有一些人关注。", "")
@@ -5544,6 +5960,22 @@ def _mirror_persona_stub(topic: str, engine_id: str, persona: Optional[dict]) ->
         if topic == "work_origin":
             specific = (facts.get("work_origin") or "").strip()
             return (specific or "大学毕业后就开始做这个，慢慢越来越喜欢。", _fact_en("work_origin"))
+        if topic == "work_students":
+            specific = (facts.get("work_students") or "").strip()
+            occ = (profile.get("occupation") or "").strip()
+            if specific:
+                return (specific, _fact_en("work_students"))
+            if occ and "老师" in occ:
+                return ("学生都挺不错的，各有各的特点，也让我学到很多。", "")
+            return ("大家都挺好的，合作很愉快。", "")
+        if topic == "work_why":
+            specific = (facts.get("work_origin") or "").strip()
+            if specific:
+                return (specific, _fact_en("work_origin"))
+            occ = (profile.get("occupation") or "").strip()
+            if occ:
+                return (f"从小就对{occ}感兴趣，慢慢就走上了这条路。", "")
+            return ("因为觉得很有意思，慢慢就越来越喜欢了。", "")
         # work_what: prefer voice_lines.work (the persona's "what do you do" line) over
         # _first_clause, which truncates rich facts at the first comma and loses the detail.
         if vl.get("work"):
@@ -6895,7 +7327,18 @@ def _conversation_stability_score(
     effective_unclear = hard + round(soft * 0.5)
     repair_moments = recovery_uses + conv_rec
 
-    if effective_unclear == 0 and repair_moments == 0:
+    # Check friction signals before the perfect-score early-return so friction
+    # penalties are applied even when unmatched_responses and repair_moments are 0.
+    _friction_early = (sess.get("friction_signals") or {}) if isinstance(sess, dict) else {}
+    _has_friction_early = isinstance(_friction_early, dict) and (
+        _friction_early.get("repeated_generic_fallback", 0) >= 2
+        or _friction_early.get("near_duplicate_persona_replies", 0) >= 2
+        or _friction_early.get("premature_closing_after_confusion", 0) >= 1
+        or _friction_early.get("learner_frustration_count", 0) >= 2
+        or _friction_early.get("has_significant_friction", False)
+    )
+
+    if effective_unclear == 0 and repair_moments == 0 and not _has_friction_early:
         return 100
 
     per_event = hard * 8 + round(soft * 0.5) * 5
@@ -6929,6 +7372,21 @@ def _conversation_stability_score(
         score = min(score, 72)
     if repair_moments >= 3:
         score = min(score, 75)
+
+    # Qualitative friction penalty: repeated misunderstanding not captured by
+    # unmatched_responses alone (e.g. repeated generic fallback, premature closing).
+    friction = (sess.get("friction_signals") or {}) if isinstance(sess, dict) else {}
+    if isinstance(friction, dict):
+        if friction.get("repeated_generic_fallback", 0) >= 2:
+            score = min(score, 70)
+        if friction.get("near_duplicate_persona_replies", 0) >= 2:
+            score = min(score, 75)
+        if friction.get("premature_closing_after_confusion", 0) >= 1:
+            score = min(score, 80)
+        if friction.get("learner_frustration_count", 0) >= 2:
+            score = min(score, 78)
+        if friction.get("has_significant_friction", False):
+            score = min(score, 75)
 
     return max(0, min(100, round(score)))
 
@@ -6969,13 +7427,25 @@ def _format_progress_flow_label(
     recovery_uses: int = 0,
     conversational_recoveries: int = 0,
     soft_unclear_turns: int = 0,
+    friction_signals: Optional[dict] = None,
 ) -> str:
-    """Progress-table Flow label — turbulence signals first, not inflated score."""
+    """Progress-table Flow label — turbulence signals first, not inflated score.
+
+    friction_signals (optional): output of compute_friction_signals() stored on the
+    session record.  When significant friction is detected, prevents "Smooth" or
+    "Stable" from being assigned even if unmatched_responses count is low.
+    """
     repair_moments = recovery_uses + conversational_recoveries
     effective_unclear = unclear_turns + round(soft_unclear_turns * 0.5)
     has_turbulence = effective_unclear > 0 or repair_moments > 0
 
-    if not has_turbulence:
+    # Qualitative friction check — prevents over-optimistic labels.
+    _friction = friction_signals or {}
+    _has_significant_friction = bool(_friction.get("has_significant_friction", False))
+    _repeated_generic = int(_friction.get("repeated_generic_fallback", 0))
+    _premature_closing = int(_friction.get("premature_closing_after_confusion", 0))
+
+    if not has_turbulence and not _has_significant_friction:
         if score is None:
             return "—"
         # Reserve "Smooth" for sessions long enough that a clean run is meaningful.
@@ -6986,6 +7456,12 @@ def _format_progress_flow_label(
         if score >= 80:
             return "Stable"
         return "Difficult but continued"
+
+    # Friction pushes the session toward turbulence even if counters look OK.
+    if _repeated_generic >= 2 or _premature_closing >= 2:
+        return "Repeated misunderstanding"
+    if _has_significant_friction and not has_turbulence:
+        return "Friction detected"
 
     if repair_moments >= 3 or effective_unclear >= 4:
         return "Worked through turbulence"
@@ -7128,6 +7604,7 @@ def _build_progress_snapshot(
         total_turns=total_turns,
         questions_asked=questions_asked,
     )
+    _sess_friction = sess.get("friction_signals") or {}
     flow_display_label = _format_progress_flow_label(
         score=stability_score,
         unclear_turns=unmatched_responses,
@@ -7137,6 +7614,7 @@ def _build_progress_snapshot(
         recovery_uses=recovery_uses,
         conversational_recoveries=conversational_recoveries,
         soft_unclear_turns=soft_unmatched,
+        friction_signals=_sess_friction if isinstance(_sess_friction, dict) else None,
     )
     support_display_label = _format_progress_support_label(sess)
     stability_display_label = flow_display_label
@@ -7507,10 +7985,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 payload = {}
             learner_id = (payload.get("learner_id") or "").strip()
-            if learner_id and _lm_save:
-                empty = {"learner_name": None, "hometown": None, "lives_in": None,
-                         "job_or_study": None, "family": None, "favourite_food": None}
-                _lm_save(learner_id, empty)
+            if learner_id and _lm_clear:
+                _lm_clear(learner_id)
                 print(f"[ui_server] /api/reset_memory: cleared memory for '{learner_id}'")
                 result = {"ok": True, "learner_id": learner_id}
             else:
@@ -8206,7 +8682,7 @@ class Handler(BaseHTTPRequestHandler):
                             _echo_triggered_by = "PLACE_DESC"
                     elif "NAME" in slot_names and exchange_count <= 3:
                         _name = (_mem.get("learner_name") or "").strip()
-                        if _name and len(_name) <= 6:
+                        if _name and len(_name) <= 6 and "___" not in _name:
                             _echo_candidate = f"{_name}！"
                             _echo_triggered_by = "NAME"
                     elif "DISH" in slot_names:
@@ -8430,24 +8906,77 @@ class Handler(BaseHTTPRequestHandler):
                 _noisy_location_clarify  = False  # set True when location answer looks garbled → frame override below
 
                 if last_turn_was_answer:
-                    # Repeat-request short-circuit: 再说一遍 / 慢一点 / bare 什么意思
-                    # always means "repeat the app question" — route to _clarify_app_question
-                    # before lexical-definition and confusion-pool branches, and regardless of
-                    # _prev_counter_reply (so it never falls to the generic confusion pool).
-                    _is_rr = bool(
-                        _last_text_for_counter
-                        and (
-                            any(m in _last_text_for_counter for m in _REPEAT_REQUEST_MARKERS)
-                            or (len(_last_text_for_counter.strip()) <= 5 and "什么意思" in _last_text_for_counter)
-                        )
-                    )
-                    # Lexical definition: skip for genuine user questions about the persona.
-                    # "你做什么工作啊？" must not trigger vocabulary explanation; it should reach
-                    # the mirror-lookup path so the persona answers with its own work description.
+                    # ── User-initiative overrides (highest priority) ───────────────
+                    # A clear learner initiative must be honoured before the recovery /
+                    # mirror ladder buries it under a generic ack or a re-ask.
+                    #   (I) Frustration / insult  → social repair (apology), never "这样挺好".
+                    #   (C) Volunteered travel plan → travel follow-up, never a topic jump.
+                    if _counter_result is None and answer_text:
+                        if _is_frustration_or_insult(answer_text):
+                            _fr = _frustration_repair_reply(seed=_counter_seed)
+                            if _fr and _fr[0]:
+                                _counter_result = _fr
+                                reaction_prefix_text = ""   # suppress positive acknowledgement
+                                _rxn_trace["composition_mode"] = "frustration_repair"
+                        elif (not user_asked_question) and _has_volunteered_travel_intent(answer_text):
+                            _ti = _travel_intent_followup(answer_text)
+                            if _ti and _ti[0]:
+                                _counter_result = _ti
+                                _rxn_trace["composition_mode"] = "volunteered_travel_followup"
+
+                    # ── Classify the recovery signal type before routing ───────────
+                    # Order: meaning > example > repeat/slower > lexical > confusion.
+                    # Lexical definition check first (needed to guard meaning detection).
                     _lex_ct = _lexical_definition_reply(_last_text_for_counter) if (
                         _last_text_for_counter and not user_asked_question
                     ) else None
-                    if _is_rr:
+
+                    # Meaning request: 什么意思啊 / 是什么意思 → English gloss + simpler Chinese.
+                    # Guard: not a genuine persona question and not a vocab lookup (那个字是什么意思).
+                    _is_meaning = bool(
+                        _last_text_for_counter
+                        and not _lex_ct
+                        and not user_asked_question
+                        and any(m in _last_text_for_counter for m in _MEANING_REQUEST_MARKERS)
+                    )
+                    # Example request: 给我一个例子 / 举个例子
+                    _is_example = bool(
+                        _last_text_for_counter
+                        and not _lex_ct
+                        and not user_asked_question
+                        and any(m in _last_text_for_counter for m in _EXAMPLE_REQUEST_MARKERS)
+                    )
+                    # Repeat / slower request: explicit re-read signals or very short confused
+                    # sound bites (啊？ / 嗯？).  Meaning requests already handled above.
+                    _is_rr = bool(
+                        _last_text_for_counter
+                        and not _is_meaning
+                        and not _is_example
+                        and (
+                            any(m in _last_text_for_counter for m in _REPEAT_REQUEST_MARKERS)
+                            or any(m in _last_text_for_counter for m in _SLOWER_REQUEST_MARKERS)
+                            or _last_text_for_counter.strip() in _BARE_REPEAT_UTTERANCES
+                        )
+                    )
+
+                    if _counter_result is not None:
+                        # A user-initiative override (frustration repair / volunteered travel
+                        # follow-up) already produced the answer — keep it.
+                        pass
+                    elif _is_meaning:
+                        _mr_frame_text = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                        if _mr_frame_text:
+                            _counter_result = _meaning_recovery_reply(_mr_frame_text)
+                            _confusion_about_app_q = True
+                    elif _is_example:
+                        # Give a clarified version of the question + a concrete example.
+                        # Full example-reply engine deferred; for now reuse _clarify_app_question
+                        # which at least avoids repeating the raw Chinese unchanged.
+                        _ex_frame_text = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                        if _ex_frame_text:
+                            _counter_result = _clarify_app_question(_ex_frame_text)
+                            _confusion_about_app_q = True
+                    elif _is_rr:
                         _rr_frame_text = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
                         if _rr_frame_text:
                             _counter_result = _clarify_app_question(_rr_frame_text)
@@ -8457,8 +8986,36 @@ class Handler(BaseHTTPRequestHandler):
                     elif (
                         _prev_counter_reply
                         and _last_text_for_counter
+                        and _is_direct_persona_question(_last_text_for_counter)
+                        and not _is_confusion_signal(_last_text_for_counter)
+                    ):
+                        # Stale counter_reply override: a fresh direct persona question
+                        # (e.g. 你做什么工作 after a marriage answer) must not reuse or
+                        # restate the previous counter_reply via mirror-confusion paths.
+                        _stale_override = _answer_user_question_prefix(
+                            last_answer, persona,
+                            recent_replies=_recent_persona_replies,
+                            context_reply="",
+                        )
+                        if (
+                            _stale_override
+                            and (_stale_override[0] or "").strip()
+                            and (_stale_override[0] or "").strip() != _prev_counter_reply.strip()
+                        ):
+                            _counter_result = _stale_override
+                            _raw_m_stale = _find_mirror_answer(
+                                _last_text_for_counter, "", persona
+                            )
+                            if _raw_m_stale and len(_raw_m_stale) == 4:
+                                _counter_is_new_mirror = True
+                                _new_mirror_topic    = _raw_m_stale[2]
+                                _new_mirror_engine   = _raw_m_stale[3]
+                    elif (
+                        _prev_counter_reply
+                        and _last_text_for_counter
                         and _is_confusion_signal(_last_text_for_counter)
                         and not user_asked_question  # genuine questions skip confusion escalation
+                        and not _is_direct_persona_question(_last_text_for_counter)
                         and _cs_mirror_topic  # only escalate if a mirror answer was active
                     ):
                         # ── Mirror confusion escalation ladder ───────────────────────────────
@@ -8485,6 +9042,7 @@ class Handler(BaseHTTPRequestHandler):
                         and _last_text_for_counter
                         and _is_confusion_signal(_last_text_for_counter)
                         and not user_asked_question  # genuine questions skip confusion escalation
+                        and not _is_direct_persona_question(_last_text_for_counter)
                         and not _cs_mirror_topic  # no active mirror — use existing generic path
                     ):
                         _counter_result = _confusion_recovery_reply(
@@ -8600,10 +9158,14 @@ class Handler(BaseHTTPRequestHandler):
                             _new_mirror_topic    = _raw_mirror[2]
                             _new_mirror_engine   = _raw_mirror[3]
                         else:
+                            _prefix_context_reply = (
+                                "" if _is_direct_persona_question(_last_text_for_counter or "")
+                                else _prev_counter_reply
+                            )
                             _counter_result = _answer_user_question_prefix(
                                 last_answer, persona,
                                 recent_replies=_recent_persona_replies,
-                                context_reply=_prev_counter_reply,
+                                context_reply=_prefix_context_reply,
                             )
                             # If _answer_user_question_prefix fell through to a generic deflection
                             # (no specific answer found), replace it with a clarification of the
@@ -9435,9 +9997,17 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 _cm_chosen_preemptible = bool(chosen and chosen in _LATE_SESSION_PREEMPTIBLE_FRAMES)
 
+                # Additional closing-move block: confusion, frustration, continuation, ASR junk,
+                # and turns immediately after a generic fallback.
+                _cm_blocked_signal, _cm_blocked_reason = _is_closing_blocked_by_learner_signal(
+                    answer_text, _prev_partner_text
+                )
+
                 # Suppressed-reason trace — always populated so every turn is auditable.
                 if user_asked_question:
                     _closing_suppressed_reason = "user_asked_question"
+                elif _cm_blocked_signal:
+                    _closing_suppressed_reason = _cm_blocked_reason
                 elif not _cm_late_session:
                     _closing_suppressed_reason = "not_late_session"
                 elif not _cm_no_probe:
@@ -9484,7 +10054,7 @@ class Handler(BaseHTTPRequestHandler):
                 _closing_preempted_frame = chosen if _cm_preemptible else None
                 _closing_move_fired = False
                 _closing_reason = ""
-                if (_cm_original or _cm_extended or _cm_preemptible) and not user_asked_question and not _counter_reply:
+                if (_cm_original or _cm_extended or _cm_preemptible) and not user_asked_question and not _counter_reply and not _cm_blocked_signal:
                     _closing_move_fired = True
                     _closing_reason = "meaningful_answer_no_next_move"
                     _cl_trigger = "preemptible" if _cm_preemptible else ("extended" if _cm_extended else "original")
@@ -10001,6 +10571,12 @@ class Handler(BaseHTTPRequestHandler):
                 if isinstance(_slot_mem, dict):
                     # {CITY}/{PLACE}: current residence (lives_in → hometown fallback)
                     _city = (_slot_mem.get("lives_in") or _slot_mem.get("hometown") or "").strip()
+                    # Repair/normalise before it reaches a template: a corrupted stored
+                    # value ("等你等新西兰的南方") must never fill a learner-facing frame.
+                    if _city:
+                        _city = _repair_asr_junk_text(_city)
+                        if _normalize_place_name:
+                            _city = _normalize_place_name(_city) or _city
                     if _city:
                         for _tok in ("{CITY}", "{PLACE}"):
                             if _tok in (response.get("frame_text") or ""):
@@ -10012,6 +10588,10 @@ class Handler(BaseHTTPRequestHandler):
                     # {HOMETOWN}: specifically the origin/hometown place
                     _hometown = (_slot_mem.get("hometown") or "").strip()
                     if _hometown:
+                        _hometown = _repair_asr_junk_text(_hometown)
+                        if _normalize_place_name:
+                            _hometown = _normalize_place_name(_hometown) or _hometown
+                    if _hometown:
                         if "{HOMETOWN}" in (response.get("frame_text") or ""):
                             response["frame_text"] = response["frame_text"].replace("{HOMETOWN}", _hometown)
                         if "{HOMETOWN}" in (response.get("frame_pinyin") or ""):
@@ -10019,10 +10599,25 @@ class Handler(BaseHTTPRequestHandler):
                         if "[HOMETOWN]" in (response.get("frame_text_en") or ""):
                             response["frame_text_en"] = response["frame_text_en"].replace("[HOMETOWN]", _hometown)
                 # Safety net: if any slot token survived (no memory or memory load failed),
-                # replace with 那儿 so the raw placeholder never reaches the learner UI.
-                for _tok, _fb in (("{CITY}", "那儿"), ("{PLACE}", "那儿"), ("{HOMETOWN}", "那儿")):
-                    if _tok in (response.get("frame_text") or ""):
-                        response["frame_text"] = response["frame_text"].replace(_tok, _fb)
+                # prefer last_place_subject if the frame question is about a known place;
+                # otherwise use a context-aware generic so the raw placeholder never leaks.
+                # Context rules: food → 你那儿; special/features → 你住的地方;
+                # travel/been-to → 那里; default → 那儿.
+                _cs_lps_fallback = (cs.get("last_place_subject") or "") if isinstance(cs, dict) else ""
+                for _tok in ("{CITY}", "{PLACE}", "{HOMETOWN}"):
+                    _ft_cur = response.get("frame_text") or ""
+                    if _tok in _ft_cur:
+                        if _cs_lps_fallback:
+                            _city_fb = _cs_lps_fallback
+                        elif "好吃" in _ft_cur:
+                            _city_fb = "你那儿"
+                        elif "特别" in _ft_cur:
+                            _city_fb = "你住的地方"
+                        elif "去过" in _ft_cur or "想去" in _ft_cur:
+                            _city_fb = "那里"
+                        else:
+                            _city_fb = "那儿"
+                        response["frame_text"] = _ft_cur.replace(_tok, _city_fb)
                     if _tok in (response.get("frame_pinyin") or ""):
                         response["frame_pinyin"] = response["frame_pinyin"].replace(_tok, "nàr")
                 for _en_tok, _en_fb in (("[CITY]", "there"), ("[HOMETOWN]", "there")):
@@ -10392,6 +10987,36 @@ class Handler(BaseHTTPRequestHandler):
                 _su["discovery_shown_last_turn"] = bool(response.get("user_led"))
                 # Persist frame question text so next turn can rephrase it if learner is confused.
                 _su["last_partner_frame_text"]   = (response.get("frame_text") or "").strip()
+
+                # ── last_place_subject anchoring ─────────────────────────────
+                # Track the active place subject so deictic 那里/那边 references can
+                # be resolved on the next turn without ambiguity.
+                # Scan counter_reply zh + frame_text for known place names.
+                _lps_text = " ".join(filter(None, [
+                    (response.get("counter_reply") or {}).get("zh", "") if isinstance(response.get("counter_reply"), dict) else "",
+                    response.get("frame_text") or "",
+                    (response.get("counter_reply") or "") if isinstance(response.get("counter_reply"), str) else "",
+                ]))
+                _prev_lps = (cs.get("last_place_subject") or "") if isinstance(cs, dict) else ""
+                _new_lps = ""
+                # Extended place list: NZ + NZ regions explicitly for the tests.
+                _LPS_PLACES: tuple = (
+                    "南新西兰", "新西兰南部", "新西兰",
+                    "西藏", "云南", "成都", "重庆", "广州", "深圳",
+                    "苏州", "杭州", "西安", "南京", "武汉", "厦门", "青岛",
+                    "丽江", "桂林", "三亚", "哈尔滨", "乌鲁木齐", "九寨沟",
+                    "黄山", "张家界", "敦煌", "西双版纳", "大理",
+                    "香港", "澳门", "台湾",
+                    "北京", "上海",
+                    "日本", "法国", "泰国", "韩国", "欧洲", "越南", "新加坡",
+                    "澳大利亚", "澳洲", "美国", "英国", "德国", "加拿大",
+                )
+                for _lps_p in _LPS_PLACES:
+                    if _lps_p in _lps_text:
+                        _new_lps = _lps_p
+                        break
+                # Only update last_place_subject when a place is actually mentioned.
+                _su["last_place_subject"] = _new_lps if _new_lps else _prev_lps
                 # Reset consecutive question count when learner asked or discovery shown
                 if "consecutive_app_questions" not in _su:
                     _su["consecutive_app_questions"] = 0 if bool(response.get("user_led")) else _consec_q_next
@@ -10644,6 +11269,16 @@ class Handler(BaseHTTPRequestHandler):
                         print(f"[blue_panel_debug] SHOWN (session_end) | {len(_disc_pool_end[:3])} card(s)")
                     else:
                         print("[blue_panel_debug] NOT SHOWN (session_end) | reason=empty_pool")
+
+            # ── Final repair guard: no ASR-junk fragment (等你等 …) may reach the ───
+            # learner in any rendered Chinese line, whatever path produced it.
+            if isinstance(response.get("frame_text"), str):
+                response["frame_text"] = _repair_asr_junk_text(response["frame_text"])
+            _cr_final = response.get("counter_reply")
+            if isinstance(_cr_final, str):
+                response["counter_reply"] = _repair_asr_junk_text(_cr_final)
+            elif isinstance(_cr_final, dict) and isinstance(_cr_final.get("zh"), str):
+                _cr_final["zh"] = _repair_asr_junk_text(_cr_final["zh"])
 
             data = json.dumps(response, ensure_ascii=False).encode("utf-8")
             self.send_response(200)

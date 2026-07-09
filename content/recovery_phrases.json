@@ -485,6 +485,73 @@
       "legacy_ids": [
         "you_kong_zai_shuo"
       ]
+    },
+    {
+      "id": "travel_intent_dest_followup",
+      "hanzi": "{DEST}很有意思。你为什么想去{DEST}？",
+      "hanzi_en": "{DEST} is interesting. Why do you want to go to {DEST}?",
+      "text_en": "{DEST} sounds interesting. Why do you want to go to {DEST}?",
+      "pinyin": "",
+      "level": "P2",
+      "use": "travel_intent_followup",
+      "recovery_action": "next_turn",
+      "move_type": "LOOP",
+      "response_role": "QUESTION",
+      "repair_kind": "topic_followup",
+      "priority": 100,
+      "slots": ["DEST"]
+    },
+    {
+      "id": "travel_intent_generic_followup",
+      "hanzi": "听起来你想去旅行。你最想去哪里？",
+      "text_en": "Sounds like you'd love to travel. Where would you most like to go?",
+      "pinyin": "tīng qǐ lái nǐ xiǎng qù lǚ xíng. nǐ zuì xiǎng qù nǎ lǐ?",
+      "level": "P2",
+      "use": "travel_intent_followup",
+      "recovery_action": "next_turn",
+      "move_type": "LOOP",
+      "response_role": "QUESTION",
+      "repair_kind": "topic_followup",
+      "priority": 90
+    },
+    {
+      "id": "repair_frustration_slower",
+      "hanzi": "对不起，我刚才没有听懂。我们慢一点聊。",
+      "pinyin": "duì bù qǐ, wǒ gāng cái méi yǒu tīng dǒng. wǒ men màn yì diǎn liáo.",
+      "text_en": "Sorry, I didn't catch that just now. Let's take it a bit slower.",
+      "level": "P2",
+      "use": "frustration_repair",
+      "recovery_action": "meaning",
+      "move_type": "REPAIR",
+      "response_role": "REPAIR",
+      "repair_kind": "apology_repair",
+      "priority": 100
+    },
+    {
+      "id": "repair_frustration_restart",
+      "hanzi": "对不起，我刚才乱了。我们重新来，好吗？",
+      "pinyin": "duì bù qǐ, wǒ gāng cái luàn le. wǒ men chóng xīn lái, hǎo ma?",
+      "text_en": "Sorry, I got muddled just now. Shall we start over?",
+      "level": "P2",
+      "use": "frustration_repair",
+      "recovery_action": "meaning",
+      "move_type": "REPAIR",
+      "response_role": "REPAIR",
+      "repair_kind": "apology_repair",
+      "priority": 95
+    },
+    {
+      "id": "repair_frustration_sorry_wrong",
+      "hanzi": "不好意思，是我没说清楚。你想聊点别的吗？",
+      "pinyin": "bù hǎo yì si, shì wǒ méi shuō qīng chǔ. nǐ xiǎng liáo diǎn bié de ma?",
+      "text_en": "Sorry, I wasn't clear. Would you like to talk about something else?",
+      "level": "P2",
+      "use": "frustration_repair",
+      "recovery_action": "meaning",
+      "move_type": "REPAIR",
+      "response_role": "REPAIR",
+      "repair_kind": "apology_repair",
+      "priority": 90
     }
   ]
 }
