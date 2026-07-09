@@ -202,5 +202,10 @@ def test_server_has_stale_counter_reply_override():
     src = _UI_SERVER.read_text(encoding="utf-8")
     assert "def _is_direct_persona_question" in src
     assert "Stale counter_reply override" in src
-    assert "context_reply=\"\"" in src or "context_reply=''" in src
+    # Fix (post-ffc806c): stale override now calls _direct_persona_answer directly
+    # instead of routing through _answer_user_question_prefix, so context_reply=""
+    # is no longer present in this block.  Check for the corrected direct call instead.
+    assert "_so_raw = _direct_persona_answer(" in src, (
+        "Stale override must call _direct_persona_answer directly, not _answer_user_question_prefix"
+    )
     assert "not _is_direct_persona_question(_last_text_for_counter)" in src

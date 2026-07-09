@@ -134,6 +134,20 @@ print("[ui_server] REPO_ROOT =", REPO_ROOT)
 print("[ui_server] UI_DIR    =", UI_DIR)
 print("[ui_server] RUNTIME_DIR =", RUNTIME_DIR)
 
+# Emit deployed git commit + branch so Railway logs make the running version obvious.
+try:
+    import subprocess as _sp
+    _git_sha  = _sp.check_output(["git", "rev-parse", "--short", "HEAD"],
+                                  cwd=str(REPO_ROOT), text=True, stderr=_sp.DEVNULL).strip()
+    _git_branch = _sp.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                                    cwd=str(REPO_ROOT), text=True, stderr=_sp.DEVNULL).strip()
+    print(f"[ui_server] version   = {_git_sha}  branch={_git_branch}")
+except Exception:
+    # Railway may not have git available; fall back to env var set at build time.
+    _git_sha = os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")[:7]
+    _git_branch = os.environ.get("RAILWAY_GIT_BRANCH", "unknown")
+    print(f"[ui_server] version   = {_git_sha}  branch={_git_branch}  (from env)")
+
 # ── Data directory — log effective path so Railway logs make storage issues obvious ──
 _DATA_DIR_ENV = os.environ.get("MANDARINOS_DATA_DIR", "")
 _DATA_DIR_EFFECTIVE = _DATA_DIR_ENV if _DATA_DIR_ENV else str(REPO_ROOT / "data")
@@ -7683,6 +7697,17 @@ class Handler(BaseHTTPRequestHandler):
         path   = parsed.path
         qs     = parse_qs(parsed.query)
 
+        # Lightweight version/health endpoint — returns deployed git SHA and branch.
+        if path in ("/api/version", "/api/health"):
+            _v: dict = {"branch": _git_branch, "sha": _git_sha, "status": "ok"}
+            data = json.dumps(_v, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
         # Phase 11C: Persona endpoints
         if path == "/api/personas":
             data = json.dumps({"personas": _personas_index}, ensure_ascii=False).encode("utf-8")
@@ -8990,26 +9015,34 @@ class Handler(BaseHTTPRequestHandler):
                         and not _is_confusion_signal(_last_text_for_counter)
                     ):
                         # Stale counter_reply override: a fresh direct persona question
-                        # (e.g. 你做什么工作 after a marriage answer) must not reuse or
-                        # restate the previous counter_reply via mirror-confusion paths.
-                        _stale_override = _answer_user_question_prefix(
-                            last_answer, persona,
+                        # (e.g. 你做什么工作 after a city-like answer, or 成都有什么好吃 after
+                        # a hometown answer) must not be routed through _answer_user_question_prefix
+                        # which prioritises _find_mirror_answer before _direct_persona_answer.
+                        # The mirror bank can recycle a previous city/place answer as the
+                        # "stale override" result — exactly the bug this block is meant to prevent.
+                        # Fix: call _direct_persona_answer directly. If it returns None, do not
+                        # manufacture a mirror answer here — fall through to standard routing.
+                        _so_raw = _direct_persona_answer(
+                            _last_text_for_counter, persona,
                             recent_replies=_recent_persona_replies,
-                            context_reply="",
                         )
+                        if _so_raw:
+                            _so_zh = (
+                                f"我呢，{_so_raw}" if not _so_raw.startswith("我") else _so_raw
+                            )
+                            _so_en = _persona_answer_en(
+                                persona, _so_zh,
+                                _detect_reverse_fact_intent(_last_text_for_counter),
+                            )
+                            _stale_override = (_so_zh, _so_en)
+                        else:
+                            _stale_override = None
                         if (
                             _stale_override
                             and (_stale_override[0] or "").strip()
                             and (_stale_override[0] or "").strip() != _prev_counter_reply.strip()
                         ):
                             _counter_result = _stale_override
-                            _raw_m_stale = _find_mirror_answer(
-                                _last_text_for_counter, "", persona
-                            )
-                            if _raw_m_stale and len(_raw_m_stale) == 4:
-                                _counter_is_new_mirror = True
-                                _new_mirror_topic    = _raw_m_stale[2]
-                                _new_mirror_engine   = _raw_m_stale[3]
                     elif (
                         _prev_counter_reply
                         and _last_text_for_counter
@@ -9271,6 +9304,13 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         _counter_reply = _persona_deflect("generic", _counter_reply)
                         _counter_reply_en = _persona_answer_en(persona, _counter_reply)
+
+                # Belt-and-suspenders exact-repeat guard (restored from pre-ffc806c baseline).
+                # Catches any exact duplicate that slipped past _dedupe_persona_answer above
+                # (e.g. when _dedup_pool membership check missed a normalised variant).
+                if _counter_reply and _counter_reply.strip() == (_prev_counter_reply or "").strip():
+                    _counter_reply = _persona_deflect("generic", _counter_reply)
+                    _counter_reply_en = _persona_answer_en(persona, _counter_reply)
 
                 # ── Repair escalation ───────────────────────────────────────────
                 # When the learner repeatedly signals confusion (啊？ / 我不懂 / etc.),
