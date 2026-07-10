@@ -154,6 +154,80 @@ _DATA_DIR_EFFECTIVE = _DATA_DIR_ENV if _DATA_DIR_ENV else str(REPO_ROOT / "data"
 print(f"[ui_server] DATA_DIR  = {_DATA_DIR_EFFECTIVE}  "
       f"{'(from MANDARINOS_DATA_DIR env)' if _DATA_DIR_ENV else '(default — ephemeral on Railway; set MANDARINOS_DATA_DIR to a persistent volume path)'}")
 
+# ── ASR diagnostic tracing (branch: diagnostics/asr-trace) ────────────────────
+# Additive, behaviour-free instrumentation to trace spoken-vs-typed pipeline
+# divergence. It MUST NOT change ASR selection, submitted text, transcript
+# display, normalization, intent routing, or the response the learner sees.
+# Records are only captured/returned/stored when MANDARINOS_DIAG_TOKEN is set,
+# so production behaviour and payloads are byte-identical when it is unset.
+# Raw speech transcripts may contain PII, so the collection endpoint is
+# token-gated and the store lives under the (non-web-served) data dir.
+_DIAG_TOKEN = (os.environ.get("MANDARINOS_DIAG_TOKEN") or "").strip()
+_DIAG_DIR = Path(_DATA_DIR_EFFECTIVE) / "diag"
+_DIAG_TRACE_FILE = _DIAG_DIR / "asr_traces.jsonl"
+
+
+def _diag_enabled() -> bool:
+    return bool(_DIAG_TOKEN)
+
+
+def _diag_normalizer_name() -> str:
+    """Report the normalization path actually present in THIS build.
+
+    Do not assume _normalize_zh_for_routing exists (it is absent on older
+    deployed branches); report 'none' when no routing normalizer is defined.
+    """
+    return "_normalize_zh_for_routing" if "_normalize_zh_for_routing" in globals() else "none"
+
+
+def _diag_append(kind: str, rec: dict) -> None:
+    """Append one diagnostic record as JSONL. Never raises into the request path."""
+    if not _diag_enabled():
+        return
+    try:
+        _DIAG_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "kind": kind,
+            "logged_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds"),
+            "server_sha": _git_sha,
+            "server_branch": _git_branch,
+        }
+        payload.update(rec or {})
+        with open(_DIAG_TRACE_FILE, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+def _diag_finalize_response(response: dict, cap: Optional[dict]) -> None:
+    """Attach server-side response fields to the diag record and persist it.
+
+    No-op when cap is None (diagnostics off or no trace id). Never alters the
+    learner-facing content of `response` beyond adding a `diag` metadata field
+    that the client ignores unless diagnostics are enabled.
+    """
+    if cap is None or not isinstance(response, dict):
+        return
+    try:
+        _cr = response.get("counter_reply")
+        _cr_txt = _cr.get("zh") if isinstance(_cr, dict) else (_cr if isinstance(_cr, str) else "")
+        cap["response_source"] = "counter_reply" if _cr_txt else "frame_text"
+        cap["final_response_text"] = _cr_txt or response.get("frame_text") or ""
+        cap["frame_id"] = response.get("frame_id") or ""
+        cap["engine_id"] = response.get("engine_id") or ""
+        cap["turn_type"] = response.get("turn_type") or ""
+        cap["intent"] = "user_question" if cap.get("user_asked_question") else (response.get("turn_type") or "")
+        response["diag"] = cap
+        _diag_append("server_turn", cap)
+    except Exception:
+        pass
+
+
+if _diag_enabled():
+    print(f"[ui_server] DIAG      = ENABLED (asr-trace store: {_DIAG_TRACE_FILE})")
+else:
+    print("[ui_server] DIAG      = disabled (set MANDARINOS_DIAG_TOKEN to enable ASR tracing)")
+
 # Windows console can be cp1252; avoid crashing on printing Hanzi in payload logs.
 try:
     if os.name == "nt":
@@ -7951,7 +8025,13 @@ class Handler(BaseHTTPRequestHandler):
 
         # Lightweight version/health endpoint — returns deployed git SHA and branch.
         if path in ("/api/version", "/api/health"):
-            _v: dict = {"branch": _git_branch, "sha": _git_sha, "status": "ok"}
+            _v: dict = {
+                "branch": _git_branch,
+                "sha": _git_sha,
+                "status": "ok",
+                "diag_enabled": _diag_enabled(),
+                "normalizer": _diag_normalizer_name(),
+            }
             data = json.dumps(_v, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -8254,6 +8334,37 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
 
+        # ── ASR diagnostic trace collection (token-protected; not public) ─────
+        # Receives a per-listen-cycle client bundle and appends it to the diag
+        # store. Disabled (403) unless MANDARINOS_DIAG_TOKEN is set and matches
+        # the X-Diag-Token header — raw speech transcripts may contain PII.
+        if path == "/api/diag/asr-trace":
+            if not _diag_enabled():
+                self._json_error(404, "diagnostics disabled")
+                return
+            tok = (self.headers.get("X-Diag-Token") or "").strip()
+            if tok != _DIAG_TOKEN:
+                self._json_error(403, "invalid or missing diag token")
+                return
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length else b"{}"
+            try:
+                rec = json.loads(body)
+            except Exception:
+                rec = None
+            if not isinstance(rec, dict):
+                self._json_error(400, "invalid trace record")
+                return
+            _diag_append("client_bundle", rec)
+            out = {"ok": True, "trace_id": rec.get("trace_id")}
+            data = json.dumps(out, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
         if path == "/api/reset_memory":
             length = int(self.headers.get("Content-Length", 0))
             body   = self.rfile.read(length)
@@ -8354,6 +8465,22 @@ class Handler(BaseHTTPRequestHandler):
                 payload = {}
 
             print(f"[ui_server] /api/run_turn payload keys={list(payload.keys())}", flush=True)
+
+            # ── Diagnostic capture (behaviour-free) ───────────────────────────
+            # Populated only when diagnostics are enabled AND the client threaded
+            # a diag_trace_id. Filled incrementally below and attached to the
+            # response + diag store just before the response is sent.
+            _diag_cap = None
+            if _diag_enabled() and isinstance(payload, dict):
+                _diag_tid = str(payload.get("diag_trace_id") or "").strip()
+                if _diag_tid:
+                    _diag_cap = {
+                        "trace_id": _diag_tid,
+                        "server_received_at": datetime.datetime.now(
+                            datetime.timezone.utc
+                        ).isoformat(timespec="milliseconds"),
+                        "normalizer": _diag_normalizer_name(),
+                    }
 
             # Direction actions: learner asks back/why, partner gives short stub, then UI resumes thread.
             direction_intent = (payload.get("direction_intent") or "").strip().lower()
@@ -8588,6 +8715,18 @@ class Handler(BaseHTTPRequestHandler):
                 user_asked_question = (
                     _is_user_question(_routing_last_answer) if last_turn_was_answer else False
                 )
+
+                if _diag_cap is not None:
+                    _la_diag = last_answer if isinstance(last_answer, dict) else {}
+                    _diag_cap["server_raw_input"] = (
+                        _la_diag.get("submitted_text")
+                        or _la_diag.get("selected_option_hanzi")
+                        or ""
+                    )
+                    _diag_cap["server_raw_answer_text"] = raw_answer_text
+                    _diag_cap["routing_text"] = routing_answer_text
+                    _diag_cap["last_turn_was_answer"] = bool(last_turn_was_answer)
+                    _diag_cap["user_asked_question"] = bool(user_asked_question)
 
                 # ── Affirmation-after-re-ask: clear confusion counters ──────────────────
                 # When the app issued a clarification re-ask last turn (noisy location,
@@ -10437,6 +10576,7 @@ class Handler(BaseHTTPRequestHandler):
                         _closing_response["learner_memory"] = _phase10_learner_memory
                     if _phase10_persona_id:
                         _closing_response["persona_id"] = _phase10_persona_id
+                    _diag_finalize_response(_closing_response, _diag_cap)
                     _cl_data = json.dumps(_closing_response, ensure_ascii=False).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -11608,6 +11748,7 @@ class Handler(BaseHTTPRequestHandler):
             elif isinstance(_cr_final, dict) and isinstance(_cr_final.get("zh"), str):
                 _cr_final["zh"] = _repair_asr_junk_text(_cr_final["zh"])
 
+            _diag_finalize_response(response, _diag_cap)
             data = json.dumps(response, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")

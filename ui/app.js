@@ -16,6 +16,88 @@ let state = Object.assign({}, _initialState);
 let uiTrace = [];
 let currentPlay = null; // { utterance_id, start, timeoutId, duration_ms }
 
+// ── ASR diagnostic tracing (branch: diagnostics/asr-trace) ────────────────────
+// Additive, behaviour-free instrumentation used to trace the spoken-vs-typed
+// pipeline divergence. It MUST NOT change ASR selection, submitted text,
+// transcript display, normalization, intent routing, or response behaviour.
+//
+// It is fully OFF unless a diag token is present (via ?diag=TOKEN once, then
+// remembered in localStorage). When off, every method is a no-op and no network
+// call is made. Events are buffered in memory during recognition and only
+// flushed asynchronously (keepalive fetch) after the turn resolves, so no
+// synchronous network logging happens inside ASR event handlers.
+const AsrDiag = (() => {
+  const pending = {};   // trace_id -> record awaiting server response / flush
+  let active = null;    // record for the in-progress listen cycle
+
+  function _token() {
+    try {
+      const q = new URLSearchParams(location.search).get("diag");
+      if (q) { try { localStorage.setItem("mandarinos_diag_token", q); } catch (_) {} return q; }
+      return localStorage.getItem("mandarinos_diag_token") || "";
+    } catch (_) { return ""; }
+  }
+  function enabled() { return !!_token(); }
+  function _clock() {
+    return (window.performance && performance.now) ? Math.round(performance.now()) : Date.now();
+  }
+  function _mkId(prefix) {
+    return prefix + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  }
+  function begin(meta) {
+    if (!enabled()) { active = null; return null; }
+    active = { trace_id: _mkId("asr-"), started_at: new Date().toISOString(), device: meta || {}, events: [] };
+    return active.trace_id;
+  }
+  function beginSynthetic(meta) {
+    // For the typed/translated path: no ASR cycle, but we still want the server
+    // side of the trace (raw input, routing, intent, response) for comparison.
+    if (!enabled()) { active = null; return null; }
+    active = { trace_id: _mkId("typ-"), started_at: new Date().toISOString(), device: meta || {}, events: [], synthetic: true };
+    return active.trace_id;
+  }
+  function id() { return active ? active.trace_id : null; }
+  function ev(type, data) {
+    if (!active) return;
+    const e = { t: _clock(), type };
+    if (data) Object.assign(e, data);
+    active.events.push(e);
+  }
+  function set(k, v) { if (active) active[k] = v; }
+  function submit(extra) {
+    // Detach the active record so a later async server response can complete it
+    // without being clobbered by the next listen cycle.
+    if (!active) return null;
+    if (extra) Object.assign(active, extra);
+    const tid = active.trace_id;
+    pending[tid] = active;
+    active = null;
+    return tid;
+  }
+  function complete(traceId, serverDiag, extra) {
+    const rec = pending[traceId];
+    if (!rec) return;
+    if (serverDiag) rec.server = serverDiag;
+    if (extra) Object.assign(rec, extra);
+    delete pending[traceId];
+    _flush(rec);
+  }
+  function _flush(rec) {
+    const tok = _token();
+    let body;
+    try { body = JSON.stringify(rec); } catch (_) { return; }
+    try {
+      fetch("/api/diag/asr-trace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Diag-Token": tok },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    } catch (_) {}
+  }
+  return { enabled, begin, beginSynthetic, id, ev, set, submit, complete };
+})();
+
 // Phase 7 completion: transcript array for "You said" + Phase 8 Conversation Loop UI reuse.
 // Each entry: { role: 'user'|'partner', text: string }. Append on option select; Phase 8 will render full transcript.
 let conversationTranscript = [];
@@ -199,6 +281,11 @@ function _isConversationalRecoveryAttempt(text) {
 function addTranscriptEntry(role, textZh, extras = {}) {
   const _zh = textZh || "";
   const _isPartner = role === "partner";
+  // Diagnostics: capture the transcript actually shown to the learner for the
+  // active mic cycle (behaviour-free; only records when diag is enabled).
+  try {
+    if (!_isPartner && AsrDiag.id()) AsrDiag.set("displayed_transcript", _zh);
+  } catch (_) {}
   const entry = {
     id: "line_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
     role: _isPartner ? "partner" : "user",
@@ -3377,6 +3464,13 @@ function listenForResponse(options, timeoutMs) {
     rec.continuous = !isMobileListen;
     rec.lang = "zh-CN";
     rec.interimResults = true;
+    AsrDiag.begin({
+      is_mobile: isMobileListen,
+      user_agent: (typeof navigator !== "undefined" && navigator.userAgent) || "",
+      lang: rec.lang,
+      continuous: rec.continuous,
+      interim_results: rec.interimResults,
+    });
     let finalTranscript = "";
     let interimTranscript = "";
     let lastConf = null;
@@ -3428,9 +3522,15 @@ function listenForResponse(options, timeoutMs) {
       _setListenState("processing");
 
       const finalize = () => {
+        const _selSource = finalTranscript ? "final" : (interimTranscript ? "interim" : "none");
+        AsrDiag.ev("finish", { reason, selected_source: _selSource, final: finalTranscript || "", interim: interimTranscript || "" });
+        AsrDiag.set("finish_reason", reason);
+        AsrDiag.set("selected_source", _selSource);
+        AsrDiag.set("selected_transcript", getBestTranscript());
         finalTranscript = getBestTranscript();
         interimTranscript = "";
         const matched = matchTranscriptToOption(finalTranscript, options || []);
+        AsrDiag.set("matched_option", matched ? (matched.hanzi || "") : null);
         const ac = typeof lastConf === "number" && !Number.isNaN(lastConf) ? lastConf : null;
         resolve({
           transcript: finalTranscript,
@@ -3484,6 +3584,16 @@ function listenForResponse(options, timeoutMs) {
           interimTranscript = "";
         }
         if (chunkInterim) interimTranscript = chunkInterim.trim();
+      }
+      if (chunkFinal || chunkInterim) {
+        AsrDiag.ev("asr_result", {
+          is_final: !!chunkFinal,
+          chunk_final: chunkFinal || "",
+          chunk_interim: chunkInterim || "",
+          final_so_far: finalTranscript || "",
+          interim_so_far: interimTranscript || "",
+          conf: typeof lastConf === "number" ? lastConf : null,
+        });
       }
       if (finalTranscript) {
         console.log(`[ASR] onresult final: "${finalTranscript}"`);
@@ -3550,6 +3660,7 @@ function listenForResponse(options, timeoutMs) {
 
     rec.onstart = () => {
       micStarted = true;
+      AsrDiag.ev("onstart");
       _setListenState("listening");
     };
 
@@ -6282,6 +6393,27 @@ async function _runTurnInner(isNext = false, opts = {}) {
       // counter-questions via submitted_text.
       if (window._lastAnswer && (window._lastAnswer.submitted_text || window._lastAnswer.selected_option_hanzi)) {
         conversation_state.last_answer = window._lastAnswer;
+        // Diagnostics: mint/detach a trace id for this submission so the server
+        // captures raw input, routing text, intent, and response for BOTH the
+        // spoken and typed/translated paths (behaviour-free; diag-gated).
+        try {
+          if (AsrDiag.enabled()) {
+            const _sub = window._lastAnswer.submitted_text || window._lastAnswer.selected_option_hanzi || "";
+            const _wasMic = !!AsrDiag.id();
+            if (!_wasMic) {
+              AsrDiag.beginSynthetic({
+                input_path: "typed_or_translated",
+                user_agent: (typeof navigator !== "undefined" && navigator.userAgent) || "",
+              });
+            }
+            const _tid = AsrDiag.submit({
+              submitted_transcript: _sub,
+              request_payload_text: _sub,
+              input_path: _wasMic ? "microphone" : "typed_or_translated",
+            });
+            if (_tid) window._diagTurnTraceId = _tid;
+          }
+        } catch (_) {}
         window._lastAnswer = null; // send once only
       }
     }
@@ -6291,6 +6423,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
       next_question: true,
       conversation_state
     };
+    if (window._diagTurnTraceId) payload.diag_trace_id = window._diagTurnTraceId;
     if (!currentEngine) {
       emitUITrace({
         type: "UI_ERROR",
@@ -6353,6 +6486,14 @@ async function _runTurnInner(isNext = false, opts = {}) {
   } catch (e) {
     console.warn("[app] runTurn: failed to parse response JSON", e);
   }
+
+  // Diagnostics: join the server-side trace to the client bundle and flush it.
+  try {
+    if (window._diagTurnTraceId) {
+      AsrDiag.complete(window._diagTurnTraceId, data && data.diag);
+      window._diagTurnTraceId = null;
+    }
+  } catch (_) {}
 
   // Phase 10.5: update behaviour counters from server response (UI can ignore extras; we use for next selector call).
   if (opts?.last_turn_was_answer === true) {
@@ -7098,6 +7239,13 @@ window.addEventListener("load", async () => {
         timestamp: new Date().toISOString(),
         payload: { frame_id: frameId, finish_reason: finishReason || "unknown" },
       });
+      // Diagnostics: flush the (no-speech) mic cycle record — no submission occurs.
+      try {
+        if (AsrDiag.id()) {
+          const _tid = AsrDiag.submit({ input_path: "microphone", submitted_transcript: "", empty: true, finish_reason: finishReason || "unknown" });
+          if (_tid) AsrDiag.complete(_tid, null);
+        }
+      } catch (_) {}
       setUiMode("RESPOND");
       return;
     }
