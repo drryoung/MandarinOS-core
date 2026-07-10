@@ -135,18 +135,33 @@ print("[ui_server] UI_DIR    =", UI_DIR)
 print("[ui_server] RUNTIME_DIR =", RUNTIME_DIR)
 
 # Emit deployed git commit + branch so Railway logs make the running version obvious.
-try:
-    import subprocess as _sp
-    _git_sha  = _sp.check_output(["git", "rev-parse", "--short", "HEAD"],
-                                  cwd=str(REPO_ROOT), text=True, stderr=_sp.DEVNULL).strip()
-    _git_branch = _sp.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                                    cwd=str(REPO_ROOT), text=True, stderr=_sp.DEVNULL).strip()
-    print(f"[ui_server] version   = {_git_sha}  branch={_git_branch}")
-except Exception:
-    # Railway may not have git available; fall back to env var set at build time.
-    _git_sha = os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")[:7]
-    _git_branch = os.environ.get("RAILWAY_GIT_BRANCH", "unknown")
-    print(f"[ui_server] version   = {_git_sha}  branch={_git_branch}  (from env)")
+#
+# NOTE: this is captured once at process startup, so /api/version reports the
+# commit the running process was LAUNCHED from — it will not change if you commit
+# while the server keeps running (restart to pick up a new HEAD). Precedence:
+#   1. live `git rev-parse HEAD` (authoritative for the checked-out tree);
+#   2. RAILWAY_GIT_COMMIT_SHA (build metadata) when git is unavailable;
+#   3. "unknown" — never a blank or truncated/misleading value.
+def _resolve_version():
+    try:
+        import subprocess as _sp
+        _sha_full = _sp.check_output(["git", "rev-parse", "HEAD"],
+                                     cwd=str(REPO_ROOT), text=True, stderr=_sp.DEVNULL).strip()
+        _branch = _sp.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                                   cwd=str(REPO_ROOT), text=True, stderr=_sp.DEVNULL).strip()
+        if _sha_full:
+            return _sha_full[:7], _sha_full, (_branch or "unknown"), "git"
+    except Exception:
+        pass
+    _env_sha = (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "").strip()
+    _env_branch = (os.environ.get("RAILWAY_GIT_BRANCH") or "").strip()
+    if _env_sha:
+        return _env_sha[:7], _env_sha, (_env_branch or "unknown"), "railway_env"
+    return "unknown", "unknown", (_env_branch or "unknown"), "unknown"
+
+
+_git_sha, _git_sha_full, _git_branch, _git_sha_source = _resolve_version()
+print(f"[ui_server] version   = {_git_sha}  branch={_git_branch}  (source={_git_sha_source})")
 
 # ── Data directory — log effective path so Railway logs make storage issues obvious ──
 _DATA_DIR_ENV = os.environ.get("MANDARINOS_DATA_DIR", "")
@@ -8028,6 +8043,8 @@ class Handler(BaseHTTPRequestHandler):
             _v: dict = {
                 "branch": _git_branch,
                 "sha": _git_sha,
+                "sha_full": _git_sha_full,
+                "sha_source": _git_sha_source,
                 "status": "ok",
                 "diag_enabled": _diag_enabled(),
                 "normalizer": _diag_normalizer_name(),
