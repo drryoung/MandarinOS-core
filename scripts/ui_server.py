@@ -6674,19 +6674,33 @@ def _answer_from_working_memory(text: str, facts: dict, persona: Optional[dict])
     return None
 
 
-def _infer_wm_topic_engine(text: str) -> Optional[str]:
+def _infer_question_topic_engine(text: str) -> Optional[str]:
     """
-    Infer which engine a working-memory answer belongs to, based on the learner's question text.
-    Returns an engine string or None when classification is uncertain.
+    Infer which engine a learner's question belongs to, based on the question text.
+    Used by E4 Initiative Follow for all answer-source tiers: mirror (via working memory),
+    and direct-persona (static facts).  Returns an engine string or None when the
+    question cannot be reliably classified.
     Pure function — no side effects.
     """
-    t = (text or "").strip().rstrip("？?！!。，, ")
+    import re as _re_iqte
+    # Collapse whitespace between CJK characters so spaced ASR forms like
+    # "重 庆 有 什么 特别" are treated the same as "重庆有什么特别".
+    t = _re_iqte.sub(r"(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])", "", (text or ""))
+    t = t.strip().rstrip("？?！!。，, ")
     if not t:
         return None
+    # Place-feature / place-food questions: asked about a place, keep in place engine.
+    # Checked before food so "成都有什么好吃的" routes to place, not food.
+    if _is_place_feature_question(t) or _is_place_food_question(t):
+        return "place"
+    # Cooking questions: "你做什么菜" routes to food, not work.
+    # Checked before work so the "做什么" keyword below does not capture it.
+    if _is_cooking_question(t):
+        return "food"
     # Travel
     if any(k in t for k in ("最喜欢", "去过哪", "旅游过", "旅行", "哪个地方", "哪里好玩")):
         return "travel"
-    # Food
+    # Generic food (not about a specific place)
     if any(k in t for k in ("喜欢辣", "辣", "吃什么", "喜欢吃", "食物")):
         return "food"
     # Place / hometown
@@ -6702,6 +6716,11 @@ def _infer_wm_topic_engine(text: str) -> Optional[str]:
     if any(k in t for k in ("爱好", "兴趣", "喜欢做什么")):
         return "hobby"
     return None
+
+
+# Backward-compatible alias: existing tests and call sites that reference the old name
+# continue to work while new code uses the neutral name.
+_infer_wm_topic_engine = _infer_question_topic_engine
 
 
 def _topic_aware_honest_fallback(t: str, persona: Optional[dict]) -> Optional[tuple]:
@@ -9687,8 +9706,11 @@ class Handler(BaseHTTPRequestHandler):
                 _counter_reply_en = _counter_result[1] if _counter_result else ""
 
                 # ── E4: Initiative Follow — resolve engine handoff ────────────────────────
-                # Only performed when: user asked a question, AND the answer came from the
-                # mirror bank or working memory (confident answer, not a weak fallback).
+                # Performed when: user asked a question AND an answer was produced via any of:
+                #   • mirror bank (new mirror answer)
+                #   • working memory (E3)
+                #   • direct-persona / static-fact path (was not previously covered)
+                # Generic deflections are excluded — they do not reveal a clear new topic.
                 # If gated conditions pass, the resolved engine is written to state_update
                 # so the next frame stays on the learner's redirected topic.
                 _e4_engine_handoff: Optional[str] = None
@@ -9699,7 +9721,16 @@ class Handler(BaseHTTPRequestHandler):
                         _e4_q_text = (
                             (last_answer.get("submitted_text") or "") if isinstance(last_answer, dict) else ""
                         ).strip()
-                        _e4_engine_handoff = _infer_wm_topic_engine(_e4_q_text)
+                        _e4_engine_handoff = _infer_question_topic_engine(_e4_q_text)
+                    elif _last_text_for_counter:
+                        # Direct-persona / static-fact path: extend E4 to cover confident
+                        # persona answers that are not generic deflections.
+                        # Uses the same question-text-to-engine classifier as the WM branch.
+                        _e4_dp_deflects = set(_persona_deflect_phrases.get("generic") or [])
+                        if _counter_result[0] not in _e4_dp_deflects:
+                            _e4_engine_handoff = _infer_question_topic_engine(
+                                _last_text_for_counter
+                            )
 
                 # ── Mirror confusion state update ────────────────────────────────────────
                 # Write to cs so the next turn's escalation ladder has correct context.
