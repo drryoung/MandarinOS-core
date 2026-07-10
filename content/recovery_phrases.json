@@ -617,6 +617,32 @@
       "response_role": "ANSWER",
       "repair_kind": "challenge_reply",
       "priority": 90
+    },
+    {
+      "id": "persona_cooking_home_style",
+      "hanzi": "我平时在家会做几个家常菜，炒菜和炖汤都不错。",
+      "pinyin": "wǒ píng shí zài jiā huì zuò jǐ ge jiā cháng cài, chǎo cài hé dùn tāng dōu bù cuò.",
+      "text_en": "I usually cook a few home-style dishes at home — stir-fries and soups are my strong points.",
+      "level": "P2",
+      "use": "persona_cooking_reply",
+      "recovery_action": "next_turn",
+      "move_type": "LOOP",
+      "response_role": "ANSWER",
+      "repair_kind": "cooking_reply",
+      "priority": 100
+    },
+    {
+      "id": "persona_cooking_simple_fallback",
+      "hanzi": "我会做几道简单的菜，不算专业，但味道还可以。",
+      "pinyin": "wǒ huì zuò jǐ dào jiǎn dān de cài, bù suàn zhuān yè, dàn wèi dào hái kě yǐ.",
+      "text_en": "I can make a few simple dishes — nothing fancy, but they taste alright.",
+      "level": "P2",
+      "use": "persona_cooking_reply",
+      "recovery_action": "next_turn",
+      "move_type": "LOOP",
+      "response_role": "ANSWER",
+      "repair_kind": "cooking_reply",
+      "priority": 90
     }
   ]
 }

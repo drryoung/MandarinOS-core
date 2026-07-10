@@ -312,6 +312,7 @@ _frustration_repair_phrases: list = []  # [(hanzi, text_en), ...]  (use=frustrat
 _travel_intent_followup_templates: dict = {}  # "dest" -> (zh_tpl, en_tpl), "generic" -> (zh, en)
 _disclosure_empathy_phrases: list = []  # [(hanzi, text_en), ...]  (use=learner_disclosure_empathy)
 _persona_challenge_phrases: list = []   # [(hanzi, text_en), ...]  (use=persona_challenge)
+_persona_cooking_phrases: list = []     # [(hanzi, text_en), ...]  (use=persona_cooking_reply)
 _recovery_phrase_legacy_id_alias: dict[str, str] = {}  # legacy phrase id -> canonical id (v1.2)
 _rp_path = CONTENT_DIR / "recovery_phrases.json"
 try:
@@ -354,6 +355,13 @@ try:
                 _hz = (_p.get("hanzi") or "").strip()
                 if _hz:
                     _persona_challenge_phrases.append((_hz, (_p.get("text_en") or "").strip()))
+            if _p.get("use") == "persona_cooking_reply":
+                _hz = (_p.get("hanzi") or "").strip()
+                if _hz:
+                    _persona_cooking_phrases.append((_hz, (_p.get("text_en") or "").strip()))
+                    _en = (_p.get("text_en") or "").strip()
+                    if _en:
+                        _persona_deflect_en_map[_hz] = _en
             _pid = (_p.get("id") or "").strip()
             if _pid:
                 for _lid in _p.get("legacy_ids") or []:
@@ -2598,12 +2606,16 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
         text = (last_answer.get("selected_option_hanzi") or "").strip()
     if not text:
         return False
-    # Check for any question mark (fullwidth U+FF1F or ASCII U+003F)
-    if any(ord(c) in (0xFF1F, 0x003F) for c in text):
+    _raw_for_qmark = text
+    text = _normalize_zh_for_routing(text)
+    # Question-mark check on the raw submitted text (before trailing-filler strip).
+    if any(ord(c) in (0xFF1F, 0x003F) for c in _raw_for_qmark):
         return True
     # Strip leading fillers so "ne 你是哪里人" / "啊你住哪里" classify correctly.
-    # Question-mark check above runs on raw text first so "啊？" still signals confusion.
     text = _strip_leading_fillers(text)
+    # Semantic place-food / place-feature / cooking questions (ASR-tolerant).
+    if _is_place_food_question(text) or _is_place_feature_question(text) or _is_cooking_question(text):
+        return True
     # Content-based interrogatives without explicit ？ — e.g. "西安有什么特别啊", "这里有什么好吃的",
     # "你们那儿怎么样". Checked early so short utterances like "有什么好吃" are caught quickly.
     _content_q_markers = ("有什么", "什么特别", "什么好", "什么特色", "怎么样", "叫什么")
@@ -2718,9 +2730,11 @@ def _is_direct_persona_question(t: str) -> bool:
     """
     if not (t or "").strip():
         return False
-    t = _strip_leading_fillers((t or "").strip()).replace("您", "你")
+    t = _normalize_zh_for_routing((t or "").strip()).replace("您", "你")
     if _is_confusion_signal(t):
         return False
+    if _is_place_food_question(t) or _is_place_feature_question(t) or _is_cooking_question(t):
+        return True
     if _find_mirror_answer(t, "", None):
         return True
     if _direct_persona_answer(t, None):
@@ -2804,6 +2818,7 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
     Returns None when no pattern matches.
     recent_replies: list of recent persona counter_replies used to suppress exact repeats.
     """
+    t = _normalize_zh_for_routing(t or "")
     profile     = (persona or {}).get("profile") or {}
     voice_lines = (persona or {}).get("voice_lines") or {}
     name        = _assistant_name_from_persona(persona)
@@ -2877,9 +2892,14 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
             return f"是的，我现在还住在{city_now}。"
         return "是的，我还在这边，没什么特别的变动。"
 
+    # Cooking / dish questions — must precede the generic work handler.
+    if _is_cooking_question(t):
+        return _cooking_persona_answer(persona, seed=t)
+
     # Job / work — include "什么类型/什么样的工作" so work-type questions answer job.
     if any(p in t for p in ("你做什么工作", "你的工作", "你是做什么", "你工作",
-                             "什么类型的工作", "类型的工作", "什么样的工作", "哪种工作")):
+                             "什么类型的工作", "类型的工作", "什么样的工作", "哪种工作",
+                             "什么工作", "干什么工作")):
         occ = (profile.get("occupation") or "").strip()
         return voice_lines.get("work") or (f"我是{occ}。" if occ else "我也有工作。")
 
@@ -3120,11 +3140,10 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
             return _origin_fact
         return "很难说具体原因，就是喜欢那种感觉，做了就停不下来。"
 
-    # ── Food-specific place questions — "X有什么好吃的？" ──────────────────────────────────────
+    # ── Food-specific place questions — "X有什么好吃的？" / "X好吃的" / "那里有什么好吃的" ──
     # Separated from the general feature block so food questions always get food answers,
     # not history/culture facts (the generic pool has both and random selection was the bug).
-    _food_question_markers = ("有什么好吃", "有什么吃的", "有什么特色小吃", "有什么美食", "好吃的有什么")
-    if any(m in t for m in _food_question_markers):
+    if _is_place_food_question(t):
         _CITY_FOOD_POOL: dict = {
             "西安": ["西安的小吃非常有名！凉皮和肉夹馍是我最喜欢的，特别好吃。",
                      "西安有很多特色小吃，凉皮、肉夹馍、羊肉泡馍，每一样都很值得尝试。"],
@@ -3140,6 +3159,13 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
         }
         city = (profile.get("city") or "").strip()
         hometown = (profile.get("hometown") or "").strip()
+        _resolved_food_place = _place_from_question_context(t, recent_replies)
+        if _resolved_food_place and _resolved_food_place in _CITY_FOOD_POOL:
+            _fpool = _CITY_FOOD_POOL[_resolved_food_place]
+            _food_personal = (_facts.get("food") or "").strip()
+            if _resolved_food_place in (hometown, city) and _food_personal:
+                return _food_personal
+            return _pick_not_in(_fpool, f"food_q|{_resolved_food_place}|{t}", _recent_set)
         for _loc, _fpool in _CITY_FOOD_POOL.items():
             if _loc in t:
                 # If it's the persona's own city/hometown, give a first-person personal answer
@@ -3153,10 +3179,9 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
             return _pf
         # Fall through to general feature handler
 
-    # City/place feature questions — e.g. "北京有什么特别啊", "重庆有什么好玩？", "那里有什么特别的？"
+    # City/place feature questions — e.g. "北京有什么特别啊", "重庆特别的", "重庆怎么样"
     # Intent: "what's special/interesting about this place?" — must answer WITH FEATURES, not origin facts.
-    _feature_markers = ("有什么特别", "有什么好玩", "有什么有意思", "有什么特色", "有什么好", "怎么样啊", "怎么样呢")
-    if any(m in t for m in _feature_markers):
+    if _is_place_feature_question(t):
         city = (profile.get("city") or "").strip()
         hometown = (profile.get("hometown") or "").strip()
         # City-specific feature pools — grounded and beginner-friendly
@@ -3178,9 +3203,11 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
         }
         # 1. Extract the question clause (segment nearest the feature marker) so that
         #    the focus city of the question wins over background mentions.
-        #    e.g. "我不喜欢上海，成都有什么特别？" → clause = "成都有什么特别？"
+        _feature_clause_markers = (
+            "有什么特别", "特别之处", "有什么特色", "有什么好玩", "有什么有意思", "怎么样",
+        )
         _question_clause = t
-        for _fmk in _feature_markers:
+        for _fmk in _feature_clause_markers:
             if _fmk in t:
                 _fidx = t.rfind(_fmk)
                 for _bnd in ("。", "！", "？", "，"):
@@ -3189,6 +3216,14 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
                         _question_clause = t[_bidx + 1:].strip()
                         break
                 break
+
+        _resolved_feature_place = _place_from_question_context(t, recent_replies)
+        if _resolved_feature_place and _resolved_feature_place in _CITY_FEATURE_POOL:
+            return _pick_not_in(
+                _CITY_FEATURE_POOL[_resolved_feature_place],
+                f"feature|{_resolved_feature_place}|{t}",
+                _recent_set,
+            )
 
         # 1a. Persona travel-fact lookup for foreign/overseas places not in the pool.
         #     e.g. "日本有什么特别的？" → xiaoming's travel_where: "…最喜欢日本，拉面和温泉印象特别深"
@@ -3448,6 +3483,88 @@ def _strip_leading_fillers(text: str) -> str:
         return s
     stripped = _FILLER_PREFIX_RE.sub("", s).strip()
     return stripped if len(stripped) >= 2 else s
+
+
+# Collapse ASR-inserted spaces between CJK characters: "重 庆 有 什么" → "重庆有什么".
+_CJK_SPACING_RE = re.compile(
+    r"(?<=[\u4e00-\u9fff\u3400-\u4dbf])\s+(?=[\u4e00-\u9fff\u3400-\u4dbf])"
+)
+# Safe trailing particles stripped from the routing copy only (not the raw transcript).
+_TRAILING_ROUTING_FILLER_RE = re.compile(r"[啊呢吧嗯哈啦]+[？?！!。.]*$")
+
+_PLACE_DEIXIS_MARKERS: tuple = (
+    "那里", "那儿", "这边", "那边", "这里", "这儿", "你那儿", "你那",
+)
+
+
+def _normalize_zh_for_routing(text: str) -> str:
+    """Return a routing-normalized copy of learner Chinese for intent matching.
+
+    Does not mutate the input.  Preserves the original submitted text separately
+    for transcript display and memory capture.
+    """
+    s = (text or "").strip()
+    if not s:
+        return s
+    s = _strip_leading_fillers(s)
+    s = _CJK_SPACING_RE.sub("", s)
+    s = s.strip()
+    s = _TRAILING_ROUTING_FILLER_RE.sub("", s).strip()
+    return s
+
+
+def _is_place_food_question(t: str) -> bool:
+    """True when the learner asks what is good to eat at a named place or deictic 'there'."""
+    if not (t or "").strip():
+        return False
+    if any(m in t for m in (
+        "有什么好吃", "有什么吃的", "有什么美食", "有什么特色小吃", "好吃的有什么",
+    )):
+        return True
+    if re.search(r"(?:那里|那儿|这边|那边|这里|这儿).{0,4}好吃的", t):
+        return True
+    if re.search(r"[\u4e00-\u9fff]{2,4}好吃的", t):
+        return True
+    if "什么" in t and "好吃" in t:
+        return True
+    return False
+
+
+def _is_place_feature_question(t: str) -> bool:
+    """True when the learner asks what is special/interesting about a place.
+
+    Food questions take precedence — returns False when _is_place_food_question is True.
+    """
+    if not (t or "").strip() or _is_place_food_question(t):
+        return False
+    if any(m in t for m in (
+        "有什么特别", "特别之处", "有什么特色", "有什么好玩", "有什么有意思",
+    )):
+        return True
+    if re.search(r"[\u4e00-\u9fff]{2,4}特别的", t):
+        return True
+    if re.search(r"[\u4e00-\u9fff]{2,4}怎么样", t):
+        return True
+    if "怎么样" in t and len(t) <= 12:
+        return True
+    return False
+
+
+def _is_cooking_question(t: str) -> bool:
+    """True when the learner asks what dishes the persona cooks."""
+    if not (t or "").strip() or "菜" not in t:
+        return False
+    if any(m in t for m in (
+        "你做什么菜", "你会做什么菜", "你最拿手什么菜", "你最喜欢做什么菜",
+        "做什么菜", "会做什么菜", "拿手什么菜", "最喜欢做什么菜",
+    )):
+        return True
+  # Require an explicit cook verb — not bare 喜欢 (food-preference comparisons use 喜欢 too).
+    return (
+        "你" in t
+        and any(v in t for v in ("做", "会", "拿手"))
+        and "工作" not in t
+    )
 
 
 def _is_confusion_signal(t: str) -> bool:
@@ -3993,6 +4110,36 @@ def _context_city_from_text(text: str) -> Optional[str]:
     return None
 
 
+def _place_from_question_context(t: str, recent_replies: Optional[list] = None) -> Optional[str]:
+    """Named place in the question, or deictic '那里/这儿' resolved from recent persona replies."""
+    place = _context_city_from_text(t)
+    if place:
+        return place
+    if any(d in (t or "") for d in _PLACE_DEIXIS_MARKERS):
+        for reply in reversed(recent_replies or []):
+            p = _context_city_from_text(reply)
+            if p:
+                return p
+    return None
+
+
+def _cooking_persona_answer(persona: Optional[dict], seed: str = "") -> Optional[str]:
+    """Return a cooking/dish answer from persona food facts or the phrase bank."""
+    facts = (persona or {}).get("discoverable_facts") or {}
+    voice_lines = (persona or {}).get("voice_lines") or {}
+    food_fact = (facts.get("food") or "").strip()
+    if food_fact:
+        return food_fact
+    food_vl = (voice_lines.get("food") or "").strip()
+    if food_vl:
+        return food_vl
+    if not _persona_cooking_phrases:
+        return None
+    zh = _stable_pick([p[0] for p in _persona_cooking_phrases], seed or "cooking") \
+         or _persona_cooking_phrases[0][0]
+    return zh
+
+
 def _place_followup_reply(t: str, persona: Optional[dict],
                            context_reply: str = "") -> Optional[tuple]:
     """
@@ -4243,6 +4390,19 @@ def _persona_answer_en(persona: Optional[dict], zh: str,
         en = _reverse_fact_answer_en(intent, persona)
         if en:
             return en
+    # 4) discoverable_facts — dynamic persona answers (e.g. cooking from food fact).
+    _facts = (persona or {}).get("discoverable_facts") or {}
+    _facts_en = (persona or {}).get("discoverable_facts_en") or {}
+    for _fk, _fv in _facts.items():
+        _fv_s = (_fv or "").strip()
+        if _fv_s and (_fv_s == d or _fv_s == inner or _fv_s in d):
+            _en_f = (_facts_en.get(_fk) or "").strip()
+            if _en_f:
+                return _en_f
+    # 5) phrase-bank replies loaded into _persona_deflect_en_map (cooking fallback, etc.).
+    en = _persona_deflect_en(d) or _persona_deflect_en(inner)
+    if en:
+        return en
     return ""
 
 
@@ -4281,10 +4441,8 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     t = (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
     if not t:
         return None
-    # Strip leading fillers so "ne 你是哪里人" / "啊你住哪里" reach the right handler.
-    t = _strip_leading_fillers(t)
-    # Normalise formal 您 → informal 你 so all downstream pattern checks (mirror bank,
-    # _direct_persona_answer substrings, etc.) work without duplicating every entry.
+    # Routing-only normalization — raw submitted text is preserved in last_answer.
+    t = _normalize_zh_for_routing(t)
     t = t.replace("您", "你")
     if not _is_user_question(last_answer) and not _is_direct_persona_question(t):
         return None
@@ -4383,7 +4541,7 @@ def _answer_user_question_prefix(last_answer: Optional[dict], persona: Optional[
     if any(kw in t for kw in ("哪里", "哪儿", "住", "在哪")) and (_city_catch or _ht_catch):
         loc = _city_catch or _ht_catch
         return (f"我在{loc}这边，你呢？", "")
-    if any(kw in t for kw in ("工作", "做什么", "职业", "上班")):
+    if not _is_cooking_question(t) and any(kw in t for kw in ("工作", "做什么", "职业", "上班")):
         _vl_catch = (persona or {}).get("voice_lines") or {}
         work_line = _vl_catch.get("work") or ""
         if work_line:
@@ -8405,7 +8563,6 @@ class Handler(BaseHTTPRequestHandler):
                 last_turn_was_answer = cs.get("last_turn_was_answer") is True
                 slot_names = _infer_slot_names_from_answer(last_answer) if last_turn_was_answer else []
                 meaningful = bool(slot_names) or bool(new_memory_written)
-                user_asked_question = _is_user_question(last_answer) if last_turn_was_answer else False
                 last_partner_was_loop = cs.get("last_partner_turn_type") == "loop_question"
                 last_partner_had_reaction = cs.get("last_partner_had_reaction") is True
                 last_answer_fid = (
@@ -8414,6 +8571,23 @@ class Handler(BaseHTTPRequestHandler):
                     else ""
                 )
                 answer_text = _answer_text_from_last_answer(last_answer) if last_turn_was_answer else ""
+                raw_answer_text = answer_text
+                routing_answer_text = (
+                    _normalize_zh_for_routing(raw_answer_text) if raw_answer_text else ""
+                )
+                _routing_last_answer = last_answer
+                if (
+                    last_turn_was_answer
+                    and isinstance(last_answer, dict)
+                    and routing_answer_text
+                ):
+                    _routing_last_answer = dict(last_answer)
+                    _routing_last_answer["submitted_text"] = routing_answer_text
+                    if (last_answer.get("selected_option_hanzi") or "").strip():
+                        _routing_last_answer["selected_option_hanzi"] = routing_answer_text
+                user_asked_question = (
+                    _is_user_question(_routing_last_answer) if last_turn_was_answer else False
+                )
 
                 # ── Affirmation-after-re-ask: clear confusion counters ──────────────────
                 # When the app issued a clarification re-ask last turn (noisy location,
@@ -9005,7 +9179,7 @@ class Handler(BaseHTTPRequestHandler):
                 _recent_persona_replies: list = list(cs.get("recent_persona_replies") or []) if isinstance(cs, dict) else []
                 _last_text_for_counter = ""
                 if last_turn_was_answer and isinstance(last_answer, dict):
-                    _last_text_for_counter = (
+                    _last_text_for_counter = routing_answer_text or (
                         (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or "").strip()
                     )
                 _counter_seed = f"{cs.get('session_id', '')}/{len(recent or [])}" if isinstance(cs, dict) else ""
@@ -9291,10 +9465,14 @@ class Handler(BaseHTTPRequestHandler):
                     # Statements (e.g. "我跟家人一起住。") must never match the mirror bank —
                     # the fuzzy keyword pass would otherwise match topic keywords in any answer.
                     if _counter_result is None:
+                        _mirror_la = (
+                            _routing_last_answer if isinstance(_routing_last_answer, dict) else last_answer
+                        )
                         _raw_mirror = _find_mirror_answer(
-                            (last_answer.get("submitted_text") or last_answer.get("selected_option_hanzi") or ""),
+                            (_mirror_la.get("submitted_text") or _mirror_la.get("selected_option_hanzi") or "")
+                            if isinstance(_mirror_la, dict) else "",
                             "", persona
-                        ) if isinstance(last_answer, dict) and user_asked_question else None
+                        ) if isinstance(_mirror_la, dict) and user_asked_question else None
                         if _raw_mirror and len(_raw_mirror) == 4:
                             _counter_result      = (_raw_mirror[0], _raw_mirror[1])
                             _counter_is_new_mirror = True
@@ -9306,7 +9484,7 @@ class Handler(BaseHTTPRequestHandler):
                                 else _prev_counter_reply
                             )
                             _counter_result = _answer_user_question_prefix(
-                                last_answer, persona,
+                                _mirror_la, persona,
                                 recent_replies=_recent_persona_replies,
                                 context_reply=_prefix_context_reply,
                             )
