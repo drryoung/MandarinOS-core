@@ -717,6 +717,8 @@ if (typeof window._lastPersonaReveal         === "undefined") window._lastPerson
 if (typeof window._recentlySeenDiscTopics    === "undefined") window._recentlySeenDiscTopics    = [];
 if (typeof window._lastPartnerFrameText      === "undefined") window._lastPartnerFrameText      = "";
 if (typeof window._lastSemanticClarifyText   === "undefined") window._lastSemanticClarifyText   = "";
+// recent_persona_replies: round-tripped so the server's dedup guard can see older replies.
+if (typeof window._recentPersonaReplies      === "undefined") window._recentPersonaReplies      = [];
 // Phase L1: learner observation counters — observation only, no behavior changes.
 // Reset on startFreshLearner. Updated from signal hooks throughout app.js.
 if (typeof window._learnerObs === "undefined") window._learnerObs = {
@@ -6168,6 +6170,7 @@ function _resetCurrentSessionState() {
   window._recentlySeenDiscTopics = [];
   window._lastPartnerFrameText = "";
   window._lastSemanticClarifyText = "";
+  window._recentPersonaReplies = [];
   window._lastBlueQuestions = [];
   window._lastDiscoveryEngineId = "";
   hideDiscoveryPanel();
@@ -6356,6 +6359,7 @@ async function _runTurnInner(isNext = false, opts = {}) {
       engines_visited: Array.isArray(window._enginesVisited) ? window._enginesVisited : ["identity"],
       recent_confusion_count: window._recentConfusionCount || 0,
       last_counter_reply: window._lastCounterReply || "",
+      recent_persona_replies: Array.isArray(window._recentPersonaReplies) ? window._recentPersonaReplies : [],
       repair_attempt_count: window._repairAttemptCount || 0,
       // EFC: entity follow-up chain state — round-tripped so server can continue the chain
       efc_entity: window._efcEntity || null,
@@ -6584,6 +6588,8 @@ async function _runTurnInner(isNext = false, opts = {}) {
   if (data.state_update && typeof data.state_update === "object") {
     if (data.state_update.last_counter_reply !== undefined)
       window._lastCounterReply = data.state_update.last_counter_reply;
+    if (Array.isArray(data.state_update.recent_persona_replies))
+      window._recentPersonaReplies = data.state_update.recent_persona_replies;
     // EFC state: persist entity and depth so chain continues across turns
     if (data.state_update.efc_entity !== undefined)
       window._efcEntity = data.state_update.efc_entity;

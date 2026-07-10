@@ -404,14 +404,18 @@ class TestClientRoundTripSource:
         )
 
     def test_client_clears_on_reset(self, appsrc):
-        # Find the session-reset block and verify _recentPersonaReplies is cleared.
-        # We locate "window._recentFrameIds = [];" as an anchor (it is always present)
-        # and then check that _recentPersonaReplies is cleared somewhere in the file.
-        reset_idx = appsrc.find("window._recentFrameIds = []")
-        assert reset_idx != -1, "Could not locate session-reset anchor in app.js"
-        # The clear may be a few lines after the anchor or anywhere in the reset block.
-        reset_section = appsrc[reset_idx: reset_idx + 3000]
+        # Verify that _recentPersonaReplies is reset in the session-reset block.
+        # We use "_lastBlueQuestions = []" as the anchor because it is a distinctive
+        # line that only appears in the reset function (not in module-level init guards).
+        anchor = "_lastBlueQuestions = []"
+        reset_idx = appsrc.find(anchor)
+        assert reset_idx != -1, f"Could not locate reset anchor {anchor!r} in app.js"
+        # Look in a 500-char window around the anchor.
+        window_start = max(0, reset_idx - 500)
+        window_end   = reset_idx + 500
+        reset_section = appsrc[window_start:window_end]
         assert "window._recentPersonaReplies = []" in reset_section or \
-               "_recentPersonaReplies = []" in reset_section, (
-            "app.js must clear _recentPersonaReplies during session reset"
+               "_recentPersonaReplies = [];" in reset_section, (
+            "app.js must clear _recentPersonaReplies near the session-reset block "
+            f"(searched ±500 chars around {anchor!r})"
         )
