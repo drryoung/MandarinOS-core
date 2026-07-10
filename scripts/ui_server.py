@@ -8320,8 +8320,14 @@ class Handler(BaseHTTPRequestHandler):
         elif path.endswith(".json") and "/" not in path.lstrip("/"):
             file_path = REPO_ROOT / path.lstrip("/")
         elif path == "/":
+            # Preserve the query string across the redirect so params like
+            # ?diag=TOKEN survive (dropping it here disabled diagnostics: the
+            # loaded page saw an empty location.search and never enabled AsrDiag).
+            _loc = "/ui/index.html"
+            if parsed.query:
+                _loc += "?" + parsed.query
             self.send_response(302)
-            self.send_header("Location", "/ui/index.html")
+            self.send_header("Location", _loc)
             self.end_headers()
             return
         else:
