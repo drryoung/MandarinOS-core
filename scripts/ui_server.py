@@ -3619,12 +3619,25 @@ def _is_place_food_question(t: str) -> bool:
     return False
 
 
+# Nouns that make "特别的X" a question about the PERSONA's own possession (hobby,
+# tradition, habit, story, etc.), not a place-feature question — e.g. "你有什么特别的
+# 爱好？" / "你家有什么特别的传统？". Kept narrow and explicit so genuine place questions
+# like "有什么特别的地方" are unaffected.
+_PLACE_FEATURE_PERSONAL_NOUNS: tuple = (
+    "爱好", "传统", "习惯", "经历", "才能", "技能", "本事", "手艺", "故事", "回忆",
+)
+
+
 def _is_place_feature_question(t: str) -> bool:
     """True when the learner asks what is special/interesting about a place.
 
     Food questions take precedence — returns False when _is_place_food_question is True.
+    Guards against personal-possession questions ("你有什么特别的爱好？") which must
+    never be mistaken for a city-feature question even though they share "特别的".
     """
     if not (t or "").strip() or _is_place_food_question(t):
+        return False
+    if any(("特别的" + n) in t for n in _PLACE_FEATURE_PERSONAL_NOUNS):
         return False
     if any(m in t for m in (
         "有什么特别", "特别之处", "有什么特色", "有什么好玩", "有什么有意思",
@@ -5426,6 +5439,34 @@ def _has_volunteered_travel_intent(text: str) -> bool:
     return False
 
 
+# ASR sometimes prefixes a recognised country name with an implausible noun that does
+# not belong in a destination (e.g. "公司中国" instead of "中国"). These are the specific
+# non-place nouns known to leak in front of a country name via mis-segmented ASR — kept
+# narrow and explicit so legitimate multi-word destinations are never touched.
+_TRAVEL_DEST_IMPLAUSIBLE_PREFIXES: tuple = (
+    "公司", "工作", "学校", "老师", "医院", "银行", "政府", "研究所",
+)
+
+
+def _recover_malformed_travel_destination(dest: str) -> str:
+    """Recover a recognised country from a malformed extraction like "公司中国".
+
+    Only fires when the destination is EXACTLY <implausible_prefix><known_country>
+    (nothing else). Never strips words from destinations that are not built this way,
+    so genuine multi-word or province+city destinations are left untouched.
+    """
+    if not dest:
+        return dest
+    for country in _TRAVEL_COUNTRIES:
+        if dest == country:
+            return dest
+        if dest.endswith(country):
+            prefix = dest[: -len(country)]
+            if prefix in _TRAVEL_DEST_IMPLAUSIBLE_PREFIXES:
+                return country
+    return dest
+
+
 def _extract_travel_destination(text: str) -> str:
     """Extract the destination from a volunteered travel-intent statement.
 
@@ -5455,11 +5496,11 @@ def _extract_travel_destination(text: str) -> str:
             dest = re.split(r"[，,。.！!？?、\s]", tail, maxsplit=1)[0].strip()
             dest = dest.strip("的了吧呢啊")
             if dest and re.fullmatch(r"[\u4e00-\u9fffA-Za-z]+", dest):
-                return dest[:6]
+                return _recover_malformed_travel_destination(dest[:6])
     # Fall back to the place after a bare 去 (first occurrence).
     m = re.search(r"去([\u4e00-\u9fff]{2,6})", t)
     if m:
-        return m.group(1).strip("的了吧呢啊")
+        return _recover_malformed_travel_destination(m.group(1).strip("的了吧呢啊"))
     return ""
 
 
@@ -9449,10 +9490,45 @@ class Handler(BaseHTTPRequestHandler):
                         )
                     )
 
+                    # ── Explicit place-topic priority ────────────────────────────────────
+                    # A feature/food question about a place (named city or resolved deixis)
+                    # must win immediately — before hometown/origin intent, previous-answer
+                    # reuse, stale override, or any conversational fallback. This turn's
+                    # explicit topic overrides prior topic and prior reply state, generically
+                    # for every recognised city (no per-city special-casing). Computed here
+                    # (rather than as a bare elif) so that when no answer is resolvable
+                    # (e.g. bare place-food question with no city/deixis/persona fact), the
+                    # ladder naturally falls through to the existing recovery/mirror logic
+                    # below instead of dead-ending on an empty branch.
+                    _explicit_place_topic_result: Optional[tuple] = None
+                    if (
+                        _last_text_for_counter
+                        and not _is_confusion_signal(_last_text_for_counter)
+                        and (
+                            _is_place_feature_question(_last_text_for_counter)
+                            or _is_place_food_question(_last_text_for_counter)
+                        )
+                    ):
+                        _pt_raw = _direct_persona_answer(
+                            _last_text_for_counter, persona,
+                            recent_replies=_recent_persona_replies,
+                        )
+                        if _pt_raw:
+                            _pt_zh = (
+                                f"我呢，{_pt_raw}" if not _pt_raw.startswith("我") else _pt_raw
+                            )
+                            _pt_en = _persona_answer_en(
+                                persona, _pt_zh,
+                                _detect_reverse_fact_intent(_last_text_for_counter),
+                            )
+                            _explicit_place_topic_result = (_pt_zh, _pt_en)
+
                     if _counter_result is not None:
                         # A user-initiative override (frustration repair / volunteered travel
                         # follow-up) already produced the answer — keep it.
                         pass
+                    elif _explicit_place_topic_result is not None:
+                        _counter_result = _explicit_place_topic_result
                     elif _is_meaning:
                         _mr_frame_text = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
                         if _mr_frame_text:
