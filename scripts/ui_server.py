@@ -1378,7 +1378,19 @@ _DEPTH_ANCHOR_FRAMES: dict = {
     "f_like_do_what":         ["f_hobby_best_part", "f_probe_hobby_origin"],
     # Family: named closest person → together / influence
     "f_probe_family_closest": ["f_probe_family_together", "f_probe_family_influence"],
+    # Place: distance answer ("很远"/"不远") → distance-detail follow-up (Fix 4).
+    # "离那儿远吗？" and "大概要多久？"/"坐飞机要多久？" are one naturally connected
+    # exchange; the ladder must not jump to food/special/family in between.
+    # Neither target frame is itself a key here, so answering the distance-detail
+    # question does not re-trigger another depth follow-up (no loop).
+    "p2_pl_far":              ["f_place_distance_time", "f_place_distance_transport"],
 }
+
+# Distance/transport info the learner may have already volunteered in the SAME reply
+# that answered "离那儿远吗？" (e.g. "坐飞机要十二个小时").  When present, the depth
+# follow-up asking "大概要多久？" would be redundant — skip it and let the normal
+# ladder acknowledge and continue instead of re-asking for information already given.
+_DISTANCE_ALREADY_ANSWERED_RE = re.compile(r"(小时|分钟|飞机|火车|高铁|坐.{0,4}(去|要|需要))")
 
 # ── Response-seeded bridge engine queue ──────────────────────────────────────────────────────────
 # Maps a disclosed slot to the engine that should be seeded for future bridging.
@@ -1947,6 +1959,122 @@ def _looks_food_related_answer(text: str) -> bool:
         "菜", "辣", "甜", "咸", "酸", "汤", "烧烤", "奶茶", "咖啡"
     )
     return any(c in text for c in cues)
+
+
+# ── Open-world responsive food answer (Fix 1) ────────────────────────────────────────────────────
+# Frame IDs where the partner asked "what's good to eat" somewhere.  When the previous
+# turn was one of these, a DECLARATIVE learner reply is a responsive food answer —
+# regardless of whether the specific food terms are in any internal vocabulary.  The
+# preceding frame supplies the semantic context; no fixed food list is required or checked.
+_PLACE_FOOD_QUESTION_FRAMES: frozenset = frozenset({
+    "p2_pl_2", "f_place_food", "f_food_available", "f_travel_food",
+    "f_food_what_good", "f_food_famous_dish", "f_food_tasty",
+})
+
+
+def _is_responsive_food_answer(text: str, last_answer_fid: str, prev_partner_text: str) -> bool:
+    """True when the previous partner turn asked what food is good somewhere and the
+    learner's current reply is a declarative (non-interrogative) response.
+
+    Open-world invariant: does NOT require the reply to contain any recognised food
+    noun — the food-question CONTEXT (frame id or preceding question text) is the
+    deciding signal, not vocabulary.  Genuine questions (？, sentence-final 吗/呢, or an
+    explicit "what do you like" turn-around) are excluded so they still route as
+    questions.
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    if _is_confusion_signal(t):
+        return False  # filler / recovery phrases still go through the confusion ladder
+    if any(ord(c) in (0xFF1F, 0x003F) for c in t):
+        return False  # contains ？ or ? — a genuine question, not a declarative answer
+    if t.rstrip("。！").endswith(("吗", "呢")):
+        return False
+    if any(m in t for m in ("你喜欢吃什么", "你最喜欢吃", "你呢")):
+        return False  # turn-around back to the persona — let normal question routing handle it
+    fid = (last_answer_fid or "").strip()
+    if fid in _PLACE_FOOD_QUESTION_FRAMES:
+        return True
+    if _is_place_food_question(prev_partner_text or ""):
+        return True
+    return False
+
+
+# Particles/evaluative suffixes stripped from the edges of a split food-answer segment.
+# Purely structural (list connectives + generic praise words) — no food-specific vocabulary.
+_FOOD_ITEM_TRAILING_STRIP: tuple = ("都很好吃", "都好吃", "也很好吃", "很好吃", "最好吃", "最好", "好吃")
+_FOOD_ITEM_LEADING_STRIP: tuple = ("这里的", "那里的", "这儿的", "那儿的", "我们那里的", "我们这里的")
+_FOOD_ITEM_STOPWORDS: frozenset = frozenset({
+    "都", "很", "也", "是", "的", "有", "还", "最", "最好", "最好吃",
+    "好吃", "好吃的", "那里", "这里", "那儿", "这儿", "我们", "你们",
+    "一种", "叫", "东西", "地方", "特别", "特色", "小吃",
+})
+
+
+def _extract_food_items(text: str) -> list:
+    """Best-effort OPEN-WORLD extraction of food-noun-phrases from a declarative
+    food-list answer, for a natural acknowledgement — never a closed vocabulary
+    lookup.  Splits on common Chinese list connectives/punctuation and trims
+    generic leading/trailing evaluative particles; unknown food names pass through
+    unchanged (extraction never rejects a food name for being unrecognised)."""
+    t = (text or "").strip()
+    if not t:
+        return []
+    parts = re.split(r"[，,、和与跟]|还有|并且|以及", t)
+    items: list = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        for lw in _FOOD_ITEM_LEADING_STRIP:
+            if p.startswith(lw):
+                p = p[len(lw):].strip()
+                break
+        for sw in _FOOD_ITEM_TRAILING_STRIP:
+            if p.endswith(sw):
+                p = p[: -len(sw)].strip()
+                break
+        if p and 2 <= len(p) <= 8 and re.search(r"[\u4e00-\u9fff]", p) and p not in _FOOD_ITEM_STOPWORDS:
+            items.append(p)
+    seen: set = set()
+    out: list = []
+    for it in items:
+        if it not in seen:
+            seen.add(it)
+            out.append(it)
+    return out
+
+
+# Generic acknowledgement pool for a responsive food answer with no cleanly
+# extractable item list — never asserts factual knowledge about the food itself.
+_FOOD_RESPONSE_ACK_POOL: list = [
+    ("听起来很好吃！你最喜欢哪一个？", "That sounds delicious! Which one do you like best?"),
+    ("这个名字很特别，是什么味道的？", "That's an interesting name — what does it taste like?"),
+    ("听起来不错，你经常吃吗？", "Sounds good — do you eat it often?"),
+    ("你最常吃哪一种？", "Which one do you eat most often?"),
+]
+
+
+def _food_responsive_reply(text: str, seed: str = "") -> tuple:
+    """Acknowledge an open-world food-list answer and ask a natural follow-up.
+
+    Never claims factual knowledge about foods unfamiliar to MandarinOS — the
+    learner supplied the facts; the persona simply reacts to them.
+    """
+    items = _extract_food_items(text)
+    if len(items) >= 2:
+        joined = "、".join(items[:3])
+        zh = f"你说的{joined}听起来都很好吃！你最喜欢哪一个？"
+        en = f"The {', '.join(items[:3])} you mentioned all sound delicious! Which one do you like best?"
+        return (zh, en)
+    if len(items) == 1:
+        zh = f"{items[0]}听起来很不错，是什么味道的？"
+        en = f"{items[0]} sounds great — what does it taste like?"
+        return (zh, en)
+    zh = _stable_pick([p[0] for p in _FOOD_RESPONSE_ACK_POOL], seed or "food_ack") or _FOOD_RESPONSE_ACK_POOL[0][0]
+    en = next((e for (z, e) in _FOOD_RESPONSE_ACK_POOL if z == zh), "")
+    return (zh, en)
 
 
 def _looks_travel_related_answer(text: str) -> bool:
@@ -2793,8 +2921,17 @@ def _is_user_question(last_answer: Optional[dict]) -> bool:
     # Definition / paraphrase (火锅是什么 / 这个词什么意思)
     if "是什么" in text or "什么意思" in text or text.startswith("什么叫") or "指的是什么" in text:
         return True
-    # Learner home country — follow-up interest (NZ most interesting place, etc.)
-    if "新西兰" in text and any(k in text for k in ("哪里", "最有", "最好", "好玩", "有趣", "特别")):
+    # Learner home country — follow-up interest (NZ most interesting place, etc.).
+    # Tightened: bare "最好"/"好玩"/"有趣"/"特别" in a DECLARATIVE sentence is not
+    # sufficient evidence of a question (e.g. "新西兰冰淇淋最好还有牛扒...都很好吃"
+    # is a food-list answer, not a question).  Require actual interrogative
+    # structure — a question mark, sentence-final 吗, or an explicit "which
+    # place/where" word — alongside 新西兰.
+    if "新西兰" in text and (
+        any(ord(c) in (0xFF1F, 0x003F) for c in text)
+        or text.rstrip("。！").endswith("吗")
+        or any(k in text for k in ("哪里", "哪儿", "哪个", "什么地方"))
+    ):
         return True
     # Place distance / never been — often no ？ (e.g. 从来没去过)
     if _looks_like_place_distance_question(text):
@@ -3971,6 +4108,56 @@ def _looks_like_valid_location(text: str) -> bool:
     if _is_place_description(t):
         return True
     return False
+
+
+# ── Open-world residence-location acceptance (Fix 2) ─────────────────────────────────────────────
+# Frame IDs where the partner is directly asking where the learner lives/is from.  A bare
+# place-name answer (no "我住在..." structure) is only accepted as a residence answer while
+# one of these frames is active — elsewhere a bare "达尼丁" would be ambiguous.
+_RESIDENCE_QUESTION_FRAME_IDS: frozenset = frozenset({
+    "f_from_where", "f_live_where", "frame.location.live_question",
+})
+
+_RESIDENCE_ANSWER_PREFIXES: tuple = (
+    "我现在住在", "我现在在", "我住在", "我家在", "我来自", "我在", "住在", "现在住在", "现在在", "在",
+)
+
+
+def _extract_open_world_location(text: str, frame_is_residence: bool = False) -> Optional[str]:
+    """Open-world residence-location extraction (Fix 2).
+
+    The learner is the source of truth for their own residence: ANY plausible
+    location-bearing answer is accepted and returned verbatim (minus the
+    structural prefix) — no known-city lookup, no `_LOC_CHARS` membership check,
+    no Latin-script requirement, no travel-destination alias table.
+
+    Returns the extracted location string, or None when there is no usable
+    location content: the text is empty, is a recognised confusion/recovery
+    signal ("嗯……", "再说一遍", "不知道"), or reduces to nothing once known
+    ASR-junk fragments ("等你等") are stripped out.
+
+    `frame_is_residence` gates the BARE-answer case (no "我住在..." structure) —
+    a bare place name like "达尼丁" is only accepted while the active frame is
+    genuinely asking for the learner's residence; a structured answer
+    ("我住在达尼丁") is accepted unconditionally since the sentence itself makes
+    the intent unambiguous.
+    """
+    t = (text or "").strip()
+    if not t:
+        return None
+    if _is_confusion_signal(t):
+        return None
+    for pfx in _RESIDENCE_ANSWER_PREFIXES:
+        if t.startswith(pfx):
+            tail = t[len(pfx):].strip("。！， ,.?？")
+            tail = _repair_asr_junk_text(tail).strip()
+            if tail:
+                return tail
+            return None  # residence structure present but no usable token followed
+    if frame_is_residence:
+        bare = _repair_asr_junk_text(t).strip()
+        return bare or None
+    return None
 
 
 # ── Participation-success structural matchers ─────────────────────────────────
@@ -8959,6 +9146,20 @@ class Handler(BaseHTTPRequestHandler):
                     _is_user_question(_routing_last_answer) if last_turn_was_answer else False
                 )
 
+                # ── Fix 1 override: open-world responsive food answer ──────────────────────
+                # A declarative food-list reply to a preceding place-food question must never
+                # be treated as a learner question, even if a keyword heuristic elsewhere would
+                # flag it (e.g. bare "最好" inside "新西兰...最好...都很好吃").  The food-question
+                # frame context — not vocabulary — is the deciding signal here.
+                _responsive_food_answer = False
+                if last_turn_was_answer and answer_text:
+                    _pft_for_food = (cs.get("last_partner_frame_text") or "").strip() if isinstance(cs, dict) else ""
+                    _responsive_food_answer = _is_responsive_food_answer(
+                        routing_answer_text or answer_text, last_answer_fid, _pft_for_food,
+                    )
+                    if _responsive_food_answer and user_asked_question:
+                        user_asked_question = False
+
                 if _diag_cap is not None:
                     _la_diag = last_answer if isinstance(last_answer, dict) else {}
                     _diag_cap["server_raw_input"] = (
@@ -9059,11 +9260,21 @@ class Handler(BaseHTTPRequestHandler):
                 #   → fall through to normal ladder/slot narrowing
                 _recent_fid_set = set(recent or [])
                 force_depth_followup_frame = None
+                # Fix 4: if the learner already volunteered the travel time/transport in the
+                # SAME reply that answered "离那儿远吗？", the "大概要多久？" depth follow-up
+                # would just re-ask for information already given — skip it and let the normal
+                # ladder acknowledge and continue instead of looping on distance.
+                _distance_already_answered = bool(
+                    last_answer_fid == "p2_pl_far"
+                    and answer_text
+                    and _DISTANCE_ALREADY_ANSWERED_RE.search(answer_text)
+                )
                 if (last_turn_was_answer
                         and not user_asked_question
                         and last_answer_fid in _DEPTH_ANCHOR_FRAMES
                         and answer_text
-                        and len(answer_text.replace(" ", "")) >= 2):
+                        and len(answer_text.replace(" ", "")) >= 2
+                        and not _distance_already_answered):
                     _depth_fn  = _DEPTH_ANCHOR_SPECIFICITY.get(last_answer_fid)
                     _narrow_fn = _DEPTH_NARROW_SPECIFICITY.get(last_answer_fid)
                     if (_depth_fn is None) or _depth_fn(answer_text):
@@ -9609,6 +9820,17 @@ class Handler(BaseHTTPRequestHandler):
                                 _counter_result = _ch
                                 reaction_prefix_text = ""
                                 _rxn_trace["composition_mode"] = "persona_challenge_reply"
+                        elif _responsive_food_answer:
+                            # Open-world responsive food answer (Fix 1) — the previous partner
+                            # frame asked what food is good somewhere, and this reply is a
+                            # declarative food-list response.  Acknowledge it and ask a natural
+                            # follow-up; never route through question classification, direct-
+                            # persona answering, the mirror bank, or the limitation fallback.
+                            # No fixed food vocabulary is required — unknown foods pass through.
+                            _fa = _food_responsive_reply(answer_text, seed=_counter_seed)
+                            if _fa and _fa[0]:
+                                _counter_result = _fa
+                                _rxn_trace["composition_mode"] = "responsive_food_answer"
                         elif (not user_asked_question) and _has_volunteered_travel_intent(answer_text):
                             _ti = _travel_intent_followup(answer_text)
                             if _ti and _ti[0]:
@@ -9821,7 +10043,7 @@ class Handler(BaseHTTPRequestHandler):
                         and not user_asked_question
                         and not _confirmed_re_ask
                         and "CITY" in slot_names
-                        and not _looks_like_valid_location(_last_text_for_counter)
+                        and _extract_open_world_location(_last_text_for_counter, frame_is_residence=True) is None
                     ):
                         # ── Noisy location-answer clarification ───────────────────────────
                         # Learner tried to answer a location question but the place token
@@ -9830,6 +10052,9 @@ class Handler(BaseHTTPRequestHandler):
                         # response is built) will replace the next question with a rephrased
                         # version of the original location question and restore its options —
                         # keeping the learner on the same topic instead of jumping to food.
+                        # Uses the OPEN-WORLD extractor (Fix 2) — an unknown place name such
+                        # as "达尼丁" is accepted here; only genuinely unusable content
+                        # (empty, filler/recovery phrase, ASR-junk-only) reaches this branch.
                         _confusion_about_app_q  = True
                         _noisy_location_clarify = True
                     elif (
@@ -11266,7 +11491,7 @@ class Handler(BaseHTTPRequestHandler):
                     if (
                         _t_ps
                         and _looks_like_location_answer_structure(_t_ps)
-                        and not _looks_like_valid_location(_t_ps)
+                        and _extract_open_world_location(_t_ps, frame_is_residence=True) is None
                     ):
                         _cs_ps    = payload.get("conversation_state") if isinstance(payload.get("conversation_state"), dict) else {}
                         _retry_ps = int(_cs_ps.get("location_retry_count") or 0)
@@ -11790,6 +12015,38 @@ class Handler(BaseHTTPRequestHandler):
                     if _lps_p in _lps_text:
                         _new_lps = _lps_p
                         break
+
+                # ── Fix 3: preserve learner-provided facts (open-world) ────────────────
+                # A residence the learner stated (even an unknown place like "达尼丁") is a
+                # conversational fact distinct from app-generated knowledge — store it
+                # verbatim so it: (a) is not re-requested, (b) remains available for later
+                # deictic reference ("那儿"/"那边" in "离那儿远吗？"), and (c) is never
+                # overwritten just because it isn't in any internal place database.
+                _prev_learner_loc = (cs.get("learner_stated_location") or "") if isinstance(cs, dict) else ""
+                _learner_loc_this_turn = ""
+                if last_turn_was_answer and answer_text and (
+                    last_answer_fid in _RESIDENCE_QUESTION_FRAME_IDS
+                ):
+                    _learner_loc_this_turn = (
+                        _extract_open_world_location(answer_text, frame_is_residence=True) or ""
+                    )
+                _su["learner_stated_location"] = _learner_loc_this_turn or _prev_learner_loc
+
+                # A learner-supplied unknown/open-world location takes priority as the
+                # active deictic place subject over the fixed known-place scan above —
+                # it is the most recently learner-stated place and the ladder's next
+                # questions (离那儿远吗？ etc.) refer back to it.
+                if _learner_loc_this_turn:
+                    _new_lps = _learner_loc_this_turn
+
+                # Learner-provided food facts (Fix 3) — preserved verbatim regardless of
+                # whether the mentioned foods are in any internal vocabulary.
+                _prev_learner_food = (cs.get("learner_food_note") or "") if isinstance(cs, dict) else ""
+                _su["learner_food_note"] = (
+                    answer_text if (last_turn_was_answer and _responsive_food_answer and answer_text)
+                    else _prev_learner_food
+                )
+
                 # Only update last_place_subject when a place is actually mentioned.
                 _su["last_place_subject"] = _new_lps if _new_lps else _prev_lps
                 # Reset consecutive question count when learner asked or discovery shown

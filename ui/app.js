@@ -719,6 +719,12 @@ if (typeof window._lastPartnerFrameText      === "undefined") window._lastPartne
 if (typeof window._lastSemanticClarifyText   === "undefined") window._lastSemanticClarifyText   = "";
 // recent_persona_replies: round-tripped so the server's dedup guard can see older replies.
 if (typeof window._recentPersonaReplies      === "undefined") window._recentPersonaReplies      = [];
+// last_place_subject / learner_stated_location / learner_food_note: round-tripped so the
+// server can resolve deictic "那儿/那边" references and avoid re-asking for facts the
+// learner already gave (open-world residence + food answers — regression fix).
+if (typeof window._lastPlaceSubject          === "undefined") window._lastPlaceSubject          = "";
+if (typeof window._learnerStatedLocation     === "undefined") window._learnerStatedLocation     = "";
+if (typeof window._learnerFoodNote           === "undefined") window._learnerFoodNote           = "";
 // Phase L1: learner observation counters — observation only, no behavior changes.
 // Reset on startFreshLearner. Updated from signal hooks throughout app.js.
 if (typeof window._learnerObs === "undefined") window._learnerObs = {
@@ -6417,6 +6423,9 @@ function _resetCurrentSessionState() {
   window._lastPartnerFrameText = "";
   window._lastSemanticClarifyText = "";
   window._recentPersonaReplies = [];
+  window._lastPlaceSubject = "";
+  window._learnerStatedLocation = "";
+  window._learnerFoodNote = "";
   window._lastBlueQuestions = [];
   window._lastDiscoveryEngineId = "";
   hideDiscoveryPanel();
@@ -6616,6 +6625,9 @@ async function _runTurnInner(isNext = false, opts = {}) {
       last_persona_reveal:        window._lastPersonaReveal === true,
       recently_seen_disc_topics:  Array.isArray(window._recentlySeenDiscTopics) ? window._recentlySeenDiscTopics : [],
       last_partner_frame_text:    window._lastPartnerFrameText || "",
+      last_place_subject:         window._lastPlaceSubject || "",
+      learner_stated_location:    window._learnerStatedLocation || "",
+      learner_food_note:          window._learnerFoodNote || "",
     };
     if (window._learnerId) conversation_state.learner_id = window._learnerId;
     // Use the UI-selected partner (Phase 11C) as the persona_id for name/stub resolution.
@@ -6836,6 +6848,14 @@ async function _runTurnInner(isNext = false, opts = {}) {
       window._lastCounterReply = data.state_update.last_counter_reply;
     if (Array.isArray(data.state_update.recent_persona_replies))
       window._recentPersonaReplies = data.state_update.recent_persona_replies;
+    // Open-world residence/food facts (regression fix) — round-tripped so the server can
+    // resolve deictic "那儿/那边" references and avoid re-asking for facts already given.
+    if (typeof data.state_update.last_place_subject === "string")
+      window._lastPlaceSubject = data.state_update.last_place_subject;
+    if (typeof data.state_update.learner_stated_location === "string")
+      window._learnerStatedLocation = data.state_update.learner_stated_location;
+    if (typeof data.state_update.learner_food_note === "string")
+      window._learnerFoodNote = data.state_update.learner_food_note;
     // EFC state: persist entity and depth so chain continues across turns
     if (data.state_update.efc_entity !== undefined)
       window._efcEntity = data.state_update.efc_entity;
