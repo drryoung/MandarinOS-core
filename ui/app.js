@@ -2313,6 +2313,42 @@ function matchTranscriptToLearnerPhrase(transcript, phrases) {
   return null;
 }
 
+/**
+ * Exact-match variant of matchTranscriptToLearnerPhrase, for the SPOKEN
+ * recovery-intercept path only (regression fix for 18d476a). That path used
+ * substring containment, so an ordinary spoken question like "你做什么工作"
+ * or "成都有什么特别的" was wrongly treated as the learner saying the bare
+ * recovery phrase "什么？" (normalizeForMatch("什么？") === "什么" is a
+ * substring of both). This helper requires the normalized transcript to be
+ * EXACTLY equal to the phrase's normalized hanzi, normalized pinyin, or one
+ * of its declared `alternatives` (e.g. "啥") — never containment — so only
+ * a genuine bare recovery utterance intercepts, and normal spoken questions
+ * and sentences always fall through to runTurn submission.
+ *
+ * Recovery-panel taps and other explicit-selection workflows are unaffected
+ * and continue to use matchTranscriptToLearnerPhrase (containment allowed).
+ */
+function matchSpokenRecoveryPhraseExact(transcript, phrases) {
+  if (!transcript || !Array.isArray(phrases) || phrases.length === 0) return null;
+  const n = normalizeForMatch(transcript);
+  if (!n) return null;
+  for (const p of phrases) {
+    const hz = normalizeForMatch(p.hanzi || "");
+    if (hz && n === hz) return p;
+    const pyRaw = (p.pinyin || "").trim();
+    if (pyRaw) {
+      const py = normalizeForMatch(pyRaw.replace(/\s+/g, ""));
+      if (py && n === py) return p;
+    }
+    const alts = Array.isArray(p.alternatives) ? p.alternatives : [];
+    for (const alt of alts) {
+      const altNorm = normalizeForMatch(String(alt || ""));
+      if (altNorm && n === altNorm) return p;
+    }
+  }
+  return null;
+}
+
 function _pickRandomPhrase(arr) {
   if (!arr || arr.length === 0) return null;
   return arr[Math.floor(Math.random() * arr.length)];
@@ -7650,7 +7686,10 @@ window.addEventListener("load", async () => {
     // 我不明白, 什么意思 etc.), simulate the same action as a recovery panel tap — before the
     // normal accept/reject ASR path — so it never falls through to the rejected-speech partner
     // repair prompt (which feels like "generic uncertainty" instead of repeating the question).
-    const _spokenRecoveryPhrase = matchTranscriptToLearnerPhrase(
+    // Uses EXACT normalized matching (not matchTranscriptToLearnerPhrase's containment) so that
+    // ordinary spoken questions such as "你做什么工作" or "成都有什么特别的" are never mistaken
+    // for the bare recovery phrase "什么？" — see matchSpokenRecoveryPhraseExact for details.
+    const _spokenRecoveryPhrase = matchSpokenRecoveryPhraseExact(
         saidTrimmed,
         learnerRecoveryPhrases(recoveryPhrasesRuntime || window._recoveryPhrases)
     );

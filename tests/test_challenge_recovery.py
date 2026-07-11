@@ -263,7 +263,10 @@ def test_client_spoken_recovery_returns_without_runTurn(app_js_src):
     """Intercept must return early (no runTurn) for repeat/slower/meaning."""
     idx = app_js_src.find("_spokenRecoveryPhrase")
     assert idx != -1
-    block = app_js_src[idx: idx + 2500]
+    # Window widened from 2500: temporary diagnostics logging inside the
+    # intercept block (retained for live validation, see AsrDiag.submit call)
+    # pushed the early "return;" further from the block's start.
+    block = app_js_src[idx: idx + 3500]
     assert "return;" in block, "Intercept must return early to avoid advancing frame"
 
 
@@ -287,7 +290,8 @@ def test_client_spoken_recovery_allows_next_turn_fallthrough(app_js_src):
     """next_turn phrases (好吧) must fall through to normal runTurn flow."""
     idx = app_js_src.find("_spokenRecoveryPhrase")
     assert idx != -1
-    block = app_js_src[idx: idx + 2500]
+    # Window widened from 2500 for the same reason as the test above.
+    block = app_js_src[idx: idx + 3500]
     assert "next_turn" in block
 
 

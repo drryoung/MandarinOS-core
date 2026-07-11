@@ -208,6 +208,39 @@ class TestExplicitCityGeneralization:
         assert food_reply != feature_reply
 
 
+class TestSpokenQuestionSubmissionRegression:
+    """Stateful server-level regression for the 18d476a spoken recovery-intercept
+    bug: once a spoken question actually reaches /api/run_turn (i.e. the client
+    did not wrongly short-circuit it as the "什么？" recovery phrase — see
+    tests/verify_spoken_recovery_exact_match.js for the client-side proof),
+    the server must route it to the correct answer."""
+
+    # Broad occupation/work vocabulary covering whichever persona answers
+    # (e.g. meiling → "美术老师", xiaoming → "软件工程师").
+    _WORK_KW = (
+        "工作", "上班", "职业", "从事", "开发", "软件", "程序员", "工程师",
+        "老师", "教授", "讲师", "医生", "护士", "经理", "研究员", "教",
+    )
+
+    def test_work_question_returns_work_answer(self, server_url):
+        cs = _base_cs()
+        cs["last_answer"] = {"submitted_text": "你做什么工作"}
+        cs["last_turn_was_answer"] = True
+        d = _run_turn(server_url, cs)
+        reply = (d.get("counter_reply") or "").strip()
+        assert reply, "Expected a counter_reply for 你做什么工作"
+        assert any(kw in reply for kw in self._WORK_KW), f"Reply did not look like a work answer: {reply!r}"
+
+    def test_chengdu_feature_question_returns_feature_answer(self, server_url):
+        cs = _base_cs()
+        cs["last_answer"] = {"submitted_text": "成都有什么特别的"}
+        cs["last_turn_was_answer"] = True
+        d = _run_turn(server_url, cs)
+        reply = (d.get("counter_reply") or "").strip()
+        assert reply, "Expected a counter_reply for 成都有什么特别的"
+        assert "成都" in reply
+
+
 # ── C: Personal-possession guard — must NOT be mistaken for place questions ──
 
 
