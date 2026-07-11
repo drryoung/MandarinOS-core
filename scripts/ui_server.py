@@ -1907,16 +1907,34 @@ def _stable_pick(seq: list, seed: str) -> Optional[str]:
     return seq[h % len(seq)]
 
 
+def _strip_discourse_prefix(s: str) -> str:
+    """Strip leading discourse markers that wrap pool items before storing them
+    in recent_persona_replies, so exclude-set membership can compare the bare
+    pool string against its 我呢-prefixed stored form (RC-C fix)."""
+    for _pfx in ("我呢，", "我呢,", "我，", "我,"):
+        if s.startswith(_pfx):
+            return s[len(_pfx):]
+    return s
+
+
 def _pick_not_in(pool: list, seed: str, exclude: set) -> Optional[str]:
     """Deterministic pick from pool, avoiding items in exclude.
+
+    exclude items are compared both verbatim AND after stripping the leading
+    discourse marker ('我呢，' etc.) that run_turn prepends before storing the
+    reply in recent_persona_replies, so a pool item that has already been given
+    in prefixed form is still correctly treated as used (RC-C).
+
     Falls back to the normal stable pick when all pool items are excluded."""
     if not pool:
         return None
+    # Normalise the exclude set to bare forms for comparison.
+    _bare_exclude: set = set(exclude) | {_strip_discourse_prefix(e) for e in exclude}
     candidate = _stable_pick(pool, seed)
-    if candidate not in exclude:
+    if candidate not in _bare_exclude:
         return candidate
     for item in pool:
-        if item not in exclude:
+        if item not in _bare_exclude:
             return item
     return candidate  # all excluded — no choice
 
@@ -3252,14 +3270,23 @@ def _direct_persona_answer(t: str, persona: Optional[dict],
         if _resolved_food_place and _resolved_food_place in _CITY_FOOD_POOL:
             _fpool = _CITY_FOOD_POOL[_resolved_food_place]
             _food_personal = (_facts.get("food") or "").strip()
-            if _resolved_food_place in (hometown, city) and _food_personal:
+            # RC-B: Only prefer the persona's personal food fact when it actually
+            # describes the asked place.  A persona whose city=上海 and fact mentions
+            # 上海 must not have that fact returned for a 南京 (hometown) food question
+            # — use the pool entry for 南京 instead.
+            _personal_matches_place = (
+                _food_personal and _resolved_food_place in _food_personal
+            )
+            if _resolved_food_place in (hometown, city) and _personal_matches_place:
                 return _food_personal
             return _pick_not_in(_fpool, f"food_q|{_resolved_food_place}|{t}", _recent_set)
         for _loc, _fpool in _CITY_FOOD_POOL.items():
             if _loc in t:
-                # If it's the persona's own city/hometown, give a first-person personal answer
                 _food_personal = (_facts.get("food") or "").strip()
-                if _loc in (hometown, city) and _food_personal:
+                _personal_matches_place = (
+                    _food_personal and _loc in _food_personal
+                )
+                if _loc in (hometown, city) and _personal_matches_place:
                     return _food_personal
                 return _pick_not_in(_fpool, f"food_q|{_loc}|{t}", _recent_set)
         # No specific place named — use persona's own food fact
@@ -4579,22 +4606,86 @@ def _persona_answer_en(persona: Optional[dict], zh: str,
 
 def _dedupe_persona_answer(candidate: str, recent_replies: Optional[list],
                             text: str, persona: Optional[dict]) -> str:
-    """Anti-repetition guard: if `candidate` was already given recently, re-run
-    intent matching for `text` and return a distinct reverse-fact answer instead.
+    """Anti-repetition guard: if `candidate` was already given recently, return
+    a distinct answer for the SAME intent rather than falling back cross-intent.
 
-    Prevents the persona from emitting the same answer (e.g. the city-location
-    brief) twice in a row to different questions.
+    Priority order (RC-A invariant):
+      1. Re-pick from the same-intent answer pool (feature or food pool for the
+         asked place) — guarantees the reply remains topically correct.
+      2. Only if the same-intent pool is exhausted, use a topically appropriate
+         clarification phrase ("我刚说过了，你想了解其他的吗？") rather than an
+         unrelated fact from _reverse_fact_answer.
+      3. Never use _reverse_fact_answer(intent) as the first alternative —
+         intents like "hometown_special" resolve to facts["place"] which can be
+         for a different city than the one actually asked about.
     """
     cand = (candidate or "").strip()
-    recent = [r for r in (recent_replies or []) if r]
-    if not cand or cand not in recent:
+    # Normalise recent for both bare and prefixed comparisons (matches RC-C).
+    bare_cand = _strip_discourse_prefix(cand)
+    recent_bare: list = [_strip_discourse_prefix(r) for r in (recent_replies or []) if r]
+    if not cand or (bare_cand not in recent_bare and cand not in (recent_replies or [])):
         return candidate
-    intent = _detect_reverse_fact_intent(text)
-    if intent:
-        alt = _reverse_fact_answer(intent, persona)
-        if alt and alt.strip() != cand and alt.strip() not in recent:
-            return alt
-    # Fall back to a gentle generic variation rather than repeating verbatim.
+
+    _recent_set: set = set(recent_replies or []) | set(recent_bare)
+
+    # --- Step 1: try re-picking from the SAME intent pool ----
+    # Place-feature pool repick
+    if _is_place_feature_question(text):
+        _resolved = _place_from_question_context(text, list(recent_replies or []))
+        _FEAT_POOL_INLINE: dict = {
+            "北京": ["北京很大，历史文化非常丰富，长城和故宫都在这里。",
+                     "北京机会很多，是个很有活力的城市。",
+                     "北京有很多历史古迹，还有很多好吃的小吃。"],
+            "上海": ["上海很国际化，外滩的夜景特别漂亮。",
+                     "上海很繁华，购物和美食选择都很多。",
+                     "上海节奏快，但也很有魅力，老弄堂和新高楼都很有特色。"],
+            "成都": ["成都的节奏比较慢，大家都很悠闲，火锅也是一绝！",
+                     "成都的美食特别有名，火锅、串串都很好吃。",
+                     "成都生活很舒服，茶馆文化很有特色，大家喜欢坐在茶馆聊天。"],
+            "西安": ["西安历史文化太丰富了，兵马俑、大雁塔都在那里。",
+                     "西安的小吃很有名，凉皮、肉夹馍都很好吃。",
+                     "西安是古都，到处都有历史遗迹，很有文化感。"],
+            "重庆": ["重庆是山城，到处都是坡路，风景很特别。",
+                     "重庆的火锅是全国最有名的，很辣很好吃！",
+                     "重庆的夜景非常漂亮，尤其是洪崖洞那一带。"],
+            "南京": ["南京历史很悠久，有很多历史遗迹。",
+                     "南京的鸭血粉丝汤很有名，小吃也很多。"],
+            "杭州": ["杭州的西湖非常漂亮，是个很出名的景点。",
+                     "杭州自然风景很美，还有很多茶文化。"],
+            "苏州": ["苏州的园林很有名，特别有诗意。",
+                     "苏州的古镇和水乡很有特色，景色很美。"],
+        }
+        _pool = _FEAT_POOL_INLINE.get(_resolved or "") if _resolved else None
+        if _pool:
+            alt = _pick_not_in(_pool, f"dedup|feat|{_resolved}|{text}", _recent_set)
+            if alt and _strip_discourse_prefix(alt) not in recent_bare:
+                return alt
+
+    # Place-food pool repick
+    if _is_place_food_question(text):
+        _resolved = _place_from_question_context(text, list(recent_replies or []))
+        _FOOD_POOL_INLINE: dict = {
+            "西安": ["西安的小吃非常有名！凉皮和肉夹馍是我最喜欢的，特别好吃。",
+                     "西安有很多特色小吃，凉皮、肉夹馍、羊肉泡馍，每一样都很值得尝试。"],
+            "成都": ["成都美食太丰富了，火锅最有名，但担担面、龙抄手也很好吃。",
+                     "成都的火锅和串串香都很出名，小吃种类也非常多。"],
+            "重庆": ["重庆的小面和火锅都很有名，喜欢辣的话一定要去试试！",
+                     "重庆的火锅比成都的还辣，小面的汤底也特别香。"],
+            "上海": ["上海的本帮菜很有特色，红烧肉和清蒸鱼都非常好吃，还有生煎包。",
+                     "上海有很多本地小吃，生煎包、小笼包都是经典，值得一试。"],
+            "南京": ["南京的鸭血粉丝汤特别有名，还有各种鸭肉做的菜，非常有特色。"],
+            "北京": ["北京的烤鸭最有名，炸酱面也很有特色，还有豆汁这种老北京独特的饮品。"],
+            "杭州": ["杭州有东坡肉、西湖醋鱼，还有龙井虾仁，都非常好吃。"],
+        }
+        _pool = _FOOD_POOL_INLINE.get(_resolved or "") if _resolved else None
+        if _pool:
+            alt = _pick_not_in(_pool, f"dedup|food|{_resolved}|{text}", _recent_set)
+            if alt and _strip_discourse_prefix(alt) not in recent_bare:
+                return alt
+
+    # --- Step 2: topically appropriate clarification ----
+    # Never cross-intent via _reverse_fact_answer — that can return a fact for a
+    # different city/topic than what the learner asked (the RC-A failure mode).
     return _persona_deflect("generic", cand)
 
 
