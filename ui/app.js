@@ -3390,6 +3390,53 @@ const SPEECH_FILLER_EXTEND_MS = 2000;
 
 // ── Listening state indicator ────────────────────────────────────────────────
 // Subtle line below the mic: hidden while opening; appears once speech is detected.
+// Provisional ASR text is shown here during recognition — not as a transcript entry.
+
+function _escapeHtmlForPreview(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function _clearAsrInterimPreview() {
+  window._asrInterimPreview = "";
+  window._asrInterimIsFinal = false;
+}
+
+function _setAsrInterimPreview(text, { isFinal = false } = {}) {
+  const t = (text || "").trim();
+  if (!t) {
+    _clearAsrInterimPreview();
+    return;
+  }
+  window._asrInterimPreview = t;
+  window._asrInterimIsFinal = !!isFinal;
+  _refreshListenStatusWithPreview();
+}
+
+function _refreshListenStatusWithPreview() {
+  const el = document.getElementById("listenStatus");
+  if (!el) return;
+  const preview = (window._asrInterimPreview || "").trim();
+  const state = el.dataset.state || "idle";
+  if (!preview || state === "idle" || state === "preparing" || state === "notice" || state === "reconnect") {
+    return;
+  }
+  const label = state === "waiting"
+    ? "Keep speaking or pause to finish"
+    : state === "processing"
+      ? "Processing…"
+      : "Listening…";
+  const iconHtml = state === "processing"
+    ? '<span class="listen-spinner"></span>'
+    : '<span class="listen-icon">🎙️</span>';
+  const provClass = window._asrInterimIsFinal ? "asr-preview-final" : "asr-preview-interim";
+  el.innerHTML =
+    `${iconHtml}<span class="listen-status-label">${label}</span>` +
+    `<span class="asr-interim-preview ${provClass}" aria-live="polite">${_escapeHtmlForPreview(preview)}</span>`;
+}
+
 function _setListenState(state, message) {
   const el = document.getElementById("listenStatus");
   const armsMic = state === "preparing" || state === "listening" || state === "waiting"
@@ -3405,11 +3452,24 @@ function _setListenState(state, message) {
   if (state === "preparing") {
     el.dataset.state = "idle";
     el.innerHTML = "";
+    _clearAsrInterimPreview();
     return;
   }
   if (state === "reconnect") return;
 
   el.dataset.state = state;
+  if (state === "notice") {
+    el.innerHTML = `<span>${message || "Tap the mic and speak"}</span>`;
+    document.body.classList.remove("is-listening");
+    _clearAsrInterimPreview();
+    return;
+  }
+
+  if ((window._asrInterimPreview || "").trim() && (state === "listening" || state === "waiting" || state === "processing")) {
+    _refreshListenStatusWithPreview();
+    return;
+  }
+
   switch (state) {
     case "listening":
       el.innerHTML = '<span class="listen-icon">🎙️</span><span>Listening…</span>';
@@ -3420,12 +3480,9 @@ function _setListenState(state, message) {
     case "processing":
       el.innerHTML = '<span class="listen-spinner"></span><span>Processing…</span>';
       break;
-    case "notice":
-      el.innerHTML = `<span>${message || "Tap the mic and speak"}</span>`;
-      document.body.classList.remove("is-listening");
-      break;
     default:
       el.innerHTML = "";
+      _clearAsrInterimPreview();
       break;
   }
 }
@@ -3462,8 +3519,9 @@ function listenForResponse(options, timeoutMs) {
     } catch (_) {}
     const isMobileListen = _isMobileLayout();
     const rec = new SpeechRecognition();
-    // iOS WebKit: continuous mode is unreliable — use single-utterance + manual restart on onend.
-    rec.continuous = !isMobileListen;
+    // Single-utterance on all platforms: browser end-of-utterance (onend) drives finish()
+    // promptly; silence timer remains a defensive fallback only.
+    rec.continuous = false;
     rec.lang = "zh-CN";
     rec.interimResults = true;
     AsrDiag.begin({
@@ -3485,6 +3543,16 @@ function listenForResponse(options, timeoutMs) {
     let micStarted = false;   // set in rec.onstart — used to distinguish "never opened" from "no speech"
     let listenStartedAt = 0;
     let onendRetryCount = 0;
+    // ASR latency instrumentation — only when diagnostics token is active.
+    let _perfFirstInterim = false;
+    let _perfFirstFinal = false;
+    const _perfNow = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+    const _perfLog = (label) => {
+      if (!AsrDiag.enabled()) return;
+      const t0 = window._asrPerfT0 || 0;
+      const rel = t0 ? Math.round(_perfNow() - t0) : 0;
+      console.log(`[ASR-PERF] +${rel}ms ${label}`);
+    };
     const preSpeechSilenceMs = _isMobileLayout()
       ? SPEECH_PRE_SPEECH_SILENCE_MS_MOBILE
       : SPEECH_PRE_SPEECH_SILENCE_MS_DESKTOP;
@@ -3524,6 +3592,8 @@ function listenForResponse(options, timeoutMs) {
       _setListenState("processing");
 
       const finalize = () => {
+        _clearAsrInterimPreview();
+        _perfLog(`transcript resolved/displayed (reason=${reason})`);
         const _selSource = finalTranscript ? "final" : (interimTranscript ? "interim" : "none");
         AsrDiag.ev("finish", { reason, selected_source: _selSource, final: finalTranscript || "", interim: interimTranscript || "" });
         AsrDiag.set("finish_reason", reason);
@@ -3542,14 +3612,9 @@ function listenForResponse(options, timeoutMs) {
         });
       };
 
-      // iOS: stop (not abort) so final results can arrive before we read the transcript.
-      if (isMobileListen) {
-        try { rec.stop(); } catch (_) { try { rec.abort(); } catch (_2) {} }
-        setTimeout(finalize, 250);
-      } else {
-        try { rec.abort(); } catch (_) {}
-        finalize();
-      }
+      // Single-utterance: stop (not abort) so final results can arrive before finalize.
+      try { rec.stop(); } catch (_) { try { rec.abort(); } catch (_2) {} }
+      setTimeout(finalize, 250);
     }
 
     function absorbResults(e) {
@@ -3565,28 +3630,23 @@ function listenForResponse(options, timeoutMs) {
           chunkInterim += seg.transcript;
         }
       }
-      if (isMobileListen) {
-        let latestFinal = "";
-        let latestAny = "";
-        for (let i = 0; i < e.results.length; i++) {
-          const t = (e.results[i][0].transcript || "").trim();
-          if (!t) continue;
-          latestAny = t;
-          if (e.results[i].isFinal) latestFinal = t;
-        }
-        if (latestFinal) {
-          finalTranscript = latestFinal;
-          interimTranscript = "";
-        } else if (latestAny) {
-          interimTranscript = latestAny;
-        }
-      } else {
-        if (chunkFinal) {
-          finalTranscript = (finalTranscript + chunkFinal).trim();
-          interimTranscript = "";
-        }
-        if (chunkInterim) interimTranscript = chunkInterim.trim();
+      // Single-utterance: prefer latest final segment, else latest interim (all platforms).
+      let latestFinal = "";
+      let latestAny = "";
+      for (let i = 0; i < e.results.length; i++) {
+        const t = (e.results[i][0].transcript || "").trim();
+        if (!t) continue;
+        latestAny = t;
+        if (e.results[i].isFinal) latestFinal = t;
       }
+      if (latestFinal) {
+        finalTranscript = latestFinal;
+        interimTranscript = "";
+      } else if (latestAny) {
+        interimTranscript = latestAny;
+      }
+      if (chunkInterim && !_perfFirstInterim) { _perfFirstInterim = true; _perfLog("first interim result"); }
+      if (chunkFinal && !_perfFirstFinal) { _perfFirstFinal = true; _perfLog("first final result"); }
       if (chunkFinal || chunkInterim) {
         AsrDiag.ev("asr_result", {
           is_final: !!chunkFinal,
@@ -3596,6 +3656,10 @@ function listenForResponse(options, timeoutMs) {
           interim_so_far: interimTranscript || "",
           conf: typeof lastConf === "number" ? lastConf : null,
         });
+      }
+      const _previewText = (finalTranscript || interimTranscript || "").trim();
+      if (_previewText) {
+        _setAsrInterimPreview(_previewText, { isFinal: !!finalTranscript });
       }
       if (finalTranscript) {
         console.log(`[ASR] onresult final: "${finalTranscript}"`);
@@ -3637,6 +3701,7 @@ function listenForResponse(options, timeoutMs) {
     // onend: iOS fires early/often — restart while empty; finish when we have a transcript.
     rec.onend = () => {
       const txt = getBestTranscript();
+      _perfLog(`onend (transcript="${txt}")`);
       console.log(`[ASR] onend fired, transcript="${txt}"`);
       if (resolved) return;
       if (txt) {
@@ -3662,9 +3727,16 @@ function listenForResponse(options, timeoutMs) {
 
     rec.onstart = () => {
       micStarted = true;
+      _perfLog("onstart");
       AsrDiag.ev("onstart");
       _setListenState("listening");
     };
+
+    // ── TEMP ASR latency instrumentation (remove after diagnosis) ────────────
+    rec.onaudiostart  = () => _perfLog("onaudiostart");
+    rec.onspeechstart = () => _perfLog("onspeechstart");
+    rec.onspeechend   = () => _perfLog("onspeechend");
+    rec.onaudioend    = () => _perfLog("onaudioend");
 
     rec.onerror = (e) => {
       console.log(`[ASR] onerror: ${e.error}`);
@@ -3685,6 +3757,8 @@ function listenForResponse(options, timeoutMs) {
       }, timeoutMs);
       resetSilenceTimer();
       try {
+        window._asrPerfT0 = _perfNow();
+        _perfLog("rec.start() called");
         rec.start();
         listenStartedAt = Date.now();
         emitUITrace({
@@ -7309,7 +7383,15 @@ window.addEventListener("load", async () => {
         text: saidText,
         lang: "zh-CN",
         onEvent: (e) => {
-          if (e?.payload?.completed) runTurn(true, { last_turn_was_answer: true });
+          if (e?.payload?.completed) {
+            if (AsrDiag.enabled()) {
+              try {
+                const _t0 = window._asrPerfT0 || 0;
+                if (_t0) console.log(`[ASR-PERF] +${Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - _t0)}ms transcript submitted (matched, after TTS)`);
+              } catch (_) {}
+            }
+            runTurn(true, { last_turn_was_answer: true });
+          }
         },
       });
       lastClickedWordId = null;
@@ -7493,6 +7575,12 @@ window.addEventListener("load", async () => {
       const _newAnchorPlace = _PLACE_ANCHOR_LIST.find(p => saidTrimmed.includes(p));
       if (_newAnchorPlace) window._lastMentionedPlace = _newAnchorPlace;
       _updateLearnerWorkContext(saidTrimmed);  // track education/retirement for company-Q guard
+      if (AsrDiag.enabled()) {
+        try {
+          const _t0d = window._asrPerfT0 || 0;
+          if (_t0d) console.log(`[ASR-PERF] +${Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - _t0d)}ms transcript displayed (free answer, in DOM)`);
+        } catch (_) {}
+      }
       addTranscriptEntry("user", saidTrimmed);
       renderTranscript();
       window._lastAcceptedFreeTranscript = saidTrimmed;
@@ -7509,6 +7597,12 @@ window.addEventListener("load", async () => {
         onEvent: (e) => {
           if (!_turnFired && e?.payload?.completed) {
             _turnFired = true;
+            if (AsrDiag.enabled()) {
+              try {
+                const _t0s = window._asrPerfT0 || 0;
+                if (_t0s) console.log(`[ASR-PERF] +${Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - _t0s)}ms transcript submitted (free answer, after self-TTS)`);
+              } catch (_) {}
+            }
             console.log("[DBG runTurn fire] lastAnswer=", JSON.stringify(window._lastAnswer));
             runTurn(true, { last_turn_was_answer: true });
           }
@@ -7683,6 +7777,7 @@ window.addEventListener("load", async () => {
       }
       const st = document.getElementById("listenStatus")?.dataset?.state;
       if (st !== "notice") _setListenState("idle");
+      _clearAsrInterimPreview();
       _micListenInFlight = false;
     }
   }

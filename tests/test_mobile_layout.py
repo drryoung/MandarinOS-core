@@ -72,7 +72,8 @@ def test_mobile_session_controls_stay_reachable():
     assert "interimTranscript" in src
     assert "getBestTranscript" in src
     assert "isMobileListen" in src
-    assert "rec.continuous = !isMobileListen" in src
+    assert "rec.continuous = false" in src
+    assert "rec.continuous = !isMobileListen" not in src
 
 
 def test_recovery_collapsed_on_mobile():
