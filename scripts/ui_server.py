@@ -9161,16 +9161,45 @@ class Handler(BaseHTTPRequestHandler):
                         user_asked_question = False
 
                 if _diag_cap is not None:
+                    # ── TEMP DIAGNOSTICS (spoken-input divergence) — REMOVE AFTER DIAGNOSIS ──
+                    # Behaviour-free: only populates the diag record; never alters routing.
+                    # Captures which last_answer field was selected and the routing signals so a
+                    # real-browser trace can be compared field-by-field with a typed turn.
                     _la_diag = last_answer if isinstance(last_answer, dict) else {}
-                    _diag_cap["server_raw_input"] = (
-                        _la_diag.get("submitted_text")
-                        or _la_diag.get("selected_option_hanzi")
-                        or ""
+                    _sub_diag = (_la_diag.get("submitted_text") or "").strip()
+                    _soh_diag = (_la_diag.get("selected_option_hanzi") or "").strip()
+                    _diag_cap["la_submitted_text"] = _sub_diag
+                    _diag_cap["la_selected_option_hanzi"] = _soh_diag
+                    _diag_cap["la_has_both_fields"] = bool(_sub_diag and _soh_diag)
+                    _diag_cap["effective_field"] = (
+                        "submitted_text" if _sub_diag else ("selected_option_hanzi" if _soh_diag else "none")
                     )
+                    _diag_cap["server_raw_input"] = _sub_diag or _soh_diag or ""
                     _diag_cap["server_raw_answer_text"] = raw_answer_text
                     _diag_cap["routing_text"] = routing_answer_text
                     _diag_cap["last_turn_was_answer"] = bool(last_turn_was_answer)
+                    _diag_cap["last_answer_frame_id"] = last_answer_fid
                     _diag_cap["user_asked_question"] = bool(user_asked_question)
+                    try:
+                        _rt_diag = routing_answer_text or raw_answer_text or ""
+                        _diag_cap["direct_persona_intent"] = bool(_is_direct_persona_question(_rt_diag))
+                        _diag_cap["place_feature_match"] = bool(_is_place_feature_question(_rt_diag))
+                        _diag_cap["place_food_match"] = bool(_is_place_food_question(_rt_diag))
+                        _diag_cap["cooking_match"] = bool(_is_cooking_question(_rt_diag))
+                    except Exception:
+                        pass
+                    if isinstance(cs, dict):
+                        _diag_cap["cs_current_engine"] = (cs.get("current_engine") or "")
+                        _diag_cap["cs_last_partner_frame_text"] = (cs.get("last_partner_frame_text") or "")
+                        _diag_cap["cs_last_counter_reply"] = (cs.get("last_counter_reply") or "")
+                        _diag_cap["cs_last_place_subject"] = (cs.get("last_place_subject") or "")
+                        _diag_cap["cs_learner_stated_location"] = (cs.get("learner_stated_location") or "")
+                        _rpr_diag = cs.get("recent_persona_replies")
+                        _diag_cap["cs_recent_persona_replies_count"] = (
+                            len(_rpr_diag) if isinstance(_rpr_diag, list) else 0
+                        )
+                        _diag_cap["cs_location_retry_count"] = int(cs.get("location_retry_count") or 0)
+                    _diag_cap["slot_names"] = list(slot_names) if isinstance(slot_names, list) else []
 
                 # ── Affirmation-after-re-ask: clear confusion counters ──────────────────
                 # When the app issued a clarification re-ask last turn (noisy location,

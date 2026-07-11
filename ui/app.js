@@ -7682,6 +7682,22 @@ window.addEventListener("load", async () => {
                             rate: _srpAction === "slower" ? 0.82 : undefined, queue: true });
                 },
             });
+            // TEMP DIAGNOSTICS (spoken-input divergence) — REMOVE AFTER DIAGNOSIS.
+            // Recovery-intercept turns short-circuit without a server round-trip; flush
+            // the ASR record so they are visible in the trace (submitted=false).
+            try {
+                if (AsrDiag.id()) {
+                    const _rrid = AsrDiag.submit({
+                        input_path: "microphone",
+                        submitted_transcript: saidTrimmed,
+                        submitted_to_server: false,
+                        client_decision: "recovery_intercept",
+                        decision_reason: _srpAction,
+                        frame_id: frameId || "",
+                    });
+                    if (_rrid) AsrDiag.complete(_rrid, null);
+                }
+            } catch (_) {}
             lastClickedWordId = null;
             window.lastClickedWordId = null;
             setUiMode("READ");
@@ -7917,6 +7933,28 @@ window.addEventListener("load", async () => {
         semantic_clarify_used: !!_semClarifyData,
       },
     });
+    // ── TEMP DIAGNOSTICS (spoken-input divergence) — REMOVE AFTER DIAGNOSIS ──
+    // Behaviour-free. A rejected spoken turn is NOT submitted to /api/run_turn, so
+    // the active ASR record would otherwise be clobbered by the next mic cycle and
+    // never appear in the trace store. Flush it here (submitted=false) so the exact
+    // failing cases — questions the client rejects before the server ever sees them —
+    // are visible in asr_traces.jsonl alongside the client-generated re-ask text.
+    try {
+      if (AsrDiag.id()) {
+        const _rid = AsrDiag.submit({
+          input_path: "microphone",
+          submitted_transcript: saidTrimmed,
+          submitted_to_server: false,
+          client_decision: "rejected_not_submitted",
+          decision_reason: unmatchedDecision.reason,
+          fail_level: unmatchedDecision.fail_level || "hard",
+          client_reask_text: _displayPhrase.hanzi || "",
+          client_reask_id: _displayPhrase.id || "",
+          frame_id: frameId || "",
+        });
+        if (_rid) AsrDiag.complete(_rid, null);
+      }
+    } catch (_) {}
     if (frameId) window._unmatchedByFrame[frameId] = unmatchedCount + 1;
     if (frameId) {
       window._recoveryPromptsByFrame[frameId] = _frameRecShown + 1;
