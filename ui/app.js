@@ -3650,26 +3650,45 @@ function listenForResponse(options, timeoutMs) {
 
     // ── Thinking-grace restart (desktop only) ──────────────────────────────
     // Called when onend fires with accumulated text and we haven't hit the segment cap.
-    // Creates a new SpeechRecognition instance and wires it to the same callbacks.
+    // Uses an *absolute* deadline so repeated empty restarts do not extend the window.
+    //
+    // thinkingGraceDeadline (ms, perf.now epoch) is set once on the first call and
+    // never reset; subsequent grace-recognizer onend handlers re-enter _startThinkingGrace
+    // only if time remains before that original deadline.
+    let thinkingGraceDeadline = 0;   // absolute perf.now deadline (0 = not yet set)
+    let graceRestartCount = 0;       // total restarts within one grace window
+    const GRACE_MAX_RESTARTS = 8;    // safety cap on empty-restart loops
+
     function _startThinkingGrace() {
       if (resolved) return;
-      if (inThinkingGrace) return; // already waiting
+      if (inThinkingGrace) return; // already waiting — outer deadline timer is still running
+
       inThinkingGrace = true;
       _setListenState("waiting");
-      console.log(`[ASR] thinking grace started (${ASR_THINKING_GRACE_MS}ms), segments so far=${segmentCount}`);
 
-      thinkingGraceTid = setTimeout(() => {
-        if (resolved) return;
-        console.log("[ASR] thinking grace expired — finalizing");
-        finish("thinking_grace_expired");
-      }, ASR_THINKING_GRACE_MS);
+      // Set the absolute deadline only on the first entry; never push it out.
+      const now = _perfNow();
+      if (!thinkingGraceDeadline) {
+        thinkingGraceDeadline = now + ASR_THINKING_GRACE_MS;
+        const remaining = ASR_THINKING_GRACE_MS;
+        console.log(`[ASR] thinking grace started (deadline in ${remaining}ms), segments=${segmentCount}`);
+        thinkingGraceTid = setTimeout(() => {
+          if (resolved) return;
+          console.log("[ASR] thinking grace deadline reached — finalizing");
+          finish("thinking_grace_expired");
+        }, remaining);
+      } else {
+        // Re-entering after an empty restart — deadline timer is already running.
+        const remaining = Math.max(0, thinkingGraceDeadline - _perfNow());
+        console.log(`[ASR] thinking grace re-entry (${Math.round(remaining)}ms remaining), restarts=${graceRestartCount}`);
+      }
 
-      // Spin up a new recognition instance to listen for the continuation.
+      // Spin up a fresh recognizer to listen for the continuation.
       let nextRec;
       try {
         nextRec = new SpeechRecognition();
       } catch (_) {
-        finish("restart_error");
+        // API unavailable — let the deadline timer fire naturally.
         return;
       }
       nextRec.continuous = false;
@@ -3677,10 +3696,12 @@ function listenForResponse(options, timeoutMs) {
       nextRec.interimResults = true;
 
       nextRec.onresult = (e) => {
-        // Learner spoke again — cancel grace timer, append to accumulated answer.
+        // Learner spoke again — cancel grace deadline timer, append segment.
         if (resolved) return;
         if (thinkingGraceTid) { clearTimeout(thinkingGraceTid); thinkingGraceTid = null; }
         inThinkingGrace = false;
+        thinkingGraceDeadline = 0; // reset so next grace gets a fresh window
+        graceRestartCount = 0;
         absorbResults(e, { isGraceContinuation: true });
       };
       nextRec.onstart = () => {
@@ -3691,6 +3712,7 @@ function listenForResponse(options, timeoutMs) {
       };
       nextRec.onerror = (e) => {
         console.log(`[ASR] grace-restart onerror: ${e.error}`);
+        // aborted / no-speech are expected during the silent thinking pause.
         if (e.error === "aborted" || e.error === "no-speech") return;
         if (e.error === "not-allowed" || e.error === "service-not-allowed") {
           finish("permission_denied"); return;
@@ -3698,21 +3720,37 @@ function listenForResponse(options, timeoutMs) {
         finish("grace_error");
       };
       nextRec.onend = () => {
-        _perfLog(`grace-restart onend`);
+        _perfLog("grace-restart onend");
         if (resolved) return;
+
         const txt = getBestTranscript();
-        if (!txt) {
-          // Empty restart — nothing new was said; finalize what we have.
-          finish("grace_onend_empty");
+        if (txt) {
+          // A new segment finished — decide whether to allow another grace window.
+          if (segmentCount < ASR_MAX_SEGMENTS) {
+            inThinkingGrace = false; // allow re-entry
+            thinkingGraceDeadline = 0; // new segment resets the grace deadline
+            graceRestartCount = 0;
+            _startThinkingGrace();
+          } else {
+            console.log(`[ASR] segment cap reached (${ASR_MAX_SEGMENTS})`);
+            finish("segment_cap");
+          }
           return;
         }
-        // Another segment finished — decide whether to extend grace again.
-        if (segmentCount < ASR_MAX_SEGMENTS) {
+
+        // Empty onend — no new speech in this recognizer cycle.
+        // Check whether the original grace deadline still has time left.
+        const remaining = thinkingGraceDeadline ? thinkingGraceDeadline - _perfNow() : 0;
+        graceRestartCount++;
+        console.log(`[ASR] grace empty onend (restart #${graceRestartCount}, ${Math.round(remaining)}ms remaining on deadline)`);
+
+        if (remaining > 50 && graceRestartCount < GRACE_MAX_RESTARTS) {
+          // Deadline not yet reached — restart the recognizer again.
+          // The existing thinkingGraceTid deadline timer is still running.
+          inThinkingGrace = false; // clear so _startThinkingGrace re-enters
           _startThinkingGrace();
-        } else {
-          console.log(`[ASR] segment cap reached (${ASR_MAX_SEGMENTS})`);
-          finish("segment_cap");
         }
+        // else: let the existing deadline timer call finish() when it fires.
       };
       nextRec.onaudiostart  = () => _perfLog("grace onaudiostart");
       nextRec.onspeechstart = () => _perfLog("grace onspeechstart");
@@ -3725,7 +3763,7 @@ function listenForResponse(options, timeoutMs) {
         listenStartedAt = Date.now();
       } catch (err) {
         console.log(`[ASR] grace restart failed: ${err}`);
-        // Could not restart — just wait out the grace timer and finalize.
+        // Could not restart — deadline timer will still fire naturally.
       }
     }
 

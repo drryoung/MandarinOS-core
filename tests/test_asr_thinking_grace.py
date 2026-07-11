@@ -139,14 +139,49 @@ def test_finish_sets_inThinkingGrace_false():
     assert "inThinkingGrace = false" in block
 
 
-# ── 7. Empty restart does not erase recognised text ──────────────────────────
+# ── 7. Empty restart does not erase recognised text and does not finalize early ─
 
-def test_grace_empty_onend_finalizes_with_existing_text():
+def test_grace_empty_onend_does_not_finalize_before_deadline():
+    """Empty grace recognizer ending before the deadline must NOT call finish()."""
     block = _grace_block()
-    # The grace restart's onend must check getBestTranscript() and call
-    # finish("grace_onend_empty") when empty — not clear finalTranscript.
-    assert "grace_onend_empty" in block
-    assert "finalTranscript = " not in block.split("grace_onend_empty")[0].split("nextRec.onend")[1]
+    # The empty-onend handler must check remaining time before deciding to finalize.
+    assert "remaining" in block
+    assert "thinkingGraceDeadline" in block
+    # It must NOT call finish("grace_onend_empty") or any other finish immediately.
+    assert "grace_onend_empty" not in block
+
+
+def test_grace_empty_onend_restarts_if_time_remains():
+    """When empty onend fires with time left, recognition is restarted."""
+    block = _grace_block()
+    onend_section = block.split("nextRec.onend")[1]
+    # Must call _startThinkingGrace or equivalent restart when remaining > 0.
+    assert "_startThinkingGrace" in onend_section
+    assert "remaining" in onend_section
+
+
+def test_grace_deadline_is_absolute_set_once():
+    """thinkingGraceDeadline is set once on first entry and not pushed forward by empty restarts."""
+    block = _grace_block()
+    # Deadline is only set inside the !thinkingGraceDeadline guard.
+    assert "if (!thinkingGraceDeadline)" in block
+    # The empty-onend sub-path (no new text) must not reassign thinkingGraceDeadline.
+    # Split on the empty-text branch: "if (remaining > 50" is in the empty path.
+    onend_section = block.split("nextRec.onend")[1]
+    empty_branch = onend_section.split("if (remaining > 50")[1] if "if (remaining > 50" in onend_section else ""
+    assert "thinkingGraceDeadline =" not in empty_branch, (
+        "Empty-onend path must not reset thinkingGraceDeadline"
+    )
+
+
+def test_grace_restart_cap_enforced():
+    """graceRestartCount is tracked and GRACE_MAX_RESTARTS caps empty-restart loops."""
+    s = _src()
+    assert "GRACE_MAX_RESTARTS" in s
+    assert "graceRestartCount" in s
+    block = _grace_block()
+    assert "GRACE_MAX_RESTARTS" in block
+    assert "graceRestartCount <" in block or "graceRestartCount++" in block
 
 
 # ── 8. Segment joining does not duplicate overlapping words ──────────────────
