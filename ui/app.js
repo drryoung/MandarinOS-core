@@ -3387,6 +3387,12 @@ const SPEECH_MIN_LISTEN_GRACE_MS_MOBILE = 1800;
 const SPEECH_MIN_LISTEN_GRACE_MS_DESKTOP = 1000;
 // One-shot patience window when silence ends on pure filler (e.g. mmmm → 嗯嗯).
 const SPEECH_FILLER_EXTEND_MS = 2000;
+// Thinking grace period: after the browser ends a single-utterance recognition segment,
+// restart the mic for this duration so the learner can continue mid-sentence after a pause.
+// Only applies on desktop (rec.continuous=false). Mobile uses single-shot onend→finish.
+const ASR_THINKING_GRACE_MS = 1800;
+// Maximum number of recognition segments that may be joined in one learner turn.
+const ASR_MAX_SEGMENTS = 4;
 
 // ── Listening state indicator ────────────────────────────────────────────────
 // Subtle line below the mic: hidden while opening; appears once speech is detected.
@@ -3537,12 +3543,16 @@ function listenForResponse(options, timeoutMs) {
     let resolved = false;
     let silenceTid = null;
     let wallClockTid = null;
-    let waitingTid = null;   // transitions indicator to "waiting" ~800ms after last speech event
+    let waitingTid = null;      // transitions indicator to "waiting" ~800ms after last speech event
+    let thinkingGraceTid = null; // thinking-grace: desktop segment-join timer
     let speechStarted = false;
     let fillerExtendFired = false;
     let micStarted = false;   // set in rec.onstart — used to distinguish "never opened" from "no speech"
     let listenStartedAt = 0;
-    let onendRetryCount = 0;
+    let onendRetryCount = 0;  // empty-onend restarts (no-speech quirk)
+    let segmentCount = 0;     // number of recognition segments joined this turn
+    let activeRec = rec;      // current SpeechRecognition instance (replaced during grace restarts)
+    let inThinkingGrace = false; // true while waiting to see if the learner continues
     // ASR latency instrumentation — only when diagnostics token is active.
     let _perfFirstInterim = false;
     let _perfFirstFinal = false;
@@ -3559,8 +3569,8 @@ function listenForResponse(options, timeoutMs) {
     const minListenGraceMs = _isMobileLayout()
       ? SPEECH_MIN_LISTEN_GRACE_MS_MOBILE
       : SPEECH_MIN_LISTEN_GRACE_MS_DESKTOP;
-    // Wall-clock budget once speech has begun — gives slow learners time to complete sentences.
-    const SPEECH_ACTIVE_MAX_MS = 13000;
+    // Wall-clock budget for the entire learner turn (including joined segments).
+    const SPEECH_ACTIVE_MAX_MS = 20000;
 
     function getBestTranscript() {
       return (finalTranscript || interimTranscript || "").trim();
@@ -3577,15 +3587,36 @@ function listenForResponse(options, timeoutMs) {
       console.log(`[ASR] speech started — active wall-clock set to ${SPEECH_ACTIVE_MAX_MS}ms`);
     }
 
+    // ── Segment joining ────────────────────────────────────────────────────
+    // Join two transcript segments, stripping any exact prefix overlap so
+    // re-emitted text from the new instance is not duplicated.
+    function _joinSegments(base, addition) {
+      const b = (base || "").trim();
+      const a = (addition || "").trim();
+      if (!a) return b;
+      if (!b) return a;
+      // Check if 'a' starts with a suffix of 'b' (browser sometimes repeats the last few chars).
+      // Try progressively shorter overlap lengths (max 8 chars).
+      const maxOverlap = Math.min(8, b.length, a.length);
+      for (let ol = maxOverlap; ol >= 1; ol--) {
+        if (b.endsWith(a.slice(0, ol)) && a.slice(0, ol) === b.slice(-ol)) {
+          return b + a.slice(ol);
+        }
+      }
+      return b + a;
+    }
+
     // ── finish(reason): single guarded submission point ─────────────────────
-    // Called by the silence timer, wall-clock timer, or onend (backup).
-    // Whichever fires first wins; all subsequent calls are no-ops.
+    // Called by the silence timer, wall-clock timer, thinking-grace expiry, or
+    // explicit stop. Whichever fires first wins; all subsequent calls are no-ops.
     function finish(reason) {
       if (resolved) return;
       resolved = true;
+      inThinkingGrace = false;
+      if (thinkingGraceTid) { clearTimeout(thinkingGraceTid); thinkingGraceTid = null; }
       // Expose whether the mic actually opened (onstart fired) for the caller's error message
       window._lastMicStarted = micStarted;
-      console.log(`[ASR] finish: reason=${reason}, transcript="${getBestTranscript()}", micStarted=${micStarted}`);
+      console.log(`[ASR] finish: reason=${reason}, transcript="${getBestTranscript()}", segments=${segmentCount}, micStarted=${micStarted}`);
       if (silenceTid)  { clearTimeout(silenceTid);  silenceTid  = null; }
       if (wallClockTid){ clearTimeout(wallClockTid); wallClockTid = null; }
       if (waitingTid)  { clearTimeout(waitingTid);  waitingTid  = null; }
@@ -3612,12 +3643,93 @@ function listenForResponse(options, timeoutMs) {
         });
       };
 
-      // Single-utterance: stop (not abort) so final results can arrive before finalize.
-      try { rec.stop(); } catch (_) { try { rec.abort(); } catch (_2) {} }
+      // Stop active instance; 250ms delay ensures any buffered final results arrive.
+      try { activeRec.stop(); } catch (_) { try { activeRec.abort(); } catch (_2) {} }
       setTimeout(finalize, 250);
     }
 
-    function absorbResults(e) {
+    // ── Thinking-grace restart (desktop only) ──────────────────────────────
+    // Called when onend fires with accumulated text and we haven't hit the segment cap.
+    // Creates a new SpeechRecognition instance and wires it to the same callbacks.
+    function _startThinkingGrace() {
+      if (resolved) return;
+      if (inThinkingGrace) return; // already waiting
+      inThinkingGrace = true;
+      _setListenState("waiting");
+      console.log(`[ASR] thinking grace started (${ASR_THINKING_GRACE_MS}ms), segments so far=${segmentCount}`);
+
+      thinkingGraceTid = setTimeout(() => {
+        if (resolved) return;
+        console.log("[ASR] thinking grace expired — finalizing");
+        finish("thinking_grace_expired");
+      }, ASR_THINKING_GRACE_MS);
+
+      // Spin up a new recognition instance to listen for the continuation.
+      let nextRec;
+      try {
+        nextRec = new SpeechRecognition();
+      } catch (_) {
+        finish("restart_error");
+        return;
+      }
+      nextRec.continuous = false;
+      nextRec.lang = "zh-CN";
+      nextRec.interimResults = true;
+
+      nextRec.onresult = (e) => {
+        // Learner spoke again — cancel grace timer, append to accumulated answer.
+        if (resolved) return;
+        if (thinkingGraceTid) { clearTimeout(thinkingGraceTid); thinkingGraceTid = null; }
+        inThinkingGrace = false;
+        absorbResults(e, { isGraceContinuation: true });
+      };
+      nextRec.onstart = () => {
+        micStarted = true;
+        _perfLog("grace-restart onstart");
+        AsrDiag.ev("onstart_grace");
+        _setListenState("listening");
+      };
+      nextRec.onerror = (e) => {
+        console.log(`[ASR] grace-restart onerror: ${e.error}`);
+        if (e.error === "aborted" || e.error === "no-speech") return;
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          finish("permission_denied"); return;
+        }
+        finish("grace_error");
+      };
+      nextRec.onend = () => {
+        _perfLog(`grace-restart onend`);
+        if (resolved) return;
+        const txt = getBestTranscript();
+        if (!txt) {
+          // Empty restart — nothing new was said; finalize what we have.
+          finish("grace_onend_empty");
+          return;
+        }
+        // Another segment finished — decide whether to extend grace again.
+        if (segmentCount < ASR_MAX_SEGMENTS) {
+          _startThinkingGrace();
+        } else {
+          console.log(`[ASR] segment cap reached (${ASR_MAX_SEGMENTS})`);
+          finish("segment_cap");
+        }
+      };
+      nextRec.onaudiostart  = () => _perfLog("grace onaudiostart");
+      nextRec.onspeechstart = () => _perfLog("grace onspeechstart");
+      nextRec.onspeechend   = () => _perfLog("grace onspeechend");
+      nextRec.onaudioend    = () => _perfLog("grace onaudioend");
+
+      activeRec = nextRec;
+      try {
+        nextRec.start();
+        listenStartedAt = Date.now();
+      } catch (err) {
+        console.log(`[ASR] grace restart failed: ${err}`);
+        // Could not restart — just wait out the grace timer and finalize.
+      }
+    }
+
+    function absorbResults(e, { isGraceContinuation = false } = {}) {
       noteSpeechActivity();
       let chunkFinal = "";
       let chunkInterim = "";
@@ -3630,7 +3742,7 @@ function listenForResponse(options, timeoutMs) {
           chunkInterim += seg.transcript;
         }
       }
-      // Single-utterance: prefer latest final segment, else latest interim (all platforms).
+      // Pick latest final, else latest interim from this result event.
       let latestFinal = "";
       let latestAny = "";
       for (let i = 0; i < e.results.length; i++) {
@@ -3640,26 +3752,39 @@ function listenForResponse(options, timeoutMs) {
         if (e.results[i].isFinal) latestFinal = t;
       }
       if (latestFinal) {
-        finalTranscript = latestFinal;
+        if (isGraceContinuation && finalTranscript) {
+          // Append to accumulated answer; strip any repeated overlap at the join.
+          finalTranscript = _joinSegments(finalTranscript, latestFinal);
+          segmentCount++;
+          console.log(`[ASR] grace segment joined (${segmentCount}): "${finalTranscript}"`);
+        } else {
+          if (!isGraceContinuation) segmentCount = 1;
+          finalTranscript = latestFinal;
+        }
         interimTranscript = "";
       } else if (latestAny) {
-        interimTranscript = latestAny;
+        // Show interim continuation appended to the already-confirmed final.
+        interimTranscript = isGraceContinuation
+          ? _joinSegments(finalTranscript, latestAny)
+          : latestAny;
       }
       if (chunkInterim && !_perfFirstInterim) { _perfFirstInterim = true; _perfLog("first interim result"); }
       if (chunkFinal && !_perfFirstFinal) { _perfFirstFinal = true; _perfLog("first final result"); }
       if (chunkFinal || chunkInterim) {
         AsrDiag.ev("asr_result", {
           is_final: !!chunkFinal,
+          is_grace_continuation: isGraceContinuation,
           chunk_final: chunkFinal || "",
           chunk_interim: chunkInterim || "",
           final_so_far: finalTranscript || "",
           interim_so_far: interimTranscript || "",
+          segment_count: segmentCount,
           conf: typeof lastConf === "number" ? lastConf : null,
         });
       }
-      const _previewText = (finalTranscript || interimTranscript || "").trim();
+      const _previewText = (interimTranscript || finalTranscript || "").trim();
       if (_previewText) {
-        _setAsrInterimPreview(_previewText, { isFinal: !!finalTranscript });
+        _setAsrInterimPreview(_previewText, { isFinal: !interimTranscript && !!finalTranscript });
       }
       if (finalTranscript) {
         console.log(`[ASR] onresult final: "${finalTranscript}"`);
@@ -3698,16 +3823,23 @@ function listenForResponse(options, timeoutMs) {
 
     rec.onresult = (e) => absorbResults(e);
 
-    // onend: iOS fires early/often — restart while empty; finish when we have a transcript.
     rec.onend = () => {
       const txt = getBestTranscript();
       _perfLog(`onend (transcript="${txt}")`);
       console.log(`[ASR] onend fired, transcript="${txt}"`);
       if (resolved) return;
       if (txt) {
-        finish("onend");
+        // Desktop: enter thinking-grace so the learner can continue mid-sentence.
+        // Mobile: finalize immediately (iOS single-shot already handles pacing).
+        if (!isMobileListen && segmentCount < ASR_MAX_SEGMENTS) {
+          segmentCount = segmentCount || 1;
+          _startThinkingGrace();
+        } else {
+          finish("onend");
+        }
         return;
       }
+      // No text yet — plain retry for empty-onend quirks (iOS or startup).
       const elapsed = listenStartedAt ? Date.now() - listenStartedAt : 0;
       if (onendRetryCount < 5 && elapsed < timeoutMs - 500) {
         onendRetryCount += 1;
@@ -3732,7 +3864,7 @@ function listenForResponse(options, timeoutMs) {
       _setListenState("listening");
     };
 
-    // ── TEMP ASR latency instrumentation (remove after diagnosis) ────────────
+    // ASR latency instrumentation — only active when diagnostics token is present.
     rec.onaudiostart  = () => _perfLog("onaudiostart");
     rec.onspeechstart = () => _perfLog("onspeechstart");
     rec.onspeechend   = () => _perfLog("onspeechend");
@@ -3761,6 +3893,7 @@ function listenForResponse(options, timeoutMs) {
         _perfLog("rec.start() called");
         rec.start();
         listenStartedAt = Date.now();
+        segmentCount = 0;
         emitUITrace({
           type: "SPEECH_LISTEN_START",
           timestamp: new Date().toISOString(),
@@ -3770,6 +3903,7 @@ function listenForResponse(options, timeoutMs) {
             silence_ms: preSpeechSilenceMs,
             min_listen_grace_ms: minListenGraceMs,
             mobile_listen: isMobileListen,
+            thinking_grace_ms: isMobileListen ? 0 : ASR_THINKING_GRACE_MS,
           },
         });
       } catch (err) {

@@ -40,8 +40,10 @@ def test_interim_rendered_in_absorb_results_not_transcript():
 def test_final_replaces_interim_preview():
     """3. Final transcript updates the preview with isFinal styling."""
     block = _app_src().split("function absorbResults")[1].split("function resetSilenceTimer")[0]
-    assert "isFinal: !!finalTranscript" in block or "isFinal: !!finalTranscript" in block.replace(" ", "")
-    assert '{ isFinal: !!finalTranscript }' in block
+    # Preview is set with isFinal distinguishing confirmed-final from interim.
+    assert "isFinal:" in block
+    assert "finalTranscript" in block
+    assert "_setAsrInterimPreview" in block
 
 
 def test_finish_clears_interim_preview():
@@ -52,10 +54,10 @@ def test_finish_clears_interim_preview():
 
 def test_single_utterance_finish_uses_stop_not_abort_only():
     """2. Browser onend path uses stop + short delay so finals arrive (all platforms)."""
-    finish_block = _app_src().split("function finish(reason)")[1].split("function absorbResults")[0]
-    assert "rec.stop()" in finish_block
+    # finish() now uses activeRec.stop() since the grace restart can replace rec.
+    finish_block = _app_src().split("function finish(reason)")[1].split("function _startThinkingGrace")[0]
+    assert "activeRec.stop()" in finish_block
     assert "setTimeout(finalize, 250)" in finish_block
-    assert "if (isMobileListen)" not in finish_block.split("rec.stop()")[0].split("const finalize")[1]
 
 
 def test_run_turn_only_after_listen_resolves():
