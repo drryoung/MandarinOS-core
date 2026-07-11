@@ -4713,15 +4713,33 @@ def _reverse_fact_answer(intent: str, persona: Optional[dict]) -> str:
 
 
 def _reverse_fact_answer_en(intent: str, persona: Optional[dict]) -> str:
-    """English counterpart to _reverse_fact_answer for dynamically-constructed
-    reverse-fact answers (e.g. "我老家在西安。" / "我今年32岁。").  Derived from the
-    persona *_en maps / profile so the dedupe path never emits an empty English
-    translation.  Returns "" when no English source exists."""
+    """English for dynamically-constructed reverse-fact answers.
+
+    Invariant (RC-EN): the English returned here must plausibly correspond to
+    ANY Chinese sentence the caller might pair with this intent.  When the
+    mapping is coarse — i.e. the same intent is triggered by questions about
+    different subjects (e.g. "age" fires for both persona-own-age AND
+    parent-age questions) — return "" so the client gloss routine translates
+    the exact final Chinese reply instead.
+
+    Narrowed branches vs first introduction (commit 0177994):
+      • hometown_special  – city-feature pool strings are not individually
+        translated; facts_en["place"] is the persona's *current-city* blurb
+        and is unrelated to the feature city asked about → always "".
+      • age               – "你爸妈多大" also maps to intent "age"; the
+        persona's own-age answer is always resolved by the mirror bank before
+        this function is reached, so returning the persona's age here only
+        produces wrong English for parent-age replies → always "".
+      • work_duration     – only return an English clause when the available
+        English source explicitly contains duration information; the job-
+        description fallback ("I teach at …") must not stand in for a duration
+        answer like "做这行十年了" → scan all work-English sources for a
+        duration clause; return "" when none is found.
+    """
     profile  = (persona or {}).get("profile") or {}
     facts_en = (persona or {}).get("discoverable_facts_en") or {}
     vl_en    = (persona or {}).get("voice_lines_en") or {}
     ht       = (profile.get("hometown") or "").strip()
-    age      = profile.get("age")
 
     if intent == "hometown_where":
         return (vl_en.get("place") or facts_en.get("place_from")
@@ -4729,18 +4747,50 @@ def _reverse_fact_answer_en(intent: str, persona: Optional[dict]) -> str:
     if intent == "hometown_location":
         return (facts_en.get("place") or vl_en.get("place") or "").strip()
     if intent == "hometown_special":
-        return (facts_en.get("place") or "").strip()
+        # City-feature pool strings have no individual English translations.
+        # facts_en["place"] is the persona's current-city description and may
+        # refer to a different city than the one asked about.  Return "" so the
+        # gloss path translates the exact final Chinese reply.
+        return ""
     if intent == "hometown_food":
         return (facts_en.get("food") or "").strip()
     if intent == "job":
         return (vl_en.get("work") or facts_en.get("work") or "").strip()
     if intent == "work_duration":
-        return (facts_en.get("work") or vl_en.get("work") or "").strip()
+        # Only return English when the source explicitly contains duration
+        # information (e.g. "eight years", "for ten years").  A bare job
+        # description must not stand in for a duration clause.
+        _dur_markers_en = (
+            "year", "years", " for ", "since", "decade",
+            "been doing", "taught for", "worked for", "doing this for",
+        )
+        for _src in (
+            facts_en.get("work"),
+            vl_en.get("work"),
+            facts_en.get("work_company"),
+        ):
+            _en_src = (_src or "").strip()
+            if not _en_src:
+                continue
+            _clauses_en = [
+                c.strip()
+                for c in re.split(r"[,\.!?\u2014]", _en_src)
+                if c.strip()
+            ]
+            _dur_en = next(
+                (c for c in _clauses_en if any(m in c.lower() for m in _dur_markers_en)),
+                "",
+            )
+            if _dur_en:
+                return _dur_en.rstrip(".,\u2014") + "."
+        return ""
     if intent == "work_reason":
         return (facts_en.get("work_origin") or "").strip()
     if intent == "age":
-        if age and isinstance(age, (int, float)):
-            return f"I'm {int(age)} years old."
+        # "年龄" / "多大" / "几岁" questions also fire for parent-age ("你爸妈多大"),
+        # so a coarse f"I'm {age} years old." would be incorrect for those replies.
+        # The persona's own-age question ("你几岁") is always answered via the mirror
+        # bank before reaching this function.  Return "" to delegate to gloss.
         return ""
     if intent == "marriage":
         return (facts_en.get("marriage") or "").strip()

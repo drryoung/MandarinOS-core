@@ -311,10 +311,17 @@ class TestDedupeTranslation:
         return alt, en
 
     def test_hometown_where_alt_has_zh_and_en(self, srv, meiling):
+        # _dedupe_persona_answer for a hometown-where question returns a different
+        # Chinese string (a generic deflection — the previous cross-intent fallback
+        # via _reverse_fact_answer was removed to prevent RC-A wrong-city answers).
+        # The key invariants: a different answer IS returned; it is never the original
+        # candidate; and it does not contain a city name from a different context.
         alt, en = self._deduped_pair(srv, meiling, "你老家在哪")
-        assert alt.strip() and alt.strip() != self._BRIEF
-        assert "西安" in alt                     # dynamic "我老家在西安。"
-        assert en.strip()                        # non-empty English
+        assert alt.strip() and alt.strip() != self._BRIEF, (
+            "Dedup must return a different Chinese answer"
+        )
+        # English may be empty (gloss path) — just must not be the Shanghai blurb
+        assert "上海" not in en and "Shanghai" not in en
 
     def test_hometown_food_alt_has_zh_and_en(self, srv, meiling):
         alt, en = self._deduped_pair(srv, meiling, "你老家有什么好吃的")
@@ -330,10 +337,14 @@ class TestDedupeTranslation:
         en = srv._persona_answer_en(meiling, "我已经教了八年了。", "work_duration")
         assert en.strip()
 
-    def test_age_translation_nonempty(self, srv, meiling):
+    def test_age_translation_via_mirror_bank(self, srv, meiling):
+        # _reverse_fact_answer_en("age") now returns "" because the same intent
+        # fires for parent-age questions ("你爸妈多大") and cannot safely return
+        # the persona's own age for all callers.  The persona's own-age question
+        # ("你几岁") is always resolved by the mirror bank (zh + en paired),
+        # never by _reverse_fact_answer_en, so this narrowing has no user impact.
         en = srv._persona_answer_en(meiling, "我今年32岁。", "age")
-        assert en.strip()
-        assert "32" in en
+        assert en == ""
 
     def test_voice_line_translation_still_works(self, srv, meiling):
         # A persona voice_line must map to its voice_lines_en counterpart.
