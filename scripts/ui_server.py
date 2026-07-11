@@ -3619,12 +3619,14 @@ def _is_place_food_question(t: str) -> bool:
     return False
 
 
-# Nouns that make "特别的X" a question about the PERSONA's own possession (hobby,
-# tradition, habit, story, etc.), not a place-feature question — e.g. "你有什么特别的
-# 爱好？" / "你家有什么特别的传统？". Kept narrow and explicit so genuine place questions
-# like "有什么特别的地方" are unaffected.
-_PLACE_FEATURE_PERSONAL_NOUNS: tuple = (
+# Nouns that make "特别的X" a question about something OTHER than a place — either
+# the PERSONA's own possession (hobby, tradition, habit, story, etc. — "你有什么特别的
+# 爱好？" / "你家有什么特别的传统？") or an abstract requirement/condition ("需要有什么
+# 特别的条件" — asking about requirements, not a city). Kept narrow and explicit so
+# genuine place questions like "有什么特别的地方" are unaffected.
+_PLACE_FEATURE_NON_PLACE_NOUNS: tuple = (
     "爱好", "传统", "习惯", "经历", "才能", "技能", "本事", "手艺", "故事", "回忆",
+    "条件", "要求", "规定", "限制",
 )
 
 
@@ -3637,7 +3639,7 @@ def _is_place_feature_question(t: str) -> bool:
     """
     if not (t or "").strip() or _is_place_food_question(t):
         return False
-    if any(("特别的" + n) in t for n in _PLACE_FEATURE_PERSONAL_NOUNS):
+    if any(("特别的" + n) in t for n in _PLACE_FEATURE_NON_PLACE_NOUNS):
         return False
     if any(m in t for m in (
         "有什么特别", "特别之处", "有什么特色", "有什么好玩", "有什么有意思",
@@ -4223,6 +4225,73 @@ def _place_from_question_context(t: str, recent_replies: Optional[list] = None) 
             if p:
                 return p
     return None
+
+
+# Broad plausibility set for the contextual place-repair guard below — a superset of
+# _CITY_LOCATION_BRIEF (which only has feature/food answer pools) so genuinely named
+# places (e.g. "甘肃", "新西兰") are never mistaken for ASR mis-recognition and repaired.
+_KNOWN_PLACE_NAMES: frozenset = (
+    frozenset(_TRAVEL_SUBREGIONS) | frozenset(_TRAVEL_COUNTRIES) | frozenset(_CITY_LOCATION_BRIEF.keys())
+)
+
+# Matches a SHORT, self-contained "<token><feature/food marker>" question with nothing
+# else around it — e.g. "需要有什么特别的" / "背景有什么特别的". Deliberately narrow
+# (fullmatch-style, anchored at both ends) so longer or unrelated sentences containing
+# the same marker substring (e.g. "需要有什么特别的条件") never match.
+_PLACE_QUESTION_HEAD_RE = re.compile(
+    r"^([\u4e00-\u9fff]{1,4})"
+    r"(有什么特别的|有什么特别之处|有什么特别|特别之处|有什么特色|有什么好玩|有什么有意思|"
+    r"有什么好吃的|有什么好吃|有什么吃的|好吃的|特别的)"
+    r"[吗呢啊？?！!]*$"
+)
+
+
+def _repair_contextual_place_question(
+    t: str, cs: Optional[dict], prev_reply: str = "",
+) -> tuple:
+    """Narrow contextual repair for a malformed place token in a short place-feature/
+    food question (e.g. ASR mis-recognising "西安" as "需要").
+
+    Returns a (repaired_text, clarification_zh) pair:
+      - (None, None)            → no repair applies; caller must use the ORIGINAL text.
+      - (repaired_text, None)   → exactly one unambiguous recent city found; the
+                                   invalid place token was swapped for ROUTING purposes
+                                   only (the raw learner transcript is never touched).
+      - (None, clarification_zh)→ two or more recent cities are plausible; caller
+                                   should ask rather than silently invent a destination.
+
+    Guardrails (do not weaken without re-reading the regression tests):
+      - Only fires on a short, fully-matched "<token><marker>" utterance — never on
+        longer sentences that merely contain the marker substring.
+      - Never fires when the token is already a recognised/plausible place, or a
+        deixis marker (那里/那边/…) — those are resolved elsewhere.
+      - Only consults the immediately tracked place subject (cs.last_place_subject)
+        and the SINGLE immediately preceding app reply — never older history.
+    """
+    s = (t or "").strip()
+    m = _PLACE_QUESTION_HEAD_RE.match(s)
+    if not m:
+        return (None, None)
+    token, marker = m.group(1), m.group(2)
+    if token in _KNOWN_PLACE_NAMES or token in _PLACE_DEIXIS_MARKERS:
+        return (None, None)  # already a real place (or deixis) — nothing to repair
+
+    candidates: list = []
+    _lps = ((cs or {}).get("last_place_subject") or "").strip() if isinstance(cs, dict) else ""
+    if _lps and _lps in _KNOWN_PLACE_NAMES:
+        candidates.append(_lps)
+    for _c in sorted(_KNOWN_PLACE_NAMES):
+        if _c in (prev_reply or "") and _c not in candidates:
+            candidates.append(_c)
+
+    if not candidates:
+        return (None, None)  # no recent city — do not invent a destination
+    if len(candidates) > 1:
+        return (None, f"你是问{candidates[0]}{marker}吗？")
+
+    city = candidates[0]
+    repaired = s[: m.start(1)] + city + s[m.end(1):]
+    return (repaired, None)
 
 
 def _cooking_persona_answer(persona: Optional[dict], seed: str = "") -> Optional[str]:
@@ -9500,17 +9569,34 @@ class Handler(BaseHTTPRequestHandler):
                     # (e.g. bare place-food question with no city/deixis/persona fact), the
                     # ladder naturally falls through to the existing recovery/mirror logic
                     # below instead of dead-ending on an empty branch.
+                    #
+                    # Contextual place-name repair (narrow): ASR can mis-hear the place
+                    # token itself (e.g. "西安" → "需要", "北京" → "背景") while the
+                    # feature/food MARKER still matches correctly. When that happens,
+                    # _direct_persona_answer silently falls back to the persona's OWN
+                    # hometown/city — which is wrong whenever the discussed place differs
+                    # from the persona's hometown. Repair the invalid token to the single
+                    # unambiguous recently-discussed city (routing text only; the raw
+                    # learner transcript is untouched), or ask a clarification when two or
+                    # more recent cities are plausible. Never fires on a recognised place.
                     _explicit_place_topic_result: Optional[tuple] = None
-                    if (
-                        _last_text_for_counter
-                        and not _is_confusion_signal(_last_text_for_counter)
+                    _place_q_repaired, _place_q_clarify = (
+                        _repair_contextual_place_question(_last_text_for_counter, cs, _prev_counter_reply)
+                        if _last_text_for_counter else (None, None)
+                    )
+                    _routing_text_for_place_q = _place_q_repaired or _last_text_for_counter
+                    if _place_q_clarify:
+                        _explicit_place_topic_result = (_place_q_clarify, "")
+                    elif (
+                        _routing_text_for_place_q
+                        and not _is_confusion_signal(_routing_text_for_place_q)
                         and (
-                            _is_place_feature_question(_last_text_for_counter)
-                            or _is_place_food_question(_last_text_for_counter)
+                            _is_place_feature_question(_routing_text_for_place_q)
+                            or _is_place_food_question(_routing_text_for_place_q)
                         )
                     ):
                         _pt_raw = _direct_persona_answer(
-                            _last_text_for_counter, persona,
+                            _routing_text_for_place_q, persona,
                             recent_replies=_recent_persona_replies,
                         )
                         if _pt_raw:
@@ -9519,7 +9605,7 @@ class Handler(BaseHTTPRequestHandler):
                             )
                             _pt_en = _persona_answer_en(
                                 persona, _pt_zh,
-                                _detect_reverse_fact_intent(_last_text_for_counter),
+                                _detect_reverse_fact_intent(_routing_text_for_place_q),
                             )
                             _explicit_place_topic_result = (_pt_zh, _pt_en)
 
