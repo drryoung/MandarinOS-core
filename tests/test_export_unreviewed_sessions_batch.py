@@ -217,6 +217,7 @@ class TestReviewedExclusion:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=False,
+            include_empty=False,
             dry_run=False,
             stdout=False,
         )
@@ -241,6 +242,7 @@ class TestReviewedExclusion:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=True,
+            include_empty=False,
             dry_run=False,
             stdout=False,
         )
@@ -264,6 +266,7 @@ class TestFileOutput:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=False,
+            include_empty=False,
             dry_run=False,
             stdout=False,
         )
@@ -317,6 +320,7 @@ class TestDryRunAndEmpty:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=False,
+            include_empty=False,
             dry_run=True,
             stdout=False,
         )
@@ -331,6 +335,7 @@ class TestDryRunAndEmpty:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=False,
+            include_empty=False,
             dry_run=True,
             stdout=False,
         )
@@ -346,6 +351,7 @@ class TestDryRunAndEmpty:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=False,
+            include_empty=False,
             dry_run=False,
             stdout=False,
         )
@@ -359,6 +365,7 @@ class TestDryRunAndEmpty:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=False,
+            include_empty=False,
             dry_run=False,
             stdout=False,
         )
@@ -381,6 +388,7 @@ class TestMaxSessions:
             out_dir=out_dir,
             max_sessions=3,
             include_reviewed=False,
+            include_empty=False,
             dry_run=False,
             stdout=False,
         )
@@ -400,6 +408,7 @@ class TestBatchFilename:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=False,
+            include_empty=False,
             dry_run=False,
             stdout=False,
         )
@@ -418,6 +427,7 @@ class TestBatchFilename:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=False,
+            include_empty=False,
             dry_run=False,
             stdout=False,
         )
@@ -428,6 +438,7 @@ class TestBatchFilename:
             out_dir=out_dir,
             max_sessions=20,
             include_reviewed=False,
+            include_empty=False,
             dry_run=False,
             stdout=False,
         )

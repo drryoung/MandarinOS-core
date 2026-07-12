@@ -141,6 +141,7 @@ def run_pipeline(
         out_dir=out_dir,
         max_sessions=max_sessions,
         include_reviewed=include_reviewed,
+        include_empty=False,
         dry_run=dry_run,
         stdout=False,   # never dump the full prompt to stdout in pipeline mode
     )
