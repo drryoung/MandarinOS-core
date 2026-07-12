@@ -5,7 +5,17 @@
 ## 1. Purpose and scope
 
 This document describes the conversation architecture of MandarinOS at baseline commit
-`53584cee9e8c892ff77f12741d1fc89d9d09c7e7`, tagged `architecture-baseline-2026-07-12`.
+`3be0315b2c9f7316b03ac2183a887f602ae9a297`, tagged `architecture-baseline-2026-07-12-r2`.
+
+**Historical note.** The original baseline tag, `architecture-baseline-2026-07-12`
+(commit `53584cee9e8c892ff77f12741d1fc89d9d09c7e7`), remains an immutable historical
+baseline and is not moved or deleted. It was superseded by `architecture-baseline-2026-07-12-r2`
+because a read-only audit of that baseline found that the primary Pattern-A client
+response handler (`_runTurnInner()`) did not apply the server's E4 engine handoff
+(`state_update.current_engine`) — it read only `data.engine_id`, so the handoff had no
+effect on the ordinary conversation path. Commit `3be0315b2c9f7316b03ac2183a887f602ae9a297`
+fixes this (see Section 8.4 and Section 15) with executable regression coverage, and
+production `/api/version` has been verified at that commit.
 
 It covers:
 
@@ -173,10 +183,16 @@ Each conversation turn follows this path from learner input to rendered response
     the frame record in `p2_frames.json`. The client receives these derived values and
     renders them; it does not independently translate or gloss these fields.
 
-17. **Client state update.** The client applies `state_update` fields, including
-    `current_engine` if E4 fired, to its local state (`window._currentEngineId`, etc.) and
-    records the new frame in `window._recentFrameIds`. The updated engine value takes effect
-    on the *next* call's `conversation_state`.
+17. **Client state update.** The client (`_runTurnInner()` in `ui/app.js`) first completes
+    all current-frame bookkeeping, rendering, and diagnostics using `data.engine_id` — the
+    engine of the frame just returned — and applies the recognised subset of `state_update`
+    fields (Section 8.4, `STATE_CONTRACT.md` Section 6) to `window._*` globals, appending the
+    new frame to `window._recentFrameIds`. Only at the very end of that function does it call
+    `window._currentEngineId = _resolveNextEngineId(engineId, data.state_update)`, which
+    returns `data.state_update.current_engine` when it is a valid non-empty string (the E4
+    handoff) and otherwise returns `engineId` (`data.engine_id`) unchanged. This sequencing
+    guarantees the just-rendered frame is never relabelled as the future handoff engine.
+    The resulting value is included in the *next* call's `conversation_state`.
 
 18. **Diagnostics flush.** If a `diag_trace_id` was used, `AsrDiag.complete()` joins the
     server-side `diag` payload to the client-side ASR trace and flushes it.
@@ -205,9 +221,10 @@ flowchart TD
     N -- Yes --> O[Write _e4_engine_handoff to state_update.current_engine]
     N -- No --> P[Return response]
     O --> P
-    P --> Q[Client: render frame_text + counter_reply + options]
-    Q --> R[Client: apply state_update — window._currentEngineId updated for NEXT call]
-    R --> A
+    P --> Q[Client: render frame_text + counter_reply + options, using data.engine_id]
+    Q --> R[Client: apply recognised state_update fields to window._* globals]
+    R --> S["Client: window._currentEngineId = _resolveNextEngineId(engineId, data.state_update) — for NEXT call"]
+    S --> A
 ```
 
 ---
@@ -403,8 +420,11 @@ from server responses for all subsequent turns.
 ### 5.5 Learner initiative and engine redirection
 
 When the learner asks a direct question and E4 fires (Section 8), the server writes a
-different engine into `state_update.current_engine`. The client applies this after the
-current response is rendered.
+different engine into `state_update.current_engine`. The client (`_runTurnInner()`) applies
+this only after current-frame bookkeeping and rendering are complete, via
+`window._currentEngineId = _resolveNextEngineId(engineId, data.state_update)` — see
+Section 8.4. This governs the engine used by the *next* ordinary ("Next") request; it never
+changes what engine the current response's frame is attributed to.
 
 **One-response delay:** the frame packaged with the direct persona answer is selected from
 the *incoming* engine, before E4 is written. The redirected engine first takes effect on the
@@ -573,13 +593,20 @@ active *before* the learner asked. Without E4, every subsequent request would co
 the old engine indefinitely, making the redirect invisible beyond that one turn.
 
 E4 (internal label: "Initiative Follow") solves the multi-turn problem by writing the
-redirected engine into `state_update.current_engine`. The client applies this after the
-response arrives. The *next* call then carries the updated engine in `conversation_state`.
+redirected engine into `state_update.current_engine`. The primary Pattern-A client handler
+(`_runTurnInner()`) applies this after the response arrives, but only once all bookkeeping,
+rendering, and diagnostics for the *current* response have used `data.engine_id` — see
+Section 8.4 for the exact mechanism. The *next* call then carries the updated engine in
+`conversation_state`. As of commit `3be0315b2c9f7316b03ac2183a887f602ae9a297`, this is
+verified end to end on the primary conversation path (Section 15, INV-1/INV-3); it is not
+merely a server-side intended mechanism.
 
 **What E4 does not solve:** it does not eliminate the one-response transitional frame from
 the previous engine. The baseline therefore accepts a one-frame delay between a learner's
 topic redirection and the conversation moving fully into the redirected topic. This is a
-known architectural characteristic, not an error.
+known architectural characteristic, not an error, and this fix does not remove it — only
+the *end-to-end propagation* to the following request was defective, not the one-response
+delay itself.
 
 "E4" is an internal label, not a class or file. It refers to the initiative-follow block
 in the `/api/run_turn` handler.
@@ -601,7 +628,9 @@ first time E4 affects any data structure.
 **Consequence:** E4 does *not* affect the frame returned in the same `/api/run_turn`
 response. The frame is selected using the engine from the incoming `conversation_state`.
 E4 only affects the following request, after the client applies `state_update.current_engine`
-to `window._currentEngineId`.
+to `window._currentEngineId` (Section 8.4). This one-response delay is preserved by the fix
+in commit `3be0315b2c9f7316b03ac2183a887f602ae9a297` — only the propagation to the request
+*after* that delay was defective, not the delay itself.
 
 ### 8.3 Triggering conditions
 
@@ -621,15 +650,43 @@ E4 does not fire when: the learner made a statement (not a question); `_counter_
 None; the answer is a generic deflection; the question could not be classified by
 `_infer_question_topic_engine()` (returns None).
 
-### 8.4 Which fields carry the handoff
+### 8.4 Which fields carry the handoff, and the exact client mechanism
 
 Server-side: `response["state_update"]["current_engine"]` (a string engine name, e.g.
-`"travel"`).
+`"travel"`), written at `scripts/ui_server.py:11835` after frame selection.
 
-Client-side: `window._currentEngineId = data.state_update.current_engine` (applied in
-`_runTurnInner` after receiving the response).
+Client-side, the production merge sequence inside `_runTurnInner()` (`ui/app.js`) is:
 
-The updated value is included in the *next* `conversation_state.current_engine`.
+1. `data.engine_id` is bound to the local `engineId` and used for every current-response
+   concern: `window._currentEngineId = engineId` (initial current-frame bookkeeping),
+   active-turn recording, rendering (`frame_text`/`counter_reply`/options), the
+   discovery-panel engine-staleness check, and `emitUITrace` diagnostics
+   (`TURN_START`/`TURN_END`). `engineId` is assigned exactly once and never reassigned —
+   nothing above can be affected by the handoff.
+2. The recognised subset of `data.state_update` (Section 6 of `STATE_CONTRACT.md`) is merged
+   into other `window._*` globals.
+3. Only as the last statement of `_runTurnInner()`:
+   ```javascript
+   window._currentEngineId =
+       _resolveNextEngineId(engineId, data.state_update);
+   ```
+   `_resolveNextEngineId(frameEngineId, stateUpdate)` is a small pure helper: it returns
+   `stateUpdate.current_engine` when that is a non-empty string, and otherwise returns
+   `frameEngineId` unchanged (no handoff → existing `data.engine_id`-based behaviour is
+   retained exactly as before).
+
+The updated value is included in the *next* `conversation_state.current_engine`. Note that
+`runMirrorTurn()` (the Pattern B / mirror-question stub handler) has its own,
+separate, pre-existing merge of `data.engine_id` and `data.state_update.current_engine`
+(`ui/app.js:6240–6249`) and was not modified by this fix.
+
+**Test evidence:** `tests/verify_e4_client_handoff.js` extracts and executes the verbatim
+`_resolveNextEngineId` source from `ui/app.js` (not a hand-written mirror) and statically
+asserts the call-site position inside `_runTurnInner()`; `tests/test_e4_client_handoff_regression.py`
+drives a real two-turn `/api/run_turn` exchange and computes the redirected engine by
+invoking that same real helper via Node (`tests/e4_resolve_next_engine_id_cli.js`,
+`tests/_load_app_js_helper.js`), never by manually inserting the redirected engine. See
+Section 13.6.
 
 ### 8.5 What state it changes and must preserve
 
@@ -637,14 +694,24 @@ E4 changes only `current_engine` in `state_update`. It does not touch `recent_fr
 `recent_persona_replies`, learner memory, or any counter. The conversation history is
 preserved.
 
-### 8.6 What would break without E4
+### 8.6 What would break without E4, and what broke before the client-merge fix
 
-Without E4, the engine redirect would last for exactly one turn: the learner's question
-would be answered in `counter_reply`, but every subsequent frame would continue from the
-previous engine as if the question had never been asked. E4 ensures the redirect persists
-beyond the transitional response. With E4 in place, there is still a one-response frame
-from the old engine (because E4 is written after frame selection); without E4, that
-one-frame gap becomes permanent.
+Without E4 firing at all (server-side), the engine redirect would last for exactly one
+turn: the learner's question would be answered in `counter_reply`, but every subsequent
+frame would continue from the previous engine as if the question had never been asked. E4
+ensures the redirect persists beyond the transitional response. With E4 in place, there is
+still a one-response frame from the old engine (because E4 is written after frame
+selection); without E4, that one-frame gap becomes permanent.
+
+Separately — and this is what commit `3be0315b2c9f7316b03ac2183a887f602ae9a297` fixed —
+even with E4 firing correctly server-side, the *primary Pattern-A client handler* did not
+apply `state_update.current_engine` at all before this fix; it derived
+`window._currentEngineId` solely from `data.engine_id`. The practical effect was
+indistinguishable from E4 not firing at all on the ordinary conversation path: the
+redirect never reached the following request, and the conversation reverted to the
+previous engine indefinitely (`runMirrorTurn()`'s separate Pattern-B merge already worked
+correctly, but does not run for ordinary answer-submission turns). This is now resolved;
+see Section 8.4.
 
 ---
 
@@ -1004,6 +1071,37 @@ Python test suite.
 across 24 test blocks and is run as part of the manual verification tier via
 `node tests/verify_asr_filler.js`.
 
+### 13.6 E4 client-handoff regression coverage (extraction, not mirroring)
+
+Unlike `verify_asr_filler.js` (Section 13.5), the E4 client-handoff tests do not mirror
+production logic by hand. `tests/_load_app_js_helper.js` slices the literal, verbatim
+`_resolveNextEngineId` source out of `ui/app.js` at test time and executes those exact
+characters via `new Function`; if the production helper is renamed, edited, or removed,
+the test picks up the real behaviour automatically (or fails loudly) instead of silently
+drifting from what ships.
+
+- `tests/verify_e4_client_handoff.js` — loads the real helper this way and unit-tests it
+  (essential scenario, empty/invalid handoff, generic engine pairs); statically asserts
+  that `_runTurnInner()` calls `_resolveNextEngineId` after current-frame bookkeeping (the
+  `state_update` merge block and the discovery-panel engine-staleness read), that `engineId`
+  is assigned exactly once, and that `runMirrorTurn()` is unmodified. 28 assertions.
+- `tests/e4_resolve_next_engine_id_cli.js` — a thin Node CLI wrapper so non-JS test
+  runners can invoke the real helper instead of reimplementing its rule.
+- `tests/test_e4_client_handoff_regression.py` — drives a real, deterministic two-turn
+  `/api/run_turn` exchange (in-process HTTP server) and computes the engine for the second
+  request by invoking the real helper via the CLI wrapper above — never by inserting the
+  redirected engine by hand — then asserts the second response's frame belongs to the
+  redirected engine.
+
+**No browser-automation harness exists in this repository.** There is no Jest/Karma/DOM
+test runner; the above extraction technique against the real, unmodified source, combined
+with static wiring/position assertions and a real end-to-end HTTP round trip, is the
+strongest verification mechanism currently available for this class of client behaviour.
+Production verification of this fix additionally used the deployed `/api/run_turn`
+endpoint plus this same real helper (invoked the identical way) as the strongest available
+proxy for a production smoke test — not an automated DOM click-through, which does not
+exist for this application.
+
 ---
 
 ## 14. Diagnostics and observability
@@ -1077,13 +1175,19 @@ Future changes must not violate them.
 the conversation continues in the learner's redirected topic from the following request
 onwards.**
 E4 computes `_e4_engine_handoff` and writes it to `state_update.current_engine` (after
-frame selection). The client applies it to `window._currentEngineId`, which is included in
-the next `conversation_state`. The engine does not affect the frame in the same response —
-a one-response transitional frame from the previous engine is accepted baseline behaviour.
-E4 prevents continued reversion, not the immediate mismatch.
+frame selection). The client (`_runTurnInner()`, via `_resolveNextEngineId`, Section 8.4)
+applies it to `window._currentEngineId` only after current-frame bookkeeping is complete,
+and the result is included in the next `conversation_state`. The engine does not affect the
+frame in the same response — a one-response transitional frame from the previous engine is
+accepted baseline behaviour. E4 prevents continued reversion, not the immediate mismatch.
+As of commit `3be0315b2c9f7316b03ac2183a887f602ae9a297`, this is enforced end to end on the
+primary Pattern-A path, not only server-side.
 *Enforcement:* E4 block in `scripts/ui_server.py` (E4 computation block and write at
-`state_update`); client applies `state_update.current_engine`.
-*Tests:* `test_e4_topic_handoff.py`.
+`state_update`); client applies `state_update.current_engine` via `_resolveNextEngineId`
+in `_runTurnInner()`.
+*Tests:* `test_e4_topic_handoff.py` (server-side computation and write);
+`tests/verify_e4_client_handoff.js`, `tests/test_e4_client_handoff_regression.py`
+(client-side application and two-turn end-to-end effect).
 
 **INV-2: The grammatical focus of a learner question must not be displaced by irrelevant
 recognised entities appearing earlier in the utterance.**
@@ -1097,8 +1201,12 @@ selection and takes effect on the following request, not the current frame.**
 *Scope:* Only when E4 triggers (see Section 8.3). E4 does not fire for generic deflections,
 limitation replies, or when `_counter_result` is None.
 *Enforcement:* E4 write position (after frame selection and payload assembly); `state_update`
-field validated by client round-trip.
-*Tests:* `test_e4_topic_handoff.py::TestE4DirectPersonaHandoff`.
+field applied by the client via `_resolveNextEngineId` in `_runTurnInner()`, strictly after
+current-frame bookkeeping (Section 8.4), so the current frame is never relabelled as the
+future engine.
+*Tests:* `test_e4_topic_handoff.py::TestE4DirectPersonaHandoff` (server-side write position);
+`tests/test_e4_client_handoff_regression.py` (real two-turn round trip proving the
+following request, not the current frame, carries the redirected engine).
 
 **INV-4: `counter_reply` and `frame_text` are assembled from independent code paths and
 coordinated through explicit data.**
@@ -1128,13 +1236,19 @@ discarded.
 
 **INV-9: Client conversation state is updated from server responses for all post-first-turn
 updates.**
-For turns after the first, `window._currentEngineId` is set from `data.engine_id` or
-`data.state_update.current_engine` in the server response. `window._recentFrameIds` is
-appended from `data.frame_id`.
+For turns after the first, `window._currentEngineId` is set from `data.engine_id` for
+current-frame purposes, then re-resolved via `_resolveNextEngineId(engineId,
+data.state_update)` for the *next* request (Section 8.4) — the latter returns
+`data.state_update.current_engine` when valid, else `data.engine_id` unchanged.
+`window._recentFrameIds` is appended from `data.frame_id`.
 *Exception:* On the first turn of a session, `window._currentEngineId` is null and the
 client falls back to the engine from the dropdown's data attribute or `"identity"`. This
 is a legitimate client-side initialisation.
-*Tests:* `test_conversation_first_wave.py::test_active_turn_record_single_source_of_truth`.
+*Tests:* `tests/verify_e4_client_handoff.js`, `tests/test_e4_client_handoff_regression.py`
+(engine-state application). Note: `test_conversation_first_wave.py::test_active_turn_record_single_source_of_truth`
+was previously cited here in error — that test covers active English/gloss synchronisation
+for the transcript's active turn, not engine state, and does not exercise
+`window._currentEngineId` or `_resolveNextEngineId` at all.
 
 ---
 
@@ -1365,9 +1479,14 @@ Use the following sequence when a conversation behaves unexpectedly.
 3. If E4 did not fire: check `_infer_question_topic_engine()` against the question text —
    does it classify correctly?
 4. If E4 fired to the wrong engine: check `_QUESTION_TOPIC_TO_ENGINE` for the mirror topic.
-5. If two or more consecutive frames from the wrong engine appear: E4 may not have been
-   applied by the client; check `window._currentEngineId` in browser devtools against
-   `state_update.current_engine` in the network response.
+5. If two or more consecutive frames from the wrong engine appear (beyond the single
+   accepted one-response transitional frame): as of commit
+   `3be0315b2c9f7316b03ac2183a887f602ae9a297` this indicates a *regression* in the client
+   merge, not expected baseline behaviour — check that `_runTurnInner()` still calls
+   `_resolveNextEngineId(engineId, data.state_update)` as its last statement (Section 8.4),
+   and compare `window._currentEngineId` in browser devtools against
+   `state_update.current_engine` in the network response for the direct-answer turn. Run
+   `node tests/verify_e4_client_handoff.js` to confirm the wiring is intact.
 
 ### 18.3 Repeated persona answer
 
@@ -1452,7 +1571,8 @@ Links marked "(not yet created)" will resolve once the relevant document is auth
 | Question-focus precedence | `scripts/ui_server.py:_place_from_question_context`, `_CITY_BEFORE_QUESTION_MARKER_RE` | `test_conversation_first_wave.py::test_city_routing_prefers_question_focus` |
 | Answer-source chain | `scripts/ui_server.py:/api/run_turn handler (L9896–10288)` | `test_stale_counter_reply_loop.py`, `test_stale_answer_loop_regression.py` |
 | Direct persona answers | `scripts/ui_server.py:_direct_persona_answer`, `_reverse_fact_answer` | `test_regression_surgical_transcript.py`, `test_direct_question_coverage.py` |
-| E4 initiative follow | `scripts/ui_server.py:E4 block (L10288–10313, 11833–11835)`, `_infer_question_topic_engine`, `_QUESTION_TOPIC_TO_ENGINE` | `test_e4_topic_handoff.py` |
+| E4 initiative follow (server computation/write) | `scripts/ui_server.py:E4 block (L10288–10313, 11833–11835)`, `_infer_question_topic_engine`, `_QUESTION_TOPIC_TO_ENGINE` | `test_e4_topic_handoff.py` |
+| E4 initiative follow (client application, Pattern A) | `ui/app.js:_resolveNextEngineId`, call site in `_runTurnInner()` (Section 8.4) | `tests/verify_e4_client_handoff.js`, `tests/test_e4_client_handoff_regression.py` |
 | Zh–En synchronisation | `scripts/ui_server.py:_persona_answer_en`, `_voice_line_en_for_zh`, `_en_for_counter_reply` | `test_zh_en_synchronisation.py` |
 | Stale-answer prevention | `scripts/ui_server.py:_dedupe_persona_answer`, dedup guard | `test_stale_answer_loop_regression.py`, `test_stale_counter_reply_loop.py` |
 | Working memory (E3) | `scripts/ui_server.py:_answer_from_working_memory`, `_extract_persona_facts_from_recent` | `test_conversation_first_wave.py` |
@@ -1467,7 +1587,8 @@ Links marked "(not yet created)" will resolve once the relevant document is auth
 
 | Field | Value |
 |-------|-------|
-| Baseline commit | `53584cee9e8c892ff77f12741d1fc89d9d09c7e7` |
-| Baseline tag | `architecture-baseline-2026-07-12` |
-| Document status | Approved v1 |
+| Baseline commit | `3be0315b2c9f7316b03ac2183a887f602ae9a297` |
+| Baseline tag | `architecture-baseline-2026-07-12-r2` |
+| Historical baseline (immutable, superseded) | `53584cee9e8c892ff77f12741d1fc89d9d09c7e7` / `architecture-baseline-2026-07-12` |
+| Document status | Approved v1 — R2 baseline |
 | Last verified date | 2026-07-12 |
