@@ -27,10 +27,10 @@
 |---|--------|-------|---------|----------|------------------|---------------|
 | 1 | Turn-local server variables | Server | Python locals inside the `/api/run_turn` handler (e.g. `_counter_result`, `_e4_engine_handoff`) | Single request only | Server (computed fresh each call) | No — never leave the handler except through fields explicitly copied into `response` |
 | 2 | Client conversation state | Client (transport), Server (interpretation) | `window._*` globals, assembled into `conversation_state` | One browser session (rebuilt from globals each turn; lost on reload) | Mixed — see Section 3 | Yes — sent every `/api/run_turn` call |
-| 3 | Server-generated state updates | Server | `response["state_update"]` | Written once per response; applied once by client | Server | Yes — returned every response, applied before the next request |
+| 3 | Server-generated state updates | Server | `response["state_update"]` | Conditionally present (written only if at least one field is set that turn); the production client applies only the specific fields it has an explicit merge case for | Server | Conditional — present only when the server writes at least one field; of the fields it may contain, only a subset are consumed cross-turn (Section 6) |
 | 4 | Working memory | Client (transport), Server (read/derive) | `cs["recent_persona_replies"]`, `last_counter_reply`, `last_partner_frame_text` | One session; capped history | Client-held, server-interpreted | Yes |
-| 5 | Persistent learner memory | Server | `data/learner_memory.json` (path via `MANDARINOS_DATA_DIR`), keyed by `learner_id` | Survives sessions, browser reloads, and server restarts | Server exclusively | No — client never sends `learner_memory` as input; server may return it for display |
-| 6 | Persona data | Content (static) | `personas/<id>.json`, loaded and cached in `scripts/ui_server.py` | Immutable for the process lifetime (cached) | Content file | No — never sent by client; server reads by `persona_id` |
+| 5 | Persistent learner memory | Server | `data/learner_memory.json` (path via `MANDARINOS_DATA_DIR`), keyed by `learner_id` | Survives sessions and browser reloads unconditionally; survives server restarts only if `MANDARINOS_DATA_DIR` resolves to a storage path that itself persists across restarts (e.g. a mounted volume on Railway) | Server exclusively | No — client never sends `learner_memory` as input; server may return it for display |
+| 6 | Persona data — **related immutable input domain, not conversation state** | Content (static) | `personas/<id>.json`, loaded and cached in `scripts/ui_server.py` | Immutable for the process lifetime (cached) | Content file | No — never sent by client; server reads by `persona_id`. Listed here only for traceability; per Section 1 this is data, not state. Active persona *selection* and reveal-tracking (Section 9) are genuine state and are covered separately. |
 | 7 | Session/progress state | Client (`_tracker`, `localStorage`), Server (`data/progress/<learner_id>.json`) | Browser `localStorage` + server file | Session-scoped counters reset each session; progress snapshots persist across sessions | Split — see Section 14 | Partially — `/api/save_progress`, `/api/end_session`, not `conversation_state` |
 | 8 | Diagnostics state | Server (`_diag_cap`), Client (`AsrDiag`) | In-memory per request; not persisted | Single request/response cycle | Server + client independently | Yes — via `diag` response field and `diag_trace_id` |
 | 9 | UI-only state | Client | `window._*` (rendering, DOM, timers) | Session or shorter | Client exclusively | No |
@@ -52,13 +52,18 @@
      │                                        └─► response { frame_text, counter_reply,
      │                                              state_update, learner_memory?, diag }
      ▼
- client applies state_update, top-level
- telemetry fields, and (if present)
- learner_memory display fields to
- window._* — becomes next conversation_state
+client applies the recognised subset of
+state_update, top-level telemetry fields,
+and (if present) learner_memory display
+fields to window._* — becomes next
+conversation_state. Unrecognised or
+unimplemented state_update fields have
+no cross-turn effect (Section 6).
 ```
 
 Learner-memory persistence and session capture are **not** part of the `conversation_state` round trip; they are separate subsystems reached through separate endpoints and only surfaced into the `/api/run_turn` response as read-only display data (`response["learner_memory"]`).
+
+**Restart persistence is configuration-dependent, not automatic.** Learner-memory, progress, and session-capture files survive a server restart only if their configured storage path is itself persistent across restarts. On Railway (and any similar ephemeral-filesystem host), this depends on `MANDARINOS_DATA_DIR` pointing at a mounted persistent volume; if it instead resolves to the container's ephemeral local disk, a restart or redeploy would lose these files despite the code itself having no bug. This document does not verify the current Railway volume configuration — it states only that the code's persistence guarantee is conditional on deployment configuration, not unconditional.
 
 ---
 
@@ -76,7 +81,7 @@ Learner-memory persistence and session capture are **not** part of the `conversa
 
 **Ephemeral state** — valid only during one request or one browser tab session. Turn-local server variables are request-ephemeral. Most `window._*` counters are session-ephemeral: they exist until `_resetCurrentSessionState()` runs or the tab is closed/reloaded.
 
-**The mixed-ownership pattern.** The client stores and transports the majority of `conversation_state` (counters, history lists, mode flags) but does not have final authority over what those values *mean*. The server reads the client's copy, may derive a corrected or advanced value, and returns that correction through `state_update`. The client is contractually obligated to apply every `state_update` field it receives before assembling the next request; it must not independently recompute values that the server is authoritative for (notably `current_engine` once E4 has fired).
+**The mixed-ownership pattern.** The client stores and transports the majority of `conversation_state` (counters, history lists, mode flags) but does not have final authority over what those values *mean*. The server reads the client's copy, may derive a corrected or advanced value, and, for a subset of fields, writes that correction into `state_update`. `state_update` is conditionally present — it exists only when at least one write site fired that turn — and even when present, the production client applies only the fields it has an explicit merge case for in `ui/app.js`. A field the server writes but the client has no merge case for (or applies only in a different call path than the one that ran that turn) has no effect on the following request; it is not "contractually" applied, it is applied only to the extent the client code actually implements. Section 6 lists exactly which `state_update` fields are consumed and which are not. The client must not independently *recompute* a value the server is authoritative for (notably `current_engine` once E4 has fired) — but "must not recompute" is a design intention, not a guarantee that the server's correction is actually picked up; see the `current_engine` consumption gap documented in Section 6 and Section 16.2.
 
 **Legitimate client-side initialisation.** On the very first turn of a session, several fields have no server-provided predecessor because no server response yet exists:
 - `current_engine`: client falls back to `window._currentEngineId ?? <dropdown-selected engine> ?? "identity"`.
@@ -99,7 +104,7 @@ One `/api/run_turn` turn proceeds as follows:
 6. **Server selects answer and frame.** The answer-source priority chain and frame selector run (documented in `CONVERSATION_ARCHITECTURE.md` Sections 8–9); this document only tracks the state they read and write.
 7. **Server constructs `state_update`.** Written incrementally at scattered points in the handler (Section 6), not assembled in one place.
 8. **Response is returned** with `frame_text`/`counter_reply`/`state_update`/top-level telemetry fields.
-9. **Client applies response fields** — merges `data.state_update` into the corresponding `window._*` globals (`ui/app.js:6882–6919`) and separately applies certain top-level response fields (`turn_type`, `same_engine_chain_count`, `arc_state.*`, etc., `ui/app.js:6797–6833`).
+9. **Client applies response fields** — merges the *recognised subset* of `data.state_update` into the corresponding `window._*` globals. The main turn-advancing path (`_runTurnInner`, response handler at `ui/app.js:6882–6919`) has explicit merge cases for 13 fields (Section 6); it does **not** read `data.state_update.current_engine`. The client separately applies certain top-level response fields (`data.engine_id`, `turn_type`, `same_engine_chain_count`, `arc_state.*`, etc., `ui/app.js:6797–6833, 6869–6870`).
 10. **Client appends or replaces local state.** `recent_frame_ids` is appended and capped at 50 (`ui/app.js:6921–6923`); `recent_persona_replies` is *replaced* wholesale from `state_update` (already capped server-side at 3); most counters are replaced, not appended.
 11. **Updated state is sent on the next request** — the cycle repeats from step 1.
 
@@ -114,15 +119,15 @@ One `/api/run_turn` turn proceeds as follows:
 | Recomputed | Derived fresh from other state each turn, never stored | `_12c_loop_capped`, `_12c_overload`, `_12c_closing` |
 | Conditionally overridden | Only present in `state_update` under specific branches | `pending_dest_candidate` (only for the travel-destination ASR-clarify frame) |
 
-**E4 as the canonical example of a deferred state update:**
+**E4 as the canonical example of a deferred state update — server side is unambiguous, client side has a call-path gap:**
 
 1. Server computes `_e4_engine_handoff` at `scripts/ui_server.py:10296–10313`, *before* frame selection runs.
 2. The response's `frame_text`/`frame_id` are selected using the *incoming* `current_engine` (frame selection happens after step 1 but does not consult `_e4_engine_handoff`).
-3. Server writes `response["state_update"]["current_engine"] = _e4_engine_handoff` at line **11835**, *after* frame selection and most of payload assembly.
-4. Client applies `state_update.current_engine` to `window._currentEngineId` (`ui/app.js:6246–6248`).
-5. The *next* request's `conversation_state.current_engine` carries the redirected engine, so the frame selector on the following turn operates in the new engine.
+3. Server writes `response["state_update"]["current_engine"] = _e4_engine_handoff` at line **11835**, *after* frame selection and most of payload assembly. This part is enforced by fixed line ordering and is not in question.
+4. **Client-side consumption is call-path-dependent, and this is where the intended contract has a gap.** `data.state_update.current_engine` is read in exactly one place in `ui/app.js`: inside `runMirrorTurn()` (`ui/app.js:6246–6249`), the handler for the mirror-question stub path (Pattern B). The main turn-advancing response handler used for ordinary "Next" turns (`_runTurnInner`'s response handling, `ui/app.js:6869–6920`, Pattern A) sets `window._currentEngineId` only from the top-level `data.engine_id` and contains no read of `data.state_update.current_engine` at all. There is no generic "apply every `state_update` key" loop anywhere in `ui/app.js` that would pick it up incidentally.
+5. Consequently: if a learner's direct question and E4 handoff are produced during an ordinary answer-submission turn (Pattern A, the common case), the server's `state_update.current_engine` write is not applied by the client's main path, and the *next* request's `conversation_state.current_engine` would still carry the pre-handoff engine rather than the redirected one — unless some other mechanism (not identified in this document) separately keeps the client's engine in sync. This consumption gap is evidenced by the absence of a read site, not inferred from behaviour; no live end-to-end test asserting the client-side `window._currentEngineId` value after a Pattern-A E4 turn was found (`test_e4_topic_handoff.py` performs only a static source-string assertion on the server write, not a client-application check — see Section 16.1, SINV-4).
 
-This produces exactly one transitional response (the one carrying the direct answer) whose accompanying frame still belongs to the old engine — an accepted, evidenced baseline characteristic, not a bug (see `CONVERSATION_ARCHITECTURE.md` Section 8).
+The "exactly one transitional response whose accompanying frame still belongs to the old engine" framing in `CONVERSATION_ARCHITECTURE.md` Section 8 describes the *server-side* mechanism correctly; whether the client-side pickup on the following turn actually occurs for Pattern-A turns is the open question this document surfaces (Section 16.2, SIC-6) rather than resolves.
 
 ---
 
@@ -132,19 +137,21 @@ The client does not send one fixed shape. There are **four distinct payload patt
 
 | Pattern | Call site | `conversation_state` shape |
 |---|---|---|
-| **A — Full selector state** | `_runTurnInner(true, opts)` → `POST /api/run_turn` with `next_question: true` (`ui/app.js:6628–6717`) | **45 fields** (34 always-present + 11 conditional) — the only pattern the server's main selector block fully consumes |
-| **B — Minimal direction/mirror/discovery stub** | `runDirectionTurn`, `runMirrorTurn`, `submitDiscoveryQuestion`, `_showPostCloseMirrorOptions` (`ui/app.js:6137, 6208, 8459, 8971`) | 4 fields: `current_engine`, `recent_frame_ids`, `learner_id`(cond.), `persona_id`(cond.) |
-| **C — Probe stub** | `runProbeTurn` (`ui/app.js:6291`) | 5 fields: adds `probe_depth` to pattern B |
+| **A — Full selector state** | `_runTurnInner(true, opts)` → `POST /api/run_turn` with `next_question: true` (`ui/app.js:6628–6717`) | **45 fields total: 35 always-present, up to 10 conditional** — the only pattern the server's main selector block fully consumes |
+| **B — Minimal direction/mirror/discovery stub** | `runDirectionTurn`, `runMirrorTurn`, `submitDiscoveryQuestion`, `_showPostCloseMirrorOptions` (`ui/app.js:6137, 6208, 8459, 8971`) | up to 4 fields: `current_engine`, `recent_frame_ids` (always sent by this pattern), `learner_id` and `persona_id` (each conditional — omitted if falsy) |
+| **C — Probe stub** | `runProbeTurn` (`ui/app.js:6291`) | up to 5 fields: pattern B's up-to-4, plus `probe_depth` (always sent by this pattern, unconditionally) |
 | **D — No conversation state** | `_runTurnInner(false, ...)` — initial dropdown-driven frame load | none — sends `frame_id`/`engine_id` directly on the payload root |
 
 Only **Pattern A** is the authoritative full contract. The server's main selector block (`scripts/ui_server.py:9137–9139`) only activates when `next_question: true` **and** `conversation_state` is a dict; Patterns B/C/D route through the direction/probe early-return branches or the frame-dropdown fallback and never touch most of the fields below. Any future change to a field's default **must** account for the fact that patterns B–D will not supply it.
 
-### 5.1 Full field inventory (Pattern A — 45 fields)
+**Verified count breakdown (this revision corrects the previously reported 34/11 split).** Reading the Pattern A object-literal construction (`ui/app.js:6628–6717`) line by line: 34 fields are assigned unconditionally inside the base object literal (`session_id` through `learner_food_note` in the table below), and a 35th field, `probe_depth` (`ui/app.js:6683`, `conversation_state.probe_depth = window._probeDepth || 0;`), is also assigned **unconditionally** — it sits after the conditional `learner_id`/`persona_id`/`partner_id`/`revealed_voice_lines`/`revealed_partner_facts` block in the source but carries no `if` guard of its own, so it is always present, not conditional. This gives **35 always-present fields**. The remaining **10 fields** are genuinely conditional, each behind its own `if`: `learner_id`, `persona_id`, `partner_id`, `revealed_voice_lines`, `revealed_partner_facts` (all omitted if their backing global is falsy), and `prefer_bridge`, `force_bridge`, `learner_skip_confusion`, `last_turn_was_answer`, `last_answer` (all omitted unless the corresponding call-site `opts` flag is set). 35 + 10 = 45, matching the total field count; the previously reported 34/11 split miscategorised `probe_depth` as conditional.
+
+### 5.1 Full field inventory (Pattern A — 45 fields: 35 always-present, 10 conditional)
 
 | Field | Type | Default (client) | Client source | Server consumer | Mutation rule | Lifetime | Reset behaviour | Representative tests |
 |---|---|---|---|---|---|---|---|---|
 | `session_id` | string | `"session_" + Date.now()` | `window._sessionId` | Randomness seed for probabilistic gates (e.g. bridge/closing rolls) | Replace at session reset | Session | New value on `_resetCurrentSessionState()` | `test_session_start_reset.py` |
-| `current_engine` | string | `"identity"` (first turn only, via fallback chain) | `window._currentEngineId` | Active topic engine for routing/frame selection | Server-authoritative after turn 1 (via `state_update`); client-initialised on turn 1 | Session | Reset to fallback default at session reset | `test_e4_topic_handoff.py` |
+| `current_engine` | string | `"identity"` (first turn only, via fallback chain) | `window._currentEngineId` | Active topic engine for routing/frame selection | Client-initialised on turn 1 only; thereafter the client sets it from the top-level `data.engine_id` on every Pattern-A response (`ui/app.js:6869–6870`), and — only within `runMirrorTurn`'s Pattern-B response handling — from `data.engine_id` and then `data.state_update.current_engine` if present (`ui/app.js:6240–6249`). The Pattern-A path does not read `state_update.current_engine` (Section 4, Section 6) | Session | Reset to fallback default at session reset | `test_e4_topic_handoff.py` (server-side write only; see Section 16.1 SINV-4) |
 | `last_partner_frame_id` | string | dropdown-selected frame or `null` | `window._lastPartnerFrameId` | Coherence guard, direction stub engine fallback | Replace | Session | `null` on reset | — |
 | `recent_frame_ids` | array\<string\> | `[]` | `window._recentFrameIds` | Anti-repeat frame selection, interest scoring, dependency guards | Append + cap 50 (client-side) | Session | `[]` on reset | `test_conversation_first_wave.py` |
 | `exchange_count` | int | `0` | `window._exchangeCount` | Session-length arc gating, closing-move threshold, blended reciprocity | Increment (client) | Session | `0` on reset | — |
@@ -155,7 +162,7 @@ Only **Pattern A** is the authoritative full contract. The server's main selecto
 | `same_slot_chain_count` | int | `0` | `window._sameSlotChainCount` | Slot loop cap | Replace | Session | `0` on reset | — |
 | `last_focus_slot` | string | `""` | `window._lastFocusSlot` | Slot-chain tracking | Replace | Session | `""` on reset | — |
 | `seeded_bridge_engines` | array\<string\> | `[]` | `window._seededBridgeEngines` | Response-seeded bridge queue (Phase 13B) | Replace (server echoes at top level) | Session | `[]` on reset | — |
-| `recent_reactions` | array\<string\> | `[]` (no explicit init; `undefined` until first server value) | `window._recentReactions` | Reaction-line dedup | Replace | Session | Not explicitly reset (no assignment in `_resetCurrentSessionState`) | — |
+| `recent_reactions` | array\<string\> | `[]` (no explicit init; `undefined` until first server value) | `window._recentReactions` | Reaction-line dedup | Replace | Session, but see reset note | `_resetCurrentSessionState()` contains no assignment to `window._recentReactions` (verified by absence, not by an explicit skip). A browser reload reinitialises it (script-load default). Starting a **new session in the same tab** (via the "Start" button, without a reload) does **not** clear it — it retains whatever value the previous session last set, and that stale value is sent on the new session's first Pattern-A request. It is not implicitly cleared merely because a new session begins. | — |
 | `medium_probe_fired_engines` | array\<string\> | `[]` | `window._mediumProbeFiredEngines` | At-most-one-medium-probe-per-engine cap | Replace | Session | `[]` on reset | — |
 | `pending_listening_move` | bool | `false` | `window._pendingListeningMove` | Listening-move gate | Replace | Session | `false` on reset | — |
 | `listening_wait_turns` | int | `0` | `window._listeningWaitTurns` | Listening-move gate | Increment | Session | `0` on reset | — |
@@ -164,7 +171,7 @@ Only **Pattern A** is the authoritative full contract. The server's main selecto
 | `loop_count_in_current_engine` | int | `0` | `window._loopCountInEngine` | LOOP-frame soft-cap arc correction (Section 10) | Increment | Session | `0` on reset | — |
 | `engines_visited` | array\<string\> | `["identity"]` | `window._enginesVisited` | Bridge target selection, arc completion | Append | Session | `["identity"]` on reset (not `[]`) | — |
 | `recent_confusion_count` | int | `0` | `window._recentConfusionCount` | Overload threshold (`_12c_overload`) | Increment (client); reset by server via `state_update` on repair success | Session | `0` on reset | `test_challenge_recovery.py` |
-| `last_counter_reply` | string | `""` (undefined until first `state_update`) | `window._lastCounterReply` | Reply-deduplication guard | Replace (server echoes via `state_update`) | Session | Not explicitly reset (persists as `""`/undefined until next server write) | `test_stale_answer_loop_regression.py` |
+| `last_counter_reply` | string | `""` (undefined until first `state_update`) | `window._lastCounterReply` | Reply-deduplication guard | Replace (server echoes via `state_update`) | Session, but see reset note | `_resetCurrentSessionState()` contains no assignment to `window._lastCounterReply`. A browser reload reinitialises it to `undefined`. A **new session started in the same tab** retains whatever value the prior session last wrote via `state_update` — it is not implicitly cleared merely because the new session begins, so the first dedup check of a fresh session can be seeded by the previous session's last counter-reply. | `test_stale_answer_loop_regression.py` |
 | `recent_persona_replies` | array\<string\> | `[]` | `window._recentPersonaReplies` | Working-memory (E3) source, dedup pool, mirror confusion context | Replace with server-capped `[-3:]` list | Session | `[]` on reset | `test_stale_answer_loop_regression.py`, `test_e4_topic_handoff.py` |
 | `repair_attempt_count` | int | `0` | `window._repairAttemptCount` | Repair-escalation ladder input (`max()` with server-side counters) | Increment (client); reset via `state_update` on confirmed re-ask | Session | `0` on reset | — |
 | `efc_entity` | object\|null | `null` | `window._efcEntity` | Entity follow-up chain (family EFC) state | Replace | Session | `null` on reset | — |
@@ -203,32 +210,36 @@ Only **Pattern A** is the authoritative full contract. The server's main selecto
 
 ## 6. `state_update` contract
 
-The server writes **20 distinct fields** into `response["state_update"]`, scattered across the `/api/run_turn` handler rather than assembled in one place. `state_update` itself is initialised lazily (`response["state_update"] = response.get("state_update") or {}`) at the first write site, so its presence in the response is conditional on at least one field being set.
+The server writes **20 distinct fields** into `response["state_update"]`, scattered across the `/api/run_turn` handler rather than assembled in one place. `state_update` itself is initialised lazily (`response["state_update"] = response.get("state_update") or {}`) at the first write site, so **its presence in the response is conditional** — it is not returned on every response, only on responses where at least one write site fired that turn (e.g. a turn with no `counter_reply` and no E4 handoff and no discovery/location/EFC activity would return no `state_update` key at all).
 
-| Field | Set at (approx. line) | Condition | Merge semantics | Client must apply before |
+**The server writing a field does not mean the client applies it.** The production client (`ui/app.js`) has an explicit merge case for a strict subset of these 20 fields, and only within specific response-handling code paths. A field present in `state_update` with no matching client merge case in the path that handled that response is transported for no purpose — it has no effect on any later request. The table below states, per field, whether and where the client actually consumes it; do not assume "server writes it" implies "next turn reflects it."
+
+| Field | Set at (approx. line) | Condition | Merge semantics | Client consumption |
 |---|---|---|---|---|
-| `current_engine` | 11835 (E4); 9067 (direction-stub) | E4: `_e4_engine_handoff` truthy. Direction: resolved `engine_id` not `"unknown"`/`""` | Replace | Next request |
-| `last_counter_reply` | 11824 | `_counter_reply` truthy | Replace | Next request (dedup) |
-| `recent_persona_replies` | 11827 | `_counter_reply` truthy | Replace with `(_recent + [reply])[-3:]` (append-then-truncate, computed server-side) | Next request |
-| `last_partner_frame_text` | 12091 | Always, in post-trigger assembly block | Replace with stripped `frame_text` | Next request (recovery rephrase source) |
-| `last_place_subject` | 12153 | When a place is detected this turn | Replace if new subject found, else keep previous value (merge-like conditional) | Next request |
-| `learner_stated_location` | 12135 | Always in post-trigger block | Replace with new extraction, or keep previous | Next request |
-| `learner_food_note` | 12147 | Responsive food answer, or keep previous | Replace or keep | Next request |
-| `consecutive_app_questions` | 12156 | Only if key not already set earlier in the same response | Replace: `0` if user-led this turn, else incremented value | Next request |
-| `discovery_shown_last_turn` | 12089 | Always in post-trigger block | Replace with `bool(user_led)` | Next request |
-| `last_persona_reveal` | 12088 | Always when the persona-reveal block runs | Replace | Next request |
-| `recently_seen_disc_topics` | 11941, 11981, 12020, 12069 | Discovery path shown this turn | Replace with updated topic pool | Next request |
-| `pending_dest_candidate` | 11564 (set), 11568 (clear) | ASR near-match destination clarify frame sets it; otherwise cleared to `None` | Replace (string or explicit `None`) | Next request; **client does not currently merge this field back** (documented gap, Section 11) |
-| `location_retry_count` | 11659 (increment), 11612 (reset), 12174 (reset on valid echo) | Noisy-location clarify always increments; participation-escape/valid-echo resets to `0` | Replace (increment or reset) | Next request; **client does not currently merge this field back** |
-| `location_clarify_hint` | 11637/11646 (`"active"`), 11657 (`""`), 12164 (`""` on confirmed re-ask) | Escalation-level dependent | Replace (`"active"` or `""` — not boolean) | Next request; **client does not currently merge this field back** |
-| `efc_entity` | 11751, 11766 | `{ENTITY}` slot filled or carried forward | Replace (dict) | Next request |
-| `efc_depth` | 11752, 11767 | Same as above | Replace: `prior + 1` or carried value | Next request |
-| `repair_attempt_count` | 12160 | `_confirmed_re_ask` only | Replace with `0` (reset-only; the escalation value itself is never echoed back) | Next request |
-| `mirror_confusion_count` | 12161 | `_confirmed_re_ask` only | Replace with `0` (reset-only) | Next request; **client never sends this field, so the reset has no effect on future requests** (documented gap, Section 11) |
-| `recent_confusion_count` | 12162 | `_confirmed_re_ask` only | Replace with `0` | Next request |
-| `consecutive_not_understood` | 12163 | `_confirmed_re_ask` only | Replace with `0` | Next request; **client never sends this field** (documented gap) |
+| `current_engine` | 11835 (E4); 9067 (direction-stub) | E4: `_e4_engine_handoff` truthy. Direction: resolved `engine_id` not `"unknown"`/`""` | Replace | **Consumed only inside `runMirrorTurn` (Pattern B), `ui/app.js:6246–6249`.** The main Pattern-A response handler (`ui/app.js:6869–6920`, used for ordinary "Next" turns) sets `window._currentEngineId` only from top-level `data.engine_id` and never reads `data.state_update.current_engine`. See Section 4 and Section 16.2 (SIC-6) for the resulting gap. |
+| `last_counter_reply` | 11824 | `_counter_reply` truthy | Replace | **Consumed** — `ui/app.js:6883–6884` (Pattern A) |
+| `recent_persona_replies` | 11827 | `_counter_reply` truthy | Replace with `(_recent + [reply])[-3:]` (append-then-truncate, computed server-side) | **Consumed** — `ui/app.js:6885–6886` |
+| `last_partner_frame_text` | 12091 | Always, in post-trigger assembly block | Replace with stripped `frame_text` | **Consumed** — `ui/app.js:6918–6919` (recovery rephrase source) |
+| `last_place_subject` | 12153 | When a place is detected this turn | Replace if new subject found, else keep previous value (merge-like conditional) | **Consumed** — `ui/app.js:6889–6890` |
+| `learner_stated_location` | 12135 | Always in post-trigger block | Replace with new extraction, or keep previous | **Consumed** — `ui/app.js:6891–6892` |
+| `learner_food_note` | 12147 | Responsive food answer, or keep previous | Replace or keep | **Consumed** — `ui/app.js:6893–6894` |
+| `consecutive_app_questions` | 12156 | Only if key not already set earlier in the same response | Replace: `0` if user-led this turn, else incremented value | **Consumed** — `ui/app.js:6912–6913` |
+| `discovery_shown_last_turn` | 12089 | Always in post-trigger block | Replace with `bool(user_led)` | **Consumed** — `ui/app.js:6910–6911` |
+| `last_persona_reveal` | 12088 | Always when the persona-reveal block runs | Replace | **Consumed** — `ui/app.js:6914–6915` |
+| `recently_seen_disc_topics` | 11941, 11981, 12020, 12069 | Discovery path shown this turn | Replace with updated topic pool | **Consumed** — `ui/app.js:6916–6917` |
+| `pending_dest_candidate` | 11564 (set), 11568 (clear) | ASR near-match destination clarify frame sets it; otherwise cleared to `None` | Replace (string or explicit `None`) | **Not consumed** — no merge case anywhere in `ui/app.js`; the client never reads or resends this field (documented gap, Section 11, Section 16.2 SIC-2) |
+| `location_retry_count` | 11659 (increment), 11612 (reset), 12174 (reset on valid echo) | Noisy-location clarify always increments; participation-escape/valid-echo resets to `0` | Replace (increment or reset) | **Not consumed** — no merge case in `ui/app.js` (Section 16.2 SIC-2) |
+| `location_clarify_hint` | 11637/11646 (`"active"`), 11657 (`""`), 12164 (`""` on confirmed re-ask) | Escalation-level dependent | Replace (`"active"` or `""` — not boolean) | **Not consumed** — no merge case in `ui/app.js` (Section 16.2 SIC-2) |
+| `efc_entity` | 11751, 11766 | `{ENTITY}` slot filled or carried forward | Replace (dict) | **Consumed** — `ui/app.js:6896–6897` |
+| `efc_depth` | 11752, 11767 | Same as above | Replace: `prior + 1` or carried value | **Consumed** — `ui/app.js:6898–6899` |
+| `repair_attempt_count` | 12160 | `_confirmed_re_ask` only | Replace with `0` (reset-only; the escalation value itself is never echoed back) | **Consumed** — `ui/app.js:6900–6908` |
+| `mirror_confusion_count` | 12161 | `_confirmed_re_ask` only | Replace with `0` (reset-only) | **Not consumed** — no merge case in `ui/app.js`; the client also never sends this field in `conversation_state`, so even if the reset were applied it could not round-trip (documented gap, Section 11, Section 16.2 SIC-1) |
+| `recent_confusion_count` | 12162 | `_confirmed_re_ask` only | Replace with `0` | **Not consumed via `state_update`** — the field *is* sent by the client in `conversation_state` every turn (Section 5.1), but the client-side merge block has no case for a `state_update.recent_confusion_count` reset; the client's own copy is only ever incremented locally, not reset from this server write |
+| `consecutive_not_understood` | 12163 | `_confirmed_re_ask` only | Replace with `0` | **Not consumed** — no merge case in `ui/app.js`; the client also never sends this field in `conversation_state` at all (documented gap, Section 16.2 SIC-3) |
 
-**Omission semantics.** For every field in this table, omission from `state_update` means **leave the client's own value unchanged** — the client does not clear a field simply because the server did not mention it that turn. There is no field in this contract where omission is defined to mean "clear."
+**Client-consumed vs. unconsumed summary (13 of 20 fields have a merge case; 7 do not):** consumed — `last_counter_reply`, `recent_persona_replies`, `last_partner_frame_text`, `last_place_subject`, `learner_stated_location`, `learner_food_note`, `consecutive_app_questions`, `discovery_shown_last_turn`, `last_persona_reveal`, `recently_seen_disc_topics`, `efc_entity`, `efc_depth`, `repair_attempt_count`. Unconsumed, or consumed only in a non-primary call path — `current_engine` (consumed only in `runMirrorTurn`, not in the primary Pattern-A path), `pending_dest_candidate`, `location_retry_count`, `location_clarify_hint`, `mirror_confusion_count`, `recent_confusion_count` (no reset merge case), `consecutive_not_understood`.
+
+**Omission semantics.** For every field in this table, omission from `state_update` means **leave the client's own value unchanged** — the client does not clear a field simply because the server did not mention it that turn. There is no field in this contract where omission is defined to mean "clear." This is distinct from the fields above marked "not consumed": those are never applied regardless of whether the server includes them, because no client code path reads them at all.
 
 **`null` semantics.** Only `pending_dest_candidate` uses an explicit `None`/`null` write, and it means "no pending destination candidate" (an intentional clear), not "unknown." No other `state_update` field is ever explicitly set to `null`.
 
@@ -252,13 +263,18 @@ The trimming rule is append-then-slice-to-last-3, applied server-side every turn
 - **Deduplication history (not working memory in the E3 sense):** `last_counter_reply` and the same `recent_persona_replies` list are *also* checked to suppress an exact-repeat answer before it is spoken again (`_dedupe_persona_answer()`). The same field therefore serves two different purposes.
 - **Confusion escalation support:** `last_mirror_topic`, `last_mirror_engine`, `mirror_confusion_count` are intended to support the mirror-confusion ladder (Section 11) but, per Section 6, do not currently round-trip through the production client.
 - **Stale-answer prevention:** the pool re-selection logic in `_dedupe_persona_answer()` uses `recent_persona_replies` plus `last_counter_reply` to avoid recycling a just-given answer; if the same-intent pool is exhausted, it falls back to a topically appropriate clarification rather than reaching into an unrelated pool.
-- **What clears working memory:** `_resetCurrentSessionState()` sets `window._recentPersonaReplies = []` and `window._lastCounterReply` is implicitly cleared (no explicit re-init line — it remains `undefined` until first written). Clearing persistent learner memory (`/api/reset_memory`) does **not** clear working memory; they are independent operations (Section 13).
+- **What clears working memory:** `_resetCurrentSessionState()` sets `window._recentPersonaReplies = []`, but it does **not** assign `window._lastCounterReply` or `window._recentReactions` at all — there is no explicit re-init line for either. This means a browser reload reinitialises both to `undefined` (the script-load default), but starting a new session in the same tab (without reloading) leaves whatever value the previous session last wrote in place; they are not implicitly cleared merely because a new session begins (verified this revision — see Section 5.1 and Section 13 for the same finding applied to the reset matrix). Clearing persistent learner memory (`/api/reset_memory`) does **not** clear working memory either; they are independent operations (Section 13).
 
 **Why working memory must not persist as learner biography.** Working memory answers *"what did the partner just say?"* for at most three recent turns and is deliberately volatile — it exists to make follow-up questions feel coherent within a conversational arc, not to remember who the learner is across sessions. Persistent learner memory (Section 8) answers *"who is this learner?"* and is the only subsystem intended to survive session boundaries. Conflating the two would mean a transient in-conversation remark (e.g. a passing mention while working memory was populated) could leak into long-term biography, or conversely that genuine biographical facts could be lost the moment the 3-entry window rolls over. The two subsystems are implemented with entirely separate storage, separate clear operations, and separate consumers, and this document treats any code path that blurs them as a defect, not a feature.
 
 ---
 
 ## 8. Persistent learner-memory contract
+
+**Terminology used throughout this section and Section 9.** This document distinguishes two categories of data that both live under the "learner memory" name but are governed by different code paths:
+
+- **Canonical learner-profile facts** — the six keys named in `LEARNER_MEMORY_KEYS`, governed end-to-end by `validate_updates()`, `apply_updates()`, `save()`, and `clear()`. These are what the rest of this section describes.
+- **Auxiliary persisted learner metadata** — data some code *attempts* to store keyed by `learner_id` outside the six canonical keys, such as `partner_facts_seen` (`scripts/ui_server.py:12378–12383`). As documented below, this category currently does **not** survive the persistence layer as implemented — it is included here as an evidenced finding, not as a working second storage tier.
 
 **Exact allowed keys** (`scripts/learner_memory.py:22–29`, `LEARNER_MEMORY_KEYS`):
 
@@ -279,6 +295,19 @@ LEARNER_MEMORY_KEYS = (
 | `favourite_food` | Food-preference frames | Junk-fragment stripping | Same |
 
 **Known dead-end field.** `job_company` is extracted by `learner_memory_capture.py` and read at `scripts/ui_server.py:9707`, but it is **not** in `LEARNER_MEMORY_KEYS`. `validate_updates()` silently drops any key not in this tuple, so `job_company` extractions are computed but never persisted. This is a real gap, not a documentation omission — flagged in Section 19.
+
+**Auxiliary metadata dead-end, verified this revision: `partner_facts_seen` does not currently persist at all.** `scripts/ui_server.py:12378–12383` attempts to record a cross-session "has this persona fact already been shown to this learner" flag:
+
+```python
+_pmem = _lm_load(_p11c_learner_id) or {}
+_pmem.setdefault("partner_facts_seen", {}) \
+     .setdefault(_partner_id, {})[_engine_key] = True
+_lm_save(_p11c_learner_id, _pmem)
+```
+
+This looks like it should work, but `save()`'s merge is key-restricted to the six canonical keys (`scripts/learner_memory.py:118`, `merged = {k: memory.get(k) if memory.get(k) is not None else existing.get(k) for k in LEARNER_MEMORY_KEYS}`). Because this dict comprehension iterates only over `LEARNER_MEMORY_KEYS`, the `partner_facts_seen` key set on `_pmem` above is **not included in `merged`** and is therefore never written to `_store` or to disk. `_load_file()` (`scripts/learner_memory.py:75`) independently confirms this: it normalises every loaded record to exactly the six canonical keys, so even a `partner_facts_seen` key present in a hand-edited or externally-written file would be dropped on the next load into `_store`. The practical consequence: every call to `_lm_load(...).get("partner_facts_seen", {})` — including the read at `scripts/ui_server.py:12363` that checks whether a fact was already shown — always evaluates against an empty dict, because the write immediately before it is discarded before it reaches persistent storage. This is a genuine, evidenced dead-end at the *save-merge* layer, one step further down the pipeline than the `job_company` dead-end above (which is caught earlier, at *update-validation* time). Unlike `job_company`, the code's own inline comment and structure strongly suggest cross-session persistence was the intent — this reads as an incomplete feature, not an intentional exclusion (added to Section 19 risks and Section 16.2 as SIC-5b).
+
+**What `clear(learner_id)` does to auxiliary metadata.** `clear()` (`scripts/learner_memory.py:123–134`) unconditionally replaces `_store[lid]` with `empty_memory()` — a plain six-key, all-`None` dict — and writes that to disk. Because `partner_facts_seen` never reaches `_store` in the first place (per the finding above), `clear()` has no *observable* effect on it specifically: there is nothing there to remove. If a future fix changed `save()` to preserve unrecognised extra keys (mirroring the precedent already set by `migrate_corrupted_memory()`, which does preserve extra keys via `merged = dict(mem); merged.update(new_mem)`, `scripts/learner_memory.py:250–252`), then `clear()`'s full-dict replacement would erase such a key too, since `clear()` does not merge — it writes a literal six-key dict, discarding anything else `_store[lid]` may have held. In short: today, `clear()` only ever touches the six canonical keys, both because that is all it writes and because that is all `_store[lid]` can ever contain.
 
 **Overwrite/merge semantics — three distinct operations with different rules:**
 
@@ -302,7 +331,7 @@ The production capture path (`capture_from_turn()` → `_lm_apply_updates()` →
 
 **Persistence path.** `data/learner_memory.json`, relative to `BASE_DATA_DIR = Path(os.environ.get("MANDARINOS_DATA_DIR", <repo_root>/"data"))`. On Railway, the mounted-volume path supplied via `MANDARINOS_DATA_DIR` is authoritative, not the in-repo `data/` directory.
 
-**Migration rules.** `migrate_corrupted_memory()` (`scripts/learner_memory.py:189–269`) is a one-time cleanup for pre-fix ASR-junk values: place fields are re-normalised via `normalize_place_name()` (unrecoverable values become `None`); non-place fields have known junk fragments stripped. It preserves unrecognised extra keys already present in the file (forward-compatibility) and supports `dry_run=True` for inspection without writing. There is no other version-tagged schema-migration mechanism in the baseline.
+**Migration rules.** `migrate_corrupted_memory()` (`scripts/learner_memory.py:189–269`) is a one-time cleanup for pre-fix ASR-junk values: place fields are re-normalised via `normalize_place_name()` (unrecoverable values become `None`); non-place fields have known junk fragments stripped. It operates directly on the raw JSON file (not through `save()`), so it preserves unrecognised extra keys **already present in the file** (`merged = dict(mem); merged.update(new_mem)`, forward-compatibility for keys that somehow got into the file by another route) and supports `dry_run=True` for inspection without writing. This is a different code path from `save()`/`_load_file()`, which both strip to the six canonical keys — so a key preserved by migration would still be stripped again the next time `_load_file()` runs. There is no other version-tagged schema-migration mechanism in the baseline.
 
 **Use in frame slot substitution.** `{CITY}`/`{PLACE}` template tokens resolve `lives_in` with fallback to `hometown` (`scripts/ui_server.py:11670–11673` region). This is a read-only consumption path; slot substitution never writes back to learner memory.
 
@@ -333,7 +362,7 @@ The production capture path (`capture_from_turn()` → `_lm_apply_updates()` →
 
 **Does changing persona clear other state?** Switching persona (clicking a different persona button) explicitly resets `window._revealedVoiceLines = {}` and `window._revealedPartnerFacts = {}` (per-engine reveal-tracking dictionaries) and clears the partner-header display, but it does **not** reset `conversation_state`, `recent_persona_replies`, `current_engine`, `recent_frame_ids`, or any counter. This means the learner can switch persona mid-conversation and the new persona will inherit the working-memory dedup history and engine position built up while talking to the previous persona — a documented characteristic, not necessarily desirable (Section 19).
 
-**Immutable content vs. session-derived state.** Persona profile/voice-lines/discoverable-facts JSON is immutable content, loaded once and cached for the process lifetime. What varies per session is only the *reveal tracking* (`revealed_voice_lines`, `revealed_partner_facts`) and, separately and independently, cross-session "has this fact been shown to this learner" flags stored inside learner memory itself (`_pmem.setdefault("partner_facts_seen", {})...`, `scripts/ui_server.py:12378–12383`) — meaning persona-fact reveal state has **two separate tracking mechanisms**: one session-scoped (client `conversation_state`) and one persisted per learner (inside the learner-memory JSON, outside the six canonical keys).
+**Immutable content vs. session-derived state.** Persona profile/voice-lines/discoverable-facts JSON is immutable content, loaded once and cached for the process lifetime. What varies per session is the *reveal tracking* (`revealed_voice_lines`, `revealed_partner_facts`), which is genuine session-scoped conversation state, round-tripped through `conversation_state` (Section 5.1). The code additionally *attempts* a second, cross-session tracking mechanism — auxiliary metadata keyed as `partner_facts_seen` inside learner memory (`_pmem.setdefault("partner_facts_seen", {})...`, `scripts/ui_server.py:12378–12383`) — intended to remember, across sessions, which persona facts a given learner has already seen. As verified in Section 8, this second mechanism does **not** currently work: `save()`'s key-restricted merge silently discards `partner_facts_seen` before it reaches `_store` or disk, so every read of it evaluates against an empty dict regardless of what was "written" moments earlier. Persona-fact reveal state therefore has, in the current baseline, only **one** functioning tracking mechanism (session-scoped, via `conversation_state`) rather than the two the code structure implies.
 
 ---
 
@@ -347,7 +376,7 @@ The production capture path (`capture_from_turn()` → `_lm_apply_updates()` →
 | Response `engine_id` | Response, top level | The engine the frame actually returned in *this* response belongs to (computed from the incoming engine, before any E4 write) |
 | `state_update.current_engine` | Response | The engine that should be active *starting next turn* (only present if E4 or a direction-stub handoff fired) |
 
-**Timeline example — deferred E4 handoff across two requests:**
+**Timeline example — deferred E4 handoff across two requests, corrected this revision to show the call-path split:**
 
 ```
 Turn N   (learner asks a direct question about travel, while current_engine = "identity")
@@ -355,14 +384,29 @@ Turn N   (learner asks a direct question about travel, while current_engine = "i
   server:   frame selected from "identity"           → response.engine_id = "identity"
             E4 computes handoff                        → _e4_engine_handoff = "travel"
             E4 writes (after frame selection)          → response.state_update.current_engine = "travel"
-  client:   renders an "identity" frame text alongside the direct travel answer;
-            applies state_update.current_engine → window._currentEngineId = "travel"
+
+  client (Pattern A — ordinary "Next" turn, the common case for an in-conversation question):
+            renders an "identity" frame text alongside the direct travel answer;
+            sets window._currentEngineId from data.engine_id → "identity"
+            (data.state_update.current_engine is NOT read by this handler — SIC-6)
+
+  client (Pattern B — runMirrorTurn, only if this question was asked via the dedicated
+            mirror-question UI action rather than as an ordinary turn):
+            sets window._currentEngineId from data.engine_id, THEN overrides from
+            data.state_update.current_engine → "travel"
 
 Turn N+1 (any learner input)
-  request:  conversation_state.current_engine = "travel"   (now updated)
-  server:   frame selected from "travel"              → response.engine_id = "travel"
-  client:   sees a "travel" frame — the redirect is now visibly in effect
+  request (following a Pattern-A Turn N):    conversation_state.current_engine = "identity"
+    server:   frame selected from "identity" again    → response.engine_id = "identity"
+    client:   sees another "identity" frame — the E4 redirect had no visible effect
+              on this call path, as currently evidenced (SIC-6)
+
+  request (following a Pattern-B Turn N):    conversation_state.current_engine = "travel"
+    server:   frame selected from "travel"             → response.engine_id = "travel"
+    client:   sees a "travel" frame — the redirect is visibly in effect via this call path
 ```
+
+The two outcomes above are not hypothetical alternatives — they are the verified consequence of `ui/app.js` having two independent `state_update`-merge code paths with different field coverage (Section 6, Section 16.2 SIC-6). Whether real-world sessions predominantly exercise Pattern A or Pattern B for direct persona questions is a product/usage question this document does not attempt to answer; it states only which path applies the field and which does not.
 
 **Loop and dwell counters, engine visitation, bridge preferences** (see Section 5.1 for full field detail): `loop_count_in_current_engine`, `same_engine_chain_count`, `engines_visited`, `seeded_bridge_engines`, `medium_probe_fired_engines`. These are read by the primary bridge gate and by the post-selection loop-cap correction described in `CONVERSATION_ARCHITECTURE.md` Section 5.6 — this document does not repeat that selection logic, only the state it consumes.
 
@@ -438,7 +482,8 @@ Turn N+1 (any learner input)
 | `window._lastMentionedPlace` | Not touched by this function itself | **Cleared** (`ui/app.js:6566`, explicit line inside `startFreshLearner`) | Not touched | Cleared (re-init to `null`) | N/A (client-only) |
 | `recent_persona_replies` | Cleared (`[]`) | Cleared (calls the session reset) | Not cleared | Cleared (re-init) | N/A |
 | `current_engine` | Cleared (fallback default) | Cleared (calls the session reset) | Not cleared | Cleared (re-init) | N/A |
-| Learner facts (`learner_memory.json`) | Not touched | **Cleared** (`/api/reset_memory` → `_lm_clear`) | Not touched | Not touched (persisted) | Preserved (file survives) |
+| Canonical learner facts (six `LEARNER_MEMORY_KEYS`, `learner_memory.json`) | Not touched | **Cleared** (`/api/reset_memory` → `_lm_clear`, sets all six to `None`) | Not touched | Not touched (persisted) | Preserved if storage path is persistent (Section 1, Section 2) |
+| Auxiliary metadata (`partner_facts_seen`) | Not touched | N/A — nothing to clear; per Section 8, this key never survives `save()`'s merge, so it is never present in `_store`/disk for `clear()` to remove | Not touched | Not touched | N/A |
 | Progress snapshots | Not touched | **Explicitly preserved** (tested negatively — no `localStorage.removeItem`, no snapshot deletion call) | Not touched | Preserved | Preserved (file survives) |
 | Session identifiers (`session_id`, `_sessionStartedAt`) | Regenerated | Regenerated (calls session reset) | Not touched | Regenerated | N/A |
 | Challenge mode (`_challenge.active`) | Not reset (independent toggle) | Not reset | Not touched | Reset to `false` (script default) | N/A |
@@ -446,6 +491,10 @@ Turn N+1 (any learner input)
 | `_revealedVoiceLines` / `_revealedPartnerFacts` | Cleared (`{}`) | Cleared (calls session reset) | **Cleared** (persona-switch handler explicitly resets these) | Cleared (re-init) | N/A |
 | `_tracker` counters | Cleared (all zeroed) | Cleared (calls session reset) | Not touched | Cleared (re-init) | N/A |
 | `learner_id` | Not touched | **Explicitly preserved** (no ID rotation) | Not touched | Preserved (from `localStorage`) | N/A (server-side key, not process state) |
+| `window._lastCounterReply` | **Not touched** — no assignment in `_resetCurrentSessionState()` | Not touched (calls session reset, which also does not touch it) | Not touched | Reinitialised to `undefined` (script-load default) | N/A (client-only) |
+| `window._recentReactions` | **Not touched** — no assignment in `_resetCurrentSessionState()` | Not touched (calls session reset, which also does not touch it) | Not touched | Reinitialised to `undefined`/script default | N/A (client-only) |
+
+**Same-tab new-session leakage, verified this revision.** `_resetCurrentSessionState()` — the function invoked by both "Start" and `startFreshLearner()` — contains no assignment to `window._lastCounterReply` or `window._recentReactions`. Consequently: a **browser reload** reinitialises both to their script-load defaults (harmless), but starting a **new session in the same tab without reloading** does not clear either — the new session's first few requests can carry over the previous session's last counter-reply and reaction-dedup history. Neither field is implicitly cleared merely because a new session has begun; only an actual page reload resets them. This is not fixed as part of this document (Section 1 — the frozen baseline is described, not corrected); see also Section 5.1, Section 7, Section 16.2 (SIC-4), and Section 20.
 
 **Evidence for the "does not necessarily reset progress history" contract:** tests `test_reset_does_not_clear_progress_history`, `test_clear_memory_does_not_remove_progress_history`, and `test_clear_memory_does_not_call_first_time_hygiene` (all in `tests/test_session_start_reset.py`) assert the *absence* of any `localStorage.removeItem("manos_progress_history")` call and the absence of any call to `_applyFirstTimeBetaHygiene()` (a separate function that *does* wipe progress and is reserved for first-time-user onboarding, not for the "forget conversation" action).
 
@@ -502,25 +551,25 @@ Only rules with structural and/or behavioural test enforcement are listed here.
 Enforced by the literal slice `(_recent_persona_replies + [_counter_reply])[-3:]` at the single write site (`scripts/ui_server.py:11826`); there is no other write path for this field.
 *Tests:* `test_stale_answer_loop_regression.py`, `test_e4_topic_handoff.py` (round-trip wiring).
 
-**SINV-2: Learner memory contains only the six allowed keys.**
-Enforced by `validate_updates()`, which drops any key not in `LEARNER_MEMORY_KEYS` before it reaches `apply_updates()` or `save()`.
-*Enforcement:* `scripts/learner_memory.py:37–46`.
-*Known related gap:* `job_company` extraction exists but is silently dropped (Section 8, Section 19) — this is the invariant working as designed, applied to a field that was never added to the allowed set.
+**SINV-2 (scoped this revision): normal learner-profile updates routed through `apply_updates()`/`save()` are restricted to the six canonical `LEARNER_MEMORY_KEYS`.**
+Enforced by `validate_updates()`, which drops any key not in `LEARNER_MEMORY_KEYS` before it reaches `apply_updates()` or `save()`. This invariant applies specifically to the normal capture→apply_updates→save pipeline for canonical facts; it is not a claim about every code path that touches a `learner_id`-keyed dict. The auxiliary-metadata attempt (`partner_facts_seen`) is affected as a *side effect* of this same restriction inside `save()` — see Section 8 — but SINV-2 is stated here only for its intended scope (canonical learner-profile facts).
+*Enforcement:* `scripts/learner_memory.py:37–46` (`validate_updates()`); the same restriction re-appears, not by original design intent but as an evidenced side effect, inside `save()`'s merge comprehension (`scripts/learner_memory.py:118`) and `_load_file()`'s normalisation (`scripts/learner_memory.py:75`).
+*Known related gaps:* `job_company` extraction exists but is silently dropped at `validate_updates()` (Section 8, Section 19) — the invariant working as designed, applied to a field never added to the allowed set. `partner_facts_seen` is dropped one layer later, inside `save()`'s merge, which appears to be an unintended consequence of the same key-restriction pattern rather than a deliberate application of SINV-2 to auxiliary metadata (Section 8).
 
 **SINV-3: The server is authoritative for persistent learner memory; the client never supplies it as trusted input.**
 Enforced structurally: no code path in `/api/run_turn` reads a `learner_memory` key from the incoming request payload; the field only appears in the *response*.
 *Tests:* `test_clear_memory_regression.py::TestFactsDoNotSurviveClear`, `TestPersonaFactsUnaffected`.
 
-**SINV-4: The E4 handoff is transported exclusively through `state_update.current_engine`, written after frame selection.**
-Enforced by the fixed line ordering: computation at `scripts/ui_server.py:10296–10313`, write at line 11835, after all frame-selection code paths.
-*Tests:* `test_e4_topic_handoff.py::TestE4DirectPersonaHandoff`.
+**SINV-4 (narrowed this revision — server-side write only): The E4 handoff *value* is computed and written exclusively through `state_update.current_engine`, after frame selection, on the server.**
+Enforced by the fixed line ordering: computation at `scripts/ui_server.py:10296–10313`, write at line 11835, after all frame-selection code paths. This invariant is enforced **on the server side only**. It does **not** assert that the client applies this value in the primary turn-advancing path — verified this revision that it does not (Section 4, Section 6, Section 16.2 SIC-6). A prior version of this document implied client-side round-trip was covered by the same test; it is not.
+*Tests:* `test_e4_topic_handoff.py::TestE4DirectPersonaHandoff` — this is a **static source-string assertion** against `scripts/ui_server.py` (`assert 'response["state_update"]["current_engine"] = _e4_engine_handoff' in src`). It does not execute a request, does not inspect `ui/app.js`, and does not verify client-side consumption.
 
-**SINV-5: `recent_frame_ids` prevents immediate frame reuse.**
-Enforced by `fid not in recent` membership checks in `_select_next_frame_ladder`, `_select_next_frame_ladder_avoiding`, and related selector functions.
-*Tests:* `test_conversation_first_wave.py` (frame-selection coverage).
+**SINV-5 (narrowed this revision): within ordinary ladder/bridge candidate selection, `recent_frame_ids` excludes recently-shown frames from being re-selected.**
+Enforced by `fid not in recent` membership checks in `_select_next_frame_ladder`, `_select_next_frame_ladder_avoiding`, and related selector functions — but only for the *ordinary* candidate-selection code paths these functions cover. This is not an unconditional "a frame in `recent_frame_ids` can never be returned again" guarantee: explicit clarification, retry, override, or direct-frame-selection paths (e.g. the noisy-location clarify override that deliberately repeats the same location frame across escalation levels, Section 11) can and do intentionally reuse a frame that is present in `recent_frame_ids`, because they bypass the ladder/bridge selector entirely rather than being subject to its exclusion check.
+*Tests:* `test_conversation_first_wave.py` (frame-selection coverage) — covers the ordinary-selection exclusion, not the intentional-reuse exceptions.
 
-**SINV-6: The first-turn engine may be client-initialised, but later semantic engine changes come from server responses only.**
-Enforced by the fallback chain (`window._currentEngineId ?? ... ?? "identity"`) being consulted *only* when no server-set value exists yet; every subsequent read of `current_engine` for routing purposes uses the value most recently written by a server `state_update`.
+**SINV-6 (corrected engine-authority wording this revision): the client may only client-initialise `current_engine` before any server response exists; after that, the client must not independently *infer* a semantic engine change — but "must not infer" is a design intention about client behaviour, not a claim about which server-produced field the client actually applies.**
+After the first turn, two server-produced response fields carry engine information with different meanings: the top-level `engine_id` identifies the engine of the frame returned in *this* response; `state_update.current_engine`, when present, identifies the engine that should become active for the *following* request (the E4/direction-stub handoff). Both are produced by the server; the client is not expected to derive either independently. Enforced by the fallback chain (`window._currentEngineId ?? ... ?? "identity"`) being consulted *only* when no server-set value exists yet. This invariant does **not** guarantee that `state_update.current_engine` specifically is picked up in every call path — per SINV-4 and Section 6, the primary Pattern-A path applies only `engine_id`, not `state_update.current_engine`. The invariant holds in the narrow sense stated (the client never computes an engine transition from its own heuristics), not in the broader sense that every server-produced engine signal is applied everywhere.
 *Tests:* `test_conversation_first_wave.py::test_active_turn_record_single_source_of_truth`.
 
 **SINV-7: Clearing learner memory removes stored facts unconditionally rather than merging `None` values.**
@@ -547,23 +596,32 @@ Whether this is desired (continuity of conversational arc across a persona swap)
 **SIC-5 (`job_company` should persist if it is going to be extracted at all): the extraction logic for this field exists and is invoked, but the field is not in `LEARNER_MEMORY_KEYS`, so every extraction is silently discarded.**
 *No enforcement; no test found asserting either behaviour deliberately* — this reads as an incomplete feature rather than an intentional exclusion, since the read site at `scripts/ui_server.py:9707` implies the field was expected to be populated.
 
-Every invariant and intended contract above is backed by the line-level evidence cited; none are speculative.
+**SIC-5b (`partner_facts_seen` should persist cross-session if it is going to be written at all, verified this revision): `scripts/ui_server.py:12378–12383` writes a `partner_facts_seen` entry into a locally-loaded memory dict and calls `save()`, but `save()`'s merge comprehension is restricted to `LEARNER_MEMORY_KEYS` and silently discards the extra key before it reaches `_store` or disk (Section 8).**
+*No enforcement; no test found asserting either behaviour deliberately.* The inline comment and surrounding structure indicate cross-session persistence was intended, making this an incomplete feature rather than an intentional exclusion — the same classification as SIC-5, but caused one layer later in the pipeline (save-merge time rather than update-validation time).
+
+**SIC-6 (the E4/direction-stub `current_engine` handoff should be applied by the client on the turn immediately following the write, verified this revision): the server always writes `state_update.current_engine` when the handoff condition is met, but the client's primary Pattern-A response handler (`ui/app.js:6869–6920`, used for ordinary "Next" turns) never reads `data.state_update.current_engine` — only `runMirrorTurn` (Pattern B) does (`ui/app.js:6246–6249`).**
+*Partial enforcement:* the server-side computation and write are correct and fixed-order (SINV-4); the client-side pickup is verified present for Pattern B and verified absent for Pattern A by direct inspection of `ui/app.js` (no matching read site found; no generic `state_update` iteration loop exists anywhere in the file). *No test found* that asserts `window._currentEngineId` reflects a Pattern-A E4 handoff after a live turn — `test_e4_topic_handoff.py` is a static source-string check on the server file only (Section 16.1, SINV-4). This is stated as an evidenced structural exposure in the client code, not a confirmed live-production defect (a distinction this document treats deliberately, per Section 19).
+
+**SIC-7 (`window._lastCounterReply` and `window._recentReactions` should be cleared or explicitly retained by design when a new session starts, verified this revision): `_resetCurrentSessionState()` contains no assignment for either global, so a same-tab "Start new session" leaves both at whatever value the previous session last set, while a full browser reload does reset them (to script-load defaults) as an incidental side effect of the page reinitialising, not because any reset function targeted them.**
+*No enforcement; no test found asserting either the leak or a deliberate carry-over is intended.* Whether same-tab retention is acceptable (e.g. because these are dedup aids rather than semantically significant counters) or should be added to `_resetCurrentSessionState()` is not resolved by the code — documented here as an intended-but-unspecified contract, in the same category as SIC-4, pending a product decision (Section 5.1, Section 7, Section 13, Section 20).
+
+Every invariant and intended contract above is backed by the line-level evidence cited. Distinguishing what this document treats as speculative from what it treats as evidenced: every SIC above is an *observed* gap between two pieces of code that were directly read (a write site and the corresponding absence of a read site, or a merge restriction directly traced through). Section 19 separately lists broader *structural exposures* — risks inferred from the shape of the system (e.g. lack of schema versioning) rather than from a specific traced code gap — and that distinction is preserved there rather than blurred into this section.
 
 ---
 
 ## 17. State transition examples
 
 **1. Ordinary answer and ladder advance.**
-Incoming: `current_engine="identity"`, `recent_frame_ids=["f_ask_you_name"]`, `last_answer={frame_id:"f_ask_you_name", submitted_text:"我叫小明"}`. Turn-local: answer captured into `learner_memory["learner_name"]="小明"` via `capture_from_turn`; no question asked, so E4 does not fire. Response: `frame_id="f_id_friends_call"`, `state_update={}` (no engine change). Client: appends new frame_id to `recent_frame_ids`, sends the updated list next turn.
+Incoming: `current_engine="identity"`, `recent_frame_ids=["f_ask_you_name"]`, `last_answer={frame_id:"f_ask_you_name", submitted_text:"我叫小明"}`. Turn-local: answer captured into `learner_memory["learner_name"]="小明"` via `capture_from_turn`; no question asked, so E4 does not fire — no `current_engine` handoff is written to `state_update` this turn. Response: `frame_id="f_id_friends_call"`. Routine `state_update` fields may still be present depending on which write sites fired this turn (e.g. `discovery_shown_last_turn`, `last_persona_reveal`, and similar post-trigger-block fields are written on most turns per Section 6, regardless of whether the turn was an answer or a question) — this example does not claim `state_update` is empty, only that it carries no engine change. Client: appends new frame_id to `recent_frame_ids`, sends the updated list next turn, and merges whichever `state_update` fields (if any) it has a case for (Section 6).
 
-**2. Direct persona question with deferred E4 handoff.**
-Incoming: `current_engine="identity"`. Learner asks "你去过成都吗？" (a travel question). Turn-local: `user_asked_question=True`; `_direct_persona_answer()` produces a confident answer; `_infer_question_topic_engine()` classifies it as `"travel"`; `_e4_engine_handoff="travel"`. Response: `frame_text` still selected from `"identity"` (frame selection ran before the E4 write); `state_update.current_engine="travel"`. Client: renders the identity-engine frame alongside the travel answer; sets `window._currentEngineId="travel"`. Next request: `conversation_state.current_engine="travel"` — the following frame comes from the travel engine.
+**2. Direct persona question with deferred E4 handoff — server side is well-evidenced; the client-side outcome depends on which call path handled the turn (corrected this revision).**
+Incoming: `current_engine="identity"`. Learner asks "你去过成都吗？" (a travel question), typed or spoken as an ordinary turn — this is a Pattern-A (`_runTurnInner`) request, not a `runMirrorTurn` (Pattern-B) mirror-button action. Turn-local: `user_asked_question=True`; `_direct_persona_answer()` produces a confident answer; `_infer_question_topic_engine()` classifies it as `"travel"`; `_e4_engine_handoff="travel"`. Response: `frame_text` still selected from `"identity"` (frame selection ran before the E4 write); `state_update.current_engine="travel"` is written by the server. **Client:** renders the identity-engine frame alongside the travel answer, and — because this is a Pattern-A response — sets `window._currentEngineId` from `data.engine_id` (`"identity"`), **not** from `data.state_update.current_engine`, since the Pattern-A response handler contains no read of that field (SIC-6, Section 4, Section 6). Next request: `conversation_state.current_engine="identity"` (carried over from the client's own top-level-`engine_id`-derived value, not the server's intended `"travel"` handoff) — as currently evidenced, the following frame would come from `"identity"` again, not from the travel engine, for this call path. If the same question were instead asked through the dedicated mirror-question UI action (`runMirrorTurn`, Pattern B), the client *would* apply `state_update.current_engine` (`ui/app.js:6246–6249`) and the next request would correctly carry `"travel"`. This example is deliberately corrected from a previous draft that assumed universal client-side application; it now reflects the call-path-dependent outcome verified in Section 4/Section 6.
 
 **3. Stale-answer deduplication using recent persona replies.**
 Incoming: `recent_persona_replies=["我去过成都，很好玩"]`. Learner re-asks essentially the same question. Turn-local: the candidate answer text matches an entry in `recent_persona_replies`; `_dedupe_persona_answer()` re-picks an alternative from the same-intent pool (a different Chengdu fact) rather than repeating the stale line. Response: `counter_reply` is the alternative; `state_update.recent_persona_replies` becomes the old list plus the new reply, capped to the last 3.
 
 **4. Client-intercepted spoken recovery.**
-Learner says "再说一遍" via microphone. Client: `matchSpokenRecoveryPhraseExact()` matches action `repeat`; the client replays the current frame's TTS locally. **No `/api/run_turn` request is sent.** No client or server state changes at all — `frame_id`, `recent_frame_ids`, and every counter remain exactly as they were.
+Learner says "再说一遍" via microphone. Client: `matchSpokenRecoveryPhraseExact()` matches action `repeat`; the client replays the current frame's TTS locally. **No `/api/run_turn` request is sent** — this is the scoped, verified claim: there is no server request, and consequently no semantic engine/frame-state progression (`current_engine`, `frame_id`, `recent_frame_ids`, and every `conversation_state` counter remain exactly as they were, since nothing that would change them ran). This does **not** mean nothing on the client changes at all: UI state (e.g. transcript rendering, TTS playback state), transcript entries, challenge-help/recovery-panel display state, and analytics/diagnostic counters (e.g. `_tracker` recovery-use counts, if this path increments one) may still change locally as a direct result of handling the recovery action, even though none of that reaches the server or the next request's semantic routing state.
 
 **5. Server-side typed recovery.**
 Learner types "什么意思" instead of speaking it (bypassing client interception). Request: normal `conversation_state`, `last_answer={frame_id: <current>, submitted_text:"什么意思"}`. Turn-local: `_is_meaning=True`; `_meaning_recovery_reply()` produces `counter_reply`; normal frame selection then runs and **does** advance to a new `frame_id`. Response: `counter_reply` is the rephrase; `frame_id` is a new question, not a repeat.
@@ -595,7 +653,7 @@ Learner clicks a different persona button mid-conversation. Client: `window._par
 
 **Moving ownership between client and server** (e.g. making the server authoritative for a counter currently client-owned). Requires: the server must begin writing the field to `state_update` on every turn (not just on change) if the client is to stop independently incrementing it; the client must stop incrementing its own copy and only apply the server's value; and every place that currently reads the client-supplied value server-side must be re-audited, since the server previously trusted the client's copy and may have compensating logic that assumed client-side drift was possible.
 
-**Adding a field only to the server or only to the client is incomplete** — a server-only field that is never read from `cs` has no effect; a client-only field that is never read server-side is dead weight and risks being confused with a field that *is* consumed. Every new field requires evidence of both a producer and a consumer before it is considered complete.
+**Adding a field only to the server or only to the client is incomplete** — a server-only field that is never read from `cs` may still affect the *current* request wherever else it is read (e.g. a debug echo, or a different in-request use), but it cannot influence any *later* request unless it is both transported (written to `state_update` and, on the following turn, resent in `conversation_state`) and consumed (given a client-side merge case, as Section 6 catalogues field-by-field). A client-only field that is never read server-side is dead weight and risks being confused with a field that *is* consumed. Every new field requires evidence of both a producer and a consumer, for the specific cross-turn direction intended, before it is considered complete.
 
 ---
 
@@ -609,18 +667,25 @@ Learner clicks a different persona button mid-conversation. Client: `window._par
 - **Stale browser state after deployment.** Because `conversation_state` shape is defined by whatever `ui/app.js` build the browser currently has loaded, a mid-session deployment that changes a field's meaning (not just adds a field) could cause an already-open tab to send an old-shaped payload to a new server build. This has not been observed to cause an incident at the baseline but is a structural exposure given the lack of versioning on the `conversation_state` shape.
 - **Persistent memory and session reset are genuinely separate operations,** by design (Section 13) — but this means a developer unfamiliar with the distinction could reasonably assume "reset session" also clears learner facts, or vice versa, and introduce a regression by conflating them. This has happened before (the clear-memory regression referenced throughout Section 8 and covered by `test_clear_memory_regression.py`).
 - **Large, single coordinator function mutating related state at distant points.** The `/api/run_turn` handler in `scripts/ui_server.py` spans roughly 3,460 lines (8961–12424) with related reads/writes to the same conceptual field (e.g. `location_retry_count`) separated by thousands of lines. This makes it easy to add a new write site for a field without noticing an existing one, or to change a read-time default without finding every other read-time default for the same field.
+- **`state_update` field consumption is call-path-dependent in a way that is easy to miss.** `ui/app.js` has more than one response-handling function that merges `state_update` (the Pattern-A handler and `runMirrorTurn`), each with its own independent, hand-written set of field cases. A field added to one path's merge block is not automatically available to the other. This is the direct cause of the `current_engine` gap (SIC-6) and is a structural precondition for the same kind of gap recurring with any future `state_update` field.
+- **A comment describing intended behaviour was found to disagree with the verified implementation.** The E4 write site's comment (`scripts/ui_server.py:11830–11832`) states that writing `current_engine` into `state_update` "causes the client to track this engine for the next `/api/next_question` call" — but the verified client code does not do this for the Pattern-A call path the comment appears to describe (SIC-6). This is named as a risk in its own right: comments in this codebase describe *intended* behaviour and should not be relied upon as evidence of *verified* behaviour without checking the corresponding client code directly.
 
-No speculative risks are included above; every item is backed by the evidence already cited in Sections 5–16.
+The items above are not uniform in kind, and this document distinguishes them deliberately rather than presenting all of Section 19 as equally certain:
+
+- **Observed, directly-evidenced defects/gaps** — traced by reading a specific write site and finding no corresponding read site, or vice versa: the `job_company` and `partner_facts_seen` dead-ends (Section 8), the `current_engine`/Pattern-A consumption gap (Section 4, Section 6, SIC-6), the mirror-confusion and location-clarify round-trip gaps (Section 11, SIC-1/SIC-2), and the `window._lastCounterReply`/`window._recentReactions` same-tab leakage (SIC-7).
+- **Inferred structural exposures** — risks that follow from the *shape* of the system (no schema, no versioning, a single 3,460-line handler) rather than from a traced concrete failure: the "stale browser state after deployment" and "large single coordinator function" items below. These have not been shown to have caused an incident at the baseline; they are named because the structural precondition for one is evidenced, not because an occurrence was observed.
+
+Every item, in either category, is backed by the evidence already cited in Sections 5–16 — none are included on pure speculation with no code-level basis — but "backed by evidence" does not mean "confirmed to have caused a production defect." Treat the first category as things to verify/fix; treat the second as things to keep in mind when making a related change.
 
 ---
 
 ## 20. Regression diagnosis guide
 
-**Engine unexpectedly reverting to a previous topic.**
-Check: is E4 actually firing for the question in play? `_infer_question_topic_engine()` returns `None` for unclassifiable questions, and E4 does not fire if `_counter_result` is `None` or the answer is a generic deflection (`CONVERSATION_ARCHITECTURE.md` §8.3). Verify `response.state_update.current_engine` is present in the network response for the turn that should have redirected, and verify the client actually applied it (`window._currentEngineId` after the response, in devtools).
+**Engine unexpectedly reverting to a previous topic (or an E4 handoff appearing to have no effect at all).**
+Check, in order: (1) is E4 actually firing for the question in play? `_infer_question_topic_engine()` returns `None` for unclassifiable questions, and E4 does not fire if `_counter_result` is `None` or the answer is a generic deflection (`CONVERSATION_ARCHITECTURE.md` §8.3). Verify `response.state_update.current_engine` is present in the network response for the turn that should have redirected. (2) **Which client call path handled this response?** If the request came from `_runTurnInner`'s Pattern-A flow (ordinary "Next" turns — the common case for a direct persona question followed by continued conversation), the client's response handler does not read `data.state_update.current_engine` at all (SIC-6, Section 4, Section 6) — so `window._currentEngineId` will reflect only `data.engine_id` (the pre-handoff engine), and the following request will still carry the old engine. This is not a bug to "find and fix" within the scope of this document; it is a documented, evidenced gap in the current baseline. If the request instead went through `runMirrorTurn` (Pattern B), the merge at `ui/app.js:6246–6249` *does* apply `state_update.current_engine`, so a discrepancy there would indicate a genuine regression worth investigating further.
 
 **E4 handoff not appearing on the next request.**
-Confirm the *following* request's `conversation_state.current_engine` matches what was written to `state_update` on the prior turn — if it does not, the bug is in the client's apply step (`ui/app.js:6246–6248` region), not in the server's E4 computation.
+First determine which call path produced the response per the check above. For `runMirrorTurn` (Pattern B) responses: confirm the *following* request's `conversation_state.current_engine` matches what was written to `state_update` on the prior turn — if it does not, the bug is in the client's apply step (`ui/app.js:6246–6249` region), not in the server's E4 computation. For Pattern-A responses (the main "Next" flow): the absence is expected given SIC-6 as currently evidenced, not necessarily a new bug — but this is exactly the finding worth escalating for a product/engineering decision, since it means the E4 mechanism as commented in `scripts/ui_server.py` ("Writing current_engine into state_update causes the client to track this engine for the next /api/next_question call") does not match the verified client behaviour for the call path the comment appears to be describing.
 
 **Persona answer repeating despite deduplication.**
 Check whether `recent_persona_replies` in the request actually contains the prior reply — if the client failed to replace its copy from the previous `state_update`, the server has no way to know the reply was already given. Also check whether the same-intent answer pool for that fact is exhausted (in which case a fallback clarification, not a repeat, should appear — if a literal repeat appears instead, the pool-exhaustion fallback path itself may be broken).
@@ -632,19 +697,19 @@ Confirm `MANDARINOS_DATA_DIR` resolves to the same path before and after restart
 Check whether the "clear" was implemented via `save()` with `None` values instead of `clear()` — per Section 8, `save()`'s merge semantics mean a `None` value never overwrites an existing non-`None` value on disk, so a from-scratch "clear" that uses `save()` instead of `clear()` will silently fail to erase anything.
 
 **New session retaining old conversation context.**
-Confirm `_resetCurrentSessionState()` was actually invoked (check for the "Start" button handler or `startFreshLearner()` call in the code path that led to the new session) rather than the page simply continuing to run with stale `window._*` values from a previous conversation that was never formally reset.
+Confirm `_resetCurrentSessionState()` was actually invoked (check for the "Start" button handler or `startFreshLearner()` call in the code path that led to the new session) rather than the page simply continuing to run with stale `window._*` values from a previous conversation that was never formally reset. Separately: if the stale value specifically involves `window._lastCounterReply` or `window._recentReactions`, this is **expected** even after a correctly-invoked `_resetCurrentSessionState()` — neither field is assigned by that function (SIC-7, Section 16.2), so a same-tab new session legitimately carries them over from the previous session; only a full page reload clears them. Do not treat this specific pair as evidence that the reset function itself is broken.
 
 **Persona switch using the previous persona's reply history.**
 This is expected baseline behaviour per SIC-4 (Section 16.2), not a bug — `recent_persona_replies` and `current_engine` are not cleared on persona switch. If this is undesirable for a given feature, it requires an explicit product decision and code change, not a "fix" to existing behaviour.
 
 **Client state differing from server response.**
-Diff the fields in `response.state_update` against what `window._*` shows immediately after the response resolves. If a field is present in `state_update` but not reflected client-side, check the client's merge block for a missing case — Section 6 lists three fields (`pending_dest_candidate`, `location_retry_count`, `location_clarify_hint`) that are *known* not to be merged back by the production client; a missing-merge bug for any *other* field is a genuine regression, not an expected gap.
+Diff the fields in `response.state_update` against what `window._*` shows immediately after the response resolves. If a field is present in `state_update` but not reflected client-side, check the client's merge block for a missing case — Section 6 lists the fields *known* not to be merged back by the production client at all (`pending_dest_candidate`, `location_retry_count`, `location_clarify_hint`, `mirror_confusion_count`, `consecutive_not_understood`, and `recent_confusion_count`'s reset specifically), plus one field consumed only in a non-primary call path (`current_engine`, applied only inside `runMirrorTurn`, not the main Pattern-A handler — SIC-6). A missing-merge bug for any field *not* on this list is a genuine regression, not an expected gap.
 
 **Recent frame unexpectedly repeating.**
 Check whether `recent_frame_ids` client-side actually contains the frame in question — remember the cap is 50, so a very long session could have rolled the offending frame out of the window entirely, which is expected, not a bug. If the frame is still within the last 50 and still got re-selected, the bug is in the ladder-selection exclusion logic, not in state transport.
 
 **Progress reset when learner memory is cleared.**
-This should never happen per SINV enforcement and the negative tests in `test_clear_memory_regression.py`/`test_session_start_reset.py` — if observed, check whether a code change accidentally added a progress-clearing call inside `startFreshLearner()` or `/api/reset_memory`, since neither is supposed to touch progress state.
+There is no dedicated state invariant in Section 16.1 asserting this; the claim is attributable specifically to (a) the current implementation of `startFreshLearner()` and `/api/reset_memory`, neither of which contains a progress-clearing call, and (b) the negative tests in `test_clear_memory_regression.py`/`test_session_start_reset.py` that assert the absence of such a call. If this behaviour is observed to break, check whether a code change accidentally added a progress-clearing call inside either function, since neither is currently supposed to touch progress state — but note this is an implementation characteristic under test coverage, not an enforced architectural invariant that would be violated by construction.
 
 ---
 
@@ -667,8 +732,8 @@ This should never happen per SINV enforcement and the negative tests in `test_cl
 | State area | Producer | Storage/transport | Consumers | Reset path | Representative tests |
 |---|---|---|---|---|---|
 | Full `conversation_state` (Pattern A) | `ui/app.js:_runTurnInner(true, opts)` | Round-tripped every `/api/run_turn` call | `scripts/ui_server.py` main selector block (8961–12424) | `_resetCurrentSessionState()` | `test_conversation_first_wave.py` |
-| `state_update` | `scripts/ui_server.py`, scattered write sites | Returned every response | `ui/app.js` state-update merge block (6882–6919) | Overwritten each turn | `test_e4_topic_handoff.py` |
-| E4 engine handoff | `scripts/ui_server.py:10296–10313` (compute), `:11835` (write) | `state_update.current_engine` | `ui/app.js` (`window._currentEngineId`) | N/A — recomputed each qualifying turn | `test_e4_topic_handoff.py::TestE4DirectPersonaHandoff` |
+| `state_update` | `scripts/ui_server.py`, scattered write sites | Conditionally present in response (only when a write site fires); of the 20 possible fields, 13 have a client merge case in the Pattern-A path (Section 6) | `ui/app.js` state-update merge block (6882–6919), Pattern A only; `runMirrorTurn` (6246–6249), Pattern B, has a separate one-field merge case for `current_engine` | Overwritten each turn for fields that are re-written; unconsumed fields have no client-side lifecycle at all | `test_e4_topic_handoff.py` (server-side static check only) |
+| E4 engine handoff | `scripts/ui_server.py:10296–10313` (compute), `:11835` (write) | `state_update.current_engine` | `ui/app.js` `runMirrorTurn` only (`window._currentEngineId`, `:6246–6249`) — **not** consumed by the main Pattern-A response handler (`:6869–6920`), which uses `data.engine_id` instead (SIC-6, Section 4, Section 6, Section 16.2) | N/A — recomputed each qualifying turn on the server; client-side pickup is call-path-dependent, not guaranteed | `test_e4_topic_handoff.py::TestE4DirectPersonaHandoff` (server-side static string check only, does not verify client consumption) |
 | Working memory (`recent_persona_replies`) | `scripts/ui_server.py:11826` | `conversation_state` / `state_update` | `_answer_from_working_memory`, `_dedupe_persona_answer` | `_resetCurrentSessionState()` (`[]`) | `test_stale_answer_loop_regression.py` |
 | Persistent learner memory | `scripts/learner_memory.py` (`save`, `apply_updates`, `clear`) | `data/learner_memory.json` (path via `MANDARINOS_DATA_DIR`) | Slot substitution, `_answer_from_working_memory` fallback, response echo | `/api/reset_memory` → `clear()` | `test_clear_memory_regression.py`, `test_learner_memory_migration.py` |
 | Persona identity/state | `ui/app.js` persona-button handler; `scripts/ui_server.py:_resolve_persona` | `conversation_state.persona_id`/`partner_id`; `personas/<id>.json` (content) | Answer-generation, discoverable-fact reveal, partner header | Persona switch clears reveal-tracking only | — |
@@ -679,5 +744,5 @@ This should never happen per SINV enforcement and the negative tests in `test_cl
 **Application baseline commit:** `53584cee9e8c892ff77f12741d1fc89d9d09c7e7`
 **Baseline tag:** `architecture-baseline-2026-07-12`
 **Source documentation branch:** `docs/architecture-v1`
-**Document status:** Draft v1
+**Document status:** Draft v2 — revised against the frozen baseline to correct `state_update` ownership/consumption claims, the Pattern-A field count, canonical-vs-auxiliary learner-memory terminology, same-tab reset gaps, transition-example overstatements, invariant scope, engine-authority wording, persona-domain classification, and restart-persistence qualification.
 **Last verified date:** 2026-07-12
