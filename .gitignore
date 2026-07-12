@@ -21,3 +21,14 @@ tools/cards/out/
 
 # Local session-review credentials (never commit real tokens)
 tools/session_review.local.ps1
+
+# Generated test output and diagnostic run artifacts
+# (these are produced by test runs and manual diagnostics; never source)
+golden_*.txt
+golden_*.xml
+*_junit.xml
+*_junit_after.xml
+tests_out.txt
+tests_full_out.txt
+blue_out*.txt
+interaction_junit.xml
