@@ -25,9 +25,12 @@ It covers:
 - the invariants that future changes must preserve;
 - safe extension points and known risks.
 
-It deliberately leaves field-by-field state definitions to `STATE_CONTRACT.md` (not yet
-created), detailed answer-source resolution rules to `ANSWER_SOURCE_CONTRACT.md` (not yet
-created), and browser speech-recognition timing to `ASR_PIPELINE.md` (not yet created).
+Field-by-field state definitions — the complete inventory of `conversation_state` and
+`state_update` fields, their defaults, merge semantics, and consumption status — are owned
+by `docs/STATE_CONTRACT.md`, the authoritative R2 state contract; this document assumes
+that contract and does not repeat it. Detailed answer-source resolution rules remain left
+to `ANSWER_SOURCE_CONTRACT.md` (not yet created), and browser speech-recognition timing to
+`ASR_PIPELINE.md` (not yet created).
 
 **MandarinOS is a conversation simulator, not a vocabulary drill or generic chatbot.**
 The learner practises Mandarin by having a natural spoken or typed conversation with a
@@ -121,10 +124,14 @@ Each conversation turn follows this path from learner input to rendered response
    advance. This is the primary recovery path for spoken input.
 
 5. **Payload assembly and API call.** When the client determines an answer should be sent to
-   the server, it assembles `conversation_state` (current engine, recent frame IDs, exchange
-   counts, curiosity depth, last answer, recent persona replies, and approximately 40
-   additional counters and flags) and posts to `/api/run_turn` with `next_question: true`.
-   Frame-only loads (from the dropdown) send `frame_id` and `engine_id` instead.
+   the server, it assembles `conversation_state` and posts to `/api/run_turn` with
+   `next_question: true`. This full-selector payload (Pattern A) contains **45 possible
+   `conversation_state` fields: 35 always present and up to 10 conditional** — current
+   engine, recent frame IDs, exchange counts, curiosity depth, last answer, recent persona
+   replies, and the remaining always-present/conditional fields; see `STATE_CONTRACT.md`
+   Section 5 for the complete, authoritative field-by-field inventory, which this document
+   does not repeat. Frame-only loads (from the dropdown) send `frame_id` and `engine_id`
+   instead.
 
 6. **Server-side input normalisation.** The server calls `_normalize_zh_for_routing()`,
    which strips leading fillers via `_strip_leading_fillers()`, collapses inter-character
@@ -308,8 +315,15 @@ memory) and within the current session (conversation state). See Section 10.
 **Authoritative for:** the actual Chinese sentences the persona says in narrative voice;
 persona profile facts; recovery phrase options; frame text and options. Multiple persona
 JSON files exist (e.g., `jianguo.json`, `xiaoming.json`, `zhang_wei.json`). The active
-partner is selected by the learner via persona buttons; `window._partnerId` tracks the
-selection and is included as `persona_id` in every API payload.
+partner is selected by the learner via persona buttons; the selection is stored primarily
+in `window._partnerId`, with `window._personaId` retained as a legacy fallback
+(`window._partnerId || window._personaId`, `STATE_CONTRACT.md` Section 5.1). Persona
+identifiers are sent **when available**, not unconditionally on every payload: Pattern A
+(`_runTurnInner`) normally places `persona_id` inside `conversation_state`, conditional on
+either backing global being truthy; the minimal stub request patterns (Pattern B/C —
+`runDirectionTurn`, `runMirrorTurn`, `runProbeTurn`, etc.) may instead place it at the
+payload root. In either case, the field is omitted entirely while persona selection is
+unavailable or both backing globals are falsy.
 
 **Inline Chinese in production code:** Not all Chinese content lives in JSON files. The
 baseline contains Chinese in several forms:
@@ -813,8 +827,18 @@ as `cs["recent_persona_replies"]` in `conversation_state`. It is read on each tu
 - suppress exact-repeat persona answers in the deduplication guard;
 - support confusion escalation (mirror confusion ladder).
 
-Working memory is client-maintained (included in `conversation_state`) and server-read.
-It is cleared on `_resetCurrentSessionState()` and does not survive across sessions.
+Working memory is client-maintained (included in `conversation_state`) and server-read,
+but `_resetCurrentSessionState()` does not clear these three fields uniformly:
+
+- `recent_persona_replies` is cleared to `[]`.
+- `last_partner_frame_text` is cleared.
+- `last_counter_reply` has **no reset assignment** in `_resetCurrentSessionState()` at all
+  — it may survive a same-tab new-session reset, carrying over whatever value the previous
+  session last wrote via `state_update`. A full browser reload reinitialises it to
+  `undefined` (the script-load default), because that is a page reinitialisation, not a
+  targeted reset. Do not assume every working-memory or deduplication field is cleared
+  uniformly by session reset; see `STATE_CONTRACT.md` Section 13's reset matrix and SIC-7
+  for the verified per-field reset behaviour.
 
 ### 10.3 Persistent learner memory (`learner_memory.py`)
 
@@ -960,26 +984,47 @@ because it was not matched by the client interceptor — the server classifies i
 **Consequence:** In Path B, the ladder *does* advance. The rephrase appears in
 `counter_reply`; the learner then faces a new frame question.
 
-### 12.2 Confusion escalation
+### 12.2 Confusion escalation — intended mechanism, incomplete cross-turn state path
 
 When the learner signals confusion (not a specific recovery phrase) while a mirror answer
-is active, the mirror confusion escalation ladder fires:
+is active, the server can select a stage from the mirror confusion escalation ladder:
 - Stage 1: `_mirror_restate_naturally()` — natural restatement.
 - Stage 2: `_mirror_persona_stub_simple()` — simplified version.
 - Stage 3+: `_confusion_recovery_reply()` — generic recovery.
 
-Normal frame selection runs after each of these. The frame advances.
+These escalation functions exist, are individually correct, and the server can choose a
+stage *within a single request* when the required fields (`last_mirror_topic`,
+`last_mirror_engine`, `mirror_confusion_count`) are supplied on that request — tests
+exercise this by injecting the fields directly (`test_stale_counter_reply_loop.py`).
+**This is not documented as a fully operational production multi-turn ladder.** The
+production client does not transport `last_mirror_topic`, `last_mirror_engine`, or
+`mirror_confusion_count` in `conversation_state` at all (`STATE_CONTRACT.md` Section 11,
+SIC-1), so the escalation stage cannot reliably persist or progress from one production
+turn to the next — each ordinary turn effectively restarts from Stage 1's preconditions
+rather than advancing through Stage 1 → Stage 2 → Stage 3+ as a learner's confusion
+continues across turns. Normal frame selection runs after each stage; the frame advances
+regardless of which stage (if any) fired.
 
 When the learner signals confusion about the partner's frame question (no active mirror),
 `_clarify_app_question()` is used for `counter_reply` and normal frame selection runs.
 
-### 12.3 Noisy location clarification (frame override)
+### 12.3 Noisy location clarification (frame override) — intended escalation, incomplete cross-turn state path
 
 When the learner's answer to a location frame looks garbled (`_noisy_location_clarify`),
-the server overrides `frame_text` and `frame_id` in the post-assembly phase to repeat the
-location frame at the appropriate escalation level (rephrase → natural re-ask → gentle
-move-on). This is one of the few cases where frame selection output is explicitly
-overridden. The ladder does not advance until the location answer is accepted.
+the server can override `frame_text` and `frame_id` in the post-assembly phase to repeat
+the location frame for *that response*, at an escalation level (rephrase, natural re-ask,
+or gentle move-on) selected from `location_retry_count` and `location_clarify_hint`. This
+override prevents ordinary ladder progression for the response it applies to, and is one
+of the few cases where frame selection output is explicitly overridden. `location_retry_count`
+and `location_clarify_hint` are written into `state_update` so the *next* turn can continue
+the escalation from where this one left off — but the production client does not consume
+or resend either field (`STATE_CONTRACT.md` Section 6, SIC-2). **Do not read this as an
+unconditional guarantee that the system proceeds through rephrase → natural re-ask →
+move-on at successive turns**: the intended multi-turn escalation sequence does not
+reliably progress across production turns, because each new request arrives without the
+prior turn's escalation level. The ladder does not advance for the single response the
+override applies to, but the escalation level itself resets to its default on the
+following request.
 
 ### 12.4 Recovery phrases
 
@@ -1039,7 +1084,9 @@ The client sends a JSON payload to `/api/run_turn` containing:
   answer, recent persona replies);
 - `next_question: true` (or `frame_id` / `engine_id` for explicit frame loads);
 - `persona_id` — the active partner's ID, from `window._partnerId` (persona button
-  selection) falling back to `window._personaId`;
+  selection) falling back to `window._personaId`, sent **when available** — Pattern A
+  places it inside `conversation_state`, stub patterns may place it at the payload root,
+  and it is omitted entirely when both backing globals are falsy (Section 4.7);
 - `diag_trace_id` (optional, minted by AsrDiag);
 - `env: "dev"`.
 
@@ -1166,6 +1213,17 @@ removed without architectural impact. Only the structured `diag` response field 
 
 ## 15. Invariants
 
+**A note on invariant/intended-contract identifiers.** `INV-*` and `IC-*` identifiers are
+stable references, assigned once and preserved across revisions — they are not
+renumbered when an item is corrected, reclassified, or removed. Gaps in the sequence
+(`INV-5`, `INV-7`, `IC-4` do not appear below) reflect earlier reclassification between
+the enforced-invariant and intended-contract lists, or consolidation into another entry,
+not missing content. **IC-5 was removed in this revision** because it duplicated IC-2
+verbatim (both stated the same Chinese–English synchronisation contract, with IC-5 merely
+citing IC-2 for detail); readers should refer to IC-2 for that contract. If you are
+looking for an identifier not present here, check whether it was consolidated into an
+existing entry before assuming content was silently dropped.
+
 ### 15.1 Enforced architectural invariants
 
 The following rules are structurally enforced and supported by appropriate behavioural tests.
@@ -1234,13 +1292,25 @@ discarded.
 *Enforcement:* `_persona_answer_en()` called on `_deduped` at the dedup guard.
 *Tests:* `test_stale_answer_loop_regression.py`.
 
-**INV-9: Client conversation state is updated from server responses for all post-first-turn
-updates.**
-For turns after the first, `window._currentEngineId` is set from `data.engine_id` for
-current-frame purposes, then re-resolved via `_resolveNextEngineId(engineId,
-data.state_update)` for the *next* request (Section 8.4) — the latter returns
-`data.state_update.current_engine` when valid, else `data.engine_id` unchanged.
-`window._recentFrameIds` is appended from `data.frame_id`.
+**INV-9 (narrowed): For the specific fields listed below, client conversation state is
+updated from server responses for all post-first-turn updates. This is not a claim that
+every `state_update` field is consumed.**
+Scope of this invariant — verified fields only:
+- Top-level `data.engine_id` preserves current-frame engine attribution (Section 8.4):
+  every use of the engine for *this* response's rendering, bookkeeping, and diagnostics
+  reads `data.engine_id`, never a future handoff value.
+- `_resolveNextEngineId(engineId, data.state_update)` applies a valid future engine
+  handoff (`data.state_update.current_engine`) to `window._currentEngineId`, or falls back
+  to `data.engine_id` unchanged when no valid handoff is present (Section 8.4).
+- `data.frame_id` updates recent-frame history: `window._recentFrameIds` is appended from it.
+- The next request's `conversation_state` carries the resulting `current_engine` and
+  `recent_frame_ids`.
+This invariant does **not** assert that every field in `state_update` is consumed by the
+client on every call path. Six `state_update` fields remain unconsumed by any client call
+path as of the R2 baseline — `pending_dest_candidate`, `location_retry_count`,
+`location_clarify_hint`, `mirror_confusion_count`, `recent_confusion_count` (reset only),
+`consecutive_not_understood` — see `STATE_CONTRACT.md` Section 6 for the authoritative,
+field-by-field consumed/unconsumed inventory.
 *Exception:* On the first turn of a session, `window._currentEngineId` is null and the
 client falls back to the engine from the dropdown's data attribute or `"identity"`. This
 is a legitimate client-side initialisation.
@@ -1290,10 +1360,6 @@ inconsistency.
 input. Path B does not.
 *Tests:* `test_challenge_recovery.py` (server-side marker contracts, Path B);
 `tests/verify_asr_filler.js` (client-side interception, Path A).
-
-**IC-5 (INV-5 rephrased): Chinese and English representations describe the same answer
-across all paths.**
-See IC-2 above for the partial-enforcement detail.
 
 ---
 
@@ -1544,7 +1610,7 @@ Use the following sequence when a conversation behaves unexpectedly.
 The following documents are part of the MandarinOS architecture documentation programme.
 Links marked "(not yet created)" will resolve once the relevant document is authored.
 
-- `docs/STATE_CONTRACT.md` — (not yet created) Field-by-field definition of `conversation_state`, `state_update`, and `learner_memory` schemas.
+- [`docs/STATE_CONTRACT.md`](./STATE_CONTRACT.md) — **Authoritative R2 state contract** (status: Approved v1 — R2 baseline). Field-by-field definition of `conversation_state`, `state_update`, and `learner_memory` schemas, including the verified 45/35/10 `conversation_state` field count and the 14/6 `state_update` consumed/unconsumed split.
 - `docs/ANSWER_SOURCE_CONTRACT.md` — (not yet created) Detailed contract for how each answer-source path constructs its `(zh, en)` tuple and which persona data fields take precedence.
 - `docs/ASR_PIPELINE.md` — (not yet created) Browser speech-recognition lifecycle, confidence handling, ASR retry and timeout logic, interim result processing, and the `AsrDiag` trace format.
 - `docs/ARCHITECTURE.md` — (not yet created) High-level repository map and system boundary overview.
