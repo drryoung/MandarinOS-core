@@ -6597,6 +6597,29 @@ async function startFreshLearner() {
  * @param {boolean} [isNext=false] When true, send next_question + conversation_state; server chooses frame.
  * @param {{ prefer_bridge?: boolean, force_bridge?: boolean, last_turn_was_answer?: boolean, learner_skip_confusion?: boolean }} [opts] When isNext: prefer_bridge tries bridge first; learner_skip_confusion clears bridge intent after "我不明白" advance.
  */
+/**
+ * Resolve which engine should be treated as active for the client's NEXT Pattern-A
+ * request, given the engine of the frame the server just returned in THIS response
+ * (`frameEngineId`, i.e. `data.engine_id`) and this same response's `state_update`.
+ *
+ * This function does NOT change which engine the CURRENT response's frame belongs to.
+ * Callers must keep using `frameEngineId` for all current-turn bookkeeping, rendering,
+ * and diagnostics — this only resolves the value `window._currentEngineId` should
+ * become going forward, honouring a same-turn E4/direction-stub handoff written to
+ * `state_update.current_engine` (scripts/ui_server.py:11835) that the primary
+ * `_runTurnInner` response handler previously never applied (it only ever consumed
+ * `data.engine_id`, leaving the handoff without effect on ordinary "Next" turns).
+ *
+ * Returns `frameEngineId` unchanged whenever no valid handoff string is present, so a
+ * response with no `state_update.current_engine` (or an empty/invalid one) produces
+ * exactly the pre-existing behaviour.
+ */
+function _resolveNextEngineId(frameEngineId, stateUpdate) {
+  const handoff = (stateUpdate && typeof stateUpdate === "object") ? stateUpdate.current_engine : undefined;
+  if (typeof handoff === "string" && handoff.trim() !== "") return handoff;
+  return frameEngineId;
+}
+
 async function runTurn(isNext = false, opts = {}) {
   _dismissOnboardingGuideIfActive();
   _setConversationActive(true);
@@ -7408,6 +7431,14 @@ async function _runTurnInner(isNext = false, opts = {}) {
   }
   // Clear typing mode — next turn starts tap-neutral unless useBtn sets it again
   window._typingMode = false;
+
+  // E4/direction-stub handoff (fix: primary Pattern-A client merge defect).
+  // Apply a same-turn engine redirect written to state_update.current_engine so the
+  // NEXT request carries it. This must run only here, after every use of engineId /
+  // window._currentEngineId above for THIS response's bookkeeping, rendering, and
+  // diagnostics — it never relabels the frame just rendered, which continues to belong
+  // to engineId (data.engine_id) as recorded throughout this function.
+  window._currentEngineId = _resolveNextEngineId(engineId, data.state_update);
 }
 
 
