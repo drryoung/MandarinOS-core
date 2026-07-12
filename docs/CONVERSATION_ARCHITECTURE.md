@@ -41,29 +41,32 @@ rather than snapping back to a previously interrupted engine.
 
 **Maintain gentle topic-engine progression.** When the learner is not directing the topic,
 the system advances through a soft-ordered sequence of conversation frames inside a topic
-engine (identity → place → work → hobby → travel → food → family). Progression is
-*guidance*, not a rigid script.
+engine. Bridges to other engines are governed by per-engine preferred-target lists, not a
+fixed global sequence. Progression is *guidance*, not a rigid script.
 
 **Allow direct persona questions without losing continuity.** The learner may ask the
-partner anything at any time. A direct question must receive a first-person persona answer
+partner questions from their current topic domain or about the partner's own facts at any
+point during the conversation. A direct question must receive a first-person persona answer
 and must not discard the current conversation position in a way that makes the next question
 incoherent.
 
 **Support recovery and clarification.** When the learner signals that they did not
 understand, the system provides a recovery path (repeat, simplify, explain meaning) without
-advancing the conversation topic or abandoning the practice value of the turn.
+accidentally advancing the topic or abandoning the practice value of the turn.
 
 **Prevent stale or repeated answers.** The same persona answer must not be given for the
 same question twice in a session. When an answer has been used, the system re-picks from
 the same answer pool or provides a topically appropriate acknowledgement.
 
 **Maintain Chinese, pinyin, and English synchronisation.** The three representations
-displayed to the learner must always describe the same answer. English and pinyin are
-derived from the same Chinese text, not from a coarse intent label.
+displayed to the learner should describe the same answer. English and pinyin are derived
+from the same Chinese text through a defined resolution path, not from a coarse intent
+label.
 
-**Keep answer selection, state progression, and UI presentation distinguishable.**
-What the partner says, where the conversation is positioned, and how the UI displays the
-result are three separate concerns.
+**Keep answer selection, state progression, and UI presentation as logically distinct
+concerns.** What the partner says, where the conversation is positioned, and how the UI
+displays the result are coordinated through explicit data fields (counter_reply, frame_text,
+state_update, current_engine) rather than through shared mutation.
 
 Separation of genuine architectural objectives from feature details: the above are
 objectives; the specific topic engines, persona profiles, and frame content are feature
@@ -92,16 +95,18 @@ Each conversation turn follows this path from learner input to rendered response
    `classifyUnmatchedFreeAnswerDecision()` decides what to do when no option matches: accept
    the free answer, trigger recovery, or hold for another attempt.
 
-4. **Recovery and special-intent detection on the client.** Before routing the answer to the
-   server, `computeRecoveryTriggerContext()` checks whether the transcript is a recovery
-   request (嗯？ 什么？ 再说一遍 etc.). If so, the client simulates a recovery panel tap
-   rather than sending the utterance as a content answer.
+4. **Client-side recovery interception (spoken path).** Before routing a spoken answer,
+   `matchSpokenRecoveryPhraseExact()` checks whether the transcript is an exact recovery
+   phrase (再说一遍, 慢一点说, 什么意思, etc.). When a match is found with action
+   `repeat`, `slower`, or `meaning`, the client handles recovery entirely locally: it
+   replays the current frame question without contacting the server. The frame does not
+   advance. This is the primary recovery path for spoken input.
 
-5. **Payload assembly and API call.** The client assembles `conversation_state` (current
-   engine, recent frame IDs, exchange counts, curiosity depth, last answer, recent persona
-   replies, and approximately 40 additional counters and flags) and posts it to
-   `/api/run_turn` with `next_question: true`. Frame-only loads (from the dropdown) send
-   `frame_id` and `engine_id` instead.
+5. **Payload assembly and API call.** When the client determines an answer should be sent to
+   the server, it assembles `conversation_state` (current engine, recent frame IDs, exchange
+   counts, curiosity depth, last answer, recent persona replies, and approximately 40
+   additional counters and flags) and posts to `/api/run_turn` with `next_question: true`.
+   Frame-only loads (from the dropdown) send `frame_id` and `engine_id` instead.
 
 6. **Server-side input normalisation.** The server calls `_normalize_zh_for_routing()`,
    which strips leading fillers via `_strip_leading_fillers()`, collapses inter-character
@@ -109,9 +114,9 @@ Each conversation turn follows this path from learner input to rendered response
    particles. The normalised text is used for routing; the original transcript is preserved
    separately for display and memory capture.
 
-7. **Diagnostic capture (behaviour-free).** When diagnostics are enabled and the client
-   provides a `diag_trace_id`, the server populates `_diag_cap` with routing signals
-   (normalised text, intent flags, engine, answer fields). This never alters routing.
+7. **Diagnostic capture (behaviour-free).** When `_diag_enabled()` returns True and the
+   client provides a `diag_trace_id`, the server populates `_diag_cap` with routing signals.
+   This never alters routing.
 
 8. **Direction and probe fast-paths.** `direction_intent` values (reverse, why, mirror)
    and `probe_id` requests are handled before the main routing logic. They produce a
@@ -126,72 +131,74 @@ Each conversation turn follows this path from learner input to rendered response
     `_is_meaning`, `_is_example`, `_is_rr` (repeat/slower request), `_lex_ct` (lexical
     definition), and whether the answer is a confusion signal or plain affirmation.
 
-11. **Answer-source selection (priority chain).** The server works through a
-    priority-ordered chain to produce `counter_reply` (the partner's response to the
-    learner's previous answer). See Section 9 for the full chain. The result is the
-    `counter_reply` field in the response, separated from the next frame question.
+11. **Answer-source selection (`counter_reply` generation).** The server works through a
+    priority-ordered chain to produce `counter_reply` — the partner's response to the
+    learner's previous answer. See Section 9 for the full chain. This runs before frame
+    selection and before E4 is resolved.
 
-12. **E4 Initiative Follow (engine handoff).** When the learner asked a question and a
-    confident non-generic answer was produced, `_infer_question_topic_engine()` classifies
-    the question text and `_QUESTION_TOPIC_TO_ENGINE` maps it to a conversation engine.
-    This engine is written into `state_update.current_engine` so the next frame stays on
-    the redirected topic.
+12. **E4 engine handoff computation.** When the learner asked a question and a confident
+    non-generic answer was produced, the server computes `_e4_engine_handoff` using
+    `_infer_question_topic_engine()` and `_QUESTION_TOPIC_TO_ENGINE`. This value is stored
+    in a local variable; it does not yet affect frame selection.
 
 13. **Frame selection.** The server selects the next conversation frame via
-    `_select_next_frame_ladder()` or `_select_next_frame_bridge()`. The selector respects
-    `_FRAME_ORDER`, `_FRAME_AFTER` dependencies, `skip_when` conditions, recent-frame
-    deduplication, interest level, and session-arc state.
+    `_select_next_frame_ladder()` or `_select_next_frame_bridge()`. The selector uses
+    `current_engine` from the incoming `conversation_state` — not the E4 handoff value.
+    The selector respects `_FRAME_ORDER`, `_FRAME_AFTER` dependencies, `skip_when`
+    conditions, recent-frame deduplication, interest level, and session-arc state.
 
 14. **Slot substitution.** Frame text tokens such as `{CITY}`, `{HOMETOWN}`, `{NAME}`, and
     `{ENTITY}` are resolved from learner memory, conversation state, and the entity
     follow-up chain (EFC). Unresolved tokens fall back to context-appropriate deictic
     Chinese (那儿, 你那儿, etc.) rather than surfacing the raw placeholder.
 
-15. **Response payload construction.** The server assembles the response dict:
+15. **Response payload assembly and E4 write.** The server assembles the response dict:
     `frame_text`, `frame_pinyin`, `frame_text_en` (the next frame question),
     `counter_reply`, `counter_reply_pinyin`, `counter_reply_en` (the partner's reply to
-    this turn), `engine_id`, `frame_id`, `options`, `state_update`, and optional extras
-    (turn_type, diag, discovery panel data). The `counter_reply` and `frame_text` are
-    entirely independent fields.
+    this turn), `engine_id`, `frame_id`, `options`, and optional extras (turn_type, diag,
+    discovery panel data). After assembly, if `_e4_engine_handoff` is set, it is written
+    into `response["state_update"]["current_engine"]`. This is the first point at which E4
+    affects any data — after frame selection is complete.
 
-16. **Chinese–pinyin–English presentation.** The client receives the response and renders
-    the partner's counter-reply and next question with their pinyin and English. The
-    `frame_text_en` and `counter_reply_en` are always derived from the final Chinese text
-    on the server; the client does not independently translate or gloss these fields.
+16. **Chinese–pinyin–English derivation.** `counter_reply_en` is derived from the final
+    `counter_reply` Chinese text via `_persona_answer_en()`. `frame_text_en` comes from
+    the frame record in `p2_frames.json`. The client receives these derived values and
+    renders them; it does not independently translate or gloss these fields.
 
-17. **State updates.** The client applies `state_update` fields to its local state
-    variables (`window._currentEngineId`, etc.) and records the new frame in
-    `window._recentFrameIds`. These updated values are round-tripped in the next call's
-    `conversation_state`.
+17. **Client state update.** The client applies `state_update` fields, including
+    `current_engine` if E4 fired, to its local state (`window._currentEngineId`, etc.) and
+    records the new frame in `window._recentFrameIds`. The updated engine value takes effect
+    on the *next* call's `conversation_state`.
 
 18. **Diagnostics flush.** If a `diag_trace_id` was used, `AsrDiag.complete()` joins the
     server-side `diag` payload to the client-side ASR trace and flushes it.
 
 ### 3.2 Mermaid flowchart
 
-The following diagram represents the main conversational branching. Minor branches
-(probe, direction fast-paths) are omitted for clarity.
+The following diagram represents the main conversational branching. Probe and direction
+fast-paths are omitted for clarity. E4 is shown after frame selection to reflect its actual
+execution order.
 
 ```mermaid
 flowchart TD
     A[Learner spoken/typed input] --> B[Client: normalise + match options]
-    B --> C{Recovery phrase?}
-    C -- Yes --> D[Recovery panel — repeat/meaning/slower]
+    B --> C{Spoken recovery phrase?}
+    C -- Yes: repeat/slower/meaning --> D[Client: replay current question locally — no server call]
     C -- No --> E{Free answer acceptable?}
-    E -- No --> F[Recovery: classifyUnmatchedFreeAnswerDecision]
+    E -- No --> F[Client: recovery panel or hold]
     E -- Yes --> G[Assemble conversation_state + POST /api/run_turn]
     G --> H[Server: _normalize_zh_for_routing]
     H --> I[Signal classification: user_asked_question, _is_rr, _is_meaning ...]
     I --> J[Answer-source priority chain → counter_reply]
-    J --> K{user_asked_question + confident answer?}
-    K -- Yes --> L[E4: _infer_question_topic_engine → state_update.current_engine]
-    K -- No --> M[Skip engine handoff]
-    L --> N[Frame selection: _select_next_frame_ladder / bridge]
-    M --> N
-    N --> O[Slot substitution CITY/ENTITY/NAME]
-    O --> P[Assemble response payload]
+    J --> K[Compute _e4_engine_handoff if user asked and confident answer]
+    K --> L[Frame selection: _select_next_frame_ladder using incoming current_engine]
+    L --> M[Slot substitution + payload assembly]
+    M --> N{E4 handoff computed?}
+    N -- Yes --> O[Write _e4_engine_handoff to state_update.current_engine]
+    N -- No --> P[Return response]
+    O --> P
     P --> Q[Client: render frame_text + counter_reply + options]
-    Q --> R[Client: update engine state from state_update]
+    Q --> R[Client: apply state_update — window._currentEngineId updated for NEXT call]
     R --> A
 ```
 
@@ -202,14 +209,29 @@ flowchart TD
 MandarinOS has the following major layers. Each is described by its authority over a
 specific class of decision.
 
-### 4.1 Browser / client interaction layer (`ui/app.js`, ~10,700 lines)
+### 4.1 Browser / client interaction and submission-control layer (`ui/app.js`, ~10,700 lines)
 
-**Authoritative for:** whether a spoken or typed learner utterance is complete enough to
-send; whether it matches a visible option or should be treated as a free answer; recovery
-intercept; TTS playback; transcript and UI rendering; round-tripping `conversation_state`.
+**Authoritative for two distinct stages:**
 
-**Does not own:** which engine is active; what the partner says; which facts the persona
-knows. These are server decisions.
+*Stage 1 — capture and pre-routing control.* The client decides whether a spoken or typed
+utterance is complete, whether it matches a visible option, whether it constitutes a
+recovery phrase (intercepted locally before any server call), whether a free answer is
+substantial enough to submit, and ultimately *whether and what* to send to the server. A
+client decision at this stage can prevent the server from ever seeing the learner's original
+utterance.
+
+*Stage 2 — display and state maintenance.* After receiving a server response, the client
+renders the partner's counter-reply and next question, maintains `window._currentEngineId`
+and related state variables, and round-trips them in the next `conversation_state`.
+
+**Does not own:** which engine is active in semantic terms (that is determined by the
+server's frame selection and E4 handoff); what the partner says; which facts the persona
+knows.
+
+**Architectural risk:** A client-side decision — for example, intercepting a learner's
+utterance as a recovery phrase when it was actually a new answer, or refusing to submit an
+answer that the server would have routed correctly — prevents the server from correcting
+the error. The client is a gatekeeper for the server, not a fallback.
 
 **Current implementation characteristic (maintenance risk):** `ui/app.js` is approximately
 10,700 lines containing all client-side logic including ASR handling, option rendering,
@@ -218,9 +240,12 @@ concentration increases the risk of accidental coupling between unrelated concer
 
 ### 4.2 Server conversation coordinator (`scripts/ui_server.py`, ~12,600 lines)
 
-**Authoritative for:** all conversation routing decisions; answer-source selection; topic
-engine progression; E4 engine handoff; learner memory persistence; persona answer
-derivation; slot substitution; diagnostics recording.
+**Authoritative for:** all semantic conversation routing decisions after submission; answer-
+source selection; topic engine frame selection; E4 engine handoff; learner memory
+persistence; persona answer derivation; slot substitution; diagnostics recording.
+
+The server sees only what the client chooses to send. For spoken recovery phrases
+intercepted client-side, no server call is made.
 
 **Current implementation characteristic (maintenance risk):** `scripts/ui_server.py` is a
 single Python file containing approximately 200 top-level functions and all server
@@ -232,15 +257,15 @@ unintended interactions between branches are possible without full comprehension
 ### 4.3 Question/topic inference layer (`_normalize_zh_for_routing`, `_is_user_question`, `_is_direct_persona_question`, `_infer_question_topic_engine`)
 
 **Authoritative for:** classifying what the learner meant — answer, question, confusion,
-recovery — and which engine/topic the question belongs to.
+recovery — and which engine/topic a question belongs to.
 
-**Key contracts:** `_normalize_zh_for_routing` must run before any intent classifier;
-`_is_user_question` must be called on the normalised routing text, not the raw transcript.
+**Key contracts:** `_normalize_zh_for_routing` runs before any intent classifier;
+`_is_user_question` is called on the normalised routing text, not the raw transcript.
 
-### 4.4 Topic engines (`_FRAME_ORDER`, `_select_next_frame_ladder`, `_select_next_frame_bridge`)
+### 4.4 Topic engines (`_FRAME_ORDER`, `_BRIDGE_TARGETS`, `_select_next_frame_ladder`, `_select_next_frame_bridge`)
 
-**Authoritative for:** which frame is asked next within an engine; when to bridge between
-engines; how to respect FRAME_ORDER soft ordering.
+**Authoritative for:** which frame is asked next within an engine; when and how to bridge
+between engines; how to respect FRAME_ORDER soft ordering.
 
 ### 4.5 Answer-source mechanisms (`_direct_persona_answer`, `_find_mirror_answer`, `_answer_from_working_memory`, `_confusion_recovery_reply`, `_meaning_recovery_reply`)
 
@@ -253,22 +278,57 @@ These functions are called in a fixed priority order; each returns a `(zh, en)` 
 **Authoritative for:** what the system knows about the learner across sessions (learner
 memory) and within the current session (conversation state). See Section 10.
 
-### 4.7 Content / persona data (`personas/jianguo.json`, `content/recovery_phrases.json`, `p2_frames.json`)
+### 4.7 Content / persona data (`personas/`, `content/recovery_phrases.json`, `p2_frames.json`)
 
-**Authoritative for:** the actual Chinese sentences the persona says; persona profile facts;
-recovery phrase options; frame text and options. These files are the source of truth for
-content; production code must never embed Chinese content as string literals.
+**Authoritative for:** the actual Chinese sentences the persona says in narrative voice;
+persona profile facts; recovery phrase options; frame text and options. Multiple persona
+JSON files exist (e.g., `jianguo.json`, `xiaoming.json`, `zhang_wei.json`). The active
+partner is selected by the learner via persona buttons; `window._partnerId` tracks the
+selection and is included as `persona_id` in every API payload.
+
+**Inline Chinese in production code:** Not all Chinese content lives in JSON files. The
+baseline contains Chinese in several forms:
+
+- *Routing and intent markers* (`_REPEAT_REQUEST_MARKERS`, `_SLOWER_REQUEST_MARKERS`,
+  `_MEANING_REQUEST_MARKERS`, `_BARE_REPEAT_UTTERANCES`, regex patterns): Chinese directly
+  in Python tuples and regexes. This is intentional: these are language patterns, not
+  persona content.
+- *City description maps* (`_CITY_LOCATION_BRIEF`, `_FEAT_POOL_INLINE`): brief factual
+  descriptions of known cities, stored in code as dicts. Current implementation choice;
+  these could be data-driven in future.
+- *Closing reactions and small fallback phrases* (`_CLOSING_REACTIONS`,
+  `_persona_limitation_reply`, `_soft_persona_fallback`): short system-level sentences.
+  Maintenance risk: they are invisible to content editors.
+- *Persona-specific narrative facts and voice lines*: these are in `personas/*.json`
+  (`discoverable_facts`, `voice_lines`, `discoverable_facts_en`, `voice_lines_en`). The
+  architectural preference is for substantial, persona-specific, learner-facing content to
+  be data-driven so it can be updated without code changes.
+
+The operational distinction is: language patterns and small system phrases may live in code;
+substantial persona voice content and city-specific facts benefit from being in data files.
 
 ### 4.8 UI rendering (`renderOptions`, `renderSentenceOptions`, `renderRecoveryPanelInto`, `tokenizeHanziForOption`)
 
 **Authoritative for:** producing the interactive `div.option-panel` elements with speaker
-button, hint button, and clickable tokens. All learner-facing response UI must use these
-canonical builders.
+button, hint button, and clickable tokens. Learner-facing interactive response UI must use
+these canonical builders.
 
-### 4.9 Diagnostics (`_diag_enabled`, `_diag_append`, `_diag_finalize_response`, `AsrDiag`)
+### 4.9 Open-card affordance (`_stub_card_id`, `runtime/open_card_resolver.py`, `runtime/engine.py`)
+
+In production, the server returns a `card_id` field in the response (computed by
+`_stub_card_id(frame_id)`). The client's `renderFrameSentence()` dispatches `OPEN_CARD`
+events and calls `resolveCard()` to fetch card content from
+`tools/cards/out/cards_by_id.json`. This is a client-side affordance backed by server data.
+
+The `runtime/engine.py` pipeline (`process_turn()`) is a test infrastructure component
+used to verify the card resolution contract (`TURN_START` → `OPEN_CARD` → `TURN_END`). It
+is not called from the normal production turn handler. It exists so that the boundary
+between card resolution and the conversation engine can be tested without a live server.
+
+### 4.10 Diagnostics (`_diag_enabled`, `_diag_append`, `_diag_finalize_response`, `AsrDiag`)
 
 **Authoritative for:** capturing routing signals without altering conversation behaviour.
-Diagnostics are gated by `_diag_enabled()` and must never change a routing outcome.
+Diagnostics are gated by `_diag_enabled()` and must not change a routing outcome.
 
 ---
 
@@ -276,55 +336,82 @@ Diagnostics are gated by `_diag_enabled()` and must never change a routing outco
 
 ### 5.1 What an engine represents
 
-A topic engine is a named conversational domain. Each engine owns a set of frames
-(partner questions) that explore one area of the partner's life. The baseline engines are:
+A topic engine is a named conversational domain. Within each engine, the partner normally
+invites the learner to talk about that area of their own life: where they are from, what
+they do for work, what they enjoy. The partner's persona facts for that domain supply the
+content for direct-answer and reciprocal turns. Engines are not monologues by the persona;
+they are structured opportunities for the learner to speak.
 
-| Engine | Conversational purpose | Typical `_FRAME_ORDER` progression | Important handoffs |
-|--------|------------------------|------------------------------------|--------------------|
-| identity | Name, nickname, age | name → friends call → family call → name story → age | Bridges to place after name established |
-| place | Origin, current city, local features and food | origin → current city → distance → special → food → distance-time → hometown → travel bridge → live-with → why-live | Bridges to travel after place exhausted |
-| work | Occupation, company, tenure | what work → company → duration → location → origin story → future → why quit | Can bridge to hobby |
-| hobby | Leisure activities | open → location → best part → origin → social → travel | Can bridge to travel |
-| travel | Past travel, destinations | where been → best trip → special → food → who with → purpose | Bridges to food |
-| food | Food preferences, local dishes | available → famous → taste | Exits quickly to place or travel |
-| family | Living arrangement, relationships, marriage | live together → closest → activity → married → children | N/A |
-| life | General lifestyle (no frames defined in baseline) | — | — |
+The baseline engines are:
+
+| Engine | Conversational purpose | Typical `_FRAME_ORDER` progression |
+|--------|------------------------|------------------------------------|
+| identity | Name, nickname, age | name → friends call → family call → name story → age |
+| place | Origin, current city, local features and food | origin → current city → distance → special → food → distance-time → hometown → travel bridge → live-with → why-live |
+| work | Occupation, company, tenure | what work → company → duration → location → origin story → future → why quit |
+| hobby | Leisure activities | open → location → best part → origin → social → travel |
+| travel | Past travel, destinations | where been → best trip → special → food → who with → purpose |
+| food | Food preferences, local dishes | available → famous → taste |
+| family | Living arrangement, relationships, marriage | live together → closest → activity → married → children |
+| life | General lifestyle (no frames defined in baseline) | — |
 
 ### 5.2 `_FRAME_ORDER` is a soft preference, not a rigid script
 
 `_FRAME_ORDER` lists the preferred sequence of frame IDs per engine. The selector respects
 this order but can skip frames whose `_FRAME_AFTER` dependencies are not yet satisfied,
 whose `skip_when` conditions are met, or which have already been used in `recent_frame_ids`.
-The architectural contract is: the selector must produce a frame that has not been recently
-used and whose pre-conditions are satisfied. The order within `_FRAME_ORDER` is a secondary
-preference applied as a stable sort.
 
-### 5.3 How the current position is retained
+### 5.3 Bridge engine order is not a global sequence
+
+The list `identity → place → work → hobby → travel → food → family` commonly appears as a
+progression in practice, but it is not a code-defined global ordering. Engine-to-engine
+transitions are governed by `_BRIDGE_TARGETS`, a per-engine dict of preferred next engines:
+
+```
+identity → [place, family, work, hobby]
+place    → [food, family, work, travel, hobby, identity]
+work     → [family, identity, place, hobby]
+hobby    → [family, work, identity, travel, food]
+travel   → [family, work, identity, place, hobby, food]
+food     → [family, work, place, travel, hobby, life]
+```
+
+A separate `_RECOVERY_BRIDGE_ENGINE_ORDER` governs bridges triggered by the learner's
+explicit confusion or change-of-topic signal. Learner-seeded disclosures (`seeded_bridge_engines`)
+can override either order, making bridges follow the conversational thread rather than a
+static list.
+
+### 5.4 How the current position is retained
 
 The client maintains `window._currentEngineId` and `window._recentFrameIds`. These are
 included in every `conversation_state` payload. The server reads `cs["current_engine"]` and
 `cs["recent_frame_ids"]` to determine where the conversation is positioned before selecting
 the next frame.
 
-### 5.4 Learner initiative interrupts progression
+For the first turn of a session, `window._currentEngineId` is null; the client falls back
+to the engine associated with the selected dropdown frame, then to `"identity"`. It is set
+from server responses for all subsequent turns.
 
-When the learner asks a direct question, E4 (Section 8) updates `state_update.current_engine`
-in the response. The client applies this update, so the *next* call's `conversation_state`
-carries the redirected engine. Progression then continues from the new engine rather than
-reverting to the interrupted one.
+### 5.5 Learner initiative and engine redirection
 
-### 5.5 Bridge transitions
+When the learner asks a direct question and E4 fires (Section 8), the server writes a
+different engine into `state_update.current_engine`. The client applies this after the
+current response is rendered. The *next* frame selection uses the updated engine. The
+current response's frame was already selected using the previous engine.
+
+### 5.6 Bridge transitions
 
 `_select_next_frame_bridge()` fires when the current engine has no remaining frames or the
 session arc state (`loop_count_in_current_engine >= LOOP_COUNT_IN_ENGINE_SOFT_CAP`)
-suggests the engine is exhausted. The bridge selects a natural next engine from the
-`engines_visited` history, respecting coherence conditions and seeded engine preferences.
+suggests the engine is exhausted. The bridge selects from `_BRIDGE_TARGETS`, modified by
+seeded engine preferences and engines already visited.
 
-### 5.6 Engine exhaustion and fallback
+### 5.7 Frame selector fallback
 
-When no suitable frame can be found in any engine, the selector falls back to a safe
-conversational close or a generic acknowledgement. The system must not produce an empty
-frame text in production.
+When no suitable frame can be found in any engine, the server returns a 400 error ("no
+frame available for next question"). In practice, the closing-move logic fires first when
+the session has run long, ending the conversation with a natural statement before exhaustion
+is reached.
 
 ---
 
@@ -352,8 +439,8 @@ topic that has not been asked about yet. The server acknowledges with an empathe
 follow-up reply.
 
 **Recovery request** (`_is_rr`, `_is_meaning`, confusion signal). The learner signals they
-did not understand. The system provides a repeat, simplification, or meaning explanation
-without advancing the conversation. Detailed in Section 12.
+did not understand. The handling depends on whether the request was intercepted client-side
+or reached the server. Detailed in Section 12.
 
 **Short acknowledgement** (`_is_plain_affirmation`). The learner says 对, 嗯, 是的, etc.
 These clear confusion counters but do not trigger topic change.
@@ -362,27 +449,30 @@ These clear confusion counters but do not trigger topic change.
 as a content answer. The system is intentionally permissive: ambiguous input is better
 received as an imperfect answer than rejected.
 
-**Open-world fact or entity not in a fixed map** (`_extract_open_world_location`,
-`_is_unscripted_substantive_answer`). The learner mentions a place, food, or name not in
-the known vocabularies. The server accepts it, stores it if learner memory capture fires,
-and replies naturally.
+**Open-world input not in a fixed vocabulary** (`_extract_open_world_location`,
+`_is_unscripted_substantive_answer`). The learner mentions a place name not in
+`_CITY_LOCATION_BRIEF`, or a food or entity not in the known vocabularies. For location
+answers, `_extract_open_world_location()` accepts unknown place names using structural
+patterns (我现在住在X / 我住在X). For general unscripted answers, `_is_unscripted_substantive_answer()` checks whether the answer is non-trivially Chinese. Confirmed open-world entities
+can be stored in learner memory (e.g., a foreign city in `lives_in`) and used in later slot
+substitution. The system does not automatically understand, look up, or answer questions
+about arbitrary unknown entities.
 
 ### 6.1 Question-focus precedence
 
-**Architectural contract:** the grammatical focus of the learner's question must not be
+**Architectural contract:** the grammatical focus of a learner's question must not be
 displaced merely because another recognised entity appears earlier in the utterance.
 
-This invariant is enforced by `_place_from_question_context()` in
-`scripts/ui_server.py`. The function uses `_CITY_BEFORE_QUESTION_MARKER_RE`, a regex that
-matches a city token *immediately preceding* a feature or food question marker. This
-city takes priority over any other city found earlier in the utterance via
-`_context_city_from_text()`.
+This is enforced by `_place_from_question_context()` in `scripts/ui_server.py`. The
+function uses `_CITY_BEFORE_QUESTION_MARKER_RE`, a regex that matches a city token
+*immediately preceding* a feature or food question marker. This city takes priority over
+any other city found earlier in the utterance via `_context_city_from_text()`.
 
 **Illustrative example.** The learner says "我不喜欢上海，成都有什么特别？". The
 utterance contains 上海 before 成都. Without the question-focus rule, the system might
-answer with a Shanghai fact. The regex `_CITY_BEFORE_QUESTION_MARKER_RE` matches 成都
-immediately before 有什么特别, so 成都 is the resolved subject and the answer is about
-Chengdu. This was confirmed by `test_conversation_first_wave.py::test_city_routing_prefers_question_focus`.
+answer with a Shanghai fact. The regex matches 成都 immediately before 有什么特别, so
+成都 is the resolved subject and the answer is about Chengdu. Confirmed by
+`test_conversation_first_wave.py::test_city_routing_prefers_question_focus`.
 
 ---
 
@@ -392,8 +482,7 @@ Chengdu. This was confirmed by `test_conversation_first_wave.py::test_city_routi
 
 `_direct_persona_answer()` is called when the learner's utterance is classified as a direct
 question to the partner (`_is_direct_persona_question()` returns True, or the utterance
-matches specific place-feature or place-food patterns). It is also called from within the
-priority chain when a stale counter-reply override or explicit-place-topic block fires.
+matches specific place-feature or place-food patterns). It is also called from the stale-counter-reply override path and the explicit-place-topic block in the priority chain.
 
 ### 7.2 How question intent is inferred
 
@@ -405,47 +494,46 @@ question is not mis-routed as a generic name question.
 
 ### 7.3 How persona facts are selected
 
-The partner persona is loaded from `personas/jianguo.json` (or another persona JSON). The
+The partner persona is loaded from `personas/<id>.json` by `_resolve_persona()`. The
 function reads from:
 
 - `persona["profile"]` — structured fields (city, hometown, age, occupation, etc.);
-- `persona["voice_lines"]` — short first-person statements by topic (identity, family, work, etc.);
-- `persona["discoverable_facts"]` — longer narrative facts keyed by topic ID (travel_where, food, hobby, etc.);
-- `persona["distance_profile"]` — structured distance facts used by distance questions.
+- `persona["voice_lines"]` — short first-person statements by topic;
+- `persona["discoverable_facts"]` — longer narrative facts keyed by topic ID;
+- `persona["distance_profile"]` — structured distance facts.
 
-Facts are assembled into first-person Chinese responses dynamically. The function never
-returns a Chinese literal string embedded in Python; it always derives answers from the
-persona JSON.
+For most pattern branches, the function assembles a first-person Chinese response from
+persona JSON data. Some branches also contain inline Chinese fallbacks (e.g., "我老家在中国。")
+for cases where no persona fact is available. These inline fallbacks are a maintenance
+risk: they are not persona-specific and are not visible to content editors.
 
 ### 7.4 How direct answers differ from ordinary ladder replies
 
 An ordinary ladder reply is a frame selected from `p2_frames.json`: the partner *asks*
 the learner a question. A direct persona answer is the partner *responding* to the learner's
 question about the partner. The direct answer appears in `counter_reply`, not in
-`frame_text`. The two fields are assembled and returned independently in the same response
-payload.
+`frame_text`. The two fields are assembled and returned independently in the same response.
 
 ### 7.5 Dynamic facts and predefined voice lines
 
 When a specific fact is available in `persona["discoverable_facts"]`, the dynamic fact is
 used. When no specific fact exists, the function falls back to the matching entry in
 `persona["voice_lines"]`, which is a shorter general statement. When neither exists, a
-generic fallback is produced (e.g., "我觉得挺不错的。"). This three-level fallback is
-an architectural pattern: specificity first, voice line second, generic last.
+generic fallback is produced. This three-level fallback is an architectural pattern:
+specificity first, voice line second, generic last.
 
 ### 7.6 How unsupported questions are handled
 
-`_topic_aware_honest_fallback()` returns a topically-appropriate honest acknowledgement
-for questions the persona cannot specifically answer. `_persona_limitation_reply()` handles
-genuine out-of-scope questions. The system avoids the generic "computer character" disclaimer
-unless no topic-appropriate response is available.
+`_topic_aware_honest_fallback()` returns a topic-appropriate honest acknowledgement for
+questions the persona cannot specifically answer. `_persona_limitation_reply()` handles
+genuinely out-of-scope questions. The system avoids the generic "computer character"
+disclaimer when a topic-appropriate response is available.
 
 ### 7.7 Reconnecting to conversational progression
 
-After a direct persona answer, the next frame is selected by the normal frame selector.
-If E4 fired (Section 8), the frame selector uses the redirected engine, so the next question
-is on-topic relative to what the learner just asked. If E4 did not fire (generic deflection),
-the frame selector continues from the interrupted engine.
+After a direct persona answer, the next frame is selected by the normal frame selector
+using the engine from the incoming `conversation_state`. If E4 computed a handoff, that
+engine takes effect on the *following* call, not the current one.
 
 ---
 
@@ -454,43 +542,65 @@ the frame selector continues from the interrupted engine.
 ### 8.1 What E4 solves
 
 When a learner asks the partner a direct question, the partner answers it. Without further
-action, the next turn's frame selector would continue from whatever engine was active *before*
-the learner asked. This creates an incoherent experience: the learner asks about the
-partner's travel history, the partner answers, and then the *next* question is about the
-partner's name — because the conversation was in the identity engine at the time.
+action, the next turn's frame selector would continue from whatever engine was active
+*before* the learner asked — because frame selection uses `cs["current_engine"]` from the
+incoming payload, which has not yet been updated. This creates an incoherent experience:
+the learner asks about the partner's travel history, the partner answers, and then the
+*next* question is about the partner's name because the conversation was in the identity
+engine at the time.
 
-E4 (internal architecture label: "Initiative Follow") solves this by transferring
-conversational control to the engine that corresponds to the topic the learner just asked
-about. "E4" is an internal label, not a class or file. It refers to the initiative-follow
-handoff block in the `/api/run_turn` handler at line 10288 of `scripts/ui_server.py`.
+E4 (internal architecture label: "Initiative Follow") solves this by writing the redirected
+engine into `state_update.current_engine`, which the client applies to
+`window._currentEngineId` after the response arrives. The next call then carries the updated
+engine in `conversation_state`. "E4" is an internal label, not a class or file. It refers
+to the initiative-follow block in the `/api/run_turn` handler.
 
-### 8.2 Triggering conditions
+### 8.2 Exact timing
+
+E4 timing is unambiguous: it operates in two separate phases within a single response
+cycle.
+
+**Phase 1 — computation (before frame selection).** Around line 10296 of `ui_server.py`,
+the handler computes `_e4_engine_handoff` using `_QUESTION_TOPIC_TO_ENGINE` or
+`_infer_question_topic_engine()`. The result is stored in a local variable.
+
+**Phase 2 — write (after frame selection and payload assembly).** After all frame selection
+is complete and the response dict is assembled, the handler writes the handoff at line
+11833: `response["state_update"]["current_engine"] = _e4_engine_handoff`. This is the
+first time E4 affects any data structure.
+
+**Consequence:** E4 does *not* affect the frame returned in the same `/api/run_turn`
+response. The frame is selected using the engine from the incoming `conversation_state`.
+E4 only affects the following request, after the client applies `state_update.current_engine`
+to `window._currentEngineId`.
+
+### 8.3 Triggering conditions
 
 E4 fires when all of the following are true:
 
 1. The learner asked a question (`user_asked_question = True`).
 2. A confident non-generic answer was produced (`_counter_result` is not None).
 3. The answer came via one of the three supported paths:
-   - **Mirror bank** (`_counter_is_new_mirror = True`): the question matched a known mirror topic;
+   - **Mirror bank** (`_counter_is_new_mirror = True`): the question matched a known mirror
+     topic with a `topic` field;
    - **Working memory** (`_counter_is_working_memory = True`): the answer came from recent
      persona replies via `_answer_from_working_memory()`;
    - **Direct persona / static fact**: the answer came from `_direct_persona_answer()` and
      the resulting text is not in the generic deflection phrase set.
 
-### 8.3 How it identifies the implied engine
+E4 does not fire when: the learner made a statement (not a question); `_counter_result` is
+None; the answer is a generic deflection; the question could not be classified by
+`_infer_question_topic_engine()` (returns None).
 
-For mirror-bank answers: the mirror entry carries an explicit `topic` field; the topic is
-mapped to an engine via `_QUESTION_TOPIC_TO_ENGINE`.
+### 8.4 Which fields carry the handoff
 
-For working memory and direct-persona answers: `_infer_question_topic_engine()` classifies
-the question text using keyword matching and pattern priority (place-feature/food questions
-→ place; cooking questions → food; travel keywords → travel; etc.).
+Server-side: `response["state_update"]["current_engine"]` (a string engine name, e.g.
+`"travel"`).
 
-### 8.4 How it transfers conversational control
+Client-side: `window._currentEngineId = data.state_update.current_engine` (applied in
+`_runTurnInner` after receiving the response).
 
-E4 writes the resolved engine into `response["state_update"]["current_engine"]`. The client
-applies this update to `window._currentEngineId`. On the next call, `conversation_state`
-carries the new engine. The frame selector then picks from the correct engine's `_FRAME_ORDER`.
+The updated value is included in the *next* `conversation_state.current_engine`.
 
 ### 8.5 What state it changes and must preserve
 
@@ -511,18 +621,24 @@ system feel unresponsive to learner initiative.
 
 ### 9.1 The separation
 
-The server response contains two structurally independent parts:
+The server response contains two structurally separate parts:
 
 - **`counter_reply` / `counter_reply_pinyin` / `counter_reply_en`**: what the partner says
-  *in response to the learner's current answer*. This is generated from the answer-source
-  priority chain.
+  *in response to the learner's current answer*. Generated from the answer-source priority
+  chain.
 
 - **`frame_text` / `frame_pinyin` / `frame_text_en` / `options`**: the partner's *next
-  question or statement* that continues the conversation. This is selected by the frame
-  selector independently of the counter-reply.
+  question or statement*. Selected by the frame selector independently.
 
-These two fields are never generated from the same code path. A developer modifying how
-the partner answers direct questions does not affect frame selection, and vice versa.
+These two concerns are handled by separate code paths and separate data sources. They are
+coordinated through shared data — particularly the E4 handoff, `state_update`, `current_engine`,
+and the answer-source result — but they are not generated from the same variables and
+changes to one path do not automatically change the other.
+
+The separation is an architectural goal, not a guarantee of complete independence: the
+priority chain result informs whether E4 fires, which in turn informs the engine used on
+the *next* call's frame selection. A developer modifying the counter-reply chain should
+check whether E4 triggering conditions are affected.
 
 ### 9.2 The answer-source priority chain
 
@@ -544,16 +660,15 @@ The following chain is executed in order; the first non-None result becomes `cou
 9. **Repeat / slower request** (`_is_rr`) → `_clarify_app_question()`.
 10. **Lexical definition** (`_lex_ct`) → `_lexical_definition_reply()`.
 11. **Stale counter-reply override** (fresh direct persona question after a previous
-    counter-reply exists) → `_direct_persona_answer()` called directly (bypassing the mirror
-    bank to prevent recycling an earlier city/place answer).
+    counter-reply exists) → `_direct_persona_answer()` called directly.
 12. **Mirror confusion escalation** (confusion signal on an active mirror topic):
     - Stage 1 → `_mirror_restate_naturally()`;
     - Stage 2 → `_mirror_persona_stub_simple()`;
     - Stage 3+ → `_confusion_recovery_reply()`.
 13. **App-question confusion** (confusion signal with no prior counter-reply) →
     `_clarify_app_question()`.
-14. **Noisy location answer** (location frame but answer looks garbled) → flag only;
-    frame override applied later.
+14. **Noisy location answer** (location frame, answer looks garbled) → flag only;
+    frame-text override applied later in post-assembly.
 15. **Pending-frame commitment** (off-topic answer to a commitment frame) →
     `_clarify_app_question()`.
 16. **Adjacency guard** (learner asks "why do you like X?" when a mirror engine is active)
@@ -562,20 +677,20 @@ The following chain is executed in order; the first non-None result becomes `cou
     relevant fact) → `_answer_from_working_memory()`.
 18. **Mirror bank + general answer** → `_answer_user_question_prefix()` which calls
     `_find_mirror_answer()` then `_direct_persona_answer()`.
-19. **`None`** — no counter-reply this turn; the frame question drives the next turn.
+19. **`None`** — no counter-reply this turn.
 
 ### 9.3 `frame_id` and ladder position
 
-`frame_id` identifies which frame was selected as the next question. It is included in
-the response so the client can update `window._lastPartnerFrameId` and append it to
+`frame_id` identifies the frame selected as the next question. It is included in the
+response so the client can update `window._lastPartnerFrameId` and append it to
 `window._recentFrameIds`. These values are essential for deduplication in subsequent calls.
 
 ### 9.4 Relationship to `ANSWER_SOURCE_CONTRACT.md`
 
 The full field-by-field definition of how each answer-source path constructs its `(zh, en)`
-tuple, including which persona fields take precedence, is left to `ANSWER_SOURCE_CONTRACT.md`
-(not yet created). This document establishes the boundary: `counter_reply` and `frame_text`
-are always distinct; each has a single responsible code path.
+tuple is left to `ANSWER_SOURCE_CONTRACT.md` (not yet created). This document establishes
+the boundary: `counter_reply` and `frame_text` are separate responsibilities, coordinated
+through explicit data rather than shared mutable state.
 
 ---
 
@@ -585,9 +700,11 @@ MandarinOS maintains four distinct context scopes.
 
 ### 10.1 Immediate turn context
 
-Information extracted from the current request payload only: the current answer text, the
-normalised routing text, the inferred intent flags. These values are computed fresh each
-turn from the `payload` and are never stored.
+Information computed from the current request payload: the answer text, normalised routing
+text, inferred intent flags. These are local variables computed fresh each turn from
+`payload`. They are not stored in session state or learner memory. However, derived facts
+(e.g., `slot_names` indicating a CITY slot was answered) do feed into learner memory
+capture and session state updates within the same turn.
 
 ### 10.2 Working memory (`recent_persona_replies`, `last_counter_reply`, `last_partner_frame_text`)
 
@@ -599,7 +716,7 @@ as `cs["recent_persona_replies"]` in `conversation_state`. It is read on each tu
 - support confusion escalation (mirror confusion ladder).
 
 Working memory is client-maintained (included in `conversation_state`) and server-read.
-It is not persisted across sessions and is cleared on `startFreshLearner()`.
+It is cleared on `_resetCurrentSessionState()` and does not survive across sessions.
 
 ### 10.3 Persistent learner memory (`learner_memory.py`)
 
@@ -613,15 +730,24 @@ The server stores six learner facts keyed by `learner_id`:
 - `favourite_food` — preferred food.
 
 These facts are captured automatically from learner answers by `_capture_from_turn()` and
-persisted to `data/learner_memory.json`. They survive across sessions and are used for
-slot substitution (e.g., `{CITY}` in a frame is resolved from `lives_in`).
+persisted by `_lm_save()`.
+
+**Persistence path:** the default storage location is `data/learner_memory.json` (relative
+to the repository root), keyed by `learner_id`. The path is configurable via the
+`MANDARINOS_DATA_DIR` environment variable. In Railway deployments, the actual storage
+location is determined by the mounted volume path provided through this variable, not by
+the in-repo `data/` directory. The architectural contract is that the server is authoritative
+for learner memory and the client never sends learner_memory in its payload; the specific
+file path is an operational detail.
+
+**Reset:** `startFreshLearner()` calls `/api/reset_memory` to clear server-side facts for
+the current `learner_id`. Progress snapshots are not affected.
 
 **Architectural distinction:** working memory is short-lived context for conversational
 follow-up; learner memory is a persistent biographical profile used to personalise frame
-text. They must not be conflated. The server is authoritative for learner memory; the client
-never sends learner_memory in its payload.
+text. They must not be conflated.
 
-### 10.4 Persona facts (`personas/jianguo.json`)
+### 10.4 Persona facts (`personas/<id>.json`)
 
 The partner persona's facts are static JSON: `profile`, `voice_lines`, `discoverable_facts`,
 `discoverable_facts_en`, `voice_lines_en`, and `distance_profile`. These are loaded at
@@ -631,15 +757,15 @@ are not learner data.
 ### 10.5 Current topic / engine state
 
 `conversation_state` carries `current_engine`, `loop_count_in_current_engine`,
-`engines_visited`, `seeded_bridge_engines`, and similar fields that track where the
-conversation is in its arc. These are client-maintained and server-read; the server may
-update them in `state_update`.
+`engines_visited`, `seeded_bridge_engines`, and related fields tracking where the
+conversation is in its arc. These are client-maintained and server-read; the server updates
+them in `state_update`.
 
 ### 10.6 Examples
 
 | Scope | Example fact | Lifetime |
 |-------|-------------|---------|
-| Immediate turn | Learner said "我住在成都" | One turn only |
+| Immediate turn | Learner said "我住在成都" (routing text) | One turn only |
 | Working memory | Partner said "我去过西藏" three turns ago | Current session |
 | Learner memory | Learner's hometown is Dunedin | All future sessions |
 | Persona facts | Jianguo's favourite food is 麻婆豆腐 | Static; changed by editing the JSON |
@@ -653,108 +779,129 @@ update them in `state_update`.
 
 Before returning a `counter_reply`, the server checks whether the candidate text (or its
 bare form after stripping the discourse prefix "我呢，") appears in `recent_persona_replies`
-or matches `last_counter_reply`. This check is performed in the deduplication guard at
-line 10351 of `scripts/ui_server.py`.
+or matches `last_counter_reply`. This check is performed in the deduplication guard in
+`scripts/ui_server.py`.
 
 If the candidate is stale, `_dedupe_persona_answer()` attempts to re-pick from the
 *same-intent answer pool* (e.g., another feature fact for the same city). Only when that
 pool is exhausted does it fall back to a topically appropriate clarification phrase. It
-never selects from a different intent's pool as the first fallback, because doing so would
-produce an answer about a different city or topic than the one asked.
+does not select from a different intent's pool as the first fallback, because doing so
+would produce an answer about a different city or topic than the one asked.
 
 ### 11.2 Semantic stale-answer detection and answer-pool re-selection
 
 The place-feature and place-food answer pools (`_FEAT_POOL_INLINE`, food pool) contain
 multiple alternative answers per city. When the first answer is stale, the system cycles
-through alternatives before giving up. This prevents the learner from receiving the same
-description of Chengdu or Shanghai on every visit to the place engine. Test coverage:
-`test_stale_answer_loop_regression.py`, `test_stale_counter_reply_loop.py`.
+through alternatives before giving up. Tests: `test_stale_answer_loop_regression.py`,
+`test_stale_counter_reply_loop.py`.
 
 ### 11.3 Stale counter-reply override
 
-The stale-counter-reply override (priority chain step 11 in Section 9.2) prevents a prior
-place or city answer from being recycled when the learner asks a different direct question.
-Without this guard, `_answer_user_question_prefix` might find a keyword match in a previous
-mirror answer (e.g., 西安 in a prior reply) and return the same reply for a new, different
-question. The guard calls `_direct_persona_answer()` directly for fresh direct questions,
-bypassing the mirror path's keyword-matching.
+The stale-counter-reply override (priority chain step 11) prevents a prior place or city
+answer from being recycled when the learner asks a different direct question. The guard
+calls `_direct_persona_answer()` directly for fresh direct questions, bypassing the mirror
+path's keyword-matching which can recycle earlier answers.
 
-### 11.4 Fallback and deduplication path must preserve answer-source contracts
+### 11.4 Fallback and deduplication paths must preserve translation contracts
 
-When deduplication falls back to a clarification phrase, the Chinese, pinyin, and English
-still come from the same resolution path: `_persona_answer_en()` is called on the final
-Chinese text. There is no separate English source for the fallback case.
+When `_dedupe_persona_answer()` selects an alternative, `_persona_answer_en()` is called on
+the alternative Chinese text. The English corresponds to the alternative selected, not the
+original stale answer. Enforcement: `_persona_answer_en()` called on `_deduped` at the
+dedup guard's substitution point.
 
-### 11.5 Chinese and English must not become unsynchronised
+### 11.5 Chinese–English synchronisation
 
-**Architectural contract:** the final `counter_reply` Chinese text is the source of truth.
-`counter_reply_en` must be derived from that exact Chinese text using `_persona_answer_en()`.
-The resolution order in `_persona_answer_en()` is: deflection-phrase map, voice_lines_en,
-reverse-fact English, discoverable_facts_en, phrase-bank. The English must correspond to
-the specific city or fact answered, not to a coarse intent label.
+**Intended contract:** `counter_reply_en` should be derived from the final `counter_reply`
+Chinese text via `_persona_answer_en()`, not from a coarse intent label. The resolution
+order in `_persona_answer_en()` is: deflection-phrase map, voice_lines_en,
+reverse-fact English, discoverable_facts_en, phrase-bank.
 
-This contract was established after a regression (first-bad commit `0177994`) where
+This was introduced after a regression (first-bad commit `0177994`) where
 `_reverse_fact_answer_en()` returned English for the wrong subject. Tests:
-`test_zh_en_synchronisation.py`.
+`test_zh_en_synchronisation.py` covers the deduplication path regression.
+
+**Known limitation:** not every code path that produces a `counter_reply` is equally well
+tested for synchronisation. Paths that construct Chinese dynamically (e.g.,
+`_persona_limitation_reply`, `_soft_persona_fallback`) return English via `_persona_answer_en`'s
+phrase-bank lookup, which may return `""` if the phrase is not in the map.
 
 ---
 
 ## 12. Recovery as part of conversation
 
 Recovery is a first-class conversation capability, not an error state. When the learner
-does not understand, the conversation provides repair without losing the current topic or
-advancing the ladder.
+does not understand, the system provides repair. The behaviour differs by path.
 
-### 12.1 Recovery types
+### 12.1 Two recovery paths with different frame outcomes
 
-**Repeat request** (`_REPEAT_REQUEST_MARKERS`): markers including 再说一遍, 请再说 signal
-the learner wants the partner's last statement repeated. The server calls
-`_clarify_app_question()` on `last_partner_frame_text`, which rephrases (not verbatim
-repeats) the last question in simpler Chinese.
+**Path A — Client spoken interception (primary path for spoken input).**
 
-**Slower-speech request** (`_SLOWER_REQUEST_MARKERS`): markers including 慢一点, 慢慢说
-are treated equivalently to repeat requests. The response is the same simplified
-rephrasing.
+When a spoken transcript matches a recovery phrase via `matchSpokenRecoveryPhraseExact()`
+with action `repeat`, `slower`, or `meaning`, the client handles recovery entirely locally:
 
-**Meaning request** (`_MEANING_REQUEST_MARKERS`, including 什么意思, 是什么意思): the
-server calls `_meaning_recovery_reply()`, which provides the English gloss of the last
-frame question plus a simpler Chinese version.
+- It adds the learner's phrase to the transcript.
+- It replays the current frame question (with slower TTS rate for `slower`).
+- It does *not* contact the server.
+- The `frame_id`, `frame_text`, and ladder position do not change.
+- The next regular turn continues from the same frame.
 
-**Frustration / confusion signal** (`_is_confusion_signal`, `_is_frustration_or_insult`):
-handled by mirror confusion escalation (Section 9.2, steps 12–13) or
-`_confusion_recovery_reply()`.
+This is the primary recovery path. It gives the learner what they asked for (a repeat or
+slower version of the current question) without consuming a server turn.
 
-### 12.2 Recovery phrase set
+**Path B — Server-side `_is_rr` / `_is_meaning` (fallback path).**
+
+When a recovery-like text reaches the server — because it was typed rather than spoken, or
+because it was not matched by the client interceptor — the server classifies it via
+`_is_rr`, `_is_meaning`, or `_is_example`. The handling is:
+
+- `counter_reply` is set to a rephrase of the previous frame question
+  (via `_clarify_app_question()` or `_meaning_recovery_reply()`).
+- Normal frame selection runs and picks a new frame from the ladder.
+- `frame_text` is a new question, not a repeat of the previous one.
+
+**Consequence:** In Path B, the ladder *does* advance. The rephrase appears in
+`counter_reply`; the learner then faces a new frame question.
+
+### 12.2 Confusion escalation
+
+When the learner signals confusion (not a specific recovery phrase) while a mirror answer
+is active, the mirror confusion escalation ladder fires:
+- Stage 1: `_mirror_restate_naturally()` — natural restatement.
+- Stage 2: `_mirror_persona_stub_simple()` — simplified version.
+- Stage 3+: `_confusion_recovery_reply()` — generic recovery.
+
+Normal frame selection runs after each of these. The frame advances.
+
+When the learner signals confusion about the partner's frame question (no active mirror),
+`_clarify_app_question()` is used for `counter_reply` and normal frame selection runs.
+
+### 12.3 Noisy location clarification (frame override)
+
+When the learner's answer to a location frame looks garbled (`_noisy_location_clarify`),
+the server overrides `frame_text` and `frame_id` in the post-assembly phase to repeat the
+location frame at the appropriate escalation level (rephrase → natural re-ask → gentle
+move-on). This is one of the few cases where frame selection output is explicitly
+overridden. The ladder does not advance until the location answer is accepted.
+
+### 12.4 Recovery phrases
 
 The canonical learner-side recovery phrases are defined in `content/recovery_phrases.json`
 (schema version 1.3). Each phrase has an `id`, `hanzi`, `pinyin`, `text_en`, `repair_kind`
 (soft_hold, repeat, meaning, etc.), and `move_type` (REPAIR). The client displays these
-phrases in the recovery panel when `computeRecoveryTriggerContext()` detects that the
-learner is not understood, so the learner can tap a phrase without having to produce it
-from memory.
+phrases in the recovery panel so the learner can tap a phrase without producing it from
+memory.
 
-### 12.3 How recovery preserves progression
+### 12.5 Challenge mode
 
-Recovery responses are produced in `counter_reply` and do not change the selected
-`frame_id` or update `current_engine`. The frame selector is still called normally after a
-recovery turn. The effect is that the *same* frame is asked again (because it was not marked
-as seen), giving the learner another chance to answer. This is the intended behaviour:
-recovery keeps the learner on the same practice moment until they are ready to continue.
+In challenge mode, the default hint buttons and recovery panel are hidden. Spoken recovery
+phrases are still intercepted by `matchSpokenRecoveryPhraseExact()` (Path A above). The
+server's recovery routing is unchanged in challenge mode.
 
-### 12.4 Challenge mode
+### 12.6 Recovery and topic routing
 
-In challenge mode, the `?` hint button and recovery options are hidden from the default UI.
-The learner must speak or type unaided. Recovery phrases are still available via the spoken
-recovery intercept on the client (`computeRecoveryTriggerContext` still fires; recovery
-panel can be triggered explicitly). The server's recovery routing is unchanged in challenge
-mode.
-
-### 12.5 How recovery differs from topic routing
-
-Recovery is classified *before* topic routing in the answer-source priority chain (steps
-7–9 precede steps 11–18). A learner who says 什么意思 never reaches the mirror bank or
-frame selector for that turn. This is the correct behaviour: the learner asked for
-clarification, not a new topic.
+Recovery classification runs before topic routing in the answer-source priority chain
+(steps 7–9 precede steps 11–18). A learner who says 什么意思 via Path B does not reach
+the mirror bank or new frame for that counter_reply.
 
 ---
 
@@ -764,16 +911,17 @@ clarification, not a new topic.
 
 - Whether a spoken utterance is complete enough to send.
 - Whether a transcript matches a visible option.
-- Whether the transcript is a recovery phrase (via `computeRecoveryTriggerContext`).
+- Whether the transcript is a spoken recovery phrase (intercept, no server call).
 - Whether a free answer is acceptable (`classifyUnmatchedFreeAnswerDecision`).
 - How to render partner statements, options, recovery panels, and the transcript.
 - Maintaining `conversation_state` and all `window._*` variables.
 - TTS playback and listening state.
 - Session start, reset, and learner ID management.
+- Selecting the active persona (`window._partnerId`) via persona buttons.
 
-### 13.2 Decisions owned by the server (`scripts/ui_server.py`)
+### 13.2 Decisions owned by the server (`scripts/ui_server.py`) — after submission
 
-- All answer-source selection.
+- All semantic conversation routing decisions.
 - Topic engine and frame selection.
 - E4 engine handoff.
 - Persona fact retrieval and first-person answer generation.
@@ -786,28 +934,28 @@ clarification, not a new topic.
 
 The client sends a JSON payload to `/api/run_turn` containing:
 
-- `conversation_state` — the full client-side session context (engine, frame history,
-  counters, last answer, recent persona replies);
+- `conversation_state` — full session context (engine, frame history, counters, last
+  answer, recent persona replies);
 - `next_question: true` (or `frame_id` / `engine_id` for explicit frame loads);
-- `persona_id` (from the learner's profile);
-- `diag_trace_id` (optional; minted by AsrDiag);
-- `env: "dev"` (environment tag).
+- `persona_id` — the active partner's ID, from `window._partnerId` (persona button
+  selection) falling back to `window._personaId`;
+- `diag_trace_id` (optional, minted by AsrDiag);
+- `env: "dev"`.
 
 The server returns:
 
 - `frame_text`, `frame_pinyin`, `frame_text_en` — the next partner question;
-- `counter_reply`, `counter_reply_pinyin`, `counter_reply_en` — the partner's response to this turn;
+- `counter_reply`, `counter_reply_pinyin`, `counter_reply_en` — the partner's response;
 - `engine_id`, `frame_id`, `options`, `turn_type`;
-- `state_update` — specific fields the client must update (e.g., `current_engine` after E4);
+- `state_update` — specific fields to update (e.g., `current_engine` from E4);
 - `diag` — server-side diagnostic capture, if applicable.
 
 ### 13.4 Which client-side heuristics affect routing or display
 
-`_detectSemanticCategory()` in `ui/app.js` categorises unmatched free text for display
-purposes and to guide `classifyUnmatchedFreeAnswerDecision`. `semanticSoftMatch()` provides
-a secondary relevance check. These affect only whether the client *sends* the answer to the
-server, not what the server does with it. The server performs all routing on its own
-normalised text.
+`_detectSemanticCategory()` in `ui/app.js` categorises unmatched free text to guide
+`classifyUnmatchedFreeAnswerDecision`. `semanticSoftMatch()` provides a secondary
+relevance check. These affect only whether the client *sends* the answer to the server, not
+what the server does with it.
 
 ### 13.5 Intentional duplication and verification scripts
 
@@ -817,14 +965,10 @@ the key client-side routing functions (`_detectSemanticCategory`,
 these functions are embedded in `ui/app.js` and cannot be unit-tested directly by the
 Python test suite.
 
-**Maintenance implication:** whenever `_detectSemanticCategory` or
-`classifyUnmatchedFreeAnswerDecision` are updated in `ui/app.js`, `verify_asr_filler.js`
-must be updated to stay consistent. The script contains more than 80 assertions and is
-run as part of the manual verification tier via `node tests/verify_asr_filler.js`.
-
-The UI must never independently recreate server-side conversation logic. The boundary is
-intentional: if the client appears to be making routing decisions that belong on the server,
-that is a boundary violation, not an optimisation.
+**Maintenance implication:** whenever the mirrored functions are updated in `ui/app.js`,
+`verify_asr_filler.js` must be updated to stay consistent. The script contains more than
+80 assertions and is run as part of the manual verification tier via
+`node tests/verify_asr_filler.js`.
 
 ---
 
@@ -833,9 +977,8 @@ that is a boundary violation, not an optimisation.
 ### 14.1 Architectural purpose
 
 Diagnostics allow a developer or operator to observe what the system saw and decided without
-changing how the system behaves. They exist to diagnose spoken-input divergence (why a
-spoken answer was routed differently from its typed equivalent), routing failures, and
-answer-source selection.
+changing how the system behaves. They exist to diagnose spoken-input divergence, routing
+failures, and answer-source selection.
 
 ### 14.2 Server-side trace capture
 
@@ -847,102 +990,124 @@ populates a `_diag_cap` dict with:
 - intent flags (`user_asked_question`, `direct_persona_intent`, `place_feature_match`, etc.);
 - `conversation_state` fields relevant to routing (`current_engine`, `last_counter_reply`,
   `last_place_subject`, `recent_persona_replies` count);
-- the normalizer name (`_normalize_zh_for_routing`, exposed as `_diag_normalizer_name()`).
-
-The `_diag_cap` is attached to the response as `data.diag` and returned to the client.
+- the normalizer name (reported as `_diag_normalizer_name()`).
 
 ### 14.3 Client-side ASR trace
 
 `AsrDiag` in `ui/app.js` tracks the spoken input path: when microphone input began, the
-transcript, confidence, and submission path. After the server responds, `AsrDiag.complete()`
-joins the server-side `diag` payload to the client-side trace and flushes it.
+transcript, confidence, and submission path (microphone vs typed/translated; whether
+submitted to the server or intercepted as recovery). After the server responds,
+`AsrDiag.complete()` joins the server-side `diag` payload to the client-side trace.
 
 ### 14.4 Deployed identity
 
-The production application exposes a `/api/version` (or equivalent) endpoint that reports:
+The production application exposes `/api/version` and `/api/health` at the same path,
+returning a JSON object with fields including:
 
-- `branch: main`;
-- `sha`: the deployed commit SHA;
-- `diagnostics_enabled: true`;
-- `normalizer: _normalize_zh_for_routing`.
+```json
+{
+  "branch": "main",
+  "sha": "<commit-sha>",
+  "status": "ok",
+  "diag_enabled": true,
+  "normalizer": "_normalize_zh_for_routing"
+}
+```
 
-No credentials, private URLs, tokens, or environment secrets are included in any diagnostic
-payload or documentation.
+The field is `diag_enabled` (confirmed at line 8529 of `scripts/ui_server.py`). No
+credentials, private URLs, tokens, or environment secrets are included.
 
 ### 14.5 Diagnostic log messages are not architectural contracts
 
-The exact wording of server log lines (e.g., `[ui_server] /api/run_turn payload keys=...`)
-is not a contract. Log messages may be changed or removed without architectural impact.
-Only the structured `diag` response field and the `/api/version` payload are intended
-as stable diagnostic interfaces.
+Server log lines (e.g., `[ui_server] /api/run_turn payload keys=...`) may be changed or
+removed without architectural impact. Only the structured `diag` response field and the
+`/api/version` payload are intended as stable diagnostic interfaces.
 
 ---
 
 ## 15. Invariants
 
-The following are verified architectural invariants at the baseline. Each is supported by
-code and representative tests. Where enforcement is currently incomplete, this is noted
-explicitly.
+The following are the verified architectural invariants at the baseline. Each is labelled
+with its enforcement status.
 
 **INV-1: The learner's explicit question takes precedence over routine ladder continuation.**
-When `user_asked_question = True` and a confident answer is produced, E4 updates
-`current_engine` to the questioned topic. The next frame is then selected from the redirected
-engine. *Enforcement:* E4 block in `scripts/ui_server.py:10288`; `state_update.current_engine`
-write. *Tests:* `test_e4_topic_handoff.py`.
+When `user_asked_question = True` and a confident answer is produced, E4 computes a
+handoff engine, which is written to `state_update.current_engine` and takes effect on the
+following call. The *current* turn's frame is still selected from the incoming engine, but
+the *next* frame honours the learner's redirected topic.
+*Enforcement:* E4 block in `scripts/ui_server.py` (lines 10288–10313, 11833–11835);
+client applies `state_update.current_engine`.
+*Tests:* `test_e4_topic_handoff.py`.
 
 **INV-2: The grammatical focus of a learner question must not be displaced by irrelevant
 recognised entities appearing earlier in the utterance.**
 `_place_from_question_context()` uses `_CITY_BEFORE_QUESTION_MARKER_RE` to prioritise the
-city immediately preceding the question marker over any other city in the utterance.
-*Enforcement:* `scripts/ui_server.py:_place_from_question_context`. *Tests:*
-`test_conversation_first_wave.py::test_city_routing_prefers_question_focus`.
+city immediately preceding the question marker.
+*Enforcement:* `scripts/ui_server.py:_place_from_question_context`.
+*Tests:* `test_conversation_first_wave.py::test_city_routing_prefers_question_focus`.
 
-**INV-3: Direct persona answers must not leave topic progression in an incoherent state.**
-E4 fires after every confident direct answer to redirect the engine. When E4 does not fire
-(generic deflection), the previous engine is preserved. In both cases, the response
-includes a coherent next frame. *Enforcement:* E4 gating on deflection-phrase set;
-frame selector always produces a frame. *Tests:* `test_e4_topic_handoff.py::TestE4DirectPersonaHandoff`.
+**INV-3: When a direct persona answer is produced in response to a learner question, the
+engine handoff is written for the next call.**
+*Scope:* Only when E4 triggers (see Section 8.3). E4 does not fire for generic deflections,
+limitation replies, or when `_counter_result` is None. The handoff affects the following
+request, not the current frame.
+*Enforcement:* E4 gating on deflection-phrase set; `state_update` write after assembly.
+*Tests:* `test_e4_topic_handoff.py::TestE4DirectPersonaHandoff`.
 
-**INV-4: Answer text and progression state are separate concerns.**
-`counter_reply` and `frame_text` are always distinct fields assembled from independent
-code paths. A change to one does not affect the other. *Enforcement:* structural separation
-in the `response` dict construction; no shared variable between the two paths. *Tests:*
-`test_zh_en_synchronisation.py`.
+**INV-4: Answer-text generation and conversation frame progression are logically separate
+concerns, coordinated through explicit data.**
+`counter_reply` and `frame_text` are assembled from independent code paths. They are
+coordinated through E4 (which uses the answer-source result to compute the handoff engine)
+and `state_update`. Modifying one path requires checking whether E4 triggering is affected.
+*Enforcement:* structural separation in the `response` dict; E4 as the explicit coordination
+mechanism.
+*Tests:* `test_zh_en_synchronisation.py`.
 
-**INV-5: Chinese and English must describe the same selected answer.**
-`counter_reply_en` is always derived from the final `counter_reply` Chinese text via
+**INV-5: Chinese and English should describe the same selected answer.**
+`counter_reply_en` is derived from the final `counter_reply` Chinese text via
 `_persona_answer_en()`. The deduplication path calls `_persona_answer_en()` on the
-*substitute* answer, not on the original intent. *Enforcement:* `_persona_answer_en()`
-called on every counter-reply modification, including deduplication. *Tests:*
-`test_zh_en_synchronisation.py`.
+substitute answer, not the discarded original.
+*Enforcement:* `_persona_answer_en()` called on every counter-reply modification including
+deduplication.
+*Tests:* `test_zh_en_synchronisation.py` (deduplication regression).
+*Known limitation:* some dynamic paths (e.g., `_soft_persona_fallback`) may return `""` for
+`counter_reply_en` when the phrase is not in any lookup map.
 
 **INV-6: Working memory and persistent learner memory must not be conflated.**
-`recent_persona_replies` (working memory) is round-tripped by the client within one session.
-Learner memory fields (`learner_name`, `hometown`, etc.) are written only by the server via
-`_lm_save()` and never sent by the client. *Enforcement:* `learner_memory.py` validates that
-only keys in `LEARNER_MEMORY_KEYS` are stored; the server never reads learner_memory from
-the client payload. *Tests:* `test_learner_memory_migration.py`.
+`recent_persona_replies` (working memory) is round-tripped within one session.
+Learner memory fields are written only by the server via `_lm_save()` and are never sent
+by the client in the payload.
+*Enforcement:* `learner_memory.py` validates allowed keys; the server ignores any
+`learner_memory` field in the client payload.
+*Tests:* `test_learner_memory_migration.py`.
 
-**INV-7: Recovery handling must not accidentally advance the topic ladder.**
-Recovery responses are placed in `counter_reply`. Frame selection is still called, but since
-the recovery turn is not recorded in `recent_frame_ids` as a new frame, the same frame
-is presented again. *Enforcement:* recovery branches in the priority chain set
-`_counter_result` without changing `frame_id` selection logic. *Tests:*
-`test_challenge_recovery.py`, `test_meaning_recovery.py`.
+**INV-7: Client-side spoken recovery interception preserves the current frame; server-side
+recovery classification may advance the ladder.**
+When the client intercepts a spoken recovery phrase (Path A), no server call is made and
+the frame does not advance. When recovery text reaches the server via Path B (`_is_rr`,
+`_is_meaning`), `counter_reply` is a rephrase but normal frame selection runs and a new
+frame is selected.
+*Intended contract:* the primary path (client interception) fulfils the "don't advance on
+recovery" expectation. The server fallback path does advance.
+*Tests:* `test_challenge_recovery.py` (server-side marker contracts);
+`tests/verify_asr_filler.js` (client-side interception).
 
-**INV-8: Fallback and deduplication paths must preserve answer-source and translation
-contracts.**
-When `_dedupe_persona_answer()` selects an alternative, it calls `_persona_answer_en()` on
-the alternative Chinese text. It never returns an English string from the discarded
-candidate. *Enforcement:* `_persona_answer_en()` called on `_deduped` at line 10361.
+**INV-8: Fallback and deduplication paths preserve answer-source and translation contracts.**
+When `_dedupe_persona_answer()` selects an alternative, `_persona_answer_en()` is called on
+the alternative. The English corresponds to what was actually said, not to what was
+discarded.
+*Enforcement:* `_persona_answer_en()` called on `_deduped` at the dedup guard.
 *Tests:* `test_stale_answer_loop_regression.py`.
 
-**INV-9: Client display state must not silently redefine server conversation state.**
-`window._currentEngineId` and `window._recentFrameIds` are populated only from server
-responses (`data.engine_id`, `data.state_update`, `data.frame_id`). The client does not
-independently decide which engine is active or which frames have been seen. *Enforcement:*
-engine update logic in `ui/app.js:6240–6249` reads from `data` fields only. *Tests:*
-`test_conversation_first_wave.py::test_active_turn_record_single_source_of_truth`.
+**INV-9: Client conversation state is updated from server responses for all post-first-turn
+updates.**
+For turns after the first, `window._currentEngineId` is set from `data.engine_id` or
+`data.state_update.current_engine` in the server response. `window._recentFrameIds` is
+appended from `data.frame_id`.
+*Exception:* On the first turn of a session, `window._currentEngineId` is null and the
+client falls back to the engine from the dropdown's data attribute or `"identity"`. This
+is a legitimate client-side initialisation.
+*Tests:* `test_conversation_first_wave.py::test_active_turn_record_single_source_of_truth`.
 
 ---
 
@@ -951,87 +1116,78 @@ engine update logic in `ui/app.js:6240–6249` reads from `data` fields only. *T
 ### 16.1 Adding a new topic engine
 
 **Files changed:** `_FRAME_ORDER` in `scripts/ui_server.py` (add engine key and frame list);
-`p2_frames.json` (add frame definitions); `_QUESTION_TOPIC_TO_ENGINE` (if the engine can
-be E4-triggered); `_infer_question_topic_engine()` (add classification keywords if needed).
+`_BRIDGE_TARGETS` (add entry so other engines can bridge to it); `p2_frames.json` (add
+frame definitions); `_QUESTION_TOPIC_TO_ENGINE` and `_infer_question_topic_engine()` if E4
+should classify questions into this engine.
 
-**Tests to add or update:** at minimum, one test confirming the new engine's frames appear
-in selection output; one test confirming E4 redirects to it correctly.
+**Tests to add:** at minimum, one test confirming frames appear in selection; one confirming
+E4 redirects correctly if applicable.
 
-**State and answer-source contracts to check:** ensure `skip_when` conditions are
-declarative predicates registered in `_check_skip_condition()`; do not add `if`-blocks in
-the selector for new engine names.
-
-**Common bypass risk:** writing engine-specific logic directly in the selector rather than
-as `skip_when` in the frame JSON.
+**Common bypass risk:** adding frames without adding the engine to `_BRIDGE_TARGETS`,
+making the engine unreachable via normal bridge transitions.
 
 ### 16.2 Adding a ladder step (frame) to an existing engine
 
-**Files changed:** `p2_frames.json` (new frame entry with `engine_id`, `frame_id`,
-`frame_text`, `frame_pinyin`, `frame_text_en`, `options`, `move_type`); `_FRAME_ORDER` in
-`scripts/ui_server.py` (insert at the desired position); `_FRAME_AFTER` if the frame has
-a prerequisite.
+**Files changed:** `p2_frames.json` (new frame entry); `_FRAME_ORDER` in `scripts/ui_server.py`
+(insert at desired position); `_FRAME_AFTER` if the frame has a prerequisite.
 
 **Tests to add:** one test confirming the frame appears in selection after its prerequisites
 are met.
 
-**Common bypass risk:** adding the frame without adding it to `_FRAME_ORDER`, which means
-it will never be selected by the frame selector in Phase 12D mode.
+**Common bypass risk:** adding the frame without adding it to `_FRAME_ORDER`, making it
+unreachable by the Phase 12D-mode selector.
 
 ### 16.3 Adding a direct persona-answer intent
 
 **Files changed:** `_direct_persona_answer()` in `scripts/ui_server.py` (add pattern and
-answer derivation); `persona["voice_lines"]` or `persona["discoverable_facts"]` in the
-persona JSON (add the fact if it is persona-specific); `_QUESTION_TOPIC_TO_ENGINE` (if E4
-should fire for this question type).
+answer derivation reading from persona JSON); the persona JSON file if a new fact field is
+needed; `_QUESTION_TOPIC_TO_ENGINE` if E4 should fire.
 
-**Tests to add:** `test_direct_question_coverage.py` pattern; confirm E4 fires if applicable.
+**Tests to add:** `test_direct_question_coverage.py` pattern; E4 test if applicable.
 
-**Common bypass risk:** embedding a Chinese answer string directly in `_direct_persona_answer`
-instead of reading it from the persona JSON. This violates the no-inline-Chinese-strings rule.
+**Common bypass risk:** constructing a Chinese reply directly in `_direct_persona_answer`
+instead of reading it from persona JSON, bypassing content editability. For persona-specific
+substantial facts, the data-driven path is preferred.
 
 ### 16.4 Adding a persona fact
 
-**Files changed:** the persona JSON file (`personas/jianguo.json` or equivalent) — add to
-`profile`, `voice_lines`, `discoverable_facts`, and/or `discoverable_facts_en` as appropriate.
+**Files changed:** the persona JSON file — add to `profile`, `voice_lines`,
+`discoverable_facts`, and/or `discoverable_facts_en` as appropriate.
 
 **Tests to add:** confirm the fact is returned by `_direct_persona_answer()` for the
 relevant question; confirm `_persona_answer_en()` returns the English equivalent.
 
 ### 16.5 Adding a recovery pattern
 
-**Files changed:** `content/recovery_phrases.json` (new phrase entry); if a new server-side
-recovery type is introduced, add to `_REPEAT_REQUEST_MARKERS`, `_SLOWER_REQUEST_MARKERS`,
-or `_MEANING_REQUEST_MARKERS` in `scripts/ui_server.py`, and update `computeRecoveryTriggerContext`
-in `ui/app.js`.
+**Files changed:** `content/recovery_phrases.json` (new phrase entry for client display);
+if a new server-side recovery type is introduced, update the relevant marker tuple
+(`_REPEAT_REQUEST_MARKERS`, `_SLOWER_REQUEST_MARKERS`, or `_MEANING_REQUEST_MARKERS`) and
+update `computeRecoveryTriggerContext` / `matchSpokenRecoveryPhraseExact` in `ui/app.js`.
 
-**Tests to add:** `test_challenge_recovery.py` pattern — confirm the marker is in the
-correct tuple and that the correct recovery path is selected.
+**Tests to add:** `test_challenge_recovery.py` or `test_meaning_recovery.py` pattern.
 
-**Common bypass risk:** adding a marker only to the server tuple but not to the client
-intercept, or vice versa, causing the client to route the phrase as content while the server
-expects it as recovery.
+**Common bypass risk:** adding a marker only to the server but not to the client interceptor,
+causing typed recovery to be handled correctly while spoken recovery falls through to
+content routing.
 
 ### 16.6 Adding confirmed open-world entities
 
-**Files changed:** currently the system uses `_extract_open_world_location()` for unknown
-places and `_is_unscripted_substantive_answer()` for general open-world answers. Adding a
-*confirmed* entity to a fixed map (e.g., a known city to `_CITY_LOCATION_BRIEF`) requires
-only a content data change.
-
-**Common bypass risk:** adding entities with inconsistent casing or romanisation that may
-not match ASR output.
+`_extract_open_world_location()` accepts unknown place names using structural patterns (我住在X,
+我老家在X). A confirmed location captured this way is stored in `learner_memory["lives_in"]`
+or `learner_memory["hometown"]` and can be used in later slot substitution. Adding a known
+city to `_CITY_LOCATION_BRIEF` makes it available for feature/food answers.
 
 ### 16.7 Adding a new answer source
 
 **Files changed:** the priority chain in the `/api/run_turn` handler; a new helper function
-(must return `Optional[tuple]` of `(zh, en)`); `_persona_answer_en()` if the new source
+returning `Optional[tuple]` of `(zh, en)`; `_persona_answer_en()` if the new source
 generates Chinese that needs translation.
 
-**Tests to add:** confirm the new source fires when expected; confirm it does not fire in
-exclusion cases; confirm `counter_reply_en` matches `counter_reply`.
+**Tests to add:** confirm it fires when expected; confirm it does not fire in exclusion
+cases; confirm `counter_reply_en` matches `counter_reply`.
 
-**Common bypass risk:** inserting the new source at the wrong priority level, allowing it
-to override recovery or explicit-place-topic results.
+**Common bypass risk:** inserting the source at the wrong priority level, allowing it to
+override explicit-place-topic results or recovery classification.
 
 ### 16.8 Deferred future pattern: unfamiliar entity confirmation
 
@@ -1043,15 +1199,12 @@ Architecturally, this capability would connect to: `_extract_open_world_location
 extraction); `learner_memory` (persistence after confirmation); `conversation_state`
 (pending confirmation flag); slot substitution (use of confirmed entity in later frames);
 and the client's `classifyUnmatchedFreeAnswerDecision` (accepting the confirmation utterance
-as an affirmation rather than routing it as content).
-
-Do not design or implement this feature based on this document. It is mentioned only to
-identify where it would connect.
+as an affirmation). This pattern is not implemented in the baseline.
 
 ### 16.9 Extending diagnostics
 
-**Files changed:** `_diag_append()` or direct population of `_diag_cap` in
-`scripts/ui_server.py`; `AsrDiag` methods in `ui/app.js` for client-side trace fields.
+**Files changed:** direct population of `_diag_cap` in `scripts/ui_server.py`; `AsrDiag`
+methods in `ui/app.js` for client-side trace fields.
 
 **Constraint:** diagnostic code must be gated on `_diag_enabled()` and must never alter a
 routing or selection decision.
@@ -1065,46 +1218,45 @@ routing or selection decision.
 **Spoken-Chinese ASR sensitivity** (Known limitation). The browser SpeechRecognition API's
 accuracy for Mandarin Chinese varies with pronunciation, microphone quality, ambient noise,
 and utterance clarity. The system normalises ASR output and repairs common
-misrecognitions, but it cannot guarantee accurate transcription in all conditions. This
+misrecognitions, but cannot guarantee accurate transcription in all conditions. This
 limitation is accepted at the baseline and is not scheduled for resolution in the near term.
 
 ### 17.2 Implementation risks
 
 **Large single-file server** (Maintenance risk). `scripts/ui_server.py` (~12,600 lines,
 ~200 top-level functions) contains all server-side conversation logic in a single Python
-file. Adding a new feature requires understanding a large body of code to avoid
-introducing unintended interactions between the priority chain, frame selector, E4,
-diagnostics, and slot substitution. Regression introduction is proportionally more likely
-as the file grows.
+file. Regression introduction is proportionally more likely as the file grows.
 
 **Large single-file client** (Maintenance risk). `ui/app.js` (~10,700 lines, ~255 top-level
-functions) contains all browser-side logic including ASR, option rendering, transcript
-management, card panel, progress display, and session management. The same risk applies as
-for the server file.
+functions) contains all browser-side logic. The same risk applies.
+
+**Client is the submission gatekeeper** (Maintenance risk). Client-side decisions — recovery
+interception, free-answer classification — can prevent the server from seeing the learner's
+original utterance. A client-side false positive (e.g., intercepting a genuine answer as a
+recovery phrase) cannot be corrected by the server.
 
 **Logic mirrored across client, server, and verification scripts** (Maintenance risk).
 `_detectSemanticCategory` and `classifyUnmatchedFreeAnswerDecision` in `ui/app.js` are
-duplicated in `tests/verify_asr_filler.js` for test purposes. If the client code changes,
-the verification script must also be updated. If they diverge, the test assertions will
-not reflect the actual client behaviour.
+duplicated in `tests/verify_asr_filler.js`. If the client code changes without updating
+the verification script, test assertions will not reflect actual client behaviour.
+
+**Inline Chinese in production code** (Maintenance risk). Routing markers, city descriptions,
+closing reactions, and fallback phrases are embedded in `scripts/ui_server.py`. These are
+not visible to content editors and are not validated against persona data. A phrase in
+`_CITY_LOCATION_BRIEF` that differs from a persona's `voice_lines` entry will not be
+automatically detected.
 
 **Broad fallback logic and stale-answer regressions** (Maintenance risk). The mirror bank
-and reverse-fact path use keyword matching that can cross topic boundaries. A keyword
-common to two topics (e.g., 做什么 matching both food and work) can cause the wrong
-answer to be selected. The priority chain provides some protection, but the risk increases
-as the number of facts and topics grows.
+and reverse-fact path use keyword matching that can cross topic boundaries.
 
 ### 17.3 Deferred improvements
 
-**Source-inspection tests** (Deferred improvement). Tests that inspect the source of
-`ui/app.js` for specific formatting patterns (`test_progress_tracking.py`) are inherently
-brittle and can fail when the code is reformatted. Where practical, these should be replaced
-with behavioural tests.
+**Server decomposition.** The server logic could be decomposed into smaller modules
+(answer-source resolution, frame selection, memory management, diagnostics) to reduce
+coupling. Not currently planned.
 
-**`scripts/ui_server.py` decomposition** (Deferred improvement). The server logic could be
-decomposed into smaller modules (answer-source resolution, frame selection, memory
-management, diagnostics) to reduce coupling and improve discoverability. This is not
-currently planned; the risk is managed by the invariants in Section 15.
+**Source-inspection tests.** Tests that inspect `ui/app.js` for specific formatting patterns
+are inherently brittle. Where practical, these should be replaced with behavioural tests.
 
 ---
 
@@ -1114,30 +1266,40 @@ Use the following sequence when a conversation behaves unexpectedly.
 
 ### 18.1 Wrong topic selected
 
-1. Check `conversation_state.current_engine` in the request payload — is it the expected engine?
-2. Check `state_update.current_engine` in the previous response — did E4 fire and set an unexpected engine?
-3. Check `_FRAME_ORDER` for the active engine — is the frame that appeared expected at this position?
-4. Check `skip_when` conditions on the selected frame — did a condition skip an expected frame?
+1. Check `conversation_state.current_engine` in the request payload — is it the expected
+   engine?
+2. Check `state_update.current_engine` in the previous response — did E4 fire and set an
+   unexpected engine?
+3. Check `_FRAME_ORDER` for the active engine — is the frame that appeared expected?
+4. Check `skip_when` conditions on the selected frame — did a condition skip an expected
+   frame?
 5. Check `recent_frame_ids` — was the expected frame recently used and deduped?
 
 ### 18.2 Correct direct answer but wrong next question
 
-1. Confirm E4 fired: look for `state_update.current_engine` in the response matching the expected topic.
-2. If E4 did not fire: check `_infer_question_topic_engine()` against the question text — does it classify correctly?
+1. Confirm E4 fired: look for `state_update.current_engine` in the response matching the
+   expected topic.
+2. If E4 did not fire: check `_infer_question_topic_engine()` against the question text —
+   does it classify correctly?
 3. If E4 fired to the wrong engine: check `_QUESTION_TOPIC_TO_ENGINE` for the mirror topic.
-4. Check `_FRAME_ORDER` for the E4 engine — the first available unseen frame in that order should have been selected.
+4. Remember: E4 affects the *next* frame, not the frame in the response that triggered E4.
+   Verify the second response after the direct question, not the first.
 
 ### 18.3 Repeated persona answer
 
-1. Check `recent_persona_replies` in `conversation_state` — is the repeated answer already in the list?
+1. Check `recent_persona_replies` in `conversation_state` — is the repeated answer in the
+   list?
 2. Check `_dedupe_persona_answer()`: is the same-intent answer pool exhausted?
-3. Check whether `_persona_answer_en()` was called on the substitute answer (not the original).
+3. Check whether `_persona_answer_en()` was called on the substitute answer.
 
 ### 18.4 Chinese and English mismatch
 
 1. Confirm `counter_reply` and `counter_reply_en` in the response.
 2. Trace `_persona_answer_en()` with the Chinese text — which branch did it take?
-3. Check `voice_lines_en`, `discoverable_facts_en`, and the deflection-phrase map for missing entries.
+3. Check `voice_lines_en`, `discoverable_facts_en`, and the deflection-phrase map for
+   missing entries.
+4. Check whether the Chinese text is dynamic (constructed, not from persona JSON) — if so,
+   the phrase-bank lookup may return `""`.
 
 ### 18.5 Ladder fails to advance
 
@@ -1149,21 +1311,28 @@ Use the following sequence when a conversation behaves unexpectedly.
 ### 18.6 Learner question ignored
 
 1. Check `user_asked_question` in the diagnostic capture — did the classifier return True?
-2. If False: check `_is_user_question()` on the normalised text — does it miss the question pattern?
-3. Check `_responsive_food_answer` — did the food-answer override suppress the question classification?
-4. If `user_asked_question` is True but no answer was produced: check whether the answer-source priority chain returned None for all steps.
+2. If False: check `_is_user_question()` on the normalised text.
+3. Check `_responsive_food_answer` — did the food-answer override suppress the question
+   classification?
+4. If `user_asked_question` is True but no answer was produced: check whether the
+   priority chain returned None for all applicable steps.
 
 ### 18.7 Recovery phrase treated as content
 
-1. Confirm whether the client's `computeRecoveryTriggerContext()` fired — check if the recovery panel was shown.
-2. On the server: check `_is_rr`, `_is_meaning`, `_is_confusion_signal` against the normalised text.
-3. Check whether the phrase appears in `_REPEAT_REQUEST_MARKERS`, `_SLOWER_REQUEST_MARKERS`, or `_MEANING_REQUEST_MARKERS`.
+1. Confirm whether the client's `matchSpokenRecoveryPhraseExact()` intercepted the phrase —
+   check if the recovery panel was shown or if a server call was made at all.
+2. On the server: check `_is_rr`, `_is_meaning`, `_is_confusion_signal` against the
+   normalised text.
+3. Check whether the phrase appears in `_REPEAT_REQUEST_MARKERS`, `_SLOWER_REQUEST_MARKERS`,
+   or `_MEANING_REQUEST_MARKERS`.
 
 ### 18.8 Client and server disagree about state
 
-1. Compare `conversation_state` in the outgoing request with `state_update` in the previous response — was `state_update` applied correctly?
-2. Check `window._currentEngineId` in browser devtools against `cs.current_engine` in the network payload.
-3. Check `window._recentFrameIds` against `cs.recent_frame_ids` — are frames being added correctly?
+1. Compare `conversation_state` in the outgoing request with `state_update` in the previous
+   response — was `state_update` applied correctly?
+2. Check `window._currentEngineId` in browser devtools against `cs.current_engine` in the
+   network payload.
+3. Check `window._recentFrameIds` against `cs.recent_frame_ids`.
 
 ---
 
@@ -1172,15 +1341,15 @@ Use the following sequence when a conversation behaves unexpectedly.
 The following documents are part of the MandarinOS architecture documentation programme.
 Links marked "(not yet created)" will resolve once the relevant document is authored.
 
-- `docs/STATE_CONTRACT.md` — (not yet created) Field-by-field definition of `conversation_state`, `state_update`, and `learner_memory` schemas. The authoritative reference for what each field means and who owns it.
-- `docs/ANSWER_SOURCE_CONTRACT.md` — (not yet created) Detailed contract for how each answer-source path (`_direct_persona_answer`, `_find_mirror_answer`, `_answer_from_working_memory`, etc.) constructs its `(zh, en)` tuple and which persona data fields take precedence.
+- `docs/STATE_CONTRACT.md` — (not yet created) Field-by-field definition of `conversation_state`, `state_update`, and `learner_memory` schemas.
+- `docs/ANSWER_SOURCE_CONTRACT.md` — (not yet created) Detailed contract for how each answer-source path constructs its `(zh, en)` tuple and which persona data fields take precedence.
 - `docs/ASR_PIPELINE.md` — (not yet created) Browser speech-recognition lifecycle, confidence handling, ASR retry and timeout logic, interim result processing, and the `AsrDiag` trace format.
-- `docs/ARCHITECTURE.md` — (not yet created) High-level repository map and system boundary overview, for orientation before reading this document.
-- `docs/TEST_STRATEGY.md` — (not yet created) Test tiers (core unit/contract, local integration, manual JavaScript, deployment), pytest markers, and how to run each tier.
-- `docs/CHANGE_CHECKLIST.md` — (not yet created) Per-change checklist: which files to update, which tests to run, and which invariants to verify before committing a conversation architecture change.
-- `docs/ARCHITECTURAL_DECISIONS.md` — (not yet created) Record of significant architectural decisions and the evidence behind them (e.g., why E4 uses `_infer_question_topic_engine()` rather than the mirror topic directly for the working-memory path).
-- `docs/PRODUCT_PHILOSOPHY.md` — (not yet created) Why MandarinOS is a conversation simulator rather than a vocabulary drill; how the product decisions shaped the architectural constraints.
-- `docs/AGENTS.md` — (not yet created) Agent and automation guidance for contributors using AI tooling with this repository.
+- `docs/ARCHITECTURE.md` — (not yet created) High-level repository map and system boundary overview.
+- `docs/TEST_STRATEGY.md` — (not yet created) Test tiers, pytest markers, and how to run each tier.
+- `docs/CHANGE_CHECKLIST.md` — (not yet created) Per-change checklist for conversation architecture changes.
+- `docs/ARCHITECTURAL_DECISIONS.md` — (not yet created) Record of significant architectural decisions and the evidence behind them.
+- `docs/PRODUCT_PHILOSOPHY.md` — (not yet created) Why MandarinOS is a conversation simulator rather than a vocabulary drill.
+- `AGENTS.md` — (not yet created) Repository-root agent and automation guidance for contributors using AI tooling with this repository.
 
 ---
 
@@ -1192,20 +1361,21 @@ Links marked "(not yet created)" will resolve once the relevant document is auth
 |--------------------|----------------------------------|----------------------|
 | Input normalisation | `scripts/ui_server.py:_normalize_zh_for_routing`, `_strip_leading_fillers` | `test_asr_filler_suppression.py` |
 | Client intent matching | `ui/app.js:classifyUnmatchedFreeAnswerDecision`, `matchTranscriptToOption` | `tests/verify_asr_filler.js` |
-| Recovery detection | `ui/app.js:computeRecoveryTriggerContext`; `scripts/ui_server.py:_is_rr`, `_is_meaning`, `_REPEAT_REQUEST_MARKERS` | `test_challenge_recovery.py`, `test_meaning_recovery.py` |
-| Topic engine selection | `scripts/ui_server.py:_select_next_frame_ladder`, `_select_next_frame_bridge`, `_FRAME_ORDER` | `test_conversation_first_wave.py` |
+| Spoken recovery interception | `ui/app.js:matchSpokenRecoveryPhraseExact`, `computeRecoveryTriggerContext` | `tests/verify_asr_filler.js`, `test_challenge_recovery.py` |
+| Server recovery routing | `scripts/ui_server.py:_is_rr`, `_is_meaning`, `_REPEAT_REQUEST_MARKERS` | `test_challenge_recovery.py`, `test_meaning_recovery.py` |
+| Topic engine selection | `scripts/ui_server.py:_select_next_frame_ladder`, `_select_next_frame_bridge`, `_FRAME_ORDER`, `_BRIDGE_TARGETS` | `test_conversation_first_wave.py` |
 | Question routing | `scripts/ui_server.py:_is_user_question`, `_is_direct_persona_question`, `_is_place_feature_question`, `_is_place_food_question` | `test_spoken_question_routing_regression.py`, `test_direct_question_coverage.py` |
 | Question-focus precedence | `scripts/ui_server.py:_place_from_question_context`, `_CITY_BEFORE_QUESTION_MARKER_RE` | `test_conversation_first_wave.py::test_city_routing_prefers_question_focus` |
 | Answer-source chain | `scripts/ui_server.py:/api/run_turn handler (L9896–10288)` | `test_stale_counter_reply_loop.py`, `test_stale_answer_loop_regression.py` |
 | Direct persona answers | `scripts/ui_server.py:_direct_persona_answer`, `_reverse_fact_answer` | `test_regression_surgical_transcript.py`, `test_direct_question_coverage.py` |
-| E4 initiative follow | `scripts/ui_server.py:E4 block (L10288)`, `_infer_question_topic_engine`, `_QUESTION_TOPIC_TO_ENGINE` | `test_e4_topic_handoff.py` |
+| E4 initiative follow | `scripts/ui_server.py:E4 block (L10288–10313, 11833–11835)`, `_infer_question_topic_engine`, `_QUESTION_TOPIC_TO_ENGINE` | `test_e4_topic_handoff.py` |
 | Zh–En synchronisation | `scripts/ui_server.py:_persona_answer_en`, `_voice_line_en_for_zh`, `_en_for_counter_reply` | `test_zh_en_synchronisation.py` |
-| Stale-answer prevention | `scripts/ui_server.py:_dedupe_persona_answer`, dedup guard (L10351) | `test_stale_answer_loop_regression.py`, `test_stale_counter_reply_loop.py` |
+| Stale-answer prevention | `scripts/ui_server.py:_dedupe_persona_answer`, dedup guard | `test_stale_answer_loop_regression.py`, `test_stale_counter_reply_loop.py` |
 | Working memory (E3) | `scripts/ui_server.py:_answer_from_working_memory`, `_extract_persona_facts_from_recent` | `test_conversation_first_wave.py` |
 | Learner memory | `scripts/learner_memory.py`, `scripts/learner_memory_capture.py` | `test_learner_memory_migration.py`, `test_clear_memory_regression.py` |
-| Open-card resolution | `runtime/open_card_resolver.py`, `runtime/engine.py`, `runtime/open_card_wiring.py` | `test_open_card_resolver.py`, `test_open_card_trace_integration.py` |
+| Open-card affordance | `scripts/ui_server.py:_stub_card_id`; `ui/app.js:resolveCard`; `runtime/open_card_resolver.py` (test infrastructure) | `test_open_card_resolver.py`, `test_open_card_trace_integration.py` |
 | Client/server boundary | `ui/app.js:_runTurnInner` (payload assembly); `scripts/ui_server.py:/api/run_turn` (response assembly) | `test_conversation_fixes.py`, `test_conversation_first_wave.py` |
-| Diagnostics | `scripts/ui_server.py:_diag_enabled`, `_diag_append`, `_diag_finalize_response`; `ui/app.js:AsrDiag` | `test_diagnostic_engine.py` (standalone), `test_deployment_hygiene.py` |
+| Diagnostics | `scripts/ui_server.py:_diag_enabled`, `_diag_cap`; `ui/app.js:AsrDiag` | `test_deployment_hygiene.py` |
 | Recovery phrases | `content/recovery_phrases.json`; `ui/app.js:learnerRecoveryPhrases`, `selectRecoveryPhrase` | `test_recovery_deployment.py` |
 | Conversation state round-trip | `ui/app.js:_runTurnInner` (conversation_state); `scripts/ui_server.py` (state_update) | `test_conversation_first_wave.py`, `test_session_start_reset.py` |
 
@@ -1215,5 +1385,5 @@ Links marked "(not yet created)" will resolve once the relevant document is auth
 |-------|-------|
 | Baseline commit | `53584cee9e8c892ff77f12741d1fc89d9d09c7e7` |
 | Baseline tag | `architecture-baseline-2026-07-12` |
-| Document status | Draft v1 |
+| Document status | Draft v1 (revised) |
 | Last verified date | 2026-07-12 |
