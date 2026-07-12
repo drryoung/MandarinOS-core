@@ -36,8 +36,11 @@ unscripted exchange, not a fixed interview. The system selects questions that fo
 naturally from what has just been said.
 
 **Follow the learner's expressed topic or question.** When the learner asks the partner a
-direct question, the partner answers it, and the next conversation move stays on that topic
-rather than snapping back to a previously interrupted engine.
+direct question, the partner answers it, and the engine is redirected so that the
+*following* conversation move stays on that topic. Because the engine handoff takes effect
+one response after the direct answer (see E4, Section 8), the immediate response may still
+contain a frame from the previous engine; this one-response delay is an accepted baseline
+characteristic.
 
 **Maintain gentle topic-engine progression.** When the learner is not directing the topic,
 the system advances through a soft-ordered sequence of conversation frames inside a topic
@@ -47,16 +50,21 @@ fixed global sequence. Progression is *guidance*, not a rigid script.
 **Allow direct persona questions without losing continuity.** The learner may ask the
 partner questions from their current topic domain or about the partner's own facts at any
 point during the conversation. A direct question must receive a first-person persona answer
-and must not discard the current conversation position in a way that makes the next question
-incoherent.
+in `counter_reply`. The accompanying `frame_text` is selected from the incoming engine;
+E4 ensures the engine is updated for the request that follows.
 
 **Support recovery and clarification.** When the learner signals that they did not
-understand, the system provides a recovery path (repeat, simplify, explain meaning) without
-accidentally advancing the topic or abandoning the practice value of the turn.
+understand, the system provides a recovery path (repeat, simplify, explain meaning).
+Client-intercepted spoken recovery replays the current frame question without contacting
+the server, preserving the learner's position. Server-side typed or unintercepted recovery
+runs normal frame selection and may advance the ladder. This inconsistency — equivalent
+recovery intentions producing different frame progression depending on the submission path
+— is a known architectural characteristic, not a design goal.
 
-**Prevent stale or repeated answers.** The same persona answer must not be given for the
-same question twice in a session. When an answer has been used, the system re-picks from
-the same answer pool or provides a topically appropriate acknowledgement.
+**Suppress recently repeated answers.** When a persona answer has been used recently,
+the system attempts to re-pick from the same-intent answer pool before falling back to a
+topically appropriate acknowledgement. This is a recency-based suppression rule, not a
+session-wide uniqueness guarantee; exhausted pools may produce a fallback phrase.
 
 **Maintain Chinese, pinyin, and English synchronisation.** The three representations
 displayed to the learner should describe the same answer. English and pinyin are derived
@@ -396,8 +404,14 @@ from server responses for all subsequent turns.
 
 When the learner asks a direct question and E4 fires (Section 8), the server writes a
 different engine into `state_update.current_engine`. The client applies this after the
-current response is rendered. The *next* frame selection uses the updated engine. The
-current response's frame was already selected using the previous engine.
+current response is rendered.
+
+**One-response delay:** the frame packaged with the direct persona answer is selected from
+the *incoming* engine, before E4 is written. The redirected engine first takes effect on the
+request that follows. This means one transitional frame from the previous engine may appear
+between the learner's question and the first frame from the topic the learner asked about.
+E4 prevents continued reversion after that transitional response but does not eliminate the
+immediate mismatch.
 
 ### 5.6 Bridge transitions
 
@@ -449,14 +463,16 @@ These clear confusion counters but do not trigger topic change.
 as a content answer. The system is intentionally permissive: ambiguous input is better
 received as an imperfect answer than rejected.
 
-**Open-world input not in a fixed vocabulary** (`_extract_open_world_location`,
-`_is_unscripted_substantive_answer`). The learner mentions a place name not in
-`_CITY_LOCATION_BRIEF`, or a food or entity not in the known vocabularies. For location
-answers, `_extract_open_world_location()` accepts unknown place names using structural
-patterns (我现在住在X / 我住在X). For general unscripted answers, `_is_unscripted_substantive_answer()` checks whether the answer is non-trivially Chinese. Confirmed open-world entities
-can be stored in learner memory (e.g., a foreign city in `lives_in`) and used in later slot
-substitution. The system does not automatically understand, look up, or answer questions
-about arbitrary unknown entities.
+**Open-world location input** (`_extract_open_world_location`,
+`_is_unscripted_substantive_answer`). When the learner mentions a place name not in
+`_CITY_LOCATION_BRIEF`, `_extract_open_world_location()` tries to extract a structurally
+extracted location value using patterns such as 我现在住在X and 我住在X. When it succeeds,
+the accepted learner-supplied location is stored in `learner_memory["lives_in"]` or
+`learner_memory["hometown"]` and can be used in later slot substitution. For general
+unscripted answers, `_is_unscripted_substantive_answer()` checks whether the answer is
+non-trivially Chinese so it can be accepted as a content contribution. The system does not
+automatically understand, look up, or answer questions about arbitrary unknown entities;
+it extracts only structurally recognisable location values.
 
 ### 6.1 Question-focus precedence
 
@@ -539,21 +555,26 @@ engine takes effect on the *following* call, not the current one.
 
 ## 8. E4 topic handoff
 
-### 8.1 What E4 solves
+### 8.1 What E4 solves and what it does not
 
-When a learner asks the partner a direct question, the partner answers it. Without further
-action, the next turn's frame selector would continue from whatever engine was active
-*before* the learner asked — because frame selection uses `cs["current_engine"]` from the
-incoming payload, which has not yet been updated. This creates an incoherent experience:
-the learner asks about the partner's travel history, the partner answers, and then the
-*next* question is about the partner's name because the conversation was in the identity
-engine at the time.
+When a learner asks the partner a direct question, the partner answers it in `counter_reply`.
+The `frame_text` in that same response is selected using the *incoming* `current_engine`,
+because frame selection runs before E4 writes its result. This means the response that
+carries the direct persona answer also carries a frame question from the engine that was
+active *before* the learner asked. Without E4, every subsequent request would continue from
+the old engine indefinitely, making the redirect invisible beyond that one turn.
 
-E4 (internal architecture label: "Initiative Follow") solves this by writing the redirected
-engine into `state_update.current_engine`, which the client applies to
-`window._currentEngineId` after the response arrives. The next call then carries the updated
-engine in `conversation_state`. "E4" is an internal label, not a class or file. It refers
-to the initiative-follow block in the `/api/run_turn` handler.
+E4 (internal label: "Initiative Follow") solves the multi-turn problem by writing the
+redirected engine into `state_update.current_engine`. The client applies this after the
+response arrives. The *next* call then carries the updated engine in `conversation_state`.
+
+**What E4 does not solve:** it does not eliminate the one-response transitional frame from
+the previous engine. The baseline therefore accepts a one-frame delay between a learner's
+topic redirection and the conversation moving fully into the redirected topic. This is a
+known architectural characteristic, not an error.
+
+"E4" is an internal label, not a class or file. It refers to the initiative-follow block
+in the `/api/run_turn` handler.
 
 ### 8.2 Exact timing
 
@@ -610,10 +631,12 @@ preserved.
 
 ### 8.6 What would break without E4
 
-Without E4, every learner-initiated question would be answered and then ignored: the next
-frame would continue the interrupted engine as if the question had never been asked. The
-learner's topic redirection would have no effect on subsequent partner questions, making the
-system feel unresponsive to learner initiative.
+Without E4, the engine redirect would last for exactly one turn: the learner's question
+would be answered in `counter_reply`, but every subsequent frame would continue from the
+previous engine as if the question had never been asked. E4 ensures the redirect persists
+beyond the transitional response. With E4 in place, there is still a one-response frame
+from the old engine (because E4 is written after frame selection); without E4, that
+one-frame gap becomes permanent.
 
 ---
 
@@ -779,8 +802,8 @@ them in `state_update`.
 
 Before returning a `counter_reply`, the server checks whether the candidate text (or its
 bare form after stripping the discourse prefix "我呢，") appears in `recent_persona_replies`
-or matches `last_counter_reply`. This check is performed in the deduplication guard in
-`scripts/ui_server.py`.
+(recent-turn recency window) or matches `last_counter_reply`. This check suppresses recently
+used replies; it is not a session-wide uniqueness guarantee.
 
 If the candidate is stale, `_dedupe_persona_answer()` attempts to re-pick from the
 *same-intent answer pool* (e.g., another feature fact for the same city). Only when that
@@ -899,9 +922,12 @@ server's recovery routing is unchanged in challenge mode.
 
 ### 12.6 Recovery and topic routing
 
-Recovery classification runs before topic routing in the answer-source priority chain
-(steps 7–9 precede steps 11–18). A learner who says 什么意思 via Path B does not reach
-the mirror bank or new frame for that counter_reply.
+Recovery classification (steps 7–9 in the priority chain) runs before the mirror bank and
+general direct-answer paths (steps 11–18). When a recovery text reaches the server via
+Path B, the recovery handler produces `counter_reply` and returns — the mirror bank and
+later answer sources are not consulted for that `counter_reply`. Normal frame selection
+still runs after the counter_reply is determined, so the ladder can advance even though
+the counter_reply is a rephrase rather than a new persona answer.
 
 ---
 
@@ -966,8 +992,8 @@ these functions are embedded in `ui/app.js` and cannot be unit-tested directly b
 Python test suite.
 
 **Maintenance implication:** whenever the mirrored functions are updated in `ui/app.js`,
-`verify_asr_filler.js` must be updated to stay consistent. The script contains more than
-80 assertions and is run as part of the manual verification tier via
+`verify_asr_filler.js` must be updated to stay consistent. The script covers 113 assertions
+across 24 test blocks and is run as part of the manual verification tier via
 `node tests/verify_asr_filler.js`.
 
 ---
@@ -1001,21 +1027,28 @@ submitted to the server or intercepted as recovery). After the server responds,
 
 ### 14.4 Deployed identity
 
-The production application exposes `/api/version` and `/api/health` at the same path,
-returning a JSON object with fields including:
+`/api/version` and `/api/health` are alternative path aliases handled by the same branch
+in the HTTP handler (`if path in ("/api/version", "/api/health")`). Both return an
+identical JSON payload. `/api/version` is the authoritative deployment identity interface;
+`/api/health` is a convenience alias for health-check probes that expect a path named
+`/health`.
+
+The stable response schema is:
 
 ```json
 {
   "branch": "main",
-  "sha": "<commit-sha>",
+  "sha": "<7-char abbreviated commit SHA>",
+  "sha_full": "<40-char full commit SHA>",
+  "sha_source": "<how the SHA was resolved>",
   "status": "ok",
   "diag_enabled": true,
   "normalizer": "_normalize_zh_for_routing"
 }
 ```
 
-The field is `diag_enabled` (confirmed at line 8529 of `scripts/ui_server.py`). No
-credentials, private URLs, tokens, or environment secrets are included.
+The diagnostics field is `diag_enabled` (not `diagnostics_enabled`). No credentials,
+private URLs, tokens, or environment secrets are included.
 
 ### 14.5 Diagnostic log messages are not architectural contracts
 
@@ -1027,16 +1060,21 @@ removed without architectural impact. Only the structured `diag` response field 
 
 ## 15. Invariants
 
-The following are the verified architectural invariants at the baseline. Each is labelled
-with its enforcement status.
+### 15.1 Enforced architectural invariants
 
-**INV-1: The learner's explicit question takes precedence over routine ladder continuation.**
-When `user_asked_question = True` and a confident answer is produced, E4 computes a
-handoff engine, which is written to `state_update.current_engine` and takes effect on the
-following call. The *current* turn's frame is still selected from the incoming engine, but
-the *next* frame honours the learner's redirected topic.
-*Enforcement:* E4 block in `scripts/ui_server.py` (lines 10288–10313, 11833–11835);
-client applies `state_update.current_engine`.
+The following rules are structurally enforced and supported by appropriate behavioural tests.
+Future changes must not violate them.
+
+**INV-1: When a learner asks a direct question and E4 fires, the engine is updated so that
+the conversation continues in the learner's redirected topic from the following request
+onwards.**
+E4 computes `_e4_engine_handoff` and writes it to `state_update.current_engine` (after
+frame selection). The client applies it to `window._currentEngineId`, which is included in
+the next `conversation_state`. The engine does not affect the frame in the same response —
+a one-response transitional frame from the previous engine is accepted baseline behaviour.
+E4 prevents continued reversion, not the immediate mismatch.
+*Enforcement:* E4 block in `scripts/ui_server.py` (E4 computation block and write at
+`state_update`); client applies `state_update.current_engine`.
 *Tests:* `test_e4_topic_handoff.py`.
 
 **INV-2: The grammatical focus of a learner question must not be displaced by irrelevant
@@ -1046,32 +1084,24 @@ city immediately preceding the question marker.
 *Enforcement:* `scripts/ui_server.py:_place_from_question_context`.
 *Tests:* `test_conversation_first_wave.py::test_city_routing_prefers_question_focus`.
 
-**INV-3: When a direct persona answer is produced in response to a learner question, the
-engine handoff is written for the next call.**
+**INV-3: When E4 fires, the handoff engine is written to `state_update` after frame
+selection and takes effect on the following request, not the current frame.**
 *Scope:* Only when E4 triggers (see Section 8.3). E4 does not fire for generic deflections,
-limitation replies, or when `_counter_result` is None. The handoff affects the following
-request, not the current frame.
-*Enforcement:* E4 gating on deflection-phrase set; `state_update` write after assembly.
+limitation replies, or when `_counter_result` is None.
+*Enforcement:* E4 write position (after frame selection and payload assembly); `state_update`
+field validated by client round-trip.
 *Tests:* `test_e4_topic_handoff.py::TestE4DirectPersonaHandoff`.
 
-**INV-4: Answer-text generation and conversation frame progression are logically separate
-concerns, coordinated through explicit data.**
-`counter_reply` and `frame_text` are assembled from independent code paths. They are
-coordinated through E4 (which uses the answer-source result to compute the handoff engine)
-and `state_update`. Modifying one path requires checking whether E4 triggering is affected.
+**INV-4: `counter_reply` and `frame_text` are assembled from independent code paths and
+coordinated through explicit data.**
+The two parts of the server response are generated separately. Coordination occurs through
+E4 (which uses the answer-source result to decide whether to set `_e4_engine_handoff`),
+`state_update`, and `current_engine`. Changes to the counter-reply path require checking
+whether E4 triggering conditions are affected.
 *Enforcement:* structural separation in the `response` dict; E4 as the explicit coordination
 mechanism.
-*Tests:* `test_zh_en_synchronisation.py`.
-
-**INV-5: Chinese and English should describe the same selected answer.**
-`counter_reply_en` is derived from the final `counter_reply` Chinese text via
-`_persona_answer_en()`. The deduplication path calls `_persona_answer_en()` on the
-substitute answer, not the discarded original.
-*Enforcement:* `_persona_answer_en()` called on every counter-reply modification including
-deduplication.
-*Tests:* `test_zh_en_synchronisation.py` (deduplication regression).
-*Known limitation:* some dynamic paths (e.g., `_soft_persona_fallback`) may return `""` for
-`counter_reply_en` when the phrase is not in any lookup map.
+*Structural evidence:* `counter_reply` and `frame_text` are written to the `response` dict
+by distinct code branches; `test_e4_topic_handoff.py` confirms the E4 coordination path.
 
 **INV-6: Working memory and persistent learner memory must not be conflated.**
 `recent_persona_replies` (working memory) is round-tripped within one session.
@@ -1080,17 +1110,6 @@ by the client in the payload.
 *Enforcement:* `learner_memory.py` validates allowed keys; the server ignores any
 `learner_memory` field in the client payload.
 *Tests:* `test_learner_memory_migration.py`.
-
-**INV-7: Client-side spoken recovery interception preserves the current frame; server-side
-recovery classification may advance the ladder.**
-When the client intercepts a spoken recovery phrase (Path A), no server call is made and
-the frame does not advance. When recovery text reaches the server via Path B (`_is_rr`,
-`_is_meaning`), `counter_reply` is a rephrase but normal frame selection runs and a new
-frame is selected.
-*Intended contract:* the primary path (client interception) fulfils the "don't advance on
-recovery" expectation. The server fallback path does advance.
-*Tests:* `test_challenge_recovery.py` (server-side marker contracts);
-`tests/verify_asr_filler.js` (client-side interception).
 
 **INV-8: Fallback and deduplication paths preserve answer-source and translation contracts.**
 When `_dedupe_persona_answer()` selects an alternative, `_persona_answer_en()` is called on
@@ -1108,6 +1127,51 @@ appended from `data.frame_id`.
 client falls back to the engine from the dropdown's data attribute or `"identity"`. This
 is a legitimate client-side initialisation.
 *Tests:* `test_conversation_first_wave.py::test_active_turn_record_single_source_of_truth`.
+
+---
+
+### 15.2 Intended contracts with known enforcement gaps
+
+The following rules represent design intentions. Enforcement is partial or path-specific;
+they are documented as objectives rather than guaranteed invariants.
+
+**IC-1 (E4 topic continuity): The frame accompanying a direct persona answer ideally
+belongs to the same topic the learner asked about.**
+In the baseline, this is not achieved: the frame in the same response as the direct answer
+is selected from the incoming engine. E4 redirects the *following* request. Closing the
+one-response gap would require E4 to run before frame selection and pass `_e4_engine_handoff`
+to the frame selector. This is not currently implemented.
+*Partial enforcement:* E4 ensures continuity from the second turn onwards.
+
+**IC-2 (Chinese–English synchronisation across all answer paths): `counter_reply_en`
+should describe the same answer as `counter_reply` for every code path.**
+For paths that use `_persona_answer_en()` on the final Chinese text, this contract holds.
+For dynamically constructed phrases (e.g., `_persona_limitation_reply`,
+`_soft_persona_fallback`), the phrase-bank lookup may return `""` when the phrase is not
+mapped.
+*Partial enforcement:* `_persona_answer_en()` is called on every counter-reply modification
+including deduplication. Dynamic phrase paths are not fully covered.
+*Tests covering the dedup regression:* `test_zh_en_synchronisation.py`.
+*Known gap:* some dynamic phrase paths.
+
+**IC-3 (Recovery preserves the learner's practice moment): When the learner signals
+they did not understand, the conversation should replay the current question without
+advancing the topic.**
+Client-intercepted spoken recovery (Path A) fulfils this contract: no server call is made
+and the frame does not advance. Server-side typed or unintercepted recovery (Path B) does
+not: it sets `counter_reply` to a rephrase but runs normal frame selection and advances
+the ladder.
+Equivalent recovery intentions can produce different frame progression depending on whether
+the client intercepts the phrase or submits it to the server. This is a known architectural
+inconsistency.
+*Partial enforcement:* Path A (client interception) fully enforces the contract for spoken
+input. Path B does not.
+*Tests:* `test_challenge_recovery.py` (server-side marker contracts, Path B);
+`tests/verify_asr_filler.js` (client-side interception, Path A).
+
+**IC-5 (INV-5 rephrased): Chinese and English representations describe the same answer
+across all paths.**
+See IC-2 above for the partial-enforcement detail.
 
 ---
 
@@ -1170,12 +1234,17 @@ update `computeRecoveryTriggerContext` / `matchSpokenRecoveryPhraseExact` in `ui
 causing typed recovery to be handled correctly while spoken recovery falls through to
 content routing.
 
-### 16.6 Adding confirmed open-world entities
+### 16.6 Adding open-world location handling
 
-`_extract_open_world_location()` accepts unknown place names using structural patterns (我住在X,
-我老家在X). A confirmed location captured this way is stored in `learner_memory["lives_in"]`
-or `learner_memory["hometown"]` and can be used in later slot substitution. Adding a known
-city to `_CITY_LOCATION_BRIEF` makes it available for feature/food answers.
+`_extract_open_world_location()` accepts unknown place names using structural patterns such
+as 我住在X and 我老家在X. An accepted learner-supplied location captured this way is stored
+in `learner_memory["lives_in"]` or `learner_memory["hometown"]` and can be used in later
+slot substitution. Adding a known city to `_CITY_LOCATION_BRIEF` makes it available for
+feature/food answers.
+
+Note: "accepted learner-supplied location" means a structurally extracted location value
+that matched the extraction rules. No confirmation workflow is implemented in the baseline.
+See Section 16.8 for the deferred repeat-back-and-confirm pattern.
 
 ### 16.7 Adding a new answer source
 
@@ -1217,9 +1286,10 @@ routing or selection decision.
 
 **Spoken-Chinese ASR sensitivity** (Known limitation). The browser SpeechRecognition API's
 accuracy for Mandarin Chinese varies with pronunciation, microphone quality, ambient noise,
-and utterance clarity. The system normalises ASR output and repairs common
-misrecognitions, but cannot guarantee accurate transcription in all conditions. This
-limitation is accepted at the baseline and is not scheduled for resolution in the near term.
+and utterance clarity. The system normalises ASR output and repairs common misrecognitions,
+but cannot guarantee accurate transcription in all conditions. ASR improvement work has been
+deprioritised until the architecture documentation phase is complete; further tuning is
+deferred to a subsequent phase.
 
 ### 17.2 Implementation risks
 
@@ -1277,13 +1347,19 @@ Use the following sequence when a conversation behaves unexpectedly.
 
 ### 18.2 Correct direct answer but wrong next question
 
-1. Confirm E4 fired: look for `state_update.current_engine` in the response matching the
-   expected topic.
-2. If E4 did not fire: check `_infer_question_topic_engine()` against the question text —
+1. Identify which response to examine. E4 affects the frame that appears in the response
+   *after* the direct answer, not the frame that appears alongside `counter_reply` in the
+   direct-answer response itself. A single off-topic frame immediately following the direct
+   answer is expected baseline behaviour (one-response delay). Check the second response
+   after the learner's question.
+2. Confirm E4 fired: look for `state_update.current_engine` in the direct-answer response
+   matching the expected topic.
+3. If E4 did not fire: check `_infer_question_topic_engine()` against the question text —
    does it classify correctly?
-3. If E4 fired to the wrong engine: check `_QUESTION_TOPIC_TO_ENGINE` for the mirror topic.
-4. Remember: E4 affects the *next* frame, not the frame in the response that triggered E4.
-   Verify the second response after the direct question, not the first.
+4. If E4 fired to the wrong engine: check `_QUESTION_TOPIC_TO_ENGINE` for the mirror topic.
+5. If two or more consecutive frames from the wrong engine appear: E4 may not have been
+   applied by the client; check `window._currentEngineId` in browser devtools against
+   `state_update.current_engine` in the network response.
 
 ### 18.3 Repeated persona answer
 
@@ -1385,5 +1461,5 @@ Links marked "(not yet created)" will resolve once the relevant document is auth
 |-------|-------|
 | Baseline commit | `53584cee9e8c892ff77f12741d1fc89d9d09c7e7` |
 | Baseline tag | `architecture-baseline-2026-07-12` |
-| Document status | Draft v1 (revised) |
+| Document status | Candidate v1 — final review |
 | Last verified date | 2026-07-12 |
