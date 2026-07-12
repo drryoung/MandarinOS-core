@@ -21,7 +21,13 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+# Guard: only replace stdout when running as a standalone script.
+# Under pytest, sys.stdout is a capture buffer; replacing it corrupts capture.
+if sys.stdout is sys.__stdout__:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+
+import pytest  # noqa: E402  (after the conditional stdout setup)
+pytestmark = pytest.mark.live_server
 
 ROOT   = Path(__file__).parent.parent
 SERVER = "http://localhost:8765"
