@@ -10,11 +10,12 @@ class TestCoverageAffordanceReclassification(unittest.TestCase):
                 "readiness_label": "READY_NO_HINTS",
                 "option_tokens": [],
                 "engine_id": "eng1",
-                "affordances": [],
+                "affordances": {},
                 "blockers": [],
             }
         }
-        engines_affordances = {"eng1": ["open_card"]}
+        # engines_affordances uses dict format: {"<engine_id>": {"open_card": True}}
+        engines_affordances = {"eng1": {"open_card": True}}
         # one card c1 with level 0 (L0+)
         card_readiness_map = {"c1": 0}
         cards_by_word_id = {}
@@ -31,11 +32,11 @@ class TestCoverageAffordanceReclassification(unittest.TestCase):
                 "readiness_label": "READY_NO_HINTS",
                 "option_tokens": [],
                 "engine_id": "eng2",
-                "affordances": [],
+                "affordances": {},
                 "blockers": [],
             }
         }
-        engines_affordances = {"eng2": []}
+        engines_affordances = {"eng2": {}}
         card_readiness_map = {"c1": 0}
         cards_by_word_id = {}
         cards_by_hanzi = {}
@@ -51,11 +52,11 @@ class TestCoverageAffordanceReclassification(unittest.TestCase):
                 "readiness_label": "READY_NO_HINTS",
                 "option_tokens": [],
                 "engine_id": "eng3",
-                "affordances": [],
+                "affordances": {},
                 "blockers": [],
             }
         }
-        engines_affordances = {"eng3": ["open_card"]}
+        engines_affordances = {"eng3": {"open_card": True}}
         # no L0+ cards (levels are negative or absent)
         card_readiness_map = {"c1": -1}
         cards_by_word_id = {}

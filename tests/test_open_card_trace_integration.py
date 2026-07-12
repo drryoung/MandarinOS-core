@@ -15,8 +15,10 @@ class DummyEmitter:
 
 class TestOpenCardTraceIntegration(unittest.TestCase):
     def test_runtime_emits_open_card_matches_golden(self):
-        # prepare inputs
-        cards_index = {"hello": "card_hello"}
+        # Satisfies strict_runtime=True: cards_index must have non-empty by_word_id,
+        # and cards dict must be non-empty.
+        cards_index = {"by_word_id": {"hello": "card_hello"}}
+        cards = {"card_hello": {}}
         engine_affordances = {"eng1": {"open_card": True}}
         frame = {
             "readiness_label": "READY_NO_CONVO_HINTS_BUT_CARDS_AVAILABLE",
@@ -30,7 +32,7 @@ class TestOpenCardTraceIntegration(unittest.TestCase):
 
         # run the minimal engine pipeline which emits TURN_START, OPEN_CARD (if any), TURN_END
         try:
-            engine.process_turn("turn_0001", frame, engine_affordances, cards_index, {}, emitter, env="dev")
+            engine.process_turn("turn_0001", frame, engine_affordances, cards_index, cards, emitter, env="dev")
         except Exception as e:
             self.fail(f"Engine pipeline raised unexpectedly: {e}")
 
