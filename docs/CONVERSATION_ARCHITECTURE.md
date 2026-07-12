@@ -415,10 +415,18 @@ immediate mismatch.
 
 ### 5.6 Bridge transitions
 
-`_select_next_frame_bridge()` fires when the current engine has no remaining frames or the
-session arc state (`loop_count_in_current_engine >= LOOP_COUNT_IN_ENGINE_SOFT_CAP`)
-suggests the engine is exhausted. The bridge selects from `_BRIDGE_TARGETS`, modified by
-seeded engine preferences and engines already visited.
+`_select_next_frame_bridge()` is invoked from two distinct points. **Primary gate:**
+`bridge_allowed` is true when `force_bridge` or `prefer_bridge` are set, or when the current
+engine has no remaining unseen frames (`_engine_exhausted`), the conversation has dwelled in
+that engine for at least two turns, and topic-completion logic does not suppress bridging.
+`force_bridge` and `prefer_bridge` represent recovery or change-topic pathways and are
+distinct from ordinary engine exhaustion. **Post-selection arc correction:** after a frame
+has already been selected, if the engine loop soft cap (`LOOP_COUNT_IN_ENGINE_SOFT_CAP`) has
+been reached and the selected frame is a LOOP-type frame, the system attempts to substitute
+a non-LOOP frame or calls `_select_next_frame_bridge()` as a quality fallback. The loop-count
+cap is not itself the ordinary primary engine-exhaustion gate; it is a post-selection
+correction intended to avoid excessive looping. Bridge targets are selected from
+`_BRIDGE_TARGETS`, modified by seeded preferences and engines already visited.
 
 ### 5.7 Frame selector fallback
 
@@ -731,7 +739,7 @@ capture and session state updates within the same turn.
 
 ### 10.2 Working memory (`recent_persona_replies`, `last_counter_reply`, `last_partner_frame_text`)
 
-Working memory is a short list (up to five entries) of recent partner replies, maintained
+Working memory is a short list of up to three recent partner replies, maintained
 as `cs["recent_persona_replies"]` in `conversation_state`. It is read on each turn to:
 
 - provide context for `_answer_from_working_memory()` (E3);
@@ -1461,5 +1469,5 @@ Links marked "(not yet created)" will resolve once the relevant document is auth
 |-------|-------|
 | Baseline commit | `53584cee9e8c892ff77f12741d1fc89d9d09c7e7` |
 | Baseline tag | `architecture-baseline-2026-07-12` |
-| Document status | Candidate v1 — final review |
+| Document status | Approved v1 |
 | Last verified date | 2026-07-12 |
