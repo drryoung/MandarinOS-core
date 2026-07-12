@@ -11,10 +11,9 @@ It is a concise description of the R2 implementation at:
 - baseline commit: `3be0315b2c9f7316b03ac2183a887f602ae9a297`
 - baseline tag: `architecture-baseline-2026-07-12-r2`
 
-This document is a **candidate orientation map**, subordinate to the four approved detailed contracts for subsystem behaviour
+This document is an **approved R2 orientation map**, subordinate to the four approved detailed contracts for subsystem behaviour
 (`docs/CONVERSATION_ARCHITECTURE.md`, `docs/STATE_CONTRACT.md`, `docs/ANSWER_SOURCE_CONTRACT.md`, `docs/ASR_PIPELINE.md`). Where this
-document and a detailed contract disagree, the detailed contract is correct and this document is stale. This subordination holds now and
-continues to hold once this document is itself approved.
+document and a detailed contract disagree, the detailed contract is correct and this document is stale.
 
 Audience: new developers joining the project; the maintenance team; technical reviewers auditing a change; AI coding agents (Cursor and
 others) operating on this repository; the project owner diagnosing a reported regression. It does not repeat the field-by-field state
@@ -52,9 +51,9 @@ When evidence conflicts, resolve in this order (highest first):
 7. **comments or filenames** not supported by current behaviour.
 
 Code and real behavioural tests establish *actual* behaviour; the four approved contracts describe that verified baseline for their
-respective subsystems. **This document is not one of the four approved R2 contracts** — it is currently a candidate orientation map above
-them, and once approved remains subordinate to them for behavioural detail (Section 1). Historical documents, and any document labelled
-`LOCKED`, `FINAL`, or similar, are not authoritative merely by title or intent — they must be checked against code at the current baseline.
+respective subsystems. **This document is an approved orientation map but is not one of the four approved R2 detailed contracts** — it
+remains subordinate to them for behavioural detail (Section 1). Historical documents, and any document labelled `LOCKED`, `FINAL`, or
+similar, are not authoritative merely by title or intent — they must be checked against code at the current baseline.
 
 The four approved R2 contracts:
 
@@ -189,26 +188,27 @@ of the browser tab; `/api/end_session` can submit that transcript, and it **may*
 Consequently, client-intercepted spoken recovery — which never reaches `/api/run_turn` — can still appear as a client-authored transcript
 record in opt-in end-session capture (`docs/ASR_PIPELINE.md` §16).
 
-All stores above require `MANDARINOS_DATA_DIR` to point at persistent storage to survive a process restart or Railway redeploy; see Section
-13. The Challenge-mode history path is a **fixed repo-relative path that does not honour `MANDARINOS_DATA_DIR`** — it is outside the normal
-`/data` mounted-volume configuration and is not thereby exempt from Railway ephemerality; unless a separate mechanism mounts or preserves
-that specific location, it is also lost on Railway restart/redeploy.
+Learner memory, progress, session capture, beta profiles, and diagnostics all use the data directory selected by `MANDARINOS_DATA_DIR`; those
+stores survive a Railway restart/redeploy only when that directory points at persistent mounted storage (see Section 13). Challenge history
+is written independently to the fixed repo-relative `data/progress_history.json`; it does **not** honour `MANDARINOS_DATA_DIR`, so the normal
+`/data` volume configuration does not make it durable — it remains ephemeral on Railway unless that fixed location is preserved separately.
 
 ## 7. One-turn lifecycle
 
 1. The current partner frame is presented (`#frameSentence`, TTS where applicable).
 2. The learner responds by speaking, by translate-assisted typing, or by selecting an option.
-3. The client may intercept an exact spoken recovery phrase locally — this never reaches the server (`docs/ASR_PIPELINE.md`).
-4. Otherwise the client constructs `conversation_state.last_answer` and the rest of the request body (`submitted_text`/`selected_option_hanzi`, engine state, etc.).
-5. The server derives raw and routing-normalised text from that submission (`_normalize_zh_for_routing`).
-6. Answer-source priority resolution selects the **initial** `counter_reply` candidate (and its English/pinyin) from that normalised text (`docs/ANSWER_SOURCE_CONTRACT.md`).
+3. The client may intercept an eligible exact spoken recovery phrase locally — this never reaches the server (`docs/ASR_PIPELINE.md`).
+4. Otherwise the client constructs the request and `conversation_state.last_answer` (`submitted_text`/`selected_option_hanzi`, engine state, etc.).
+5. The server derives raw `answer_text` and routing-normalised text from that submission (`_normalize_zh_for_routing`).
+6. Classifiers and answer sources consume the appropriate raw or routing-normalised form, depending on the verified call path, and select an initial Chinese/English answer candidate (`docs/ANSWER_SOURCE_CONTRACT.md`) — some highest-priority initiative/repair branches consume raw `answer_text`, while many recovery/direct-answer paths consume routing-normalised text; the detailed consumer inventory remains in `ASR_PIPELINE.md`. Pinyin is not assumed to exist as part of this initial tuple.
 7. E4 (initiative-follow) eligibility is computed from that priority-chain candidate.
-8. Deduplication (`last_counter_reply`, `recent_persona_replies`), the exact-repeat guard, and repair escalation may replace that candidate — all still **before** frame selection.
-9. Frame selection independently produces the current response's next conversational move (`docs/CONVERSATION_ARCHITECTURE.md`).
-10. The server assembles response fields (`counter_reply*`, `frame_text*`, `data.engine_id`), slot substitutions, English/pinyin fields, and `state_update` (including `state_update.current_engine` for E4).
-11. A **final response-level** `_repair_asr_junk_text()` guard may still alter `frame_text`/`counter_reply` Chinese text immediately before JSON serialisation, after frame selection and response assembly are already complete — its final call sites do not update the already-assembled paired English/pinyin fields to match (`docs/ASR_PIPELINE.md` §11).
-12. The client renders the assembled response and appends a transcript entry.
-13. The client applies any E4 engine handoff via `_resolveNextEngineId()`, setting `window._currentEngineId` for use on the **following** request — a one-response transition delay, not an immediate same-response effect.
+8. Deduplication (`last_counter_reply`, `recent_persona_replies`), the exact-repeat guard, and repair escalation may replace the candidate, and may replace or recompute its paired English — all still **before** frame selection.
+9. `counter_reply_pinyin` is derived from the resulting pre-response Chinese answer.
+10. Frame selection independently produces the current response's next conversational move (`docs/CONVERSATION_ARCHITECTURE.md`).
+11. The server assembles response fields (`counter_reply*`, `frame_text*`, `data.engine_id`), slot substitutions, and `state_update` (including `state_update.current_engine` for E4).
+12. A **final response-level** `_repair_asr_junk_text()` guard may still alter `frame_text`/`counter_reply` Chinese text immediately before JSON serialisation, after frame selection and response assembly are already complete — its final call sites do not update the already-assembled paired English/pinyin fields to match (`docs/ASR_PIPELINE.md` §11).
+13. The client renders the assembled response and appends a transcript entry.
+14. The client applies any E4 engine handoff via `_resolveNextEngineId()`, setting `window._currentEngineId` for use on the **following** request — a one-response transition delay, not an immediate same-response effect.
 
 This summary cross-references, and does not replace, the detailed tables in the four approved contracts.
 
@@ -233,8 +233,8 @@ per Section 6.4.
 
 ## 9. Conversation-control model
 
-**Current engine**: a topic engine (identity, place, food, family, study/work, travel, interests) is active at any time and constrains frame
-selection. **Frames and ladders**: `p2_frames.json`/`p1_frames.json` content, ordered by `FRAME_ORDER` guidance, difficulty ramp, and
+**Current engine**: a topic engine — the canonical R2 engine identifiers are `identity`, `place`, `work`, `family`, `hobby`, `travel`,
+`food`, and `life` (the last gated off until `MIN_TURNS_FOR_LIFE_ENGINE` exchanges) — is active at any time and constrains frame selection. **Frames and ladders**: `p2_frames.json`/`p1_frames.json` content, ordered by `FRAME_ORDER` guidance, difficulty ramp, and
 mutual-exclusion/`skip_when` rules. **Answer generation**: a strict priority chain of producers resolves `counter_reply`/EN/pinyin
 (`docs/ANSWER_SOURCE_CONTRACT.md`), including mirror answers, direct-persona answers, E3 working-memory reuse, and recovery. **Frame
 selection**: a mostly independent process choosing the next partner move. **E4 (initiative-follow)**: when the learner asks a direct
@@ -250,8 +250,10 @@ Links: `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ANSWER_SOURCE_CONTRACT.md`.
 ## 10. Input and ASR model
 
 **Chinese microphone**: the primary spoken-answer mechanism, using the browser `SpeechRecognition` API configured for Chinese.
-**Translate-assisted typed input**: the learner types English, an external translation API call (MyMemory) produces a Chinese suggestion,
-and the learner submits the (possibly edited) Chinese text. **Auxiliary English microphone**: a separate `en-US` recognizer instance
+**Translate-assisted typed input**: the learner types English into `#engInput` (editable) and `doTranslate()` renders a generated Chinese
+candidate as read-only tokens in `#engTranslatedZh` (a `<div>`, not an input and not `contenteditable`); the Use-button handler
+(`useBtn`) submits that rendered candidate verbatim — the learner submits the generated Chinese candidate after reviewing it, not an edited
+Chinese string; only the English source text is directly editable. **Auxiliary English microphone**: a separate `en-US` recognizer instance
 supporting the translate-assist panel; its error handling is less specific than the Chinese recognizer's. **Synthetic test payloads**: test
 code can submit `submitted_text`/`selected_option_hanzi` directly, bypassing any recognizer. **Client-intercepted spoken recovery**: exact
 matches against recovery phrases are handled entirely client-side and never reach `/api/run_turn`. **Raw versus routing-normalised text**:
@@ -333,10 +335,9 @@ setting, not a repository file); do not assume a merge to `main` is required unl
 Persistent storage: `MANDARINOS_DATA_DIR` selects the base directory for learner memory, progress, session capture, beta profiles, and ASR
 diagnostics; it defaults to `{repo}/data` when unset. `railway.toml` documents the required manual steps to make this durable on Railway:
 add a Volume mounted at `/data`, then set `MANDARINOS_DATA_DIR=/data` in the service's environment variables. Without that volume and
-environment variable, all of the stores in Section 6.4 are **ephemeral** on Railway and are lost on redeploy or restart.
-`MANDARINOS_DATA_DIR=/data` makes the stores that honour that variable durable — it does **not** make the fixed-path Challenge-history file
-(`data/progress_history.json`) durable, since that path is hardcoded relative to the repository root and ignores `MANDARINOS_DATA_DIR`
-entirely; that file is therefore ephemeral on Railway unless a separate mechanism mounts or preserves that specific location.
+environment variable, those stores are **ephemeral** on Railway and are lost on redeploy or restart. Challenge history is written
+independently to the fixed repo-relative `data/progress_history.json`, which does **not** honour `MANDARINOS_DATA_DIR` — the `/data` volume
+configuration above does not make it durable, and it remains ephemeral on Railway unless that fixed location is preserved separately (§6.4).
 
 `/api/version` is the deployed-code verification mechanism: it returns the branch, short and full git SHA, and the source of that SHA
 (`"git"` if resolved live at process start, `"railway_env"` if taken from `RAILWAY_GIT_COMMIT_SHA`, `"unknown"` otherwise). Compare this
@@ -350,19 +351,23 @@ against the expected commit after any deploy.
 | Source | Generated artifact |
 | ------ | -------------------- |
 | `content/recovery_phrases.json` | `recovery_phrases.runtime.json` |
-| `p1_frames.json` + `p2_frames.json` | `frame_options.runtime.json`, `frame_render_tokens.runtime.json` (and its canonical alias `frame_tokens.runtime.json`), `slot_invariant_violations.runtime.json` |
-| `p1_words.json` + `p2_words.json` + frames | `frame_tokens.runtime.json` |
+| `p1_frames.json` + `p2_frames.json` + `tools/cards/out/cards_by_id.json` | `frame_options.runtime.json`, `slot_invariant_violations.runtime.json` |
+| `p1_frames.json` + `p2_frames.json` + `p1_words.json` + `p2_words.json` | `frame_tokens.runtime.json` and `frame_render_tokens.runtime.json` — both written byte-identical by the same final call (`write_frame_tokens()`); an earlier, differently-computed write of `frame_render_tokens.runtime.json` executes first in the same run but is unconditionally overwritten before the builder finishes, so it never survives to the final artifact |
 | `tools/cards/out/cards_by_id.json` | Feeds frame options; also produces `cards_index.runtime.json` |
 | `p1_fillers.json` + `p2_fillers.json` | Sentence-level options inside `frame_options.runtime.json` |
 | `word_character_links.json` + `characters_1200.json` (root or `data/`) | `word_etymology.runtime.json` |
 | Optional narrative file (`data/word_etymology_top1000_curated_v2_inferred_narrative.json`) | Merged into `word_etymology.runtime.json` |
 | (build metadata) | `build_manifest.json` |
 
+Verified build invocation: `python tools/build_runtime_artifacts.py` (its `main()` guarded by `if __name__ == "__main__":`). Regeneration is
+**not automatic**: `scripts/ui_server.py` does not call this builder at startup, and neither `railway.toml` nor `nixpacks.toml` configures a
+build-phase command that runs it — the builder must be run explicitly before a local run or a deploy that depends on updated artifacts.
+
 By contrast, `runtime/*.py` modules (e.g. `runtime/engine.py`) are hand-written source and **are** committed — the gitignore rule applies
 only to the `out_phase7/` output subdirectory. Stale generated content can cause apparent code/content mismatches if a source file was
 edited but the builder was not re-run.
 
-> Edit the source-of-truth content, then regenerate the runtime artifact; do not treat a generated runtime file as the primary editable source unless the repository explicitly establishes it as such.
+> Edit the source-of-truth content, then run `python tools/build_runtime_artifacts.py` to regenerate; do not treat a generated runtime file as the primary editable source, and do not assume artifacts refresh automatically on server start or deploy.
 
 ## 15. Test architecture at a glance
 
@@ -437,8 +442,12 @@ directly is invisible to the source-of-truth content and will be silently overwr
 9. Run the appropriate broader suite (Section 15) — at minimum the non-`live_server` suite, plus `live_server` tests if a server is available.
 10. Inspect the diff for unintended scope creep.
 11. Update the affected architecture documentation (one of the four contracts, or this map, as appropriate).
-12. Commit and push to the branch Railway is configured to deploy.
-13. Verify `/api/version` and actual production behaviour after deployment.
+12. Follow the deployment path that matches the change. **Documentation-only change** — commit on the documentation branch (e.g.
+    `docs/architecture-v1`); push that branch; no Railway deployment or `/api/version` check is required unless the documentation is
+    deliberately merged into the branch Railway watches. **Production/runtime change** — commit and push to the branch Railway is
+    configured to watch; wait for the deployment to complete; verify the expected commit through `/api/version`; verify the affected
+    production behaviour. A local commit is never deployed until pushed to Railway's watched branch — `docs/architecture-v1` is a
+    documentation branch, not itself Railway's deployment branch (Section 13).
 
 AI coding agents must not implement a change purely from a historical design document (Section 20) without first reconciling it against the
 approved R2 contracts and current tests — historical documents can describe intent that was superseded by later, undocumented code changes.
@@ -482,7 +491,7 @@ deliberate and follow Section 17.
 
 | Document | Authority | Purpose | Read when |
 | -------- | --------- | -------- | ---------- |
-| `docs/ARCHITECTURE.md` (this document) | Candidate orientation map | System-wide onboarding and navigation | First, before any other document |
+| `docs/ARCHITECTURE.md` (this document) | Approved R2 orientation map | System-wide onboarding and navigation | First, before any other document |
 | `docs/CONVERSATION_ARCHITECTURE.md` | Approved R2 contract | Turn lifecycle, engine/frame selection, recovery, E4 handoff | Working on conversation control or selector logic |
 | `docs/STATE_CONTRACT.md` | Approved R2 contract | Field-by-field state inventory, defaults, merge/reset semantics | Working on any state field or reset behaviour |
 | `docs/ANSWER_SOURCE_CONTRACT.md` | Approved R2 contract | `counter_reply`/EN/pinyin production, priority chain, dedup | Working on persona answers or translation |
@@ -520,7 +529,7 @@ or `ui/app.js` request/response handling) — those require the full Section 17 
 
 | Architecture area | Primary implementation | Authoritative contract | Representative tests or verification |
 | ------------------ | ------------------------ | ------------------------ | --------------------------------------- |
-| Turn routing / HTTP dispatch | `scripts/ui_server.py` (`do_GET`/`do_POST`) | This document §12 | `tests/test_deployment_hygiene.py` (deployment config only) |
+| Turn routing / HTTP dispatch | `scripts/ui_server.py` (`do_GET`/`do_POST`) | This document §12 | Direct source audit of `Handler.do_GET`/`Handler.do_POST` at the R2 baseline (no dedicated behavioural dispatch test identified); `tests/test_deployment_hygiene.py` is separate evidence for deployment configuration only, not HTTP dispatch |
 | Answer-source priority chain | `scripts/ui_server.py` | `docs/ANSWER_SOURCE_CONTRACT.md` | `scripts/test_counter_reply_matrix.py` |
 | Frame selection | `scripts/ui_server.py`, `p1_frames.json`/`p2_frames.json` | `docs/CONVERSATION_ARCHITECTURE.md` | `tests/test_golden_regression.py` (live_server, behavioural) |
 | E4 initiative-follow / engine handoff | `scripts/ui_server.py` (server), `ui/app.js` `_resolveNextEngineId()` (client) | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/STATE_CONTRACT.md` | `tests/e4_resolve_next_engine_id_cli.js` + `tests/_load_app_js_helper.js` (executes real `ui/app.js` helper code) |
@@ -528,11 +537,14 @@ or `ui/app.js` request/response handling) — those require the full Section 17 
 | ASR input and client-intercepted recovery | `ui/app.js` | `docs/ASR_PIPELINE.md` | `tests/verify_asr_filler.js` (mirrored/static — does not execute the real `ui/app.js` filler functions); `tests/verify_spoken_recovery_exact_match.js` (hybrid — mirrored matcher plus static wiring, per `ASR_PIPELINE.md` §12) |
 | Late ASR-junk repair | `scripts/ui_server.py` (`_repair_asr_junk_text`) | `docs/ASR_PIPELINE.md` §11 | See the authoritative contract's traceability appendix |
 | Learner memory | `scripts/learner_memory.py`, `scripts/learner_memory_capture.py` | `docs/STATE_CONTRACT.md` | See the authoritative contract's traceability appendix |
-| Progress snapshots | `scripts/progress_store.py` | Not separately contracted; documented in this map §6.4 | See the authoritative contract's traceability appendix |
+| Progress snapshots | `scripts/progress_store.py` | Not separately contracted; documented in this map §6.4 | `tests/test_progress_store.py` (behavioural, exercises the real module) |
 | Session capture (opt-in) | `scripts/session_intelligence.py` | `docs/ASR_PIPELINE.md` §16 (capture semantics), `docs/session_intelligence_architecture.md` | `docs/session_intelligence_implementation_report.md` |
 | Deployment / version verification | `railway.toml`, `Procfile`, `nixpacks.toml`, `scripts/ui_server.py` (`/api/version`) | This document §13 | Manual `/api/version` check per Section 17 step 13 |
 | Generated runtime artifacts | `tools/build_runtime_artifacts.py` | `AI_CONTEXT.md` §1.1, this document §14 | Golden/build tests referenced in `AI_CONTEXT.md` §7 |
 | Challenge Mode | `ui/app.js`, `ui/styles.css` | `docs/ASR_PIPELINE.md` (visibility/reveal layer) | `tests/test_challenge_recovery.py` (mostly static, per `ASR_PIPELINE.md`) |
 
-Baseline commit: `3be0315b2c9f7316b03ac2183a887f602ae9a297` Baseline tag: `architecture-baseline-2026-07-12-r2` Documentation branch:
-`docs/architecture-v1` Document status: `Candidate v1 — R2 final review` Last verified date: `2026-07-12`
+Baseline commit: `3be0315b2c9f7316b03ac2183a887f602ae9a297`
+Baseline tag: `architecture-baseline-2026-07-12-r2`
+Documentation branch: `docs/architecture-v1`
+Document status: `Approved v1 — R2 baseline`
+Last verified date: `2026-07-13`
