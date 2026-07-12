@@ -6,6 +6,7 @@ Pure unit tests on ui_server progress helpers; retention mirrors client applyRet
 """
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -371,8 +372,14 @@ def test_progress_ui_learning_support_column_and_tracking():
     assert "display_py_clicks" in src
     assert "hint_clicks:" in src
     assert "function toggleLinePinyin" in src
-    assert "!st.showEn) _tracker.display_en_clicks" in src
-    assert "!st.showPy) _tracker.display_py_clicks" in src
+    # Brace-tolerant: matches both `if (!st.showEn) _tracker...` and
+    # `if (!st.showEn) { _tracker...` (braces may be added by formatting).
+    assert re.search(r"!\s*st\.showEn\s*\)\s*\{?\s*_tracker\.display_en_clicks\s*\+\+", src), (
+        "_tracker.display_en_clicks must be incremented when !st.showEn"
+    )
+    assert re.search(r"!\s*st\.showPy\s*\)\s*\{?\s*_tracker\.display_py_clicks\s*\+\+", src), (
+        "_tracker.display_py_clicks must be incremented when !st.showPy"
+    )
 
 
 def test_progress_recovery_not_needed_removed():

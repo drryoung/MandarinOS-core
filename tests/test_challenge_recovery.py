@@ -19,6 +19,10 @@ Covers:
   - 我不明白 — confusion signal
   - 什么意思 — meaning query (short standalone form)
 """
+import ast
+import contextlib
+import importlib.util
+import io
 import json
 import pathlib
 import pytest
@@ -38,6 +42,27 @@ def app_js_src():
     return APP_JS_PATH.read_text(encoding="utf-8")
 
 
+@pytest.fixture(scope="module")
+def server_mod():
+    """Import ui_server once per session; suppress startup stdout."""
+    spec = importlib.util.spec_from_file_location("ui_server_cr", UI_SERVER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    with contextlib.redirect_stdout(io.StringIO()):
+        spec.loader.exec_module(mod)
+    return mod
+
+
+def _find_is_rr_assignment_rhs(server_src: str) -> str:
+    """Return ast.unparse of the RHS of the first `_is_rr = ...` assignment found."""
+    tree = ast.parse(server_src)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "_is_rr":
+                    return ast.unparse(node.value)
+    return ""
+
+
 # ---------------------------------------------------------------------------
 # 1. _REPEAT_REQUEST_MARKERS constant defined at module level
 # ---------------------------------------------------------------------------
@@ -47,28 +72,19 @@ def test_repeat_request_markers_defined(server_src):
     assert "_REPEAT_REQUEST_MARKERS" in server_src
 
 
-def test_repeat_request_markers_contains_zai_shuo(server_src):
+def test_repeat_request_markers_contains_zai_shuo(server_mod):
     """再说一遍 must be in _REPEAT_REQUEST_MARKERS."""
-    idx = server_src.find("_REPEAT_REQUEST_MARKERS")
-    assert idx != -1
-    block = server_src[idx: idx + 400]
-    assert "再说一遍" in block
+    assert "再说一遍" in server_mod._REPEAT_REQUEST_MARKERS
 
 
-def test_repeat_request_markers_contains_man_yi_dian(server_src):
-    """慢一点 must be in _REPEAT_REQUEST_MARKERS."""
-    idx = server_src.find("_REPEAT_REQUEST_MARKERS")
-    assert idx != -1
-    block = server_src[idx: idx + 400]
-    assert "慢一点" in block
+def test_repeat_request_markers_contains_man_yi_dian(server_mod):
+    """慢一点 must be in _SLOWER_REQUEST_MARKERS (the slow-down variant of the recovery family)."""
+    assert "慢一点" in server_mod._SLOWER_REQUEST_MARKERS
 
 
-def test_repeat_request_markers_contains_qing_zai_shuo(server_src):
+def test_repeat_request_markers_contains_qing_zai_shuo(server_mod):
     """请再说 must be in _REPEAT_REQUEST_MARKERS."""
-    idx = server_src.find("_REPEAT_REQUEST_MARKERS")
-    assert idx != -1
-    block = server_src[idx: idx + 400]
-    assert "请再说" in block
+    assert "请再说" in server_mod._REPEAT_REQUEST_MARKERS
 
 
 # ---------------------------------------------------------------------------
@@ -81,21 +97,24 @@ def test_is_rr_computed_in_counter_reply_block(server_src):
 
 
 def test_is_rr_uses_repeat_request_markers(server_src):
-    """_is_rr must reference _REPEAT_REQUEST_MARKERS."""
-    idx = server_src.find("_is_rr")
-    assert idx != -1
-    block = server_src[idx: idx + 200]
-    assert "_REPEAT_REQUEST_MARKERS" in block
+    """_is_rr assignment must reference _REPEAT_REQUEST_MARKERS (not a hardcoded list).
+    Uses AST so the test is immune to unrelated line insertions nearby."""
+    rhs = _find_is_rr_assignment_rhs(server_src)
+    assert rhs, "_is_rr = ... assignment not found in server source"
+    assert "_REPEAT_REQUEST_MARKERS" in rhs, (
+        "_is_rr must reference _REPEAT_REQUEST_MARKERS, got: " + rhs[:200]
+    )
 
 
-def test_is_rr_handles_short_shenme_yisi(server_src):
-    """_is_rr must also catch short (≤5 chars) 什么意思 utterances."""
-    idx = server_src.find("_is_rr")
-    assert idx != -1
-    block = server_src[idx: idx + 400]
-    assert "什么意思" in block
-    # Should use a length guard
-    assert "len(" in block or "strip()" in block
+def test_is_rr_handles_short_shenme_yisi(server_mod):
+    """什么意思 triggers meaning recovery via _MEANING_REQUEST_MARKERS.
+    The server handles 什么意思 through _is_meaning → _meaning_recovery_reply,
+    not through _is_rr.  This verifies the correct invariant: 什么意思 is in
+    _MEANING_REQUEST_MARKERS so it always intercepts before the frame advances."""
+    assert "什么意思" in server_mod._MEANING_REQUEST_MARKERS, (
+        "什么意思 must be in _MEANING_REQUEST_MARKERS so meaning queries "
+        "route to _meaning_recovery_reply instead of advancing the frame"
+    )
 
 
 def test_is_rr_routes_to_clarify_app_question(server_src):
