@@ -4428,8 +4428,31 @@ def _context_city_from_text(text: str) -> Optional[str]:
     return None
 
 
+# Matches a city token immediately followed by a feature/food question marker anywhere in
+# the utterance (non-anchored).  Captures only the Chinese character sequence so we can
+# verify membership in _CITY_LOCATION_BRIEF separately.
+_CITY_BEFORE_QUESTION_MARKER_RE = re.compile(
+    r"([\u4e00-\u9fff]{2,4})"
+    r"(?:有什么特别的?(?:之处)?|有什么特色|有什么好玩|有什么有意思|"
+    r"有什么好吃的?|有什么吃的|好吃的|特别之处)"
+)
+
+
 def _place_from_question_context(t: str, recent_replies: Optional[list] = None) -> Optional[str]:
-    """Named place in the question, or deictic '那里/这儿' resolved from recent persona replies."""
+    """Named place in the question, or deictic '那里/这儿' resolved from recent persona replies.
+
+    Priority:
+    1. A city that immediately precedes a feature/food question marker — this is the
+       grammatical subject of the question (e.g. '成都有什么特别' in
+       '我不喜欢上海，成都有什么特别？' → '成都', not '上海').
+    2. The first known city anywhere in the text.
+    3. Deictic '那里/这儿/那边' resolved from recent persona replies.
+    """
+    m = _CITY_BEFORE_QUESTION_MARKER_RE.search(t or "")
+    if m:
+        candidate = m.group(1)
+        if candidate in _CITY_LOCATION_BRIEF:
+            return candidate
     place = _context_city_from_text(t)
     if place:
         return place
