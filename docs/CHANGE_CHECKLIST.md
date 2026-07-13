@@ -23,8 +23,8 @@ Application baseline tag: `architecture-baseline-2026-07-12-r2`
 | A. Documentation-only | Correcting a contract; adding explanatory documentation; updating this checklist | Low | §17–§18 documentation-only path; no deployment |
 | B. Content-only | Persona fact; voice line; recovery phrase; frame wording; translation/pinyin content; response-pattern data | Low–Medium | §12; §13 if a generated artifact is involved |
 | C. Isolated helper change | Pure normalisation helper; persistence helper; small response formatter | Medium | §6; targeted test + core suite |
-| D. Shared control-flow change | Answer-source priority chain; frame selection; state transport; E4 handoff; reset logic; ASR interception; request/response construction | High | §7–§10 as applicable; full core suite; `live_server` suite; deployed smoke check |
-| E. API or persistence change | Endpoint; request field; response field; learner-memory schema; progress/session store; environment-variable behaviour | Medium–High | §7, §14; core suite; `live_server` suite; deployed smoke check |
+| D. Shared control-flow change | Answer-source priority chain; frame selection; state transport; E4 handoff; reset logic; ASR interception; request/response construction | High | §7–§10 as applicable; full core suite; relevant `live_server` suite for shared **server**-side control-flow changes; real-browser verification for client ASR/DOM/event/Challenge Mode/interception changes; deployed code-identity and functional verification when shipped |
+| E. API or persistence change | Endpoint; request field; response field; learner-memory schema; progress/session store; environment-variable behaviour | Medium–High | §7, §14; see the API-versus-persistence distinction below §2's table — the two do **not** share an identical mandatory workflow |
 | F. UI/ASR/browser change | Event handler; Challenge Mode visibility; microphone lifecycle; TTS coordination; translated-input flow | Medium–High | §10; core suite; manual browser verification |
 | G. Generated-artifact or builder change | `tools/build_runtime_artifacts.py`; builder inputs; generated runtime schema; phrase/frame runtime outputs | Medium–High | §13; full 5-step deployment obligation |
 | H. Deployment/configuration change | `railway.toml`; `Procfile`; `nixpacks.toml`; `PORT`; `MANDARINOS_DATA_DIR`; Railway branch or volume configuration | High | §18–§19; deployed SHA + smoke check required |
@@ -36,13 +36,14 @@ Application baseline tag: `architecture-baseline-2026-07-12-r2`
 
 - No production deployment is required.
 - No `/api/version` verification is required.
-- Pushing the documentation branch (`docs/architecture-v1`) is sufficient unless the documentation is deliberately merged into the branch Railway watches (`docs/ARCHITECTURE.md` §17).
+- Commit and push to the **current authorised documentation or working branch**; for this R2 documentation package, that branch is `docs/architecture-v1`. Future maintenance work must not assume `docs/architecture-v1` remains the active documentation branch indefinitely — confirm the currently authorised branch before pushing. Pushing that branch is sufficient unless the documentation is deliberately merged into the branch Railway watches (`docs/ARCHITECTURE.md` §17).
+- The implementation report (§21) must record the actual branch used.
 
 ### B. Content-only
 
 Distinguish, for every content change:
 
-- **Source-controlled content consumed directly** (e.g. `personas/*.json` read at server startup/request time) — no build step required, but a runtime-consumed persona fact, voice line, or other content change still requires the targeted content/answer test **plus the core non-`live_server` suite** (`docs/TEST_STRATEGY.md` §13) — a content change is never "no broader suite required" merely because it is content rather than code.
+- **Source-controlled content consumed directly** (e.g. `personas/*.json`, which are source-controlled and consumed directly by the server without the runtime-artifact build step; at the R2 baseline, the persona index is loaded into the server's runtime structures at startup, and individual persona files are lazy-loaded from disk on first access and then cached in memory for subsequent requests — do not imply persona JSON is necessarily reread from disk on every request) — no build step required, but a runtime-consumed persona fact, voice line, or other content change still requires the targeted content/answer test **plus the core non-`live_server` suite** (`docs/TEST_STRATEGY.md` §13) — a content change is never "no broader suite required" merely because it is content rather than code.
 - **Content requiring generated runtime artifacts** (e.g. `content/recovery_phrases.json` → `recovery_phrases.runtime.json`, `p1_frames.json`/`p2_frames.json` → `frame_options.runtime.json` — see `docs/ARCHITECTURE.md` §14) — §13's full regeneration and provisioning obligation applies, in addition to the targeted test and core suite above.
 
 A **documentation-only** change (class A) requires no test suite at all — that exemption does not extend to class B. Do not classify a runtime-consumed persona/content change as "no broader suite required."
@@ -57,7 +58,23 @@ Default risk: **high**. Covers the answer-source priority chain, frame selection
 
 ### E. API or persistence change
 
-Covers `/api/*` endpoints, request/response fields, `conversation_state`/`state_update` fields, learner-memory schema, progress/session store behaviour, and any `MANDARINOS_*` environment-variable behaviour. An API endpoint change requires an in-process HTTP or handler test where one is available (`docs/TEST_STRATEGY.md` §6); the core suite is **mandatory**; the local `live_server` suite is **mandatory before shipping** the endpoint change, not merely recommended; deployed `/api/version` and functional smoke verification are **mandatory when deployed**.
+Covers `/api/*` endpoints, request/response fields, `conversation_state`/`state_update` fields, learner-memory schema, progress/session store behaviour, and any `MANDARINOS_*` environment-variable behaviour. **API and persistence changes do not share an identical mandatory workflow** — distinguish them:
+
+**API endpoint or transport change:**
+
+- targeted handler or in-process HTTP test (`docs/TEST_STRATEGY.md` §6);
+- core non-`live_server` suite — **mandatory**;
+- local `live_server` suite — **mandatory before shipping** the endpoint change, not merely recommended;
+- `/api/version` and functional production smoke verification — **mandatory when deployed**.
+
+**Persistence-module change** (e.g. `scripts/progress_store.py`, `scripts/beta_profile.py`, `scripts/learner_memory.py`, `scripts/session_intelligence.py`):
+
+- targeted behavioural filesystem test(s) using a temporary directory (`tmp_path`) — §14;
+- core non-`live_server` suite — **mandatory**;
+- live-server testing — required **only** when the change also affects an endpoint, a cross-request flow, or session lifecycle, not for every isolated persistence helper with no HTTP path involved;
+- operational persistence verification when deployed, including the applicable environment variable (`MANDARINOS_DATA_DIR`, `MANDARINOS_SESSION_CAPTURE`, etc.) and mounted-volume configuration (§14, §19).
+
+Do not require the full `live_server` suite for an isolated persistence helper that has no HTTP path — that requirement applies specifically to endpoint/transport changes and to persistence changes that also touch an endpoint or cross-request flow.
 
 ### F. UI/ASR/browser change
 
@@ -212,7 +229,7 @@ For any `counter_reply` change:
 ## 9. Frame-selection and E4 checklist
 
 - [ ] Identify the current engine.
-- [ ] Identify the frame ladder and order (`FRAME_ORDER`).
+- [ ] Identify the frame ladder and order (`_FRAME_ORDER`).
 - [ ] Identify eligibility and `skip_when` rules.
 - [ ] Identify mutual-exclusion rules.
 - [ ] Identify current-response frame effects.
@@ -363,7 +380,8 @@ Before commit, inspect the final diff:
 
 - [ ] Only intended files changed.
 - [ ] No debug logging left behind.
-- [ ] No secrets/tokens/URLs added.
+- [ ] No credentials, secret values, or authentication tokens added.
+- [ ] No unintended hard-coded localhost, deployment, diagnostic, or third-party URLs added; any intentional new URL is part of the authorised scope and has been reviewed for configuration, privacy, security, and deployment implications — this is not a categorical prohibition on legitimate URL changes.
 - [ ] No local machine paths added.
 - [ ] No generated files edited as primary source.
 - [ ] No unrelated formatting churn.
@@ -406,9 +424,10 @@ State: a local commit is not pushed; a pushed documentation branch is not produc
 
 ### Documentation-only
 
-- Push `docs/architecture-v1`.
+- Push the **current authorised documentation or working branch** — for this R2 documentation package, `docs/architecture-v1`. Do not treat this branch name as a permanent universal rule; future maintenance work must confirm which branch is currently authorised before pushing.
 - Confirm the branch is up to date with origin.
 - No Railway deployment is required unless deliberately merging to the watched branch.
+- Record the actual branch used in the implementation report (§21).
 
 ### Runtime change
 
@@ -627,11 +646,11 @@ For: documentation-only changes (class A) only.
 For: helper logic (class C, medium risk by default — §2); a persistence module; a persona/content change consumed at runtime (class B); an endpoint with isolated behaviour; content requiring a generated artifact.
 
 - Diagnosis: §4, focused on the helper's/content's producer/consumer and any generated-artifact dependency.
-- Targeted test: direct-function test for the helper, or the targeted content/answer test for a content change; regenerate and inspect the artifact if involved (§13).
-- Broader suite: core non-`live_server` suite — **mandatory**, not optional, for any runtime-consumed content or helper change.
+- Targeted test: direct-function test for the helper, or the targeted content/answer test for a content change; a targeted behavioural filesystem test (`tmp_path`) for a persistence module; regenerate and inspect the artifact if involved (§13).
+- Broader suite: core non-`live_server` suite — **mandatory**, not optional, for any runtime-consumed content, helper, or persistence change.
 - Documentation: update the relevant contract if behaviour changed, per §20.
 - Commit/push: single bounded commit; push to the appropriate branch.
-- Deployment/browser: for an isolated API endpoint, the local `live_server` suite is **mandatory before shipping** (§2.E), not merely recommended; deployed `/api/version` + smoke check mandatory if shipping a runtime change.
+- Deployment/browser: for an isolated API endpoint, the local `live_server` suite is **mandatory before shipping** (§2.E); for an isolated persistence helper with no HTTP path, `live_server` is required only if the change also affects an endpoint, cross-request flow, or session lifecycle — otherwise operational persistence verification (environment variable + mounted-volume configuration) is the deployed check, not the `live_server` suite. **When content or helper work involves a generated runtime artifact and is intended for production**, do not stop at "regenerate and inspect": §13's full obligation applies in full — identify and verify the deployed provisioning mechanism, and perform an artifact-dependent deployed smoke test; without a verified provisioning mechanism, the change is not production-ready. Deployed `/api/version` + the applicable smoke check is mandatory whenever any of these is shipped.
 
 ### High risk
 
@@ -642,7 +661,7 @@ For: answer-source priority; frame selection; E4; state transport; reset logic; 
 - Broader suite: full core suite; the relevant `live_server` suite for shared **server** control-flow paths (§2.D).
 - Documentation: update the specific contract(s) in §20's map in the same change.
 - Commit/push: single bounded commit; push to the Railway-watched branch if deploying (§18).
-- Deployment/browser: **mandatory** real-browser verification for any ASR/DOM/Challenge/client-interception change — a passing `live_server` suite does not prove client-intercepted behaviour (§2.D, §2.F, §10); deployed `/api/version` + smoke check mandatory if shipping a server-side change.
+- Deployment/browser: every deployed runtime change — server code, client JavaScript, CSS, or runtime content — requires verification that the expected commit is running, via `/api/version`; `/api/version` verifies code identity only. A server-side change then additionally requires the affected production server scenario; a browser/client change then additionally requires the affected real-browser scenario (mandatory for any ASR/DOM/Challenge/client-interception change — a passing `live_server` suite does not prove client-intercepted behaviour, §2.D, §2.F, §10); a change affecting both requires both scenarios; a generated-artifact-dependent change additionally requires §13's provisioning and artifact-dependent verification.
 
 ## 25. Traceability appendix
 
@@ -651,7 +670,7 @@ For: answer-source priority; frame selection; E4; state transport; reset logic; 
 | Architecture/repository | `docs/ARCHITECTURE.md` | `scripts/ui_server.py`, `ui/`, repository root configuration |
 | State | `docs/STATE_CONTRACT.md` | `conversation_state`/`state_update` fields, client globals |
 | Answer source | `docs/ANSWER_SOURCE_CONTRACT.md` | `scripts/ui_server.py` priority chain, `personas/*.json` |
-| Conversation/frame/E4 | `docs/CONVERSATION_ARCHITECTURE.md` | `FRAME_ORDER`, `skip_when`, `_infer_question_topic_engine`, `_resolveNextEngineId()` |
+| Conversation/frame/E4 | `docs/CONVERSATION_ARCHITECTURE.md` | `_FRAME_ORDER`, `skip_when`, `_infer_question_topic_engine`, `_resolveNextEngineId()` |
 | ASR/browser | `docs/ASR_PIPELINE.md` | `ui/app.js` recognizer/recovery code, `content/recovery_phrases.json` |
 | Tests | `docs/TEST_STRATEGY.md` | `tests/`, `tests/conftest.py`, `.github/workflows/coverage_scan.yml` |
 | Generated artifacts | `docs/ARCHITECTURE.md` §14; `docs/TEST_STRATEGY.md` §12–§13 | `tools/build_runtime_artifacts.py`, `runtime/out_phase7/` |
@@ -662,5 +681,5 @@ For: answer-source priority; frame selection; E4; state transport; reset logic; 
 Application baseline commit: `3be0315b2c9f7316b03ac2183a887f602ae9a297`
 Application baseline tag: `architecture-baseline-2026-07-12-r2`
 Documentation branch: `docs/architecture-v1`
-Document status: `Candidate v1 — R2 final review`
+Document status: `Approved v1 — R2 baseline`
 Last verified date: `2026-07-13`
