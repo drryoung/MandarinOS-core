@@ -42,24 +42,26 @@ Application baseline tag: `architecture-baseline-2026-07-12-r2`
 
 Distinguish, for every content change:
 
-- **Source-controlled content consumed directly** (e.g. `personas/*.json` read at server startup/request time) — no build step required.
-- **Content requiring generated runtime artifacts** (e.g. `content/recovery_phrases.json` → `recovery_phrases.runtime.json`, `p1_frames.json`/`p2_frames.json` → `frame_options.runtime.json` — see `docs/ARCHITECTURE.md` §14) — §13's full obligation applies.
+- **Source-controlled content consumed directly** (e.g. `personas/*.json` read at server startup/request time) — no build step required, but a runtime-consumed persona fact, voice line, or other content change still requires the targeted content/answer test **plus the core non-`live_server` suite** (`docs/TEST_STRATEGY.md` §13) — a content change is never "no broader suite required" merely because it is content rather than code.
+- **Content requiring generated runtime artifacts** (e.g. `content/recovery_phrases.json` → `recovery_phrases.runtime.json`, `p1_frames.json`/`p2_frames.json` → `frame_options.runtime.json` — see `docs/ARCHITECTURE.md` §14) — §13's full regeneration and provisioning obligation applies, in addition to the targeted test and core suite above.
+
+A **documentation-only** change (class A) requires no test suite at all — that exemption does not extend to class B. Do not classify a runtime-consumed persona/content change as "no broader suite required."
 
 ### C. Isolated helper change
 
-A change confined to a pure function with a direct-function test already covering it (`docs/TEST_STRATEGY.md` §3.A). Confirm it is genuinely isolated — not called from the answer-source or frame-selection paths (§8, §9 high-risk list) — before treating it as low-risk.
+**Class C remains medium risk by default.** A pure helper may have a small blast radius, but it still requires a targeted behavioural test and the core non-`live_server` suite, unless `docs/TEST_STRATEGY.md` explicitly provides a narrower rule for that specific test. Being isolated reduces diagnostic scope — it narrows *where* to look for the defect — it does not reduce the obligation to validate the helper's callers. Confirm it is genuinely isolated — not called from the answer-source or frame-selection paths (§8, §9 high-risk list) — before treating it as narrowly scoped within the medium-risk workflow.
 
 ### D. Shared control-flow change
 
-Default risk: **high**. Covers the answer-source priority chain, frame selection, state transport, E4 handoff, reset logic, ASR interception, and request/response construction — the exact high-risk list in `docs/ARCHITECTURE.md` §16. Any change touching these paths requires the full core suite regardless of how small the diff looks (`docs/TEST_STRATEGY.md` §13, item 2).
+Default risk: **high**. Covers the answer-source priority chain, frame selection, state transport, E4 handoff, reset logic, ASR interception, and request/response construction — the exact high-risk list in `docs/ARCHITECTURE.md` §16. Any change touching these paths requires the full core suite regardless of how small the diff looks (`docs/TEST_STRATEGY.md` §13, item 2). Shared **server** control-flow changes (answer-source, frame selection, state transport, E4, reset) require the core suite and the relevant `live_server` suite — those are real server-side evidence. ASR interception is different: it is a **client** behaviour that, by construction, never reaches `/api/run_turn`, so no server `live_server` test can prove it fired or fired correctly (§10; `docs/TEST_STRATEGY.md` §13). Treat ASR-interception changes under this class as requiring the core suite plus mandatory real-browser verification, not as proved by the `live_server` suite.
 
 ### E. API or persistence change
 
-Covers `/api/*` endpoints, request/response fields, `conversation_state`/`state_update` fields, learner-memory schema, progress/session store behaviour, and any `MANDARINOS_*` environment-variable behaviour.
+Covers `/api/*` endpoints, request/response fields, `conversation_state`/`state_update` fields, learner-memory schema, progress/session store behaviour, and any `MANDARINOS_*` environment-variable behaviour. An API endpoint change requires an in-process HTTP or handler test where one is available (`docs/TEST_STRATEGY.md` §6); the core suite is **mandatory**; the local `live_server` suite is **mandatory before shipping** the endpoint change, not merely recommended; deployed `/api/version` and functional smoke verification are **mandatory when deployed**.
 
 ### F. UI/ASR/browser change
 
-Covers DOM event handlers, Challenge Mode visibility/reveal logic, microphone lifecycle, TTS coordination, and the translated-input flow. No automated browser/DOM test exists (`docs/TEST_STRATEGY.md` §3.F) — manual browser verification is mandatory before shipping.
+Covers DOM event handlers, Challenge Mode visibility/reveal logic, microphone lifecycle, TTS coordination, and the translated-input flow. No automated browser/DOM test exists (`docs/TEST_STRATEGY.md` §3.F). Shared server control-flow changes underlying this area (e.g. an endpoint the client calls) require the core and relevant `live_server` suites; but client-side ASR, DOM, event, Challenge Mode, and interception changes require the core suite plus the relevant Node/static/mirrored checks **and** mandatory real-browser verification — server tests cannot prove a client-intercepted action that never reaches `/api/run_turn` (`docs/TEST_STRATEGY.md` §13's recovery phrase-bank requirements). When a change affects both browser and server behaviour, apply the union of both requirement sets, not either alone.
 
 ### G. Generated-artifact or builder change
 
@@ -292,13 +294,15 @@ For city/place content, explicitly check: frame/slot content; persona facts; `_C
 - [ ] Identify the generated output (`docs/ARCHITECTURE.md` §14's source → artifact table).
 - [ ] Run: `python tools/build_runtime_artifacts.py`
 - [ ] Inspect or diff the generated output against the pre-change version.
-- [ ] Confirm the local application loads the regenerated artifact (restart `scripts/ui_server.py`, check its startup log).
+- [ ] Confirm the local application loads the regenerated artifact, using evidence appropriate to the actual artifact: restart the local application after regeneration where startup loading is involved; exercise an artifact-dependent scenario whose outcome differs between the old and regenerated artifact; where practical, inspect the exact runtime file or in-memory loaded value the application actually used. Record whichever evidence was used in the implementation report (§21).
 - [ ] Run the relevant builder/content test(s) (`docs/TEST_STRATEGY.md` §3.G, §12).
 - [ ] Confirm no stale artifact remains.
 - [ ] Identify the deployed provisioning mechanism, if any.
 - [ ] Verify that mechanism actually places the new artifact in the deployed environment.
 - [ ] Perform an artifact-dependent production smoke test (a behaviour that would visibly differ between old and new generated content).
 - [ ] Record artifact generation/provisioning in the change report (§21).
+
+State: `A startup log is evidence only when that log explicitly identifies the relevant artifact or changed content; process restart alone does not prove that the intended regenerated data was loaded.`
 
 State, and do not deviate from:
 
@@ -412,7 +416,23 @@ State: a local commit is not pushed; a pushed documentation branch is not produc
 - Push the commit to that branch.
 - Do not assume `main` unless verified.
 - Record the push result.
-- Confirm the remote branch contains the expected SHA (`git log -1 --format=%H`).
+- Confirm the remote branch contains the expected SHA using a command that actually queries remote state — `git log -1 --format=%H` reports local `HEAD` and is not remote evidence. Use:
+
+```bash
+git rev-parse HEAD
+git rev-parse origin/<branch>
+```
+
+after `git fetch origin <branch>`, or query the remote directly without fetching:
+
+```bash
+git ls-remote origin refs/heads/<branch>
+```
+
+- `git rev-parse HEAD` verifies the local checked-out commit.
+- `git rev-parse origin/<branch>` verifies the locally cached remote-tracking reference, and is only current after `git fetch origin <branch>`.
+- `git ls-remote origin refs/heads/<branch>` queries the remote repository directly, with no local cache involved.
+- The reported remote SHA must match the intended pushed commit before treating the push as confirmed.
 
 > Railway cannot deploy a local-only commit.
 
@@ -447,7 +467,7 @@ State: a successful Railway build is not proof of the correct commit; `/api/vers
 | Maintenance workflow itself | `docs/CHANGE_CHECKLIST.md` (this document) |
 
 - [ ] Update documentation in the same change when behaviour changes.
-- [ ] Preserve baseline/status metadata (commit, tag, document status) in the updated document.
+- [ ] Retain and reconcile baseline/status metadata; do not preserve stale values merely for continuity. Concretely: preserve the metadata **fields and structure** (commit, tag, document status, last-verified date); update the verified commit, tag/status, and verification date where the document is being revised to describe a newer behavioural baseline; do not leave the original R2 baseline commit attached to behaviour that was introduced later. If a document intentionally remains a frozen R2 baseline contract, state explicitly that the new change is outside that baseline and record where the newer contract is maintained instead. Never silently change, and never silently retain, baseline metadata.
 - [ ] Do not rewrite a historical document as a substitute for updating an approved contract.
 - [ ] If no documentation change is required, state why in the implementation report (§21).
 
@@ -581,20 +601,22 @@ The reviewer should reject:
 - Do not push unless instructed.
 - Do not start the next documentation phase early.
 
-**Model-use policy** (workflow policy, not a vendor endorsement):
+**Model-use policy** (cost-conscious workflow policy, not vendor promotion):
 
-- Use a deeper-reasoning model for diagnosis and review where the diagnosis is non-obvious or spans multiple contracts.
-- Use a lighter, cheaper suitable model for mechanical implementation once the diagnosis is settled.
-- Do not spend high-cost model tokens on mechanical edits after the diagnosis is settled.
+- Use Claude Opus or Claude Sonnet for diagnosis and review when deeper reasoning is required.
+- Use Claude Sonnet, or another cheaper suitable model, for implementation after the diagnosis is settled.
+- Do not spend Opus-level tokens on mechanical edits after the root cause and bounded implementation plan are established.
+
+This policy never overrides evidence requirements, review requirements, testing, human approval, or scope controls (§3, §6, §15, §22) — it governs which model performs a step, not whether the step itself is required.
 
 ## 24. Quick checklists by risk level
 
 ### Low risk
 
-For: documentation-only changes; isolated persona-data correction; narrow content correction not affecting generation.
+For: documentation-only changes (class A) only.
 
-- Diagnosis: confirm the source-of-truth file and that no generated artifact is involved.
-- Targeted test: the specific test already covering the fact/content, if one exists.
+- Diagnosis: confirm the change is genuinely documentation-only and does not describe or imply a behavioural change.
+- Targeted test: none required.
 - Broader suite: none required.
 - Documentation: update only if the change corrects a claim in an approved contract.
 - Commit/push: single bounded commit; push the working branch.
@@ -602,14 +624,14 @@ For: documentation-only changes; isolated persona-data correction; narrow conten
 
 ### Medium risk
 
-For: helper logic; a persistence module; an endpoint with isolated behaviour; content requiring a generated artifact.
+For: helper logic (class C, medium risk by default — §2); a persistence module; a persona/content change consumed at runtime (class B); an endpoint with isolated behaviour; content requiring a generated artifact.
 
-- Diagnosis: §4, focused on the helper's producer/consumer and any generated-artifact dependency.
-- Targeted test: direct-function test for the helper/endpoint; regenerate and inspect the artifact if involved (§13).
-- Broader suite: core non-`live_server` suite.
+- Diagnosis: §4, focused on the helper's/content's producer/consumer and any generated-artifact dependency.
+- Targeted test: direct-function test for the helper, or the targeted content/answer test for a content change; regenerate and inspect the artifact if involved (§13).
+- Broader suite: core non-`live_server` suite — **mandatory**, not optional, for any runtime-consumed content or helper change.
 - Documentation: update the relevant contract if behaviour changed, per §20.
 - Commit/push: single bounded commit; push to the appropriate branch.
-- Deployment/browser: `live_server` suite recommended; deployed smoke check if shipping a runtime change.
+- Deployment/browser: for an isolated API endpoint, the local `live_server` suite is **mandatory before shipping** (§2.E), not merely recommended; deployed `/api/version` + smoke check mandatory if shipping a runtime change.
 
 ### High risk
 
@@ -617,10 +639,10 @@ For: answer-source priority; frame selection; E4; state transport; reset logic; 
 
 - Diagnosis: full §4 checklist plus the relevant subsystem checklist (§7–§10).
 - Targeted test: new or extended regression test using real implementation code (§6, §15).
-- Broader suite: full core suite; `live_server` suite.
+- Broader suite: full core suite; the relevant `live_server` suite for shared **server** control-flow paths (§2.D).
 - Documentation: update the specific contract(s) in §20's map in the same change.
 - Commit/push: single bounded commit; push to the Railway-watched branch if deploying (§18).
-- Deployment/browser: manual browser verification if client-side; deployed `/api/version` + smoke check mandatory if shipping.
+- Deployment/browser: **mandatory** real-browser verification for any ASR/DOM/Challenge/client-interception change — a passing `live_server` suite does not prove client-intercepted behaviour (§2.D, §2.F, §10); deployed `/api/version` + smoke check mandatory if shipping a server-side change.
 
 ## 25. Traceability appendix
 
@@ -633,12 +655,12 @@ For: answer-source priority; frame selection; E4; state transport; reset logic; 
 | ASR/browser | `docs/ASR_PIPELINE.md` | `ui/app.js` recognizer/recovery code, `content/recovery_phrases.json` |
 | Tests | `docs/TEST_STRATEGY.md` | `tests/`, `tests/conftest.py`, `.github/workflows/coverage_scan.yml` |
 | Generated artifacts | `docs/ARCHITECTURE.md` §14; `docs/TEST_STRATEGY.md` §12–§13 | `tools/build_runtime_artifacts.py`, `runtime/out_phase7/` |
-| Persistence | `docs/STATE_CONTRACT.md`; `docs/ARCHITECTURE.md` §6.4, §13 | `progress_store.py`, `beta_profile.py`, `learner_memory.py`, `session_intelligence.py` |
+| Persistence | `docs/STATE_CONTRACT.md`; `docs/ARCHITECTURE.md` §6.4, §13 | `scripts/progress_store.py`, `scripts/beta_profile.py`, `scripts/learner_memory.py`, `scripts/session_intelligence.py` |
 | Deployment | `docs/ARCHITECTURE.md` §13 | `railway.toml`, `Procfile`, `nixpacks.toml`, `/api/version` |
 | Documentation | This document; `docs/ARCHITECTURE.md` §20 | `docs/*.md` |
 
 Application baseline commit: `3be0315b2c9f7316b03ac2183a887f602ae9a297`
 Application baseline tag: `architecture-baseline-2026-07-12-r2`
 Documentation branch: `docs/architecture-v1`
-Document status: `Draft v1`
+Document status: `Candidate v1 — R2 final review`
 Last verified date: `2026-07-13`
