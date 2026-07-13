@@ -6,10 +6,10 @@ This document classifies every tracked documentation file in the repository so t
 
 This document:
 
-- is the authority for **classifying** project documentation;
+- will become the authority for **classifying** project documentation once formally approved (it is currently the candidate ninth R2 document — see §4);
 - does **not** override verified code or the detailed R2 contracts — it ranks documents, it does not restate their behaviour;
 - prevents historical and supporting documents from being mistaken for current authority merely because a filename sounds authoritative;
-- governs future document classification and cleanup.
+- is intended to govern future document classification and cleanup once approved.
 
 Application baseline commit: `3be0315b2c9f7316b03ac2183a887f602ae9a297`
 Application baseline tag: `architecture-baseline-2026-07-12-r2`
@@ -21,7 +21,7 @@ Application baseline tag: `architecture-baseline-2026-07-12-r2`
 Highest to lowest:
 
 1. verified production code and executable behaviour at the relevant baseline;
-2. the eight approved R2 governance documents (§4);
+2. the approved R2 governance documents — currently the eight preceding approved documents; the candidate nine-document package once this index is approved (§4);
 3. current repository configuration and content actually consumed by the application;
 4. executable behavioural tests, interpreted according to `docs/TEST_STRATEGY.md`;
 5. current supporting operational documentation that agrees with the above (§5);
@@ -57,33 +57,38 @@ When two documents disagree:
 | C | Historical context — retained for rationale | No | No | Read with date/phase context; later candidate for header/archive |
 | D | Superseded — replaced by identified authority | No | No | Preserve for traceability; later cleanup only with approval |
 | E | Archival evidence or dated report | No | No | Do not rewrite to stay "current"; retain as dated evidence |
-| F | Proposal, plan, or unimplemented specification | Only the verified-implemented subset | No | Track implementation status; cross-reference ADR deferred register |
+| F | Proposal, plan, or unimplemented specification | No as authority; verified-implemented portions may provide historical or design context only after confirmation against code and current R2 documents | No | Track implementation status; cross-reference ADR deferred register |
 | G | Generated or procedural artefact | No | No | Regenerate or delete per its workflow |
 | H | Unresolved — authority cannot yet be established | No | No | Investigate; do not rely on until resolved |
 
-## 4. Approved R2 authority set
+## 4. Approved and candidate R2 authority set
 
-These eight — and only these eight — are classified **A** at this phase.
+Eight documents are **already approved** class-A R2 governance documents. This index (`docs/DOCUMENT_AUTHORITY_INDEX.md`) is the **candidate ninth authoritative R2 document**; it becomes class A only upon formal approval. Until then, the current approved authority set remains the eight preceding documents.
 
-| Document | Role | Status | Baseline | Update trigger |
-| -------- | ---- | ------ | -------- | -------------- |
-| `docs/ARCHITECTURE.md` | orientation map | Approved v1 — R2 | `3be0315` | Any onboarding/system-orientation change |
-| `docs/CONVERSATION_ARCHITECTURE.md` | conversation behavioural contract | Approved v1 — R2 | `3be0315` | Selector/frame/engine/ordering change |
-| `docs/STATE_CONTRACT.md` | state behavioural contract | Approved v1 — R2 | `3be0315` | Any state field/transport/reset/persistence change |
-| `docs/ANSWER_SOURCE_CONTRACT.md` | answer-source behavioural contract | Approved v1 — R2 | `3be0315` | Priority chain/producer/finalisation change |
-| `docs/ASR_PIPELINE.md` | ASR/input behavioural contract | Approved v1 — R2 | `3be0315` | ASR/TTS/recovery-interception change |
-| `docs/TEST_STRATEGY.md` | evidence contract | Approved v1 — R2 | `3be0315` | Test architecture/evidence-ranking change |
-| `docs/CHANGE_CHECKLIST.md` | operational change-control checklist | Approved v1 — R2 | `3be0315` | Workflow/deployment/verification change |
-| `docs/ARCHITECTURAL_DECISIONS.md` | architectural-decision record | Approved v1 — R2 | `3be0315` | New/changed/superseded architectural decision |
+The status strings below are copied from each document's own status line and were verified as identical (`Approved v1 — R2 baseline`), not assumed. All eight share application baseline commit `3be0315` and tag `architecture-baseline-2026-07-12-r2`.
+
+| Document | Role | Status | Baseline / tag | Update trigger |
+| -------- | ---- | ------ | -------------- | -------------- |
+| `docs/ARCHITECTURE.md` | orientation map | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | Any onboarding/system-orientation change |
+| `docs/CONVERSATION_ARCHITECTURE.md` | conversation behavioural contract | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | Selector/frame/engine/ordering change |
+| `docs/STATE_CONTRACT.md` | state behavioural contract | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | Any state field/transport/reset/persistence change |
+| `docs/ANSWER_SOURCE_CONTRACT.md` | answer-source behavioural contract | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | Priority chain/producer/finalisation change |
+| `docs/ASR_PIPELINE.md` | ASR/input behavioural contract | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | ASR/TTS/recovery-interception change |
+| `docs/TEST_STRATEGY.md` | evidence contract | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | Test architecture/evidence-ranking change |
+| `docs/CHANGE_CHECKLIST.md` | operational change-control checklist | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | Workflow/deployment/verification change |
+| `docs/ARCHITECTURAL_DECISIONS.md` | architectural-decision record | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | New/changed/superseded architectural decision |
+| `docs/DOCUMENT_AUTHORITY_INDEX.md` | document-classification and cleanup authority | `Draft v1 — candidate ninth authority` (class A effective upon approval) | `3be0315` / `architecture-baseline-2026-07-12-r2` | New durable document; reclassification; supersession; archive move; duplicate consolidation; authority-set change |
+
+Final approval of this index requires a corresponding dated amendment to ADR-017 so the architectural-decision record recognises the nine-document governance package. That amendment is reserved for the approval commit and is not made in this correction pass. ADR-017 does not yet recognise nine documents.
 
 ## 5. Current supporting guidance (B)
 
-Subordinate to the eight authoritative documents. None of these may override a behavioural contract or ADR.
+Subordinate to the approved R2 governance documents (the eight preceding approved documents; nine class-A documents once this index is approved). None of these may override a behavioural contract or ADR.
 
 | Path | Purpose | Why still current | Subordinate to | Known limitations | Secondary flags |
 | ---- | ------- | ----------------- | -------------- | ----------------- | --------------- |
 | `README.md` | Repo entry/quick-start | Start command, tech stack, key files still accurate | `docs/ARCHITECTURE.md` | Points to golden-regression test as primary; incomplete vs contracts | contains-current-material |
-| `AI_CONTEXT.md` | AI orientation map | Project goal, guardrails, repo map still broadly valid | Eight A documents | Header says "Authoritative"; "Phase 11" era; references superseded plan paths | mixed-current-and-historical, misleading-filename |
+| `AI_CONTEXT.md` | AI orientation map | Project goal, guardrails, repo map still broadly valid | Preceding approved R2 documents | Header says "Authoritative"; "Phase 11" era; references superseded plan paths | mixed-current-and-historical, misleading-filename |
 | `MANDARINOS_SYSTEM_MAP.md` | Pipeline mental model | Lexicon→builder→runtime→UI framing still useful | `docs/ARCHITECTURE.md` | "Authoritative" label; trace-contract framing is legacy (not wired to conversation runtime) | mixed-current-and-historical, misleading-filename |
 | `docs/DEVELOPER_ONBOARDING.md` | Developer/hosting guide | Architecture, hosting, API overview broadly current | `docs/ARCHITECTURE.md`, `docs/CHANGE_CHECKLIST.md` | Dated 2026-05-11; specific test counts/line counts drift | contains-obsolete-material |
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | Protected-behaviour register | Records real regression guards + golden-regression suite | `docs/TEST_STRATEGY.md` | "LOCK" is not authority; interpret evidence per TEST_STRATEGY | misleading-filename, contains-current-material |
@@ -91,17 +96,20 @@ Subordinate to the eight authoritative documents. None of these may override a b
 | `docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md` | Flow/anti-pattern design | Cited by `.cursor/rules` as read-first for flow changes | `docs/CONVERSATION_ARCHITECTURE.md` | Dated 2026-04-05; behaviour authority is the contract | contains-current-material |
 | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Extensibility directive | Cited by `.cursor/rules` as full directive | `docs/ARCHITECTURAL_DECISIONS.md` | Canonical copy (a duplicate exists under `docs/briefings/`) | duplicate-or-near-duplicate |
 | `docs/specs/MandarinOS_Extensibility_Strategy.md` | Extensibility strategy | Cited by `.cursor/rules` as strategy doc | `docs/ARCHITECTURAL_DECISIONS.md` | Strategy, not behavioural authority | contains-current-material |
-| `docs/design/mandarinos_design_constitution.txt` | Product design constitution | Referenced as non-negotiable product philosophy | Eight A documents | Older phrasing; philosophy retained, specifics may drift | mixed-current-and-historical |
-| `docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md` | AI governance model | Referenced by `AI_CONTEXT.md`/startup docs | Eight A documents | v1; predates R2 governance package | contains-current-material |
+| `docs/design/mandarinos_design_constitution.txt` | Product design constitution | Referenced as non-negotiable product philosophy | Preceding approved R2 documents | Older phrasing; philosophy retained, specifics may drift | mixed-current-and-historical |
+| `docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md` | AI governance model | Referenced by `AI_CONTEXT.md`/startup docs | Preceding approved R2 documents | v1; predates R2 governance package | contains-current-material |
 | `docs/design/LICENSE.md` | Copyright/licence | Current legal statement | — | — | — |
 | `runtime/README_runtime_indexes.txt` | Runtime-index definitions | Explains index defs vs computed outputs | `docs/ARCHITECTURE.md` §14 | Notes a legacy computed snapshot | contains-current-material |
 | `conformance/README.md` | Conformance-runner usage | `conformance/run_trace_conformance.py` exists and runs | `docs/TEST_STRATEGY.md` | Trace conformance is a side tool, not wired into the conversation turn path | branch-specific |
 | `requirements.txt` | Runtime dependency manifest | Consumed by install/deploy | repo configuration | Manifest, not governance prose | contains-current-material |
 | `requirements-tools.txt` | Optional-tooling deps | Consumed for translation/pinyin tooling | repo configuration | Optional-only | contains-current-material |
-| `.cursor/rules/mandarinos-architecture.mdc` | Standing architectural coding rules | Enforced for agents; agrees with contracts | `docs/ARCHITECTURAL_DECISIONS.md`, `docs/CONVERSATION_ARCHITECTURE.md` | Rule guidance, not behavioural authority | contains-current-material |
-| `.cursor/rules/mandarinos-ui-objects.mdc` | UI standard-object coding rules | Enforced for agents; matches `ui/app.js` render path | `docs/ARCHITECTURE.md` | Narrow UI-render scope | contains-current-material |
+| `.cursor/rules/mandarinos-architecture.mdc` | Standing architectural coding rules | Standing Cursor coding guidance, applied within its configured scope; agrees with contracts | `docs/ARCHITECTURAL_DECISIONS.md`, `docs/CONVERSATION_ARCHITECTURE.md` | Supporting agent guidance, subordinate to approved R2 documents; not proof of enforcement | contains-current-material |
+| `.cursor/rules/mandarinos-ui-objects.mdc` | UI standard-object coding rules | Standing Cursor coding guidance, applied within its configured scope; matches `ui/app.js` render path | `docs/ARCHITECTURE.md` | Narrow UI-render scope; not proof of enforcement | contains-current-material |
 
-## 6. Historical and superseded documents
+Clarifications on non-prose entries in this table:
+
+- `requirements.txt` and `requirements-tools.txt` are operative dependency manifests. Their runtime relevance derives from their status as current repository **configuration** consumed by install/deploy, not from class-B prose authority. Their B classification only reflects their inclusion in the documentation-like inventory and their current supporting role.
+- `docs/design/LICENSE.md` governs legal use and distribution within its **legal scope** and sits outside the behavioural-implementation authority hierarchy. Classifying it B does not subordinate legal obligations to any architecture document; the authority hierarchy in §2 ranks implementation guidance and does not imply that application code overrides a licence.
 
 Enumerated exhaustively in §17. This section states the classification basis and, for superseded files, the named replacement.
 
@@ -111,12 +119,12 @@ Retained for rationale; not current implementation guidance. Read with date/phas
 
 | Family (see §17 for every path) | Members | Classification reason | Current authority | Secondary flags |
 | ------------------------------- | ------- | --------------------- | ----------------- | --------------- |
-| `docs/briefings/*` strategist/phase briefings | 28 | Phase-era strategy/hand-off narratives | Eight A documents | phase-specific, contains-obsolete-material |
+| `docs/briefings/*` strategist/phase briefings | 28 | Phase-era strategy/hand-off narratives | Preceding approved R2 documents | phase-specific, contains-obsolete-material |
 | `docs/directives/*` cards/trace/harness directives | 17 | Phase 2–7 implementation directives | `docs/CHANGE_CHECKLIST.md`; code | phase-specific, implementation-not-verified |
 | `docs/specs/*` engine/ladder/pack/model design specs | 38 | Design-phase specs; engines now live in code + contracts | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ANSWER_SOURCE_CONTRACT.md` | phase-specific, contains-obsolete-material |
 | `docs/phases/*` phase notes/freezes/locks | 11 | Phase milestones/locks | `docs/ARCHITECTURE.md`; ADRs | phase-specific, misleading-filename |
 | `docs/design/*` early design docs | 6 | Cards/trace/UX design era | `docs/ARCHITECTURE.md` | phase-specific |
-| `docs/project/*` notes/references/directive | 6 | Phase notes and reference material | Eight A documents | phase-specific |
+| `docs/project/*` notes/references/directive | 6 | Phase notes and reference material | Preceding approved R2 documents | phase-specific |
 | `integration_kit/*` trace-export kit + examples | 5 | Trace/card kit not wired to current conversation runtime | `docs/ARCHITECTURE.md` | implementation-not-verified, phase-specific |
 | `.github/copilot-instructions.md` | 1 | Copilot retired; Cursor operating instructions moved | `AI_CONTEXT.md`, `.cursor/rules/*`, `docs/CHANGE_CHECKLIST.md` §23 | contains-obsolete-material, misleading-filename |
 
@@ -152,18 +160,20 @@ Valid for their date and stated scope. **Not** rewritten to reflect later behavi
 
 ## 8. Proposals and unimplemented specifications (F)
 
-Only a verified-implemented subset (if any) may guide current work. Implementation is not inferred from status language.
+A proposal is not current guidance, even when part of it was implemented. A verified-implemented portion may provide historical or design context only after confirmation against code and the approved R2 documents. Implementation is not inferred from status language.
 
 | Family (see §17 for every path) | Members | Implementation status | Current decision/ADR | Secondary flags |
 | -------------------------------- | ------- | --------------------- | -------------------- | --------------- |
 | `docs/plans/*` implementation plans | 3 | Unable to verify from docs; treat as planned | `docs/ARCHITECTURAL_DECISIONS.md` §6 register | implementation-not-verified |
-| `docs/project/MandarinOS_project_plan_v2*.md` roadmaps | 3 | v2 is the cited current roadmap; `_CORRECTED`/`_UPDATED` are variants | ADR record for decisions | duplicate-or-near-duplicate, implementation-not-verified |
-| `docs/specs/PHASE_10_5_*`, `PHASE_12C_*` plans/briefs/invariants | 5 | Partially implemented across phases; not verified per item | Contracts; ADR deferred register | partially-implemented, implementation-not-verified |
+| `docs/project/MandarinOS_project_plan_v2*.md` roadmaps | 3 | v2 is the latest named roadmap version in that family; not implementation authority; implemented status must be verified against code and the approved R2 documents; `_CORRECTED`/`_UPDATED` are variants | ADR record for decisions | duplicate-or-near-duplicate, implementation-not-verified |
+| `docs/specs/PHASE_10_5_*`, `PHASE_12C_*` plans/briefs/invariants | 4 | Partially implemented across phases; not verified per item | Contracts; ADR deferred register | partially-implemented, implementation-not-verified |
 | `docs/specs/*UI_SPEC*`, `*Hybrid_Speech*` specs | 3 | Hybrid speech deferred (ADR-014/ADR-009); UI specs partial | `docs/ASR_PIPELINE.md`; ADR-014 | implementation-not-verified |
 | `docs/phases/*PROPOSAL*/*PLAN*/*MAPPING*` | 3 | Planning artefacts; subset implemented | Contracts; ADRs | implementation-not-verified |
 | `docs/design/SCENARIOS_REQUIRED_v1.md`, `MANDARINOS_PHASE_12_HYBRID_AI_CONCEPT_BRIEFING.txt` | 2 | Scenarios/hybrid concept; hybrid unimplemented | ADR-014 (deferred) | implementation-not-verified |
 | `docs/REPO_STRUCTURE_PROPOSAL.md`, `docs/SCHEMA_SYNC_RECOMMENDATION.md`, `docs/session_intelligence_architecture.md` | 3 | Not executed / partially (session slice 1) | — | implementation-not-verified, partially-implemented |
 | `docs/project/RECOVERY_AND_CONVERSATION_FUTURE_NOTES.md` | 1 | Forward-looking notes | ADR deferred register | implementation-not-verified |
+
+Family totals: 3 + 3 + 4 + 3 + 3 + 2 + 3 + 1 = **22**, equal to the class-F total in §18.
 
 ## 9. Generated and procedural artefacts (G)
 
@@ -191,7 +201,7 @@ Tracked files whose name or prominent heading implies authority that the file do
 
 | Path | Misleading label | Actual classification | Why the label is insufficient | Current authority |
 | ---- | ---------------- | --------------------- | ----------------------------- | ----------------- |
-| `AI_CONTEXT.md` | "Authoritative" (heading) | B | Orientation map, subordinate to the eight A documents | `docs/ARCHITECTURE.md` |
+| `AI_CONTEXT.md` | "Authoritative" (heading) | B | Orientation map, subordinate to the approved R2 governance documents | `docs/ARCHITECTURE.md` |
 | `MANDARINOS_SYSTEM_MAP.md` | "Authoritative" (heading) | B | Pipeline map; trace framing legacy | `docs/ARCHITECTURE.md` |
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | `LOCK` | B | Behaviour register, not authority; evidence per TEST_STRATEGY | `docs/TEST_STRATEGY.md` |
 | `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md` | `LOCK` | C | Phase 6 lock, superseded by R2 architecture | `docs/ARCHITECTURE.md` |
@@ -202,6 +212,7 @@ Tracked files whose name or prominent heading implies authority that the file do
 | `docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md` | Marks specs `LOCKED` | C | Index of design specs, not current authority | `docs/ARCHITECTURE.md` |
 | `docs/design/CURSOR_STARTUP_PROTOCOL.md` | "Status: ACTIVE" | D | Onboarding order superseded | `docs/ARCHITECTURE.md` §21 |
 | `docs/state/MANDARINOS_SYSTEM_STATE_PHASE_12B.md` | "Constraints (LOCKED)" | E | Dated state snapshot | `docs/STATE_CONTRACT.md` |
+| `.github/copilot-instructions.md` | Filename presents current-looking instructions | C | Instructions for a retired tool (Copilot); not current operating authority | `docs/CHANGE_CHECKLIST.md` §23; `AI_CONTEXT.md`; `.cursor/rules/` within their supporting scope |
 
 ## 12. Duplicate and overlap register
 
@@ -209,7 +220,7 @@ No file is deleted or merged in this phase.
 
 | Documents | Relationship | Canonical/current file | Classification of others | Future cleanup action |
 | --------- | ------------ | ---------------------- | ------------------------ | --------------------- |
-| `docs/project/MANDARINOS_PROJECT_PLAN_v1.md`, `MandarinOS_project_plan_v2.md`, `_v2_CORRECTED.md`, `_v2_UPDATED.md` | Roadmap versions/variants | `MandarinOS_project_plan_v2.md` | v1 = D; CORRECTED/UPDATED = F | Consolidate to one roadmap after owner review |
+| `docs/project/MANDARINOS_PROJECT_PLAN_v1.md`, `MandarinOS_project_plan_v2.md`, `_v2_CORRECTED.md`, `_v2_UPDATED.md` | Roadmap versions/variants | `MandarinOS_project_plan_v2.md` (latest named version in the family; class F, not R2 authority; does not supersede the R2 governance package) | v1 = D; CORRECTED/UPDATED = F | Consolidate to one roadmap after owner review |
 | `docs/project/COMMIT_SUMMARY.md`, `COMMIT_SUMMARY_v1.md` | Dated commit summaries | Neither (both dated) | Both E | Retain as dated evidence |
 | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`, `docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Identical copies | `docs/specs/…` (cited by `.cursor/rules`) | specs = B; briefings copy = C | Remove/redirect duplicate after link check |
 | `docs/specs/MandarinOS_conversation_memory_model_v1.md`, `_v2.md` | Version pair | v2 | v1 = D; v2 = C | Authority is `docs/STATE_CONTRACT.md` |
@@ -230,7 +241,7 @@ No file is deleted or merged in this phase.
 7. current supporting guidance (§5) as needed;
 8. historical documents (§6) only for context.
 
-An AI coding agent must **not** begin from a historical phase lock, briefing, or recovery report. It must diagnose against verified code and the eight A documents, and treat everything in §6–§9 as context or evidence, never as behavioural authority.
+An AI coding agent must **not** begin from a historical phase lock, briefing, or recovery report. It must diagnose against verified code and the approved R2 governance documents (the eight preceding approved documents; nine on approval of this index), and treat everything in §6–§9 as context or evidence, never as behavioural authority.
 
 ## 14. Rules for creating future documents
 
@@ -242,7 +253,7 @@ Every future durable document must declare:
 - status;
 - behavioural/application baseline;
 - last verified date;
-- relationship to the eight-document R2 governance package;
+- relationship to the R2 governance package (eight approved documents; nine class-A documents on approval of this index);
 - supersedes/superseded-by links where applicable;
 - whether it is prescriptive, evidentiary, historical, or a proposal.
 
@@ -303,8 +314,8 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `AI_CONTEXT.md` | B | mixed-current-and-historical, misleading-filename | `docs/ARCHITECTURE.md` | "Authoritative" label overstated; Phase 11 era |
-| `MANDARINOS_SYSTEM_MAP.md` | B | mixed-current-and-historical, misleading-filename | `docs/ARCHITECTURE.md` | Pipeline map; trace framing legacy |
+| `AI_CONTEXT.md` | B | mixed-current-and-historical, misleading-filename | `docs/ARCHITECTURE.md` | "Authoritative" label overstated; Phase 11 era. Classification inference: B from valid repo-map/guardrails despite obsolete phase references |
+| `MANDARINOS_SYSTEM_MAP.md` | B | mixed-current-and-historical, misleading-filename | `docs/ARCHITECTURE.md` | Pipeline map; trace framing legacy. Classification inference: B from still-useful pipeline framing despite legacy trace concepts |
 | `README.md` | B | contains-current-material | — | Current quick-start/tech stack |
 | `requirements.txt` | B | contains-current-material | repo config | Runtime dependency manifest |
 | `requirements-tools.txt` | B | contains-current-material | repo config | Optional tooling deps |
@@ -332,13 +343,14 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `docs/TEST_STRATEGY.md` | A | — | — | Evidence contract |
 | `docs/CHANGE_CHECKLIST.md` | A | — | — | Change-control checklist |
 | `docs/ARCHITECTURAL_DECISIONS.md` | A | — | — | ADR record |
+| `docs/DOCUMENT_AUTHORITY_INDEX.md` | A | effective-upon-approval | — | This document. Candidate ninth authoritative R2 document; class A effective upon approval (see §4) |
 | `docs/DEVELOPER_ONBOARDING.md` | B | contains-obsolete-material | `docs/ARCHITECTURE.md` | 2026-05-11; counts drift |
-| `docs/MANDARINOS_REGRESSION_LOCK.md` | B | misleading-filename, contains-current-material | `docs/TEST_STRATEGY.md` | Regression-guard register |
+| `docs/MANDARINOS_REGRESSION_LOCK.md` | B | misleading-filename, contains-current-material | `docs/TEST_STRATEGY.md` | Regression-guard register. Classification inference: B — guards still relevant; evidence weight per TEST_STRATEGY |
 | `docs/RESPONSE_OPTION_STYLE_GUIDE.md` | B | contains-current-material | `docs/ANSWER_SOURCE_CONTRACT.md` | Option style rules |
-| `docs/REPO_STRUCTURE_PROPOSAL.md` | F | implementation-not-verified | — | Proposed layout; not executed |
-| `docs/SCHEMA_SYNC_RECOMMENDATION.md` | F | implementation-not-verified, duplicate-or-near-duplicate | — | Two schema dirs still exist |
-| `docs/session_intelligence_architecture.md` | F | partially-implemented | — | Slice 1 implemented; rest proposal |
-| `docs/session_intelligence_implementation_report.md` | E | dated-snapshot | — | Implementation report |
+| `docs/REPO_STRUCTURE_PROPOSAL.md` | F | implementation-not-verified | proposal only — no current authority | Proposed layout; not executed |
+| `docs/SCHEMA_SYNC_RECOMMENDATION.md` | F | implementation-not-verified | proposal only — no current authority | Recommends consolidating two schema dirs (still separate); no duplicate-document relationship |
+| `docs/session_intelligence_architecture.md` | F | partially-implemented | proposal only — no current authority | Slice 1 implemented; rest proposal. Classification inference: F — only slice 1 verified implemented |
+| `docs/session_intelligence_implementation_report.md` | E | dated-snapshot | dated evidence only | Implementation report |
 
 ### 17.3 `docs/design/`
 
@@ -359,150 +371,152 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 
 ### 17.4 `docs/briefings/`
 
-| Path | Class | Flags | Notes |
-| ---- | ----- | ----- | ----- |
-| `docs/briefings/BRIEFING_CHANGES_FOR_CHATGPT_REVIEW.md` | C | phase-specific | Review briefing |
-| `docs/briefings/CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md` | C | phase-specific | Strategist briefing |
-| `docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | C | duplicate-or-near-duplicate | Duplicate of `docs/specs/` canonical |
-| `docs/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt` | C | phase-specific | Move-type brief |
-| `docs/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt` | C | phase-specific | Phase 10.7/11 briefing |
-| `docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md` | C | phase-specific, implementation-not-verified | Phase 12D brief |
-| `docs/briefings/MandarinOS_Phase12E_CuriosityProbe_Brief.md` | C | phase-specific, implementation-not-verified | Phase 12E brief |
-| `docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md` | C | phase-specific | Phase 12C alignment |
-| `docs/briefings/MandarinOS_laptop_handoff_UI_cascading_help_briefing.md` | C | phase-specific | Handoff briefing |
-| `docs/briefings/NEXT_PHASE_ADVICE_CURSOR.md` | C | phase-specific | Next-phase advice |
-| `docs/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md` | C | phase-specific | Phase 10 briefing |
-| `docs/briefings/PHASE7_4_UI_POLISH_STRATEGIST_BRIEFING.md` | C | phase-specific | Phase 7.4 briefing |
-| `docs/briefings/PHASE7_COMPLETE_STRATEGIST_BRIEFING.md` | C | phase-specific | Phase 7 briefing |
-| `docs/briefings/PHASE8_OPTIONS_APPROPRIATENESS.md` | C | phase-specific | Phase 8 briefing |
-| `docs/briefings/PHASE8_STEP1_TRANSCRIPT_ARCHITECTURE.md` | C | phase-specific | Phase 8 transcript arch |
-| `docs/briefings/PHASE9_SIGNOFF_STRATEGIST_BRIEFING.md` | C | phase-specific | Phase 9 sign-off |
-| `docs/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md` | C | phase-specific | Phase 10.5/10.6 briefing |
-| `docs/briefings/PHASE_12B_STABILIZATION_AND_UI_FLOW_STRATEGIST_BRIEFING.md` | C | phase-specific | Phase 12B briefing |
-| `docs/briefings/PHASE_12C_EXECUTIVE_STRATEGIST_BRIEF.md` | C | phase-specific | Phase 12C exec brief |
-| `docs/briefings/PHASE_12C_STRATEGIST_PROPOSAL_CURIOSITY_PERSONA_SESSION_ARC.md` | C | phase-specific, implementation-not-verified | Phase 12C proposal briefing |
-| `docs/briefings/STRATEGIST_BRIEFING_MAY2026_UI_POLISH_AND_DISTANCE_THREAD.md` | C | phase-specific | May 2026 briefing |
-| `docs/briefings/UI_SHELL_STRATEGIST_BRIEFING_APR2026.md` | C | phase-specific | Apr 2026 briefing |
-| `docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md` | C | phase-specific | Discovery briefing |
-| `docs/briefings/architecture_briefing_apr2026.md` | C | phase-specific | Apr 2026 architecture briefing |
-| `docs/briefings/mandarinos_chatgpt_session_briefing.md` | C | phase-specific | Session briefing |
-| `docs/briefings/mandarinos_recovery_phrases_v1_2_cursor_briefing.txt` | C | phase-specific | Recovery-phrase briefing |
-| `docs/briefings/phase12c_recovery_trigger_briefing.txt` | C | phase-specific | Phase 12C recovery trigger |
-| `docs/briefings/phase7_3_senior_architect_briefing.md` | C | phase-specific | Phase 7.3 briefing |
-| `docs/briefings/bridge_audit_apr2026.md` | E | dated-snapshot | Bridge audit (Apr 2026) |
-| `docs/briefings/engine_audit_apr2026.md` | E | dated-snapshot | Engine audit (Apr 2026) |
-| `docs/briefings/implementation_report_apr2026.md` | E | dated-snapshot | Implementation report (Apr 2026) |
-| `docs/briefings/PHASE7_COMPLETION_REVIEW_AND_TEST.md` | E | dated-snapshot | Phase 7 completion review |
-| `docs/briefings/PHASE10_STRATEGIST_REVIEW.md` | E | dated-snapshot | Phase 10 review |
-| `docs/briefings/CONVERSATION_ARCHITECTURE_ASSESSMENT.md` | E | dated-snapshot | Architecture assessment |
-| `docs/briefings/UI_CONVERSATION_LOOP_ASSESSMENT.md` | E | dated-snapshot | UI loop assessment |
-| `docs/briefings/PHASE7_SCHEMA_DISCOVERIES.md` | E | dated-snapshot | Schema-discovery findings |
+Historical strategist/phase briefings (C) point to the R2 governance set as current authority; dated reviews/audits (E) carry `dated evidence only`.
+
+| Path | Class | Flags | Replacement/authority | Notes |
+| ---- | ----- | ----- | --------------------- | ----- |
+| `docs/briefings/BRIEFING_CHANGES_FOR_CHATGPT_REVIEW.md` | C | phase-specific | R2 governance set | Review briefing |
+| `docs/briefings/CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md` | C | phase-specific | R2 governance set | Strategist briefing |
+| `docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | C | duplicate-or-near-duplicate | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Duplicate of `docs/specs/` canonical |
+| `docs/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt` | C | phase-specific | R2 governance set | Move-type brief |
+| `docs/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt` | C | phase-specific | R2 governance set | Phase 10.7/11 briefing |
+| `docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md` | C | phase-specific, implementation-not-verified | R2 governance set | Phase 12D brief |
+| `docs/briefings/MandarinOS_Phase12E_CuriosityProbe_Brief.md` | C | phase-specific, implementation-not-verified | R2 governance set | Phase 12E brief |
+| `docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md` | C | phase-specific | R2 governance set | Phase 12C alignment |
+| `docs/briefings/MandarinOS_laptop_handoff_UI_cascading_help_briefing.md` | C | phase-specific | R2 governance set | Handoff briefing |
+| `docs/briefings/NEXT_PHASE_ADVICE_CURSOR.md` | C | phase-specific | R2 governance set | Next-phase advice |
+| `docs/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md` | C | phase-specific | R2 governance set | Phase 10 briefing |
+| `docs/briefings/PHASE7_4_UI_POLISH_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 7.4 briefing |
+| `docs/briefings/PHASE7_COMPLETE_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 7 briefing |
+| `docs/briefings/PHASE8_OPTIONS_APPROPRIATENESS.md` | C | phase-specific | R2 governance set | Phase 8 briefing |
+| `docs/briefings/PHASE8_STEP1_TRANSCRIPT_ARCHITECTURE.md` | C | phase-specific | R2 governance set | Phase 8 transcript arch |
+| `docs/briefings/PHASE9_SIGNOFF_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 9 sign-off |
+| `docs/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 10.5/10.6 briefing |
+| `docs/briefings/PHASE_12B_STABILIZATION_AND_UI_FLOW_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 12B briefing |
+| `docs/briefings/PHASE_12C_EXECUTIVE_STRATEGIST_BRIEF.md` | C | phase-specific | R2 governance set | Phase 12C exec brief |
+| `docs/briefings/PHASE_12C_STRATEGIST_PROPOSAL_CURIOSITY_PERSONA_SESSION_ARC.md` | C | phase-specific, implementation-not-verified | R2 governance set | Phase 12C proposal briefing |
+| `docs/briefings/STRATEGIST_BRIEFING_MAY2026_UI_POLISH_AND_DISTANCE_THREAD.md` | C | phase-specific | R2 governance set | May 2026 briefing |
+| `docs/briefings/UI_SHELL_STRATEGIST_BRIEFING_APR2026.md` | C | phase-specific | R2 governance set | Apr 2026 briefing |
+| `docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md` | C | phase-specific | R2 governance set | Discovery briefing |
+| `docs/briefings/architecture_briefing_apr2026.md` | C | phase-specific | R2 governance set | Apr 2026 architecture briefing |
+| `docs/briefings/mandarinos_chatgpt_session_briefing.md` | C | phase-specific | R2 governance set | Session briefing |
+| `docs/briefings/mandarinos_recovery_phrases_v1_2_cursor_briefing.txt` | C | phase-specific | R2 governance set | Recovery-phrase briefing |
+| `docs/briefings/phase12c_recovery_trigger_briefing.txt` | C | phase-specific | R2 governance set | Phase 12C recovery trigger |
+| `docs/briefings/phase7_3_senior_architect_briefing.md` | C | phase-specific | R2 governance set | Phase 7.3 briefing |
+| `docs/briefings/bridge_audit_apr2026.md` | E | dated-snapshot | dated evidence only | Bridge audit (Apr 2026) |
+| `docs/briefings/engine_audit_apr2026.md` | E | dated-snapshot | dated evidence only | Engine audit (Apr 2026) |
+| `docs/briefings/implementation_report_apr2026.md` | E | dated-snapshot | dated evidence only | Implementation report (Apr 2026) |
+| `docs/briefings/PHASE7_COMPLETION_REVIEW_AND_TEST.md` | E | dated-snapshot | dated evidence only | Phase 7 completion review |
+| `docs/briefings/PHASE10_STRATEGIST_REVIEW.md` | E | dated-snapshot | dated evidence only | Phase 10 review |
+| `docs/briefings/CONVERSATION_ARCHITECTURE_ASSESSMENT.md` | E | dated-snapshot | dated evidence only | Architecture assessment |
+| `docs/briefings/UI_CONVERSATION_LOOP_ASSESSMENT.md` | E | dated-snapshot | dated evidence only | UI loop assessment |
+| `docs/briefings/PHASE7_SCHEMA_DISCOVERIES.md` | E | dated-snapshot | dated evidence only | Schema-discovery findings |
 
 ### 17.5 `docs/directives/`
 
-All Phase 2–7 cards/trace/harness implementation directives. Classification C; flags `phase-specific, implementation-not-verified`; current authority `docs/CHANGE_CHECKLIST.md` + code.
+All Phase 2–7 cards/trace/harness implementation directives. Classification C; flags `phase-specific, implementation-not-verified`.
 
-| Path | Class | Notes |
-| ---- | ----- | ----- |
-| `docs/directives/MANDARINOS_ARCHITECT_COPILOT_HANDOFF_DIRECTIVE_PHASE7.txt` | C | Phase 7 handoff directive |
-| `docs/directives/MANDARINOS_COPILOT_STARTUP_INSTRUCTIONS.txt` | C | Copilot startup (retired tool) |
-| `docs/directives/MandarinOS_OPEN_CARD_Trace_Wiring_Directive.txt` | C | Card trace wiring |
-| `docs/directives/MandarinOS_OPEN_CARD_Unit_Test_Directive.txt` | C | Card unit-test directive |
-| `docs/directives/MandarinOS_Phase_Boundaries_v1.0.txt` | C | Phase boundaries |
-| `docs/directives/MandarinOS_Runtime_Card_Integration_Directive.txt` | C | Runtime card integration |
-| `docs/directives/MandarinOS_Simulator_Entrypoint_Copilot_Directive.txt` | C | Simulator entrypoint |
-| `docs/directives/MandarinOS_TurnState_Trace_Contract_v1_directive.txt` | C | TurnState trace contract |
-| `docs/directives/MandarinOS_UI_Shell_Copilot_Directive.txt` | C | UI shell directive |
-| `docs/directives/MandarinOS_card_contract_v1_directive.txt` | C | Card contract |
-| `docs/directives/MandarinOS_conformance_harness_directive.txt` | C | Conformance harness |
-| `docs/directives/MandarinOS_content_coverage_scanner_v1_directive.txt` | C | Coverage scanner |
-| `docs/directives/MandarinOS_hint_cascade_directive.txt` | C | Hint cascade |
-| `docs/directives/MandarinOS_integration_kit_scenarios_v1_directive.txt` | C | Integration-kit scenarios |
-| `docs/directives/MandarinOS_scaffolding_transition_harness_v1_directive.txt` | C | Scaffolding transition harness |
-| `docs/directives/MandarinOS_universal_cards_builder_v1_directive.txt` | C | Universal cards builder |
-| `docs/directives/mandarinos_copilot_architecture_update.txt` | C | Copilot architecture update |
+| Path | Class | Flags | Replacement/authority | Notes |
+| ---- | ----- | ----- | --------------------- | ----- |
+| `docs/directives/MANDARINOS_ARCHITECT_COPILOT_HANDOFF_DIRECTIVE_PHASE7.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Phase 7 handoff directive |
+| `docs/directives/MANDARINOS_COPILOT_STARTUP_INSTRUCTIONS.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Copilot startup (retired tool) |
+| `docs/directives/MandarinOS_OPEN_CARD_Trace_Wiring_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card trace wiring |
+| `docs/directives/MandarinOS_OPEN_CARD_Unit_Test_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card unit-test directive |
+| `docs/directives/MandarinOS_Phase_Boundaries_v1.0.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Phase boundaries |
+| `docs/directives/MandarinOS_Runtime_Card_Integration_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Runtime card integration |
+| `docs/directives/MandarinOS_Simulator_Entrypoint_Copilot_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Simulator entrypoint |
+| `docs/directives/MandarinOS_TurnState_Trace_Contract_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | TurnState trace contract |
+| `docs/directives/MandarinOS_UI_Shell_Copilot_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | UI shell directive |
+| `docs/directives/MandarinOS_card_contract_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card contract |
+| `docs/directives/MandarinOS_conformance_harness_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Conformance harness |
+| `docs/directives/MandarinOS_content_coverage_scanner_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Coverage scanner |
+| `docs/directives/MandarinOS_hint_cascade_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Hint cascade |
+| `docs/directives/MandarinOS_integration_kit_scenarios_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Integration-kit scenarios |
+| `docs/directives/MandarinOS_scaffolding_transition_harness_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Scaffolding transition harness |
+| `docs/directives/MandarinOS_universal_cards_builder_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Universal cards builder |
+| `docs/directives/mandarinos_copilot_architecture_update.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Copilot architecture update |
 
 ### 17.6 `docs/phases/`
 
-| Path | Class | Flags | Notes |
-| ---- | ----- | ----- | ----- |
-| `docs/phases/MANDARINOS_PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | Near-dup of `PHASE9_1_ACCEPTANCE_CRITERIA.md` |
-| `docs/phases/PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | Near-dup |
-| `docs/phases/MANDARINOS_PHASE_10_5_STABILISATION_BRIEF.md` | C | phase-specific | Phase 10.5 stabilisation |
-| `docs/phases/MandarinOS_Phase9_Signoff.md` | C | phase-specific | Phase 9 sign-off |
-| `docs/phases/PHASE6_FREEZE.md` | C | phase-specific, misleading-filename | Phase 6 freeze |
-| `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md` | C | phase-specific, misleading-filename | Phase 6 lock |
-| `docs/phases/PHASE6_RUNTIME_INDEXES_NOTES.md` | C | phase-specific | Phase 6 runtime-index notes |
-| `docs/phases/PHASE9_2_BRIDGE_TIER.md` | C | phase-specific | Phase 9.2 bridge tier |
-| `docs/phases/PHASE_10_5_CONVERSATION_SIMULATION.md` | C | phase-specific | Phase 10.5 simulation |
-| `docs/phases/Phase 3 Step 1 Audio-first UI.md` | C | phase-specific | Phase 3 audio-first UI |
-| `docs/phases/ROLLBACK_POINT_v1.md` | C | phase-specific, dated-snapshot | Rollback point |
-| `docs/phases/PHASE10_TECHNICAL_PROPOSAL.md` | F | implementation-not-verified | Phase 10 technical proposal |
-| `docs/phases/PHASE9_CONTENT_AND_ENGINES_PLAN.md` | F | implementation-not-verified | Phase 9 content/engines plan |
-| `docs/phases/PHASE_10_5_MAPPING_AND_SCHEMA_PROPOSAL.md` | F | implementation-not-verified | Phase 10.5 mapping/schema proposal |
+| Path | Class | Flags | Replacement/authority | Notes |
+| ---- | ----- | ----- | --------------------- | ----- |
+| `docs/phases/MANDARINOS_PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | `docs/ARCHITECTURE.md` | Near-dup of `PHASE9_1_ACCEPTANCE_CRITERIA.md` |
+| `docs/phases/PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | `docs/ARCHITECTURE.md` | Near-dup |
+| `docs/phases/MANDARINOS_PHASE_10_5_STABILISATION_BRIEF.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 10.5 stabilisation |
+| `docs/phases/MandarinOS_Phase9_Signoff.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 9 sign-off |
+| `docs/phases/PHASE6_FREEZE.md` | C | phase-specific, misleading-filename | `docs/ARCHITECTURE.md` | Phase 6 freeze |
+| `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md` | C | phase-specific, misleading-filename | `docs/ARCHITECTURE.md` | Phase 6 lock |
+| `docs/phases/PHASE6_RUNTIME_INDEXES_NOTES.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 6 runtime-index notes |
+| `docs/phases/PHASE9_2_BRIDGE_TIER.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Phase 9.2 bridge tier |
+| `docs/phases/PHASE_10_5_CONVERSATION_SIMULATION.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Phase 10.5 simulation |
+| `docs/phases/Phase 3 Step 1 Audio-first UI.md` | C | phase-specific | `docs/ASR_PIPELINE.md` | Phase 3 audio-first UI |
+| `docs/phases/ROLLBACK_POINT_v1.md` | C | phase-specific, dated-snapshot | dated evidence only | Rollback point |
+| `docs/phases/PHASE10_TECHNICAL_PROPOSAL.md` | F | implementation-not-verified | proposal only — no current authority | Phase 10 technical proposal |
+| `docs/phases/PHASE9_CONTENT_AND_ENGINES_PLAN.md` | F | implementation-not-verified | proposal only — no current authority | Phase 9 content/engines plan |
+| `docs/phases/PHASE_10_5_MAPPING_AND_SCHEMA_PROPOSAL.md` | F | implementation-not-verified | proposal only — no current authority | Phase 10.5 mapping/schema proposal |
 
 ### 17.7 `docs/plans/`
 
-| Path | Class | Flags | Notes |
-| ---- | ----- | ----- | ----- |
-| `docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md` | F | implementation-not-verified | Phase 10.7 minimal plan |
-| `docs/plans/component_radical_gloss_plan.md` | F | implementation-not-verified | Component/radical gloss plan |
-| `docs/plans/learner_etymology_hints_plan.md` | F | implementation-not-verified | Etymology-hints plan |
+| Path | Class | Flags | Replacement/authority | Notes |
+| ---- | ----- | ----- | --------------------- | ----- |
+| `docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md` | F | implementation-not-verified | proposal only — no current authority | Phase 10.7 minimal plan |
+| `docs/plans/component_radical_gloss_plan.md` | F | implementation-not-verified | proposal only — no current authority | Component/radical gloss plan |
+| `docs/plans/learner_etymology_hints_plan.md` | F | implementation-not-verified | proposal only — no current authority | Etymology-hints plan |
 
 ### 17.8 `docs/project/`
 
-| Path | Class | Flags | Notes |
-| ---- | ----- | ----- | ----- |
-| `docs/project/MandarinOS_project_plan_v2.md` | F | implementation-not-verified | Cited current roadmap (v2) |
-| `docs/project/MandarinOS_project_plan_v2_CORRECTED.md` | F | duplicate-or-near-duplicate | Roadmap variant |
-| `docs/project/MandarinOS_project_plan_v2_UPDATED.md` | F | duplicate-or-near-duplicate | Roadmap variant |
-| `docs/project/MANDARINOS_PROJECT_PLAN_v1.md` | D | duplicate-or-near-duplicate | Superseded by v2 |
-| `docs/project/RECOVERY_AND_CONVERSATION_FUTURE_NOTES.md` | F | implementation-not-verified | Future notes |
-| `docs/project/DIRECTIVE_PHASE_1_CARD_PANEL_STATE.md` | C | phase-specific | Phase 1 directive |
-| `docs/project/ENGINES_P1_P2_AND_SRS_REFERENCE.md` | C | phase-specific | Engine/SRS reference |
-| `docs/project/NEXT_QUESTION_SELECTOR_AND_LEVEL_TIE_IN.md` | C | phase-specific | References LOCKED selector spec |
-| `docs/project/PROBE_QUESTIONS_RESPONSE_OPTIONS_NOTE.md` | C | phase-specific | Probe-questions note |
-| `docs/project/TEST_DIAGNOSTIC_P1_MANUAL.md` | C | phase-specific | Manual diagnostic procedure |
-| `docs/project/USER_TURN_AND_PERSONA_QUESTIONS_NOTE.md` | C | phase-specific | Persona-questions note |
-| `docs/project/ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md` | E | dated-snapshot | Alignment options analysis |
-| `docs/project/AUDIT_OPTION_GENERATION.md` | E | dated-snapshot | Option-generation audit |
-| `docs/project/COMMIT_RECORD.md` | E | dated-snapshot | Commit record |
-| `docs/project/COMMIT_SUMMARY.md` | E | dated-snapshot, duplicate-or-near-duplicate | Commit summary |
-| `docs/project/COMMIT_SUMMARY_v1.md` | E | dated-snapshot, duplicate-or-near-duplicate | Commit summary v1 |
-| `docs/project/CORE_TREASURE_BRIDGE_STATUS.md` | E | dated-snapshot | Bridge status report |
-| `docs/project/DIAGNOSTIC_P1_VALIDATION_RESULTS.md` | E | dated-snapshot | Diagnostic results |
-| `docs/project/EXECUTIVE_SUMMARY_v1.md` | E | dated-snapshot | Executive summary |
-| `docs/project/OPTION_GENERATION_FIX_COMPLETE.md` | E | dated-snapshot | Fix-complete report |
-| `docs/project/PHASE9_STATUS_AND_RESPONSE_QUALITY.md` | E | dated-snapshot | Phase 9 status |
-| `docs/project/SPECS_TO_IMPLEMENTATION_GAP.md` | E | dated-snapshot | Gap analysis |
-| `docs/project/TEST_SUMMARY.md` | E | dated-snapshot | Test summary |
-| `docs/project/CHATGPT_BRANCH_START_TEMPLATE.md` | G | generated | Workflow template |
-| `docs/project/COMMIT_INSTRUCTIONS.md` | G | generated | Procedural instructions |
+| Path | Class | Flags | Replacement/authority | Notes |
+| ---- | ----- | ----- | --------------------- | ----- |
+| `docs/project/MandarinOS_project_plan_v2.md` | F | implementation-not-verified | proposal only — no current authority | Latest named roadmap version in the family; class F, not implementation authority; verify implemented status against code + R2 documents |
+| `docs/project/MandarinOS_project_plan_v2_CORRECTED.md` | F | duplicate-or-near-duplicate | proposal only — no current authority | Roadmap variant |
+| `docs/project/MandarinOS_project_plan_v2_UPDATED.md` | F | duplicate-or-near-duplicate | proposal only — no current authority | Roadmap variant |
+| `docs/project/MANDARINOS_PROJECT_PLAN_v1.md` | D | duplicate-or-near-duplicate | `docs/project/MandarinOS_project_plan_v2.md` | Superseded within roadmap lineage by v2 |
+| `docs/project/RECOVERY_AND_CONVERSATION_FUTURE_NOTES.md` | F | implementation-not-verified | proposal only — no current authority | Future notes |
+| `docs/project/DIRECTIVE_PHASE_1_CARD_PANEL_STATE.md` | C | phase-specific | code + `docs/CHANGE_CHECKLIST.md` | Phase 1 directive |
+| `docs/project/ENGINES_P1_P2_AND_SRS_REFERENCE.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Engine/SRS reference |
+| `docs/project/NEXT_QUESTION_SELECTOR_AND_LEVEL_TIE_IN.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | References LOCKED selector spec |
+| `docs/project/PROBE_QUESTIONS_RESPONSE_OPTIONS_NOTE.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Probe-questions note |
+| `docs/project/TEST_DIAGNOSTIC_P1_MANUAL.md` | C | phase-specific | `docs/TEST_STRATEGY.md` | Manual diagnostic procedure |
+| `docs/project/USER_TURN_AND_PERSONA_QUESTIONS_NOTE.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Persona-questions note |
+| `docs/project/ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md` | E | dated-snapshot | dated evidence only | Alignment options analysis |
+| `docs/project/AUDIT_OPTION_GENERATION.md` | E | dated-snapshot | dated evidence only | Option-generation audit |
+| `docs/project/COMMIT_RECORD.md` | E | dated-snapshot | dated evidence only | Commit record |
+| `docs/project/COMMIT_SUMMARY.md` | E | dated-snapshot, duplicate-or-near-duplicate | dated evidence only | Commit summary |
+| `docs/project/COMMIT_SUMMARY_v1.md` | E | dated-snapshot, duplicate-or-near-duplicate | dated evidence only | Commit summary v1 |
+| `docs/project/CORE_TREASURE_BRIDGE_STATUS.md` | E | dated-snapshot | dated evidence only | Bridge status report |
+| `docs/project/DIAGNOSTIC_P1_VALIDATION_RESULTS.md` | E | dated-snapshot | dated evidence only | Diagnostic results |
+| `docs/project/EXECUTIVE_SUMMARY_v1.md` | E | dated-snapshot | dated evidence only | Executive summary |
+| `docs/project/OPTION_GENERATION_FIX_COMPLETE.md` | E | dated-snapshot | dated evidence only | Fix-complete report |
+| `docs/project/PHASE9_STATUS_AND_RESPONSE_QUALITY.md` | E | dated-snapshot | dated evidence only | Phase 9 status |
+| `docs/project/SPECS_TO_IMPLEMENTATION_GAP.md` | E | dated-snapshot | dated evidence only | Gap analysis |
+| `docs/project/TEST_SUMMARY.md` | E | dated-snapshot | dated evidence only | Test summary |
+| `docs/project/CHATGPT_BRANCH_START_TEMPLATE.md` | G | — | — | Authored workflow template (procedural, not generated) |
+| `docs/project/COMMIT_INSTRUCTIONS.md` | G | — | — | Authored procedural instructions (not generated) |
 
 ### 17.9 `docs/reports/`
 
 All classification E, flags `dated-snapshot`; current authority is code + contracts.
 
-| Path | Class | Notes |
-| ---- | ----- | ----- |
-| `docs/reports/CORPUS_RECOVERY_NOTES.md` | E | Corpus recovery notes |
-| `docs/reports/PHASE_11_1_1_OBSERVATION_REPORT.md` | E | Phase 11.1.1 observation |
-| `docs/reports/alpha_conversation_observation.md` | E | Alpha observation |
-| `docs/reports/capability_mismatch_observation.md` | E | Capability-mismatch observation |
-| `docs/reports/component_gloss_coverage.md` | E | Gloss coverage report |
-| `docs/reports/counter_reply_matrix_report.md` | E | Counter-reply matrix |
-| `docs/reports/move_type_tagging_audit.md` | E | Move-type tagging audit |
-| `docs/reports/move_type_tagging_coverage.md` | E | Move-type coverage |
-| `docs/reports/move_type_transition_calibration.md` | E | Transition calibration |
-| `docs/reports/vocab_character_coverage_audit.md` | E | Vocab/character coverage |
+| Path | Class | Flags | Replacement/authority | Notes |
+| ---- | ----- | ----- | --------------------- | ----- |
+| `docs/reports/CORPUS_RECOVERY_NOTES.md` | E | dated-snapshot | dated evidence only | Corpus recovery notes |
+| `docs/reports/PHASE_11_1_1_OBSERVATION_REPORT.md` | E | dated-snapshot | dated evidence only | Phase 11.1.1 observation |
+| `docs/reports/alpha_conversation_observation.md` | E | dated-snapshot | dated evidence only | Alpha observation |
+| `docs/reports/capability_mismatch_observation.md` | E | dated-snapshot | dated evidence only | Capability-mismatch observation |
+| `docs/reports/component_gloss_coverage.md` | E | dated-snapshot | dated evidence only | Gloss coverage report |
+| `docs/reports/counter_reply_matrix_report.md` | E | dated-snapshot | dated evidence only | Counter-reply matrix |
+| `docs/reports/move_type_tagging_audit.md` | E | dated-snapshot | dated evidence only | Move-type tagging audit |
+| `docs/reports/move_type_tagging_coverage.md` | E | dated-snapshot | dated evidence only | Move-type coverage |
+| `docs/reports/move_type_transition_calibration.md` | E | dated-snapshot | dated evidence only | Transition calibration |
+| `docs/reports/vocab_character_coverage_audit.md` | E | dated-snapshot | dated evidence only | Vocab/character coverage |
 
 ### 17.10 `docs/specs/`
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | B | duplicate-or-near-duplicate | ADR record | Canonical (cited by `.cursor/rules`) |
-| `docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md` | B | contains-current-material | `docs/CONVERSATION_ARCHITECTURE.md` | Cited read-first for flow |
-| `docs/specs/MandarinOS_Extensibility_Strategy.md` | B | contains-current-material | ADR record | Cited strategy doc |
+| `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | B | duplicate-or-near-duplicate | ADR record | Canonical (cited by `.cursor/rules`). Classification inference: B because cited by `.cursor/rules` despite pre-R2 date |
+| `docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md` | B | contains-current-material | `docs/CONVERSATION_ARCHITECTURE.md` | Cited read-first for flow. Classification inference: B because cited by `.cursor/rules` despite pre-R2 date |
+| `docs/specs/MandarinOS_Extensibility_Strategy.md` | B | contains-current-material | ADR record | Cited strategy doc. Classification inference: B because cited by `.cursor/rules` despite pre-R2 date |
 | `docs/specs/mandarinos_conversation_architecture_v1.md` | D | — | `docs/CONVERSATION_ARCHITECTURE.md` | Conceptual spine superseded |
 | `docs/specs/MandarinOS_conversation_runtime_model_v1.md` | D | — | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/STATE_CONTRACT.md` | Runtime model superseded |
 | `docs/specs/MandarinOS_runtime_conversation_state_engine_v1.md` | D | — | `docs/STATE_CONTRACT.md` | State engine superseded |
@@ -518,8 +532,8 @@ All classification E, flags `dated-snapshot`; current authority is code + contra
 | `docs/specs/MandarinOS_Hybrid_Speech_and_Persona_Voice_Architecture.md` | F | implementation-not-verified | ADR-014 (deferred) | Hybrid speech (deferred) |
 | `docs/specs/PHASE_10_5_BEHAVIOUR_IMPLEMENTATION_PLAN.md` | F | implementation-not-verified | Contracts | Behaviour plan |
 | `docs/specs/PHASE_10_5_INTEREST_RESPONSIVENESS_REFINEMENT_PLAN.md` | F | implementation-not-verified | Contracts | Refinement plan |
-| `docs/specs/PHASE_12C_IMPLEMENTATION_BRIEF.md` | F | partially-implemented | Contracts | Phase 12C brief |
-| `docs/specs/PHASE_12C_INVARIANTS.md` | F | partially-implemented | Contracts | Phase 12C invariants |
+| `docs/specs/PHASE_12C_IMPLEMENTATION_BRIEF.md` | F | partially-implemented | Contracts | Phase 12C brief. Classification inference: F — partial implementation not verified per item |
+| `docs/specs/PHASE_12C_INVARIANTS.md` | F | partially-implemented | Contracts | Phase 12C invariants. Classification inference: F — partial implementation not verified per item |
 | `docs/specs/MOBILE_WORD_INSIGHT_UI_SPEC.md` | F | implementation-not-verified | `docs/ASR_PIPELINE.md` §14 | Word-insight UI spec |
 | `docs/specs/TRANSCRIPT_REPLAY_TRANSLATION_UI_SPEC.md` | F | implementation-not-verified | — | Transcript-replay UI spec |
 | `docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md` | C | misleading-filename | `docs/ARCHITECTURE.md` | Index of design specs |
@@ -563,31 +577,33 @@ All classification E, flags `dated-snapshot`; current authority is code + contra
 
 ### 17.11 `docs/state/`, `docs/Social_Media/`, `integration_kit/`
 
-| Path | Class | Flags | Notes |
-| ---- | ----- | ----- | ----- |
-| `docs/state/MANDARINOS_SYSTEM_STATE_PHASE_12B.md` | E | dated-snapshot, misleading-filename | Phase 12B state snapshot |
-| `docs/Social_Media/README.txt` | G | generated | Marketing collateral index |
-| `docs/Social_Media/deck1-first-video.marp.md` | G | generated | Marketing deck |
-| `docs/Social_Media/deck2-vocabulary-trap.marp.md` | G | generated | Marketing deck |
-| `docs/Social_Media/deck3-apps-dont-teach-speaking.marp.md` | G | generated | Marketing deck |
-| `docs/Social_Media/deck4-immersion-not-enough.marp.md` | G | generated | Marketing deck |
-| `docs/Social_Media/deck5-missing-skill.marp.md` | G | generated | Marketing deck |
-| `docs/Social_Media/mandarinos-first-video.marp.md` | G | generated | Marketing deck |
-| `docs/Social_Media/mandarinos-marp-template.md` | G | generated, duplicate-or-near-duplicate | Marp template (canonical) |
-| `docs/Social_Media/mandarinos-marp-template 1.md` | G | generated, duplicate-or-near-duplicate | Duplicate template copy |
-| `docs/Social_Media/mandarinos_prelaunch_scripts.txt` | G | generated | Pre-launch scripts |
-| `integration_kit/README.md` | C | phase-specific, implementation-not-verified | Trace-export kit (not wired to runtime) |
-| `integration_kit/schemas/README.md` | C | phase-specific | Kit schema index |
-| `integration_kit/examples/PHASE_2_DIRECTIVE_2A_WIRE_REDUCER_INTO_LIVE_UI.md` | C | phase-specific | Phase 2A example directive |
-| `integration_kit/examples/PHASE_2B_DIRECTIVE_CARD_RESOLVED_RACE_GUARD.txt` | C | phase-specific | Phase 2B example directive |
-| `integration_kit/examples/PHASE_2C_DIRECTIVE_CARD_PANEL_HISTORY_BACK.md` | C | phase-specific | Phase 2C example directive |
+Social_Media files are authored marketing collateral (procedural, campaign-scoped): class G without the `generated` flag.
+
+| Path | Class | Flags | Replacement/authority | Notes |
+| ---- | ----- | ----- | --------------------- | ----- |
+| `docs/state/MANDARINOS_SYSTEM_STATE_PHASE_12B.md` | E | dated-snapshot, misleading-filename | dated evidence only | Phase 12B state snapshot |
+| `docs/Social_Media/README.txt` | G | — | — | Authored marketing collateral index |
+| `docs/Social_Media/deck1-first-video.marp.md` | G | — | — | Authored Marp source deck |
+| `docs/Social_Media/deck2-vocabulary-trap.marp.md` | G | — | — | Authored Marp source deck |
+| `docs/Social_Media/deck3-apps-dont-teach-speaking.marp.md` | G | — | — | Authored Marp source deck |
+| `docs/Social_Media/deck4-immersion-not-enough.marp.md` | G | — | — | Authored Marp source deck |
+| `docs/Social_Media/deck5-missing-skill.marp.md` | G | — | — | Authored Marp source deck |
+| `docs/Social_Media/mandarinos-first-video.marp.md` | G | — | — | Authored Marp source deck |
+| `docs/Social_Media/mandarinos-marp-template.md` | G | duplicate-or-near-duplicate | — | Authored Marp template (canonical) |
+| `docs/Social_Media/mandarinos-marp-template 1.md` | G | duplicate-or-near-duplicate | — | Duplicate template copy |
+| `docs/Social_Media/mandarinos_prelaunch_scripts.txt` | G | — | — | Authored pre-launch scripts |
+| `integration_kit/README.md` | C | phase-specific, implementation-not-verified | `docs/ARCHITECTURE.md` | Trace-export kit (not wired to runtime) |
+| `integration_kit/schemas/README.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Kit schema index |
+| `integration_kit/examples/PHASE_2_DIRECTIVE_2A_WIRE_REDUCER_INTO_LIVE_UI.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 2A example directive |
+| `integration_kit/examples/PHASE_2B_DIRECTIVE_CARD_RESOLVED_RACE_GUARD.txt` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 2B example directive |
+| `integration_kit/examples/PHASE_2C_DIRECTIVE_CARD_PANEL_HISTORY_BACK.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 2C example directive |
 
 ### 17.12 `.cursor/rules/` coding-rule files
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `.cursor/rules/mandarinos-architecture.mdc` | B | contains-current-material | `docs/ARCHITECTURAL_DECISIONS.md` | Standing architectural rules (agent-enforced) |
-| `.cursor/rules/mandarinos-ui-objects.mdc` | B | contains-current-material | `docs/ARCHITECTURE.md` | UI standard-object rules (agent-enforced) |
+| `.cursor/rules/mandarinos-architecture.mdc` | B | contains-current-material | `docs/ARCHITECTURAL_DECISIONS.md` | Standing Cursor coding guidance, applied within its configured scope; subordinate to approved R2 documents |
+| `.cursor/rules/mandarinos-ui-objects.mdc` | B | contains-current-material | `docs/ARCHITECTURE.md` | UI standard-object coding guidance, applied within its configured scope; subordinate to approved R2 documents |
 
 ## 18. Audit traceability
 
@@ -600,17 +616,17 @@ git grep -n "LOCKED"   # and FINAL / MASTER / CURRENT / supersed / Phase
 git log --format="%ad %H %s" --date=short -- <path>
 ```
 
-Counting rule: every file tracked by Git matching `*.md`, `*.txt`, or `*.rst`, plus the two tracked `.cursor/rules/*.mdc` coding-rule files, counted once. The `git ls-files` glob returned **224** files; the two `.mdc` rule files are classified in §5 and counted in the B total, giving a documentation-surface total of **226** classified files.
+Counting rule: every file tracked by Git matching `*.md`, `*.txt`, or `*.rst`, plus the two tracked `.cursor/rules/*.mdc` coding-rule files, counted once. This index (`docs/DOCUMENT_AUTHORITY_INDEX.md`) is now itself a tracked Markdown file and is included. Rerunning `git ls-files "*.md" "*.txt" "*.rst"` returned **225** files; the two `.mdc` rule files (classified in §5 and inventoried in §17.12) bring the documentation surface to **227** classified files.
 
-- Total tracked documentation files (glob `*.md`/`*.txt`/`*.rst`): 224
-- Plus `.cursor/rules/*.mdc` (classified B): 2
-- **Total classified: 226**
+- Total tracked documentation files (glob `*.md`/`*.txt`/`*.rst`): 225
+- Plus `.cursor/rules/*.mdc`: 2
+- **Total classified: 227**
 
-Counts by primary classification:
+Counts by primary classification (verified from §17 rows):
 
 | Code | Classification | Count |
 | ---- | -------------- | ----- |
-| A | Authoritative — approved R2 governance | 8 |
+| A | Authoritative — approved R2 governance (incl. this index, class A effective upon approval) | 9 |
 | B | Current supporting guidance | 18 |
 | C | Historical context | 112 |
 | D | Superseded | 10 |
@@ -618,33 +634,39 @@ Counts by primary classification:
 | F | Proposal / plan / unimplemented spec | 22 |
 | G | Generated / procedural artefact | 20 |
 | H | Unresolved | 0 |
-| — | **Total** | **226** |
+| — | **Total** | **227** |
 
-Counts by secondary flag (approximate; a file may carry several):
+Exact counts by secondary flag (generated from the final §17 rows; only used flags are shown):
 
-- `phase-specific`: ~120
-- `dated-snapshot`: ~40
-- `generated`: 20
-- `implementation-not-verified`: ~25
-- `misleading-filename`: 11
-- `duplicate-or-near-duplicate`: 14
-- `mixed-current-and-historical`: 3
-- `partially-implemented`: 4
-- `contains-current-material` / `contains-obsolete-material`: ~15
+| Flag | Count |
+| ---- | ----- |
+| `phase-specific` | 107 |
+| `implementation-not-verified` | 39 |
+| `dated-snapshot` | 38 |
+| `duplicate-or-near-duplicate` | 13 |
+| `misleading-filename` | 12 |
+| `contains-current-material` | 11 |
+| `generated` | 8 |
+| `mixed-current-and-historical` | 3 |
+| `partially-implemented` | 3 |
+| `contains-obsolete-material` | 2 |
+| `branch-specific` | 1 |
+| `effective-upon-approval` | 1 |
 
 Other totals:
 
-- Misleading-title files: 11 (§11)
-- Duplicate/overlap groups: 9 (§12)
-- Unresolved classifications: 0 (§10)
+- Misleading-title register rows: 12 (§11) — equal to the 12 `misleading-filename` inventory flags.
+- Duplicate/overlap groups: 9 (§12) — collectively covering all 13 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files).
+- `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
+- Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).
 
-Principal approved documents used: the eight A documents (§4), plus `.cursor/rules/mandarinos-architecture.mdc` and `.cursor/rules/mandarinos-ui-objects.mdc` for cross-reference verification.
+Principal approved documents used: the eight preceding approved R2 documents (§4), plus `.cursor/rules/mandarinos-architecture.mdc` and `.cursor/rules/mandarinos-ui-objects.mdc` for cross-reference verification. This index is the candidate ninth authority.
 
 Principal conflicts identified:
 
-- "Authoritative" headings on `AI_CONTEXT.md` and `MANDARINOS_SYSTEM_MAP.md` predate and are subordinate to the eight A documents;
+- "Authoritative" headings on `AI_CONTEXT.md` and `MANDARINOS_SYSTEM_MAP.md` predate and are subordinate to the approved R2 governance documents;
 - `docs/design/CURSOR_STARTUP_PROTOCOL.md` onboarding order is superseded by `docs/ARCHITECTURE.md` §21 and §13 here;
 - the Phase 2–7 trace/card/conformance system (directives, TRACE_CONTRACT, integration kit) is not wired into the current conversation turn path (no `TraceBuilder`/`trace_exporter` in `ui/app.js`; no trace-contract references in `*.py`);
 - `docs/specs/MandarinOS_master_AI_bootstrap_context.md` is superseded by `AI_CONTEXT.md`; multiple project-plan versions and `conversation_*_v1` models are superseded by the v2 roadmap and the R2 contracts;
@@ -656,5 +678,5 @@ Classification date: `2026-07-13`
 Application baseline commit: `3be0315b2c9f7316b03ac2183a887f602ae9a297`
 Application baseline tag: `architecture-baseline-2026-07-12-r2`
 Documentation branch: `docs/architecture-v1`
-Document status: `Draft v1`
+Document status: `Candidate v1 — R2 final review`
 Last verified date: `2026-07-13`
