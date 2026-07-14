@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as the Phase 10 technical proposal and as historical context for ideas considered during that phase.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified production code and the applicable documents in the nine-document R2 architecture-governance package.
+> - **Principal caution:** A technical proposal is not evidence that its components, boundaries, or behaviours were implemented. Every proposed element must be independently verified against current code and the approved R2 documents.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 10 — Memory + Persona Foundations: Technical Proposal
 
 **Status:** **Approved and closed.** Scope delivered: learner memory capture, persistence by learner_id, memory-aware selector suppression, persona data, persona-aware dialogue stubs, and cross-session continuity. Known follow-up: response-option quality / frame–option alignment (polish; does not block sign-off). Deferred to later phases: recall mode, capability map, energy model, repair logic, selector scoring, and broader adaptive intelligence.  

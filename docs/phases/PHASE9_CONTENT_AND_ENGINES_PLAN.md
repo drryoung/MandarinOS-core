@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as the Phase 9 plan for content and conversation-engine development.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified content files, verified engine and selector code, `docs/CONVERSATION_ARCHITECTURE.md`, and `docs/ANSWER_SOURCE_CONTRACT.md`.
+> - **Principal caution:** The plan records intended Phase 9 work, not the verified current engine or content surface. Phase completion must not be inferred from the filename or planning language.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 9 — Content & Engines Implementation Plan
 
 **Purpose:** Plan for (1) more content, (2) new topics, (3) richer engine logic, (4) emergency/recovery phrases. Execute one step at a time; stop for review after each.

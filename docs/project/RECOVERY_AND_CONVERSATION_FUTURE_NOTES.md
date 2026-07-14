@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as forward-looking notes about recovery and future conversation behaviour.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code, `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ASR_PIPELINE.md`, and the deferred-decision register in `docs/ARCHITECTURAL_DECISIONS.md`.
+> - **Principal caution:** These are future notes rather than approved requirements. Proposed recovery or conversation changes require a separate architectural decision or reviewed implementation directive.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Recovery & Conversation — Future Notes
 
 Notes for later implementation. Current behaviour is acceptable for now.

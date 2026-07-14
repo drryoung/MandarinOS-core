@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as a proposal for reorganising the repository structure.
+> - **May guide current implementation:** No.
+> - **Current authority:** The actual tracked repository layout, `docs/ARCHITECTURE.md`, and applicable current build, deployment, and import behaviour.
+> - **Principal caution:** The proposed structure was not adopted merely because this file exists. Do not move directories or change imports based on this proposal without a separately approved migration plan.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS-core — Proposed directory & file structure
 
 This document suggests a logical layout to reduce root clutter and make files easier to find. Apply in phases; paths that scripts depend on are called out.

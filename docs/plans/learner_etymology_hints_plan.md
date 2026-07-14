@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as a proposal for learner-facing etymology hints.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current content and UI code together with the applicable R2 governance documents.
+> - **Principal caution:** The document records intended functionality, not verified current capability. Do not implement or rely on it without a newly approved change directive.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Learner etymology hints — “happy medium” (deferred)
 
 **Status:** Proposal only — **not implemented**. Saved for a future iteration when product is ready to add lighter, pedagogy-first copy between “Form only” and full etymology.

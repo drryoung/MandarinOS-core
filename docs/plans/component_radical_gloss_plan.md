@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as a proposal for component and radical gloss functionality.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current content, UI, and tooling code together with the applicable R2 governance documents.
+> - **Principal caution:** This plan does not establish that component or radical gloss behaviour exists in the current application. Implementation and user-visible behaviour must be verified independently.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Component & radical glosses for the Form line (deferred)
 
 **Status:** Phases **1–4 implemented** (2026-03): **`component_gloss_maps.json`** at repo root (served like `characters_1200.json`; optional copy under `data/`), `loadComponentGlossMaps()` in `ui/app.js`, `scripts/audit_component_gloss_coverage.py` → `docs/reports/component_gloss_coverage.md`, `tools/backfill_component_gloss_en.py` + corpus `gloss_en` backfill. Phase **5 (QA)** remains manual.

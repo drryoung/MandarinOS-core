@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as the latest named version in the project-roadmap document family.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified production code and the nine-document R2 architecture-governance package.
+> - **Principal caution:** Being the latest named roadmap version does not make this document current implementation authority. Its milestones and proposed features must be verified individually against code and approved architectural decisions.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Development Roadmap --- Strategic Plan v2
 
 Purpose: Align ChatGPT (strategist), Cursor (architect/programmer), and

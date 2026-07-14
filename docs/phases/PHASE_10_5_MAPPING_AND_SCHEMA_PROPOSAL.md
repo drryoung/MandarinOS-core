@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as the Phase 10.5 mapping and schema proposal.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified schemas and consuming code, `docs/STATE_CONTRACT.md`, `docs/ANSWER_SOURCE_CONTRACT.md`, and the applicable architectural decisions.
+> - **Principal caution:** Proposed mappings and schema relationships are not current contracts unless independently confirmed in the repository and the approved R2 documentation.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 10.5 — Mapping, Gaps, Minimal Schema, and Before/After Examples
 
 **Purpose:** Map current system to Phase 10.5 concepts; identify gaps; propose minimal schema extension; illustrate BEFORE vs AFTER with example conversations.  

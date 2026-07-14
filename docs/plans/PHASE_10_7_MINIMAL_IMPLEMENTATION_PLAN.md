@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as the proposed minimal implementation sequence for Phase 10.7.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code, the applicable detailed R2 contracts, and `docs/CHANGE_CHECKLIST.md`.
+> - **Principal caution:** The plan describes intended work and sequencing. It does not prove that any step was implemented, retained, or incorporated into the R2 baseline.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 10.7 — Minimal implementation plan (preserve Phase 10.5 / 10.6)
 
 **Purpose:** Apply **`docs/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt`** in the **smallest safe slices**, and execute the **move_type tagging pass** per **`docs/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt`**, **without** regressing **Phase 10.5** (server behaviour layer) or **Phase 10.6** (ASR / unmatched handling in `ui/app.js`).
