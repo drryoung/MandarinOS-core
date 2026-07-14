@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the dated option-generation audit record.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current option-generation code, applicable tests, and the relevant R2 behavioural contracts.
+> - **Principal caution:** Audit findings apply only to the reviewed repository state and scope. They do not establish current option-generation behaviour or current test status.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Option Generation Audit: Frame Slots & Hint Re-binding
 
 ## Audit Scope

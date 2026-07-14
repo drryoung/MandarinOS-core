@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the dated Phase P1 diagnostic and validation-results record.
+> - **May guide current implementation:** No.
+> - **Current authority:** Current tests, verified current code, and `docs/TEST_STRATEGY.md`.
+> - **Principal caution:** Historical validation results do not establish a current pass state. Re-run applicable tests and diagnostics before relying on any behaviour.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # diagnostic_p1.json Validation Results ✅
 
 **Date:** 2026-01-27  

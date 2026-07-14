@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as a historical summary of tests and reported results.
+> - **May guide current implementation:** No.
+> - **Current authority:** The current maintained test suite, current test execution, and `docs/TEST_STRATEGY.md`.
+> - **Principal caution:** A historical test summary cannot establish the current test inventory, current pass state, or current behavioural coverage.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Diagnostic System — Test Summary
 **Date:** January 28, 2026  
 **Repository:** MandarinOS-core  

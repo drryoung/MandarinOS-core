@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as a dated status report for the Core Treasure bridge work.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current bridge-related code, applicable tests, and the relevant R2 contracts.
+> - **Principal caution:** The report describes status at a past point in development. It does not prove that the bridge, its interfaces, or its reported limitations remain unchanged.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Core → treasure → bridge: current behaviour vs later stage
 
 **Question:** Is a conversation now able to start with a core question, try a few treasure questions, and then bridge to another topic? Or is this feature to be implemented at a later stage?

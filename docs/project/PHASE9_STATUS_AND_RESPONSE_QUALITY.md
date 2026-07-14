@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the Phase 9 status and response-quality report.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current conversation code, current tests, `docs/CONVERSATION_ARCHITECTURE.md`, and `docs/ANSWER_SOURCE_CONTRACT.md`.
+> - **Principal caution:** The document reflects Phase 9 observations and quality judgments. It does not describe or certify the current R2 conversation system.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 9 status and response quality
 
 **Purpose:** Record whether the current phase of development is complete and how to handle response validity / repeat-question issues.

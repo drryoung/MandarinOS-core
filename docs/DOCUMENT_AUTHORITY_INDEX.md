@@ -290,6 +290,8 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase B3 — all class-F proposals, plans, and unimplemented specifications: 22 files — complete and approved through Phase B3A and Phase B3B on 2026-07-14.** Split: Phase B3A 11; Phase B3B 11; total 22. Phase B3 completion changes no primary classification and authorises no proposal implementation. Phase B as a whole remains incomplete.
 
+**Phase B4A — project status, validation, summary, and commit-record class-E set: 12 files — candidate completed 2026-07-14; pending review and approval.** Class breakdown: E 12 (`docs/project/ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md`; `docs/project/AUDIT_OPTION_GENERATION.md`; `docs/project/COMMIT_RECORD.md`; `docs/project/COMMIT_SUMMARY.md`; `docs/project/COMMIT_SUMMARY_v1.md`; `docs/project/CORE_TREASURE_BRIDGE_STATUS.md`; `docs/project/DIAGNOSTIC_P1_VALIDATION_RESULTS.md`; `docs/project/EXECUTIVE_SUMMARY_v1.md`; `docs/project/OPTION_GENERATION_FIX_COMPLETE.md`; `docs/project/PHASE9_STATUS_AND_RESPONSE_QUALITY.md`; `docs/project/SPECS_TO_IMPLEMENTATION_GAP.md`; `docs/project/TEST_SUMMARY.md`). Phase B4 covers class-E dated reports and historical evidence. One class-E system-state snapshot (`docs/state/MANDARINOS_SYSTEM_STATE_PHASE_12B.md`) was already covered in Phase B1. Phase B4A covers these 12 project evidence documents; 23 class-E files remain for Phase B4B–B4D. Phase B4A is **not** approved until this candidate commit is separately reviewed. Phase B4 remains incomplete. Phase B as a whole remains incomplete. No original report body was intentionally altered. Historical conclusions were not updated or endorsed.
+
 ### Phase C — physical archive
 Move selected files into a structured archive, preserving Git history and fixing references.
 
@@ -492,18 +494,18 @@ All Phase 2–7 cards/trace/harness implementation directives. Classification C;
 | `docs/project/PROBE_QUESTIONS_RESPONSE_OPTIONS_NOTE.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Probe-questions note |
 | `docs/project/TEST_DIAGNOSTIC_P1_MANUAL.md` | C | phase-specific | `docs/TEST_STRATEGY.md` | Manual diagnostic procedure |
 | `docs/project/USER_TURN_AND_PERSONA_QUESTIONS_NOTE.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Persona-questions note |
-| `docs/project/ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md` | E | dated-snapshot | dated evidence only | Alignment options analysis |
-| `docs/project/AUDIT_OPTION_GENERATION.md` | E | dated-snapshot | dated evidence only | Option-generation audit |
-| `docs/project/COMMIT_RECORD.md` | E | dated-snapshot | dated evidence only | Commit record |
-| `docs/project/COMMIT_SUMMARY.md` | E | dated-snapshot, duplicate-or-near-duplicate | dated evidence only | Commit summary |
-| `docs/project/COMMIT_SUMMARY_v1.md` | E | dated-snapshot, duplicate-or-near-duplicate | dated evidence only | Commit summary v1 |
-| `docs/project/CORE_TREASURE_BRIDGE_STATUS.md` | E | dated-snapshot | dated evidence only | Bridge status report |
-| `docs/project/DIAGNOSTIC_P1_VALIDATION_RESULTS.md` | E | dated-snapshot | dated evidence only | Diagnostic results |
-| `docs/project/EXECUTIVE_SUMMARY_v1.md` | E | dated-snapshot | dated evidence only | Executive summary |
-| `docs/project/OPTION_GENERATION_FIX_COMPLETE.md` | E | dated-snapshot | dated evidence only | Fix-complete report |
-| `docs/project/PHASE9_STATUS_AND_RESPONSE_QUALITY.md` | E | dated-snapshot | dated evidence only | Phase 9 status |
-| `docs/project/SPECS_TO_IMPLEMENTATION_GAP.md` | E | dated-snapshot | dated evidence only | Gap analysis |
-| `docs/project/TEST_SUMMARY.md` | E | dated-snapshot | dated evidence only | Test summary |
+| `docs/project/ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md` | E | dated-snapshot, status-header-added | dated evidence only | Alignment options analysis. Phase B4A candidate notice added |
+| `docs/project/AUDIT_OPTION_GENERATION.md` | E | dated-snapshot, status-header-added | dated evidence only | Option-generation audit. Phase B4A candidate notice added |
+| `docs/project/COMMIT_RECORD.md` | E | dated-snapshot, status-header-added | dated evidence only | Commit record. Phase B4A candidate notice added |
+| `docs/project/COMMIT_SUMMARY.md` | E | dated-snapshot, duplicate-or-near-duplicate, status-header-added | dated evidence only | Commit summary. Phase B4A candidate notice added |
+| `docs/project/COMMIT_SUMMARY_v1.md` | E | dated-snapshot, duplicate-or-near-duplicate, status-header-added | dated evidence only | Commit summary v1. Phase B4A candidate notice added |
+| `docs/project/CORE_TREASURE_BRIDGE_STATUS.md` | E | dated-snapshot, status-header-added | dated evidence only | Bridge status report. Phase B4A candidate notice added |
+| `docs/project/DIAGNOSTIC_P1_VALIDATION_RESULTS.md` | E | dated-snapshot, status-header-added | dated evidence only | Diagnostic results. Phase B4A candidate notice added |
+| `docs/project/EXECUTIVE_SUMMARY_v1.md` | E | dated-snapshot, status-header-added | dated evidence only | Executive summary. Phase B4A candidate notice added |
+| `docs/project/OPTION_GENERATION_FIX_COMPLETE.md` | E | dated-snapshot, status-header-added | dated evidence only | Fix-complete report. Phase B4A candidate notice added |
+| `docs/project/PHASE9_STATUS_AND_RESPONSE_QUALITY.md` | E | dated-snapshot, status-header-added | dated evidence only | Phase 9 status. Phase B4A candidate notice added |
+| `docs/project/SPECS_TO_IMPLEMENTATION_GAP.md` | E | dated-snapshot, status-header-added | dated evidence only | Gap analysis. Phase B4A candidate notice added |
+| `docs/project/TEST_SUMMARY.md` | E | dated-snapshot, status-header-added | dated evidence only | Test summary. Phase B4A candidate notice added |
 | `docs/project/CHATGPT_BRANCH_START_TEMPLATE.md` | G | — | — | Authored workflow template (procedural, not generated) |
 | `docs/project/COMMIT_INSTRUCTIONS.md` | G | — | — | Authored procedural instructions (not generated) |
 
@@ -661,7 +663,7 @@ Exact counts by secondary flag (generated from the final §17 rows; only used fl
 | `dated-snapshot` | 38 |
 | `duplicate-or-near-duplicate` | 13 |
 | `misleading-filename` | 12 |
-| `status-header-added` | 42 |
+| `status-header-added` | 54 |
 | `contains-current-material` | 11 |
 | `generated` | 8 |
 | `mixed-current-and-historical` | 3 |
@@ -674,7 +676,7 @@ Other totals:
 - Misleading-title register rows: 12 (§11) — equal to the 12 `misleading-filename` inventory flags.
 - Duplicate/overlap groups: 9 (§12) — collectively covering all 13 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files).
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
-- `status-header-added` (42) covers the 12-file Phase B1 high-risk misleading-title set, the 8-file Phase B2 remaining-superseded set, the 11-file Phase B3A roadmap-and-planning set, and the 11-file Phase B3B design-and-implementation-specification set (§15), all now approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. All 22 class-F documents carry the flag through completed Phase B3.
+- `status-header-added` (54) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, and 11-file Phase B3B sets (§15), all approved, plus the 12-file candidate Phase B4A project-evidence set; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Phase B4A's 12 notices are candidate and pending approval; they are counted here because they exist in the committed candidate content, not because Phase B4A is approved. All 22 class-F documents carry the flag through completed Phase B3.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).

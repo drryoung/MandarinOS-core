@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as a historical record of commits or changes reported during a prior project stage.
+> - **May guide current implementation:** No.
+> - **Current authority:** Git history, verified current code, and the approved R2 architecture-governance documents.
+> - **Principal caution:** This record may omit later commits, reversions, branch changes, or deployment differences. Confirm all current claims directly from Git and code.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Commit Record: Conversation-First Model Enforcement
 **Date:** 2026-01-25  
 **Author:** GitHub Copilot (Constraint Enforcement Agent)  

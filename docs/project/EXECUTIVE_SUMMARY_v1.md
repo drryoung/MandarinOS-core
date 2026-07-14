@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as a historical executive summary of an earlier project state.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code and the nine-document R2 architecture-governance package.
+> - **Principal caution:** The summary is necessarily selective and dated. It must not be used as a substitute for current architecture, state, behavioural, or test evidence.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Executive Summary — Trace Contract v1.0 Release
 
 **Release Date**: 2026-01-28  

@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as one historical commit-summary variant.
+> - **May guide current implementation:** No.
+> - **Current authority:** Git history, verified current code, and the approved R2 architecture-governance documents.
+> - **Principal caution:** This is one of two overlapping commit-summary documents. Neither summary replaces direct Git verification or proves that described behaviour remains present.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Commit Summary: Conversation-First Constraint Implementation (Fixes 1-5)
 
 **Date:** January 27, 2026  

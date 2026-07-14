@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the version-one historical commit-summary variant.
+> - **May guide current implementation:** No.
+> - **Current authority:** Git history, verified current code, and the approved R2 architecture-governance documents.
+> - **Principal caution:** This overlaps with `docs/project/COMMIT_SUMMARY.md`. The filename does not establish canonical or current status, and described changes must be verified from Git.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Commit Summary — Trace Contract v1 + Integration Kit v1
 
 **Date**: 2026-01-28  

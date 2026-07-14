@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as dated evidence of architecture-alignment options and the preferred or “gold” position identified at that time.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code and the nine-document R2 architecture-governance package.
+> - **Principal caution:** The selected “gold” option records a historical recommendation, not the present architecture contract. Current alignment must be assessed against the R2 baseline.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Architecture alignment: response options and "gold"
 
 **Purpose:** Ensure implementation stays consistent with the conversation design.  

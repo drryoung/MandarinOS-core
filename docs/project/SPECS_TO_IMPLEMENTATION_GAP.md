@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as a dated analysis of gaps between specifications and implementation.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code, current tests, and the approved R2 contracts.
+> - **Principal caution:** Gaps may have been resolved, changed, or replaced after this analysis. Reassess each claimed gap against the present repository before acting on it.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Specs vs implementation — architectural gap analysis
 
 **Purpose:** Compare the conversation architecture defined in `docs/specs/` with the current implementation so development can be guided by the spec files rather than piecemeal. This document lists what each key spec requires and what is **implemented** vs **not implemented**.

@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as evidence that an option-generation fix was reported complete at a particular development point.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current option-generation code, current tests, and the applicable R2 behavioural contracts.
+> - **Principal caution:** `FIX COMPLETE` is a historical completion claim, not a permanent guarantee. Later regressions, revisions, or routing changes must be excluded through current verification.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Option Generation Fix: Complete ✅
 
 **Date Completed:** 2025-01-25  
