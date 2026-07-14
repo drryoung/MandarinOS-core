@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as an earlier proposal for required scenarios and test or design coverage.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current behaviour, `docs/TEST_STRATEGY.md`, the applicable behavioural contracts, and the currently maintained test suite.
+> - **Principal caution:** The word `REQUIRED` records design intent rather than current governance authority. Scenario existence, coverage, and acceptance status must be verified independently.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Required Scenarios v1
 
 This document specifies the six required scenario IDs and success criteria that the full app MUST implement and export traces for.

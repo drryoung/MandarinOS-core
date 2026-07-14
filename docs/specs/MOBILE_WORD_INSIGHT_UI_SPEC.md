@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as a proposed mobile word-insight user-interface specification.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current UI code, `docs/ARCHITECTURE.md`, and the relevant input and presentation constraints in `docs/ASR_PIPELINE.md`.
+> - **Principal caution:** The specification does not prove that the mobile word-insight interface was implemented or remains compatible with the current UI. Any implementation requires separate scope and verification.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Mobile Word Insight UI Spec
 
 ## Purpose

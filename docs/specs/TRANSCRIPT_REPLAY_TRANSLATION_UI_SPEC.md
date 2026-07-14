@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as a proposed transcript replay and translation user-interface specification.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current transcript and UI code, `docs/ARCHITECTURE.md`, `docs/ASR_PIPELINE.md`, and applicable presentation behaviour.
+> - **Principal caution:** The specification is not evidence that transcript replay or translation behaviour exists as described. Do not rely on its UI states, data assumptions, or workflows without current-code verification.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Transcript Replay + Translation UI Spec
 
 ## Purpose

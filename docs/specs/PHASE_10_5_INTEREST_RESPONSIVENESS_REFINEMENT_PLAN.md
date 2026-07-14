@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as the Phase 10.5 proposal for refining interest detection and conversational responsiveness.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified intent, routing, answer-selection, and conversation code together with `docs/CONVERSATION_ARCHITECTURE.md` and `docs/ANSWER_SOURCE_CONTRACT.md`.
+> - **Principal caution:** The plan records intended refinements, not verified current behaviour. Do not infer that all examples, priorities, or response rules were implemented.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 10.5 Interest Responsiveness Refinement Plan
 
 ## Purpose

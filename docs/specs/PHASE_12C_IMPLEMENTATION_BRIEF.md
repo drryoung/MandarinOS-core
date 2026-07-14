@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as a Phase 12C implementation briefing whose proposals were only partially implemented and are not verified item by item.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code, applicable tests, and the detailed R2 behavioural contracts.
+> - **Principal caution:** Partial implementation does not make the full briefing current authority. Every stated feature, invariant, flow, and handoff must be independently confirmed before maintenance work relies on it.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MANDARINOS — PHASE 12C IMPLEMENTATION BRIEF
 
 Purpose:

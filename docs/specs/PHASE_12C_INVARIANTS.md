@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as a Phase 12C proposed invariant set; some related behaviour may exist, but the document is not verified as a complete current contract.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code and the applicable approved R2 contracts, especially `docs/CONVERSATION_ARCHITECTURE.md`, `docs/STATE_CONTRACT.md`, and `docs/ANSWER_SOURCE_CONTRACT.md`.
+> - **Principal caution:** The word `INVARIANTS` does not create current authority. Each invariant must be verified against the R2 baseline before it is treated as protected behaviour.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 12C — Invariants (do not violate without team sign-off)
 
 These are the five invariants that define correct Phase 12C behavior.

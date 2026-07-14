@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as the Phase 12 Hybrid AI concept briefing and as rationale for a deferred product direction.
+> - **May guide current implementation:** No.
+> - **Current authority:** Current verified application architecture, `docs/ASR_PIPELINE.md`, and the deferred Hybrid AI decision recorded in `docs/ARCHITECTURAL_DECISIONS.md`.
+> - **Principal caution:** Hybrid AI behaviour is not part of the approved R2 baseline merely because it was described in this briefing. Implementation requires a new reviewed architectural decision and bounded directive.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 MANDARINOS — PHASE 12 CONCEPT BRIEFING
 HYBRID AI + STRUCTURED CONVERSATION ARCHITECTURE
 

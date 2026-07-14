@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as a proposed architecture for hybrid speech processing and persona voice behaviour.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified browser speech behaviour, `docs/ASR_PIPELINE.md`, and the deferred speech and Hybrid AI decisions in `docs/ARCHITECTURAL_DECISIONS.md`.
+> - **Principal caution:** This architecture is deferred and unimplemented as a complete system. It must not be used to infer a current managed speech provider, persona-voice pipeline, or runtime service boundary.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS — Future Release Development Note
 ## Hybrid Speech + Persona Voice Architecture
 

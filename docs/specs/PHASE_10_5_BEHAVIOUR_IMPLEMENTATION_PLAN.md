@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as the intended Phase 10.5 behaviour implementation plan.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified conversation code and the applicable R2 behavioural contracts.
+> - **Principal caution:** An implementation plan does not prove that each proposed behaviour was implemented, retained, or reached the R2 baseline. Verify every item against current code and tests.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 10.5 — Behaviour Implementation Plan (Pre-Implementation)
 
 **Status:** planning only — **do not implement yet**.  

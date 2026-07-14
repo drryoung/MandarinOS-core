@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as the broader Session Intelligence architecture proposal; a limited implementation slice exists, while the remaining architecture is unverified or proposed.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified Session Intelligence code and endpoints, current tests, applicable R2 contracts, and `docs/session_intelligence_implementation_report.md` only as dated implementation evidence.
+> - **Principal caution:** Partial implementation does not elevate the complete architecture document into current authority. Each claimed component, workflow, storage location, and later slice must be verified individually.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS — Session Intelligence Architecture
 
 **Status:** Phase 0 Slice 1 implemented (`scripts/session_intelligence.py`, `MANDARINOS_SESSION_CAPTURE` flag)

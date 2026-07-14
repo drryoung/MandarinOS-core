@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class F: Proposal, plan, or unimplemented specification**
+>
+> - **Current use:** Retained as a recommendation concerning the repository’s overlapping schema locations and possible future consolidation.
+> - **May guide current implementation:** No.
+> - **Current authority:** The actual tracked schema directories, their consuming code, `docs/STATE_CONTRACT.md`, `docs/ANSWER_SOURCE_CONTRACT.md`, and applicable build or generation behaviour.
+> - **Principal caution:** This recommendation was not executed merely because the document exists. Do not move, merge, delete, or redirect schema files without a separately reviewed migration and reference audit.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Schema sync: single source of truth
 
 The repo has two copies of the same JSON schemas:
