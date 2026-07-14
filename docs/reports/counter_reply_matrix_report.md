@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as a historical report on counter-reply matrix content or behaviour.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current reply-selection code, phrase or content banks, current tests, and `docs/ANSWER_SOURCE_CONTRACT.md`.
+> - **Principal caution:** Matrix entries, coverage, and behaviour may have changed since this report. Verify current reply sources and routing before relying on any reported result.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Pass 1 — Counter-Reply Coverage Matrix
 
 Persona: **xiaoyun**  |  Server: http://localhost:8765/api/run_turn

@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as historical notes concerning corpus recovery activity and observations made during that work.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current corpus and content files, their consuming code, current tests, and the applicable R2 contracts.
+> - **Principal caution:** These notes describe a past recovery effort and may not reflect later content changes, repairs, removals, or regressions. Verify all current corpus claims directly.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Character / word corpus — recovery notes (Step 1)
 
 This document records what was **actually found** in this repo and git history when looking for the large compiled character database.

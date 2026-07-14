@@ -292,6 +292,8 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase B4A — project status, validation, summary, and commit-record class-E set: 12 files — approved 2026-07-14.** Class breakdown: E 12 (`docs/project/ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md`; `docs/project/AUDIT_OPTION_GENERATION.md`; `docs/project/COMMIT_RECORD.md`; `docs/project/COMMIT_SUMMARY.md`; `docs/project/COMMIT_SUMMARY_v1.md`; `docs/project/CORE_TREASURE_BRIDGE_STATUS.md`; `docs/project/DIAGNOSTIC_P1_VALIDATION_RESULTS.md`; `docs/project/EXECUTIVE_SUMMARY_v1.md`; `docs/project/OPTION_GENERATION_FIX_COMPLETE.md`; `docs/project/PHASE9_STATUS_AND_RESPONSE_QUALITY.md`; `docs/project/SPECS_TO_IMPLEMENTATION_GAP.md`; `docs/project/TEST_SUMMARY.md`). Phase B4A is approved and complete: all 12 Phase B4A project-evidence documents now carry approved authority notices, using the standard sentinel protocol, verified against committed Git blobs. No original report body was altered. Historical conclusions were neither updated nor endorsed. One additional class-E document was previously approved in Phase B1 (`docs/state/MANDARINOS_SYSTEM_STATE_PHASE_12B.md`). 23 class-E documents remain for Phase B4B–B4D. Phase B1, Phase B2, Phase B3A, Phase B3B, and Phase B3 remain approved/complete as recorded above. Phase B4 remains incomplete. Phase B as a whole remains incomplete — later Phase B batches remain separately reviewed and controlled.
 
+**Phase B4B — reports-directory class-E historical-evidence set: 10 files — candidate completed 2026-07-14; pending review and approval.** Class breakdown: E 10 (`docs/reports/CORPUS_RECOVERY_NOTES.md`; `docs/reports/PHASE_11_1_1_OBSERVATION_REPORT.md`; `docs/reports/alpha_conversation_observation.md`; `docs/reports/capability_mismatch_observation.md`; `docs/reports/component_gloss_coverage.md`; `docs/reports/counter_reply_matrix_report.md`; `docs/reports/move_type_tagging_audit.md`; `docs/reports/move_type_tagging_coverage.md`; `docs/reports/move_type_transition_calibration.md`; `docs/reports/vocab_character_coverage_audit.md`). Phase B4 covers all class-E dated reports and historical evidence. 13 class-E documents had approved notices before Phase B4B. Phase B4B covers all 10 documents under `docs/reports/`. 13 class-E documents remain for Phase B4C and B4D. Phase B4B is **not** approved until this candidate commit is separately reviewed. Phase B4 remains incomplete. Phase B as a whole remains incomplete. No original report body was intentionally altered. Historical results were not updated, endorsed, or treated as current evidence.
+
 ### Phase C — physical archive
 Move selected files into a structured archive, preserving Git history and fixing references.
 
@@ -515,16 +517,16 @@ All classification E, flags `dated-snapshot`; current authority is code + contra
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/reports/CORPUS_RECOVERY_NOTES.md` | E | dated-snapshot | dated evidence only | Corpus recovery notes |
-| `docs/reports/PHASE_11_1_1_OBSERVATION_REPORT.md` | E | dated-snapshot | dated evidence only | Phase 11.1.1 observation |
-| `docs/reports/alpha_conversation_observation.md` | E | dated-snapshot | dated evidence only | Alpha observation |
-| `docs/reports/capability_mismatch_observation.md` | E | dated-snapshot | dated evidence only | Capability-mismatch observation |
-| `docs/reports/component_gloss_coverage.md` | E | dated-snapshot | dated evidence only | Gloss coverage report |
-| `docs/reports/counter_reply_matrix_report.md` | E | dated-snapshot | dated evidence only | Counter-reply matrix |
-| `docs/reports/move_type_tagging_audit.md` | E | dated-snapshot | dated evidence only | Move-type tagging audit |
-| `docs/reports/move_type_tagging_coverage.md` | E | dated-snapshot | dated evidence only | Move-type coverage |
-| `docs/reports/move_type_transition_calibration.md` | E | dated-snapshot | dated evidence only | Transition calibration |
-| `docs/reports/vocab_character_coverage_audit.md` | E | dated-snapshot | dated evidence only | Vocab/character coverage |
+| `docs/reports/CORPUS_RECOVERY_NOTES.md` | E | dated-snapshot, status-header-added | dated evidence only | Corpus recovery notes. Phase B4B candidate notice added |
+| `docs/reports/PHASE_11_1_1_OBSERVATION_REPORT.md` | E | dated-snapshot, status-header-added | dated evidence only | Phase 11.1.1 observation. Phase B4B candidate notice added |
+| `docs/reports/alpha_conversation_observation.md` | E | dated-snapshot, status-header-added | dated evidence only | Alpha observation. Phase B4B candidate notice added |
+| `docs/reports/capability_mismatch_observation.md` | E | dated-snapshot, status-header-added | dated evidence only | Capability-mismatch observation. Phase B4B candidate notice added |
+| `docs/reports/component_gloss_coverage.md` | E | dated-snapshot, status-header-added | dated evidence only | Gloss coverage report. Phase B4B candidate notice added |
+| `docs/reports/counter_reply_matrix_report.md` | E | dated-snapshot, status-header-added | dated evidence only | Counter-reply matrix. Phase B4B candidate notice added |
+| `docs/reports/move_type_tagging_audit.md` | E | dated-snapshot, status-header-added | dated evidence only | Move-type tagging audit. Phase B4B candidate notice added |
+| `docs/reports/move_type_tagging_coverage.md` | E | dated-snapshot, status-header-added | dated evidence only | Move-type coverage. Phase B4B candidate notice added |
+| `docs/reports/move_type_transition_calibration.md` | E | dated-snapshot, status-header-added | dated evidence only | Transition calibration. Phase B4B candidate notice added |
+| `docs/reports/vocab_character_coverage_audit.md` | E | dated-snapshot, status-header-added | dated evidence only | Vocab/character coverage. Phase B4B candidate notice added |
 
 ### 17.10 `docs/specs/`
 
@@ -663,7 +665,7 @@ Exact counts by secondary flag (generated from the final §17 rows; only used fl
 | `dated-snapshot` | 38 |
 | `duplicate-or-near-duplicate` | 13 |
 | `misleading-filename` | 12 |
-| `status-header-added` | 54 |
+| `status-header-added` | 64 |
 | `contains-current-material` | 11 |
 | `generated` | 8 |
 | `mixed-current-and-historical` | 3 |
@@ -676,7 +678,7 @@ Other totals:
 - Misleading-title register rows: 12 (§11) — equal to the 12 `misleading-filename` inventory flags.
 - Duplicate/overlap groups: 9 (§12) — collectively covering all 13 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files).
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
-- `status-header-added` (54) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, and 12-file Phase B4A project-evidence sets (§15), all now approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 13 class-E documents carry the flag (one Phase B1 system-state snapshot plus the 12 Phase B4A project-evidence documents); 23 class-E documents remain for Phase B4B–B4D. All 22 class-F documents carry the flag through completed Phase B3.
+- `status-header-added` (64) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, and 12-file Phase B4A sets (§15), all approved, plus the 10-file candidate Phase B4B reports-directory set; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Phase B4B's 10 notices are candidate and pending approval; they are counted here because they exist in the committed candidate content, not because Phase B4B is approved. Exactly 23 class-E documents carry the flag when approved prior notices and candidate B4B are considered together; 13 class-E documents remain for Phase B4C and B4D. All 22 class-F documents carry the flag through completed Phase B3.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).

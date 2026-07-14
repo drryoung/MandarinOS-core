@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the Phase 11.1.1 observation report and evidence of behaviour observed at that development point.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code, current tests, and the applicable documents in the R2 architecture-governance package.
+> - **Principal caution:** The observations apply to the repository state and test conditions examined at that time. They do not certify current R2 behaviour.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # PHASE 11.1.1 — Post-fix Alpha Observation Report
 
 Generated: 2026-03-25  
