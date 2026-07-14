@@ -306,7 +306,7 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase B5B — approved-assessment family and directory guidance: 3 guides covering 31 files — approved 2026-07-14.** Coverage: `docs/directives/` 17; `docs/phases/` 9; `integration_kit/` 5; total 31. Phase B5B is approved and complete. Two new class-B family guides were created (`docs/directives/README.md`; `docs/phases/README.md`). The existing class-C `integration_kit/README.md` hosts a prepended family-authority wrapper while retaining its class and flags. No covered historical document was reclassified. No individual notice was added. No covered historical body was altered. Phase B5C and B5D have not begun. Phase B remains incomplete.
 
-**Phase B5C — approved-assessment generated-output guidance: 8 files — candidate completed 2026-07-14; pending review and approval.** Eight generated or captured outputs now contain candidate maintenance headers. Headers identify output status, source/workflow where verified, regeneration expectations, and direct-edit risk. No output was regenerated. No original output body was intentionally altered. No file was reclassified. Phase B5C is not approved. Phase B5D has not begun. Phase B remains incomplete.
+**Phase B5C — approved-assessment generated-output guidance: 8 files — approved 2026-07-14.** Phase B5C is approved and complete. All eight approved generated or captured outputs carry maintenance guidance. The headers identify output status, regeneration expectations, freshness risk, and direct-edit risk. No output was regenerated. No original output body was altered. No target was reclassified. `generated-guidance-added` applies to exactly eight files. Phase B5D has not begun. Phase B remains incomplete.
 
 ### Phase C — physical archive
 Move selected files into a structured archive, preserving Git history and fixing references.
@@ -351,17 +351,17 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `README.md` | B | contains-current-material | — | Current quick-start/tech stack |
 | `requirements.txt` | B | contains-current-material | repo config | Runtime dependency manifest |
 | `requirements-tools.txt` | B | contains-current-material | repo config | Optional tooling deps |
-| `fo_check.txt` | G | generated, dated-snapshot, generated-guidance-added | — | Captured command error output; Phase B5C candidate generated-output guidance added |
-| `frame_dump.txt` | G | generated, generated-guidance-added | — | Frame-order dump; Phase B5C candidate generated-output guidance added |
-| `frame_texts.txt` | G | generated, generated-guidance-added | — | Frame-text dump (encoding artefacts); Phase B5C candidate generated-output guidance added |
-| `server_out.txt` | G | generated, generated-guidance-added | — | Server stdout capture; Phase B5C candidate generated-output guidance added |
-| `server_err.txt` | G | generated, generated-guidance-added | — | Server stderr capture; Phase B5C candidate generated-output guidance added |
-| `server_startup_err.txt` | G | generated, generated-guidance-added | — | Startup stderr capture; Phase B5C candidate generated-output guidance added |
+| `fo_check.txt` | G | generated, dated-snapshot, generated-guidance-added | — | Captured command error output; Phase B5C generated-output guidance approved |
+| `frame_dump.txt` | G | generated, generated-guidance-added | — | Frame-order dump; Phase B5C generated-output guidance approved |
+| `frame_texts.txt` | G | generated, generated-guidance-added | — | Frame-text dump (encoding artefacts); Phase B5C generated-output guidance approved |
+| `server_out.txt` | G | generated, generated-guidance-added | — | Server stdout capture; Phase B5C generated-output guidance approved |
+| `server_err.txt` | G | generated, generated-guidance-added | — | Server stderr capture; Phase B5C generated-output guidance approved |
+| `server_startup_err.txt` | G | generated, generated-guidance-added | — | Startup stderr capture; Phase B5C generated-output guidance approved |
 | `.github/copilot-instructions.md` | C | contains-obsolete-material, misleading-filename, status-header-added | `AI_CONTEXT.md`, `.cursor/rules/*`, `docs/CHANGE_CHECKLIST.md` §23 | Copilot retired; Cursor ops moved |
 | `conformance/README.md` | B | branch-specific | `docs/TEST_STRATEGY.md` | Conformance runner exists; side tool |
 | `runtime/README_runtime_indexes.txt` | B | contains-current-material | `docs/ARCHITECTURE.md` §14 | Index defs vs computed |
-| `scripts/_engine_audit.txt` | G | generated, generated-guidance-added | — | Engine/frame audit output; Phase B5C candidate generated-output guidance added |
-| `tools/coverage/coverage_report.md` | G | generated, generated-guidance-added | — | Content coverage scanner output; Phase B5C candidate generated-output guidance added |
+| `scripts/_engine_audit.txt` | G | generated, generated-guidance-added | — | Engine/frame audit output; Phase B5C generated-output guidance approved |
+| `tools/coverage/coverage_report.md` | G | generated, generated-guidance-added | — | Content coverage scanner output; Phase B5C generated-output guidance approved |
 
 ### 17.2 `docs/` (top level)
 
@@ -698,8 +698,8 @@ Other totals:
 - Misleading-title register rows: 12 (§11) — equal to the 12 `misleading-filename` inventory flags.
 - Duplicate/overlap groups: 9 (§12) — collectively covering all 13 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files).
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
-- `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B is approved: three guides cover 31 files (two new class-B guides; one existing class-C README hosts prepended family guidance without reclassification). `status-header-added` remains 79. Phase B5C generated-output guidance is candidate (§15); Phase B5C is not approved. Phase B5D has not begun. Phase B remains incomplete. All 22 class-F documents carry the flag through completed Phase B3.
-- `generated-guidance-added` (8) covers the eight class-G generated/captured output files with Phase B5C candidate headers (§15); equal to the eight `generated` inventory flags.
+- `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B is approved: three guides cover 31 files (two new class-B guides; one existing class-C README hosts prepended family guidance without reclassification). `status-header-added` remains 79. Phase B5C is approved: eight generated rows carry approved guidance; `generated-guidance-added` equals 8. Phase B5D has not begun. Phase B remains incomplete. All 22 class-F documents carry the flag through completed Phase B3.
+- `generated-guidance-added` (8) covers the eight class-G generated/captured output files with Phase B5C approved headers (§15); equal to the eight `generated` inventory flags.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).
