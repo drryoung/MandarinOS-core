@@ -284,7 +284,7 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase B2 — remaining superseded-document set: 8 files — approved 2026-07-14.** Class breakdown: D 8 (`docs/project/MANDARINOS_PROJECT_PLAN_v1.md`; `docs/specs/mandarinos_conversation_architecture_v1.md`; `docs/specs/MandarinOS_conversation_runtime_model_v1.md`; `docs/specs/MandarinOS_runtime_conversation_state_engine_v1.md`; `docs/specs/MandarinOS_conversation_state_diagram_v1.md`; `docs/specs/MandarinOS_turn_data_contract_v1.md`; `docs/specs/MandarinOS_conversation_memory_model_v1.md`; `docs/specs/mandarinos_family_conversation_ladder.md`). Phase B2 is approved and complete: all ten class-D documents now carry approved authority notices, using the standard sentinel protocol, verified against committed Git blobs. No original document body was altered. Phase B1 remains approved. Phase B as a whole remains incomplete — later Phase B batches (class C, E, F, and G files) remain separately reviewed and controlled.
 
-**Phase B3A — roadmap and planning class-F set: 11 files — candidate completed 2026-07-14; pending review and approval.** Class breakdown: F 11 (`docs/phases/PHASE10_TECHNICAL_PROPOSAL.md`; `docs/phases/PHASE9_CONTENT_AND_ENGINES_PLAN.md`; `docs/phases/PHASE_10_5_MAPPING_AND_SCHEMA_PROPOSAL.md`; `docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md`; `docs/plans/component_radical_gloss_plan.md`; `docs/plans/learner_etymology_hints_plan.md`; `docs/project/MandarinOS_project_plan_v2.md`; `docs/project/MandarinOS_project_plan_v2_CORRECTED.md`; `docs/project/MandarinOS_project_plan_v2_UPDATED.md`; `docs/project/RECOVERY_AND_CONVERSATION_FUTURE_NOTES.md`; `docs/REPO_STRUCTURE_PROPOSAL.md`). Phase B3 covers all 22 class-F documents, divided into two separately reviewed batches: Phase B3A covers these 11 roadmap and planning documents; Phase B3B will separately cover the remaining 11 class-F design and implementation-specification documents. Phase B3A is **not** approved until this candidate commit is separately reviewed. Phase B3B has **not** begun. Phase B as a whole remains incomplete. No original document body was intentionally altered.
+**Phase B3A — roadmap and planning class-F set: 11 files — approved 2026-07-14.** Class breakdown: F 11 (`docs/phases/PHASE10_TECHNICAL_PROPOSAL.md`; `docs/phases/PHASE9_CONTENT_AND_ENGINES_PLAN.md`; `docs/phases/PHASE_10_5_MAPPING_AND_SCHEMA_PROPOSAL.md`; `docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md`; `docs/plans/component_radical_gloss_plan.md`; `docs/plans/learner_etymology_hints_plan.md`; `docs/project/MandarinOS_project_plan_v2.md`; `docs/project/MandarinOS_project_plan_v2_CORRECTED.md`; `docs/project/MandarinOS_project_plan_v2_UPDATED.md`; `docs/project/RECOVERY_AND_CONVERSATION_FUTURE_NOTES.md`; `docs/REPO_STRUCTURE_PROPOSAL.md`). Phase B3A is approved and complete: all 11 Phase B3A roadmap and planning documents now carry approved authority notices, using the standard sentinel protocol, verified against committed Git blobs. No original document body was altered. Phase B3 covers all 22 class-F documents, divided into two separately reviewed batches: Phase B3A (approved above) covers these 11 roadmap and planning documents; Phase B3B will separately cover the remaining 11 class-F design and implementation-specification documents and has **not** begun. Phase B3 as a whole remains incomplete. Phase B as a whole remains incomplete — later batches remain separately reviewed and controlled.
 
 ### Phase C — physical archive
 Move selected files into a structured archive, preserving Git history and fixing references.
@@ -357,7 +357,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `docs/DEVELOPER_ONBOARDING.md` | B | contains-obsolete-material | `docs/ARCHITECTURE.md` | 2026-05-11; counts drift |
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | B | misleading-filename, contains-current-material, status-header-added | `docs/TEST_STRATEGY.md` | Regression-guard register. Classification inference: B — guards still relevant; evidence weight per TEST_STRATEGY |
 | `docs/RESPONSE_OPTION_STYLE_GUIDE.md` | B | contains-current-material | `docs/ANSWER_SOURCE_CONTRACT.md` | Option style rules |
-| `docs/REPO_STRUCTURE_PROPOSAL.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Proposed layout; not executed. Phase B3A candidate notice added |
+| `docs/REPO_STRUCTURE_PROPOSAL.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Proposed layout; not executed. Phase B3A notice approved |
 | `docs/SCHEMA_SYNC_RECOMMENDATION.md` | F | implementation-not-verified | proposal only — no current authority | Recommends consolidating two schema dirs (still separate); no duplicate-document relationship |
 | `docs/session_intelligence_architecture.md` | F | partially-implemented | proposal only — no current authority | Slice 1 implemented; rest proposal. Classification inference: F — only slice 1 verified implemented |
 | `docs/session_intelligence_implementation_report.md` | E | dated-snapshot | dated evidence only | Implementation report |
@@ -461,27 +461,27 @@ All Phase 2–7 cards/trace/harness implementation directives. Classification C;
 | `docs/phases/PHASE_10_5_CONVERSATION_SIMULATION.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Phase 10.5 simulation |
 | `docs/phases/Phase 3 Step 1 Audio-first UI.md` | C | phase-specific | `docs/ASR_PIPELINE.md` | Phase 3 audio-first UI |
 | `docs/phases/ROLLBACK_POINT_v1.md` | C | phase-specific, dated-snapshot | dated evidence only | Rollback point |
-| `docs/phases/PHASE10_TECHNICAL_PROPOSAL.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Phase 10 technical proposal. Phase B3A candidate notice added |
-| `docs/phases/PHASE9_CONTENT_AND_ENGINES_PLAN.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Phase 9 content/engines plan. Phase B3A candidate notice added |
-| `docs/phases/PHASE_10_5_MAPPING_AND_SCHEMA_PROPOSAL.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Phase 10.5 mapping/schema proposal. Phase B3A candidate notice added |
+| `docs/phases/PHASE10_TECHNICAL_PROPOSAL.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Phase 10 technical proposal. Phase B3A notice approved |
+| `docs/phases/PHASE9_CONTENT_AND_ENGINES_PLAN.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Phase 9 content/engines plan. Phase B3A notice approved |
+| `docs/phases/PHASE_10_5_MAPPING_AND_SCHEMA_PROPOSAL.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Phase 10.5 mapping/schema proposal. Phase B3A notice approved |
 
 ### 17.7 `docs/plans/`
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Phase 10.7 minimal plan. Phase B3A candidate notice added |
-| `docs/plans/component_radical_gloss_plan.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Component/radical gloss plan. Phase B3A candidate notice added |
-| `docs/plans/learner_etymology_hints_plan.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Etymology-hints plan. Phase B3A candidate notice added |
+| `docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Phase 10.7 minimal plan. Phase B3A notice approved |
+| `docs/plans/component_radical_gloss_plan.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Component/radical gloss plan. Phase B3A notice approved |
+| `docs/plans/learner_etymology_hints_plan.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Etymology-hints plan. Phase B3A notice approved |
 
 ### 17.8 `docs/project/`
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/project/MandarinOS_project_plan_v2.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Latest named roadmap version in the family; class F, not implementation authority; verify implemented status against code + R2 documents. Phase B3A candidate notice added |
-| `docs/project/MandarinOS_project_plan_v2_CORRECTED.md` | F | duplicate-or-near-duplicate, status-header-added | proposal only — no current authority | Roadmap variant. Phase B3A candidate notice added |
-| `docs/project/MandarinOS_project_plan_v2_UPDATED.md` | F | duplicate-or-near-duplicate, status-header-added | proposal only — no current authority | Roadmap variant. Phase B3A candidate notice added |
+| `docs/project/MandarinOS_project_plan_v2.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Latest named roadmap version in the family; class F, not implementation authority; verify implemented status against code + R2 documents. Phase B3A notice approved |
+| `docs/project/MandarinOS_project_plan_v2_CORRECTED.md` | F | duplicate-or-near-duplicate, status-header-added | proposal only — no current authority | Roadmap variant. Phase B3A notice approved |
+| `docs/project/MandarinOS_project_plan_v2_UPDATED.md` | F | duplicate-or-near-duplicate, status-header-added | proposal only — no current authority | Roadmap variant. Phase B3A notice approved |
 | `docs/project/MANDARINOS_PROJECT_PLAN_v1.md` | D | duplicate-or-near-duplicate, status-header-added | `docs/project/MandarinOS_project_plan_v2.md` | Superseded within roadmap lineage by v2; status notice added (Phase B2, approved) |
-| `docs/project/RECOVERY_AND_CONVERSATION_FUTURE_NOTES.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Future notes. Phase B3A candidate notice added |
+| `docs/project/RECOVERY_AND_CONVERSATION_FUTURE_NOTES.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Future notes. Phase B3A notice approved |
 | `docs/project/DIRECTIVE_PHASE_1_CARD_PANEL_STATE.md` | C | phase-specific | code + `docs/CHANGE_CHECKLIST.md` | Phase 1 directive |
 | `docs/project/ENGINES_P1_P2_AND_SRS_REFERENCE.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Engine/SRS reference |
 | `docs/project/NEXT_QUESTION_SELECTOR_AND_LEVEL_TIE_IN.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | References LOCKED selector spec |
@@ -670,7 +670,7 @@ Other totals:
 - Misleading-title register rows: 12 (§11) — equal to the 12 `misleading-filename` inventory flags.
 - Duplicate/overlap groups: 9 (§12) — collectively covering all 13 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files).
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
-- `status-header-added` (31) covers the 12-file Phase B1 high-risk misleading-title set and the 8-file Phase B2 remaining-superseded set (§15), both approved, plus the 11-file candidate Phase B3A roadmap-and-planning set; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Phase B3A's 11 notices are candidate and pending approval; they are counted here because they exist in the committed candidate content, not because Phase B3A is approved.
+- `status-header-added` (31) covers the 12-file Phase B1 high-risk misleading-title set, the 8-file Phase B2 remaining-superseded set, and the 11-file Phase B3A roadmap-and-planning set (§15), all now approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).
