@@ -47,7 +47,7 @@ Application baseline tag: `architecture-baseline-2026-07-12-r2`
 | ADR-014 | Ordinary R2 turns do not depend on external generative AI | Accepted — R2 baseline | product | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ANSWER_SOURCE_CONTRACT.md` |
 | ADR-015 | Code identity and functional correctness require separate production verification | Accepted — recovery safeguard | deployment | `docs/ARCHITECTURE.md`, `docs/CHANGE_CHECKLIST.md` |
 | ADR-016 | Test evidence is ranked by execution path, not naming or test count | Accepted — recovery safeguard | testing | `docs/TEST_STRATEGY.md` |
-| ADR-017 | Architecture, evidence, and change-control documents are mandatory maintenance controls | Accepted — recovery safeguard | maintenance governance | The seven preceding R2 documents; this record |
+| ADR-017 | Architecture, evidence, and change-control documents are mandatory maintenance controls | Accepted — recovery safeguard | maintenance governance | Nine-document R2 architecture-governance package (incl. `docs/DOCUMENT_AUTHORITY_INDEX.md`) |
 | ADR-018 | Large central client and server files are a documented constraint, not endorsed target architecture | Current constraint — not an endorsed target | current structural constraint | `docs/ARCHITECTURE.md` |
 | ADR-019 | Regression recovery prioritises behavioural preservation over architectural elegance | Accepted — recovery safeguard | maintenance governance | `docs/CHANGE_CHECKLIST.md` |
 | ADR-020 | Model allocation separates diagnosis from mechanical implementation | Accepted — recovery safeguard | maintenance governance | `docs/CHANGE_CHECKLIST.md` |
@@ -663,7 +663,7 @@ The seven documents preceding this record were created because prior maintenance
 
 ### Decision
 - The **seven preceding R2 documents govern orientation, detailed behaviour, evidence, and operational workflow**: `docs/ARCHITECTURE.md` (orientation map), the four detailed behavioural contracts (`docs/CONVERSATION_ARCHITECTURE.md`, `docs/STATE_CONTRACT.md`, `docs/ANSWER_SOURCE_CONTRACT.md`, `docs/ASR_PIPELINE.md`), `docs/TEST_STRATEGY.md` (evidence contract), and `docs/CHANGE_CHECKLIST.md` (operational change-control checklist).
-- **This record governs durable decision rationale and supersession** — why decisions exist, what was rejected/deferred, and how a decision may later change; once approved, all **eight** documents together form the approved R2 architecture-governance package, and historical documents do not override them merely because they carry a "LOCKED" or "FINAL" label — the authority hierarchy in `docs/ARCHITECTURE.md` §3 governs precedence.
+- **This record governs durable decision rationale and supersession** — why decisions exist, what was rejected/deferred, and how a decision may later change. This record and the seven preceding documents, together with `docs/DOCUMENT_AUTHORITY_INDEX.md` (added per the 2026-07-13 amendment below), form the approved **nine-document R2 architecture-governance package**; historical documents do not override them merely because they carry a "LOCKED" or "FINAL" label — the authority hierarchy in `docs/ARCHITECTURE.md` §3 governs precedence.
 
 ### Rationale
 Knowledge held only by the project owner and non-durable AI conversations is not a maintainable artefact; regressions occurred when later changes were made without a complete, current system map.
@@ -679,13 +679,24 @@ A new maintainer (human or AI) has a defined onboarding sequence and authoritati
 Behavioural changes must update the applicable document **in the same change** — real, ongoing overhead, not optional polish; this ADR record itself must be kept current as decisions are amended or superseded.
 
 ### Maintenance obligations
-New maintainers follow the onboarding sequence in `docs/ARCHITECTURE.md` §21; AI agents diagnose against the approved documents rather than memory (`docs/CHANGE_CHECKLIST.md` §23).
+New maintainers follow the onboarding sequence in `docs/ARCHITECTURE.md` §21; AI agents diagnose against the nine-document R2 architecture-governance package rather than memory (`docs/CHANGE_CHECKLIST.md` §23). Document-classification, authority-status, supersession, archive, or duplicate-consolidation changes must update `docs/DOCUMENT_AUTHORITY_INDEX.md` in the same change.
 
 ### Evidence and traceability
 `docs/ARCHITECTURE.md` §3, §20, §21; `docs/CHANGE_CHECKLIST.md`; the five other approved R2 documents preceding this record.
 
 ### Reconsider when
 The documentation set is found systematically out of date with production behaviour despite the maintenance cadence in `docs/TEST_STRATEGY.md` §21 — the maintenance process, not this ADR's principle, should be revisited first.
+
+### Amendment — 2026-07-13: Document Authority Index approved
+Effective date: `2026-07-13`
+
+`docs/DOCUMENT_AUTHORITY_INDEX.md` is approved as the ninth authoritative R2 maintenance document. It governs document classification, authority status, misleading-title handling, duplicate/overlap registration, and staged documentation cleanup.
+
+With this approval the original eight-document R2 governance package is expanded to the **nine-document R2 architecture-governance package**. The roles and authority of the eight preceding documents are unchanged.
+
+The index is **not** a behavioural contract. It does not override verified code or the applicable detailed behavioural contracts. Future classification, authority-status, supersession, archive, or duplicate-consolidation changes must update the index in the same change.
+
+This amendment changes the governance-package count and scope only; it does not change runtime or product behaviour.
 
 ## ADR-018 — Large central client and server files are a documented constraint, not endorsed target architecture
 
@@ -803,7 +814,7 @@ A recurring pattern across these ADRs is a deliberate separation of concerns tha
 Some of these separations directly respond to observed R2 regressions — state ownership (ADR-007), E4 timing (ADR-006), deployment identity (ADR-015), and answer/frame diagnosis (ADR-003, ADR-004) each have a specific, cited defect or audit finding behind them. Others (ADR-013, ADR-020) are preventive governance choices intended to reduce ambiguity, coupling, cost, or false confidence rather than a documented prior failure — historical causality should not be assumed where only architectural rationale exists.
 
 ### 4.2 Recovery safeguards
-The following accepted practices are not pre-planned product design. Some respond directly to observed regressions and audit findings: explicit state ownership (ADR-007); deployment SHA verification separated from functional verification (ADR-015); execution-path-based evidence classification (ADR-016); and bounded, additive changes with a prohibition on unrelated refactoring during recovery (ADR-019). Others were adopted during the recovery/documentation programme as preventive governance controls, without a specific cited defect: the approved R2 documents, and once approved this record, as mandatory maintenance controls with a defined authority hierarchy (ADR-017); and model allocation as a cost-conscious governance policy (ADR-020).
+The following accepted practices are not pre-planned product design. Some respond directly to observed regressions and audit findings: explicit state ownership (ADR-007); deployment SHA verification separated from functional verification (ADR-015); execution-path-based evidence classification (ADR-016); and bounded, additive changes with a prohibition on unrelated refactoring during recovery (ADR-019). Others were adopted during the recovery/documentation programme as preventive governance controls, without a specific cited defect: the nine-document R2 architecture-governance package — the approved R2 documents, this record, and `docs/DOCUMENT_AUTHORITY_INDEX.md` — as mandatory maintenance controls with a defined authority hierarchy (ADR-017); and model allocation as a cost-conscious governance policy (ADR-020).
 
 These are labelled `Accepted — recovery safeguard` to distinguish them from deliberate product decisions (ADR-001, ADR-002) — in both cases, their purpose is maintenance safety and governance rather than learner-facing product design.
 
@@ -886,7 +897,7 @@ This register records topics that are known and real, but deliberately not decid
 | ADR-014 | `scripts/ui_server.py` `/api/run_turn` | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ANSWER_SOURCE_CONTRACT.md` | Absence of any external-AI call in the handler |
 | ADR-015 | `/api/version`, deployment configuration | `docs/ARCHITECTURE.md` §13, `docs/CHANGE_CHECKLIST.md` §19 | Deployment checklist (`docs/CHANGE_CHECKLIST.md` §19) |
 | ADR-016 | `tests/`, `.github/workflows/coverage_scan.yml` | `docs/TEST_STRATEGY.md` | `docs/TEST_STRATEGY.md` §3, §4 |
-| ADR-017 | The seven preceding R2 documents; this record | The seven preceding R2 documents; this record | `docs/ARCHITECTURE.md` §20–§21 |
+| ADR-017 | Nine-document R2 architecture-governance package (incl. `docs/DOCUMENT_AUTHORITY_INDEX.md`) | Nine-document R2 architecture-governance package | `docs/ARCHITECTURE.md` §20–§21; `docs/DOCUMENT_AUTHORITY_INDEX.md` |
 | ADR-018 | `scripts/ui_server.py`, `ui/app.js` | `docs/ARCHITECTURE.md` §16, §19 | Scope-control checklist (`docs/CHANGE_CHECKLIST.md` §6) |
 | ADR-019 | Regression-fix commits (e.g. `657529a`, `3be0315`) | `docs/CHANGE_CHECKLIST.md` | Reviewer-rejection criteria (`docs/CHANGE_CHECKLIST.md` §22) |
 | ADR-020 | Maintainer/agent workflow | `docs/CHANGE_CHECKLIST.md` §23 | N/A — governance policy, not code |

@@ -6,10 +6,10 @@ This document classifies every tracked documentation file in the repository so t
 
 This document:
 
-- will become the authority for **classifying** project documentation once formally approved (it is currently the candidate ninth R2 document — see §4);
-- does **not** override verified code or the detailed R2 contracts — it ranks documents, it does not restate their behaviour;
+- **is** the authority for **classifying** project documentation — the ninth authoritative R2 maintenance document (see §4);
+- does **not** override verified code or the applicable detailed behavioural contracts — it ranks documents, it does not restate their behaviour;
 - prevents historical and supporting documents from being mistaken for current authority merely because a filename sounds authoritative;
-- is intended to govern future document classification and cleanup once approved.
+- governs document classification and staged documentation cleanup.
 
 Application baseline commit: `3be0315b2c9f7316b03ac2183a887f602ae9a297`
 Application baseline tag: `architecture-baseline-2026-07-12-r2`
@@ -21,7 +21,7 @@ Application baseline tag: `architecture-baseline-2026-07-12-r2`
 Highest to lowest:
 
 1. verified production code and executable behaviour at the relevant baseline;
-2. the approved R2 governance documents — currently the eight preceding approved documents; the candidate nine-document package once this index is approved (§4);
+2. the nine-document approved R2 governance package (§4);
 3. current repository configuration and content actually consumed by the application;
 4. executable behavioural tests, interpreted according to `docs/TEST_STRATEGY.md`;
 5. current supporting operational documentation that agrees with the above (§5);
@@ -61,11 +61,11 @@ When two documents disagree:
 | G | Generated or procedural artefact | No | No | Regenerate or delete per its workflow |
 | H | Unresolved — authority cannot yet be established | No | No | Investigate; do not rely on until resolved |
 
-## 4. Approved and candidate R2 authority set
+## 4. Approved R2 authority set
 
-Eight documents are **already approved** class-A R2 governance documents. This index (`docs/DOCUMENT_AUTHORITY_INDEX.md`) is the **candidate ninth authoritative R2 document**; it becomes class A only upon formal approval. Until then, the current approved authority set remains the eight preceding documents.
+Nine documents — and only these nine — are approved class-A R2 governance documents. This index (`docs/DOCUMENT_AUTHORITY_INDEX.md`) is the ninth; the eight preceding behavioural and maintenance documents are unchanged. Together they form the approved nine-document R2 architecture-governance package.
 
-The status strings below are copied from each document's own status line and were verified as identical (`Approved v1 — R2 baseline`), not assumed. All eight share application baseline commit `3be0315` and tag `architecture-baseline-2026-07-12-r2`.
+The status strings below are copied from each document's own status line and were verified as identical (`Approved v1 — R2 baseline`), not assumed. All nine share application baseline commit `3be0315` and tag `architecture-baseline-2026-07-12-r2`.
 
 | Document | Role | Status | Baseline / tag | Update trigger |
 | -------- | ---- | ------ | -------------- | -------------- |
@@ -77,18 +77,18 @@ The status strings below are copied from each document's own status line and wer
 | `docs/TEST_STRATEGY.md` | evidence contract | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | Test architecture/evidence-ranking change |
 | `docs/CHANGE_CHECKLIST.md` | operational change-control checklist | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | Workflow/deployment/verification change |
 | `docs/ARCHITECTURAL_DECISIONS.md` | architectural-decision record | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | New/changed/superseded architectural decision |
-| `docs/DOCUMENT_AUTHORITY_INDEX.md` | document-classification and cleanup authority | `Draft v1 — candidate ninth authority` (class A effective upon approval) | `3be0315` / `architecture-baseline-2026-07-12-r2` | New durable document; reclassification; supersession; archive move; duplicate consolidation; authority-set change |
+| `docs/DOCUMENT_AUTHORITY_INDEX.md` | document-classification and cleanup authority | `Approved v1 — R2 baseline` | `3be0315` / `architecture-baseline-2026-07-12-r2` | New durable document; reclassification; supersession; archive move; duplicate consolidation; authority-set change |
 
-Final approval of this index requires a corresponding dated amendment to ADR-017 so the architectural-decision record recognises the nine-document governance package. That amendment is reserved for the approval commit and is not made in this correction pass. ADR-017 does not yet recognise nine documents.
+ADR-017 was amended in the same approval change to recognise the nine-document R2 architecture-governance package.
 
 ## 5. Current supporting guidance (B)
 
-Subordinate to the approved R2 governance documents (the eight preceding approved documents; nine class-A documents once this index is approved). None of these may override a behavioural contract or ADR.
+Subordinate to the nine-document approved R2 governance package. None of these may override a behavioural contract or ADR.
 
 | Path | Purpose | Why still current | Subordinate to | Known limitations | Secondary flags |
 | ---- | ------- | ----------------- | -------------- | ----------------- | --------------- |
 | `README.md` | Repo entry/quick-start | Start command, tech stack, key files still accurate | `docs/ARCHITECTURE.md` | Points to golden-regression test as primary; incomplete vs contracts | contains-current-material |
-| `AI_CONTEXT.md` | AI orientation map | Project goal, guardrails, repo map still broadly valid | Preceding approved R2 documents | Header says "Authoritative"; "Phase 11" era; references superseded plan paths | mixed-current-and-historical, misleading-filename |
+| `AI_CONTEXT.md` | AI orientation map | Project goal, guardrails, repo map still broadly valid | Nine-document R2 governance package | Header says "Authoritative"; "Phase 11" era; references superseded plan paths | mixed-current-and-historical, misleading-filename |
 | `MANDARINOS_SYSTEM_MAP.md` | Pipeline mental model | Lexicon→builder→runtime→UI framing still useful | `docs/ARCHITECTURE.md` | "Authoritative" label; trace-contract framing is legacy (not wired to conversation runtime) | mixed-current-and-historical, misleading-filename |
 | `docs/DEVELOPER_ONBOARDING.md` | Developer/hosting guide | Architecture, hosting, API overview broadly current | `docs/ARCHITECTURE.md`, `docs/CHANGE_CHECKLIST.md` | Dated 2026-05-11; specific test counts/line counts drift | contains-obsolete-material |
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | Protected-behaviour register | Records real regression guards + golden-regression suite | `docs/TEST_STRATEGY.md` | "LOCK" is not authority; interpret evidence per TEST_STRATEGY | misleading-filename, contains-current-material |
@@ -96,8 +96,8 @@ Subordinate to the approved R2 governance documents (the eight preceding approve
 | `docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md` | Flow/anti-pattern design | Cited by `.cursor/rules` as read-first for flow changes | `docs/CONVERSATION_ARCHITECTURE.md` | Dated 2026-04-05; behaviour authority is the contract | contains-current-material |
 | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Extensibility directive | Cited by `.cursor/rules` as full directive | `docs/ARCHITECTURAL_DECISIONS.md` | Canonical copy (a duplicate exists under `docs/briefings/`) | duplicate-or-near-duplicate |
 | `docs/specs/MandarinOS_Extensibility_Strategy.md` | Extensibility strategy | Cited by `.cursor/rules` as strategy doc | `docs/ARCHITECTURAL_DECISIONS.md` | Strategy, not behavioural authority | contains-current-material |
-| `docs/design/mandarinos_design_constitution.txt` | Product design constitution | Referenced as non-negotiable product philosophy | Preceding approved R2 documents | Older phrasing; philosophy retained, specifics may drift | mixed-current-and-historical |
-| `docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md` | AI governance model | Referenced by `AI_CONTEXT.md`/startup docs | Preceding approved R2 documents | v1; predates R2 governance package | contains-current-material |
+| `docs/design/mandarinos_design_constitution.txt` | Product design constitution | Referenced as non-negotiable product philosophy | Nine-document R2 governance package | Older phrasing; philosophy retained, specifics may drift | mixed-current-and-historical |
+| `docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md` | AI governance model | Referenced by `AI_CONTEXT.md`/startup docs | Nine-document R2 governance package | v1; predates R2 governance package | contains-current-material |
 | `docs/design/LICENSE.md` | Copyright/licence | Current legal statement | — | — | — |
 | `runtime/README_runtime_indexes.txt` | Runtime-index definitions | Explains index defs vs computed outputs | `docs/ARCHITECTURE.md` §14 | Notes a legacy computed snapshot | contains-current-material |
 | `conformance/README.md` | Conformance-runner usage | `conformance/run_trace_conformance.py` exists and runs | `docs/TEST_STRATEGY.md` | Trace conformance is a side tool, not wired into the conversation turn path | branch-specific |
@@ -111,6 +111,8 @@ Clarifications on non-prose entries in this table:
 - `requirements.txt` and `requirements-tools.txt` are operative dependency manifests. Their runtime relevance derives from their status as current repository **configuration** consumed by install/deploy, not from class-B prose authority. Their B classification only reflects their inclusion in the documentation-like inventory and their current supporting role.
 - `docs/design/LICENSE.md` governs legal use and distribution within its **legal scope** and sits outside the behavioural-implementation authority hierarchy. Classifying it B does not subordinate legal obligations to any architecture document; the authority hierarchy in §2 ranks implementation guidance and does not imply that application code overrides a licence.
 
+## 6. Historical and superseded documents
+
 Enumerated exhaustively in §17. This section states the classification basis and, for superseded files, the named replacement.
 
 ### 6.1 Historical context (C)
@@ -119,12 +121,12 @@ Retained for rationale; not current implementation guidance. Read with date/phas
 
 | Family (see §17 for every path) | Members | Classification reason | Current authority | Secondary flags |
 | ------------------------------- | ------- | --------------------- | ----------------- | --------------- |
-| `docs/briefings/*` strategist/phase briefings | 28 | Phase-era strategy/hand-off narratives | Preceding approved R2 documents | phase-specific, contains-obsolete-material |
+| `docs/briefings/*` strategist/phase briefings | 28 | Phase-era strategy/hand-off narratives | Nine-document R2 governance package | phase-specific, implementation-not-verified, duplicate-or-near-duplicate |
 | `docs/directives/*` cards/trace/harness directives | 17 | Phase 2–7 implementation directives | `docs/CHANGE_CHECKLIST.md`; code | phase-specific, implementation-not-verified |
-| `docs/specs/*` engine/ladder/pack/model design specs | 38 | Design-phase specs; engines now live in code + contracts | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ANSWER_SOURCE_CONTRACT.md` | phase-specific, contains-obsolete-material |
+| `docs/specs/*` engine/ladder/pack/model design specs | 38 | Design-phase specs; engines now live in code + contracts | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ANSWER_SOURCE_CONTRACT.md` | phase-specific, misleading-filename |
 | `docs/phases/*` phase notes/freezes/locks | 11 | Phase milestones/locks | `docs/ARCHITECTURE.md`; ADRs | phase-specific, misleading-filename |
 | `docs/design/*` early design docs | 6 | Cards/trace/UX design era | `docs/ARCHITECTURE.md` | phase-specific |
-| `docs/project/*` notes/references/directive | 6 | Phase notes and reference material | Preceding approved R2 documents | phase-specific |
+| `docs/project/*` notes/references/directive | 6 | Phase notes and reference material | Nine-document R2 governance package | phase-specific |
 | `integration_kit/*` trace-export kit + examples | 5 | Trace/card kit not wired to current conversation runtime | `docs/ARCHITECTURE.md` | implementation-not-verified, phase-specific |
 | `.github/copilot-instructions.md` | 1 | Copilot retired; Cursor operating instructions moved | `AI_CONTEXT.md`, `.cursor/rules/*`, `docs/CHANGE_CHECKLIST.md` §23 | contains-obsolete-material, misleading-filename |
 
@@ -241,7 +243,7 @@ No file is deleted or merged in this phase.
 7. current supporting guidance (§5) as needed;
 8. historical documents (§6) only for context.
 
-An AI coding agent must **not** begin from a historical phase lock, briefing, or recovery report. It must diagnose against verified code and the approved R2 governance documents (the eight preceding approved documents; nine on approval of this index), and treat everything in §6–§9 as context or evidence, never as behavioural authority.
+An AI coding agent must **not** begin from a historical phase lock, briefing, or recovery report. It must diagnose against verified code and the nine-document approved R2 governance package, and treat everything in §6–§9 as context or evidence, never as behavioural authority.
 
 ## 14. Rules for creating future documents
 
@@ -253,7 +255,7 @@ Every future durable document must declare:
 - status;
 - behavioural/application baseline;
 - last verified date;
-- relationship to the R2 governance package (eight approved documents; nine class-A documents on approval of this index);
+- relationship to the nine-document R2 governance package;
 - supersedes/superseded-by links where applicable;
 - whether it is prescriptive, evidentiary, historical, or a proposal.
 
@@ -343,7 +345,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `docs/TEST_STRATEGY.md` | A | — | — | Evidence contract |
 | `docs/CHANGE_CHECKLIST.md` | A | — | — | Change-control checklist |
 | `docs/ARCHITECTURAL_DECISIONS.md` | A | — | — | ADR record |
-| `docs/DOCUMENT_AUTHORITY_INDEX.md` | A | effective-upon-approval | — | This document. Candidate ninth authoritative R2 document; class A effective upon approval (see §4) |
+| `docs/DOCUMENT_AUTHORITY_INDEX.md` | A | — | — | This document. Approved ninth authoritative R2 document (see §4) |
 | `docs/DEVELOPER_ONBOARDING.md` | B | contains-obsolete-material | `docs/ARCHITECTURE.md` | 2026-05-11; counts drift |
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | B | misleading-filename, contains-current-material | `docs/TEST_STRATEGY.md` | Regression-guard register. Classification inference: B — guards still relevant; evidence weight per TEST_STRATEGY |
 | `docs/RESPONSE_OPTION_STYLE_GUIDE.md` | B | contains-current-material | `docs/ANSWER_SOURCE_CONTRACT.md` | Option style rules |
@@ -356,8 +358,8 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/design/mandarinos_design_constitution.txt` | B | mixed-current-and-historical | Eight A docs | Product philosophy retained |
-| `docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md` | B | contains-current-material | Eight A docs | AI governance model |
+| `docs/design/mandarinos_design_constitution.txt` | B | mixed-current-and-historical | Nine-document R2 governance package | Product philosophy retained |
+| `docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md` | B | contains-current-material | Nine-document R2 governance package | AI governance model |
 | `docs/design/LICENSE.md` | B | — | — | Copyright statement |
 | `docs/design/CURSOR_STARTUP_PROTOCOL.md` | D | misleading-filename | `docs/ARCHITECTURE.md` §21 | Onboarding order superseded |
 | `docs/design/CARDS_BUILD_v1.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Cards-build era |
@@ -626,7 +628,7 @@ Counts by primary classification (verified from §17 rows):
 
 | Code | Classification | Count |
 | ---- | -------------- | ----- |
-| A | Authoritative — approved R2 governance (incl. this index, class A effective upon approval) | 9 |
+| A | Authoritative — approved R2 governance (incl. this index) | 9 |
 | B | Current supporting guidance | 18 |
 | C | Historical context | 112 |
 | D | Superseded | 10 |
@@ -651,7 +653,6 @@ Exact counts by secondary flag (generated from the final §17 rows; only used fl
 | `partially-implemented` | 3 |
 | `contains-obsolete-material` | 2 |
 | `branch-specific` | 1 |
-| `effective-upon-approval` | 1 |
 
 Other totals:
 
@@ -662,7 +663,7 @@ Other totals:
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).
 
-Principal approved documents used: the eight preceding approved R2 documents (§4), plus `.cursor/rules/mandarinos-architecture.mdc` and `.cursor/rules/mandarinos-ui-objects.mdc` for cross-reference verification. This index is the candidate ninth authority.
+Principal approved documents used: the nine-document approved R2 governance package (§4), including this index as the ninth authoritative document, plus `.cursor/rules/mandarinos-architecture.mdc` and `.cursor/rules/mandarinos-ui-objects.mdc` for cross-reference verification.
 
 Principal conflicts identified:
 
@@ -678,5 +679,5 @@ Classification date: `2026-07-13`
 Application baseline commit: `3be0315b2c9f7316b03ac2183a887f602ae9a297`
 Application baseline tag: `architecture-baseline-2026-07-12-r2`
 Documentation branch: `docs/architecture-v1`
-Document status: `Candidate v1 — R2 final review`
+Document status: `Approved v1 — R2 baseline`
 Last verified date: `2026-07-13`
