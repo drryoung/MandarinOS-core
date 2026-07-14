@@ -634,6 +634,12 @@ The "documents assessed but recommended to remain in place" table is in §13.
 | **C2G-review** | 8 | Proposals with a code-comment or `AI_CONTEXT.md` reference | All Medium | Update `AI_CONTEXT.md` §11a/§12 pointers and the 5 producing-script "Authoritative:"/"Architecture reference:" comments | None | Composer 2.5 (semantic: must verify each pointer still makes sense after the move) | Separate reviewed directive | Same as above |
 | **C2 closeout** | 0 (verification only) | Final reconciliation once all prior batches are approved and merged: re-run the §17/§18 count-verification scripts, confirm no destination collision, confirm inventory total still reconciles, update `docs/DOCUMENT_AUTHORITY_INDEX.md` with final paths | — | — | Retire the `docs/directives/README.md`/`docs/phases/README.md`/`docs/briefings/`-family redirect wording once every member has moved, if still appropriate | Sonnet diagnosis first (final reconciliation judgment), Auto for the verification scripts | Separate reviewed directive; requires Phase C2A–C2G-review all approved | Each batch's rollback remains independent |
 
+**Phase C2 implementation status** (execution record; approved move plan unchanged):
+
+| Batch | Implementation status | Verified deviations |
+| ----- | ---------------------- | ------------------- |
+| **C2A** | Candidate implemented — pending review and approval | Four code-comment references in `conformance/run_conformance.py`, `tools/coverage/coverage_scan.py`, `tests/test_hint_cascade.py`, and `tests/test_scaffolding_transitions_v1.py` preserved as historical mentions (C2A scope excludes application code and tests). |
+
 **On batch-size exceptions:** C2C-core (20) is at the limit; C2D3-core (32) exceeds the ~20 guideline but is uniformly Low-risk and mechanically identical (a `git mv` plus a handful of historical cross-link updates, no AI-bootstrap or code-comment correction required for any of its 32 members) — this matches the directive's explicit exception for batches where "all dependencies are low risk and mechanically identical." No other batch exceeds 20.
 
 **Ordering:** the directive's suggested C2A–C2G sequence is followed at the family level, refined into 17 sub-batches by evidence (§9, §12) rather than forced into exactly 7 groups, because 3 of the suggested families (briefings, specs, proposals) contain a materially different risk profile within the family that the evidence does not support merging.

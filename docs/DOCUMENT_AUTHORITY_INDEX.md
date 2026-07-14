@@ -122,7 +122,7 @@ Retained for rationale; not current implementation guidance. Read with date/phas
 | Family (see §17 for every path) | Members | Classification reason | Current authority | Secondary flags |
 | ------------------------------- | ------- | --------------------- | ----------------- | --------------- |
 | `docs/briefings/*` strategist/phase briefings | 28 | Phase-era strategy/hand-off narratives | Nine-document R2 governance package | phase-specific, implementation-not-verified, duplicate-or-near-duplicate |
-| `docs/directives/*` cards/trace/harness directives | 17 | Phase 2–7 implementation directives | `docs/CHANGE_CHECKLIST.md`; code | phase-specific, implementation-not-verified |
+| `docs/archive/directives/*` cards/trace/harness directives (entry: `docs/directives/README.md`) | 17 | Phase 2–7 implementation directives | `docs/CHANGE_CHECKLIST.md`; code | phase-specific, implementation-not-verified |
 | `docs/specs/*` engine/ladder/pack/model design specs | 38 | Design-phase specs; engines now live in code + contracts | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ANSWER_SOURCE_CONTRACT.md` | phase-specific, misleading-filename |
 | `docs/phases/*` phase notes/freezes/locks | 11 | Phase milestones/locks | `docs/ARCHITECTURE.md`; ADRs | phase-specific, misleading-filename |
 | `docs/design/*` early design docs | 6 | Cards/trace/UX design era | `docs/ARCHITECTURE.md` | phase-specific |
@@ -266,7 +266,7 @@ Steps 1–7 are the nine-document approved R2 governance package (§4). Read cla
 
 Before opening individual files in these historical families, read the approved family guides:
 
-- [`docs/directives/README.md`](directives/README.md) — 17 phase directives.
+- [`docs/directives/README.md`](directives/README.md) — 17 phase directives (archived at `docs/archive/directives/`).
 - [`docs/phases/README.md`](phases/README.md) — 9 phase milestone documents.
 - [`integration_kit/README.md`](../integration_kit/README.md) — 5 trace-kit files.
 
@@ -418,7 +418,9 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 ### Phase C — physical archive
 
-**Phase C1 — historical-document dependency audit and archival plan — approved 2026-07-14.** Phase B remains complete. Phase C1 is approved. No relocation has occurred. Phase C2 has not begun. The approved relocation plan is recorded in `docs/PHASE_C1_ARCHIVAL_AUDIT.md`. The assessment is dated evidence, not standing implementation authority. The exact planned moves remain subject to separate batch directives. No file was moved, renamed, deleted, reclassified, or reflagged during Phase C1.
+**Phase C1 — historical-document dependency audit and archival plan — approved 2026-07-14.** Phase B remains complete. Phase C1 is approved. The approved relocation plan is recorded in `docs/PHASE_C1_ARCHIVAL_AUDIT.md`. The assessment is dated evidence, not standing implementation authority. No file was moved, renamed, deleted, reclassified, or reflagged during Phase C1 itself.
+
+**Phase C2A — historical directives (`docs/directives/`, class C): 17 relocations — candidate completed 2026-07-14; pending review and approval.** Seventeen class-C directive files moved from `docs/directives/` to `docs/archive/directives/` via `git mv`. Source family: `docs/directives/`; destination family: `docs/archive/directives/`. Compatibility: `docs/directives/README.md` remains at the original entry path and points to the archive. Active documentation links repaired in the family README and this index; historical mentions preserved elsewhere. Classes and flags unchanged. Phase C2B and later batches have not begun. Phase C remains incomplete.
 
 Move selected files into a structured archive, preserving Git history and fixing references.
 
@@ -559,28 +561,35 @@ Historical strategist/phase briefings (C) point to the R2 governance set as curr
 
 ### 17.5 `docs/directives/`
 
-All Phase 2–7 cards/trace/harness implementation directives. Classification C; flags `phase-specific, implementation-not-verified`.
+Family entry point for Phase 2–7 cards/trace/harness implementation directives. The seventeen historical directive bodies were relocated to `docs/archive/directives/` in approved Phase C2A; this directory retains the class-B family guide only.
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/directives/README.md` | B | contains-current-material | `docs/CHANGE_CHECKLIST.md`; relevant R2 contracts; verified code | Historical-directive family authority guide; Phase B5B approved family guidance covering 17 paths |
-| `docs/directives/MANDARINOS_ARCHITECT_COPILOT_HANDOFF_DIRECTIVE_PHASE7.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Phase 7 handoff directive |
-| `docs/directives/MANDARINOS_COPILOT_STARTUP_INSTRUCTIONS.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Copilot startup (retired tool) |
-| `docs/directives/MandarinOS_OPEN_CARD_Trace_Wiring_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card trace wiring |
-| `docs/directives/MandarinOS_OPEN_CARD_Unit_Test_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card unit-test directive |
-| `docs/directives/MandarinOS_Phase_Boundaries_v1.0.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Phase boundaries |
-| `docs/directives/MandarinOS_Runtime_Card_Integration_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Runtime card integration |
-| `docs/directives/MandarinOS_Simulator_Entrypoint_Copilot_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Simulator entrypoint |
-| `docs/directives/MandarinOS_TurnState_Trace_Contract_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | TurnState trace contract |
-| `docs/directives/MandarinOS_UI_Shell_Copilot_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | UI shell directive |
-| `docs/directives/MandarinOS_card_contract_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card contract |
-| `docs/directives/MandarinOS_conformance_harness_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Conformance harness |
-| `docs/directives/MandarinOS_content_coverage_scanner_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Coverage scanner |
-| `docs/directives/MandarinOS_hint_cascade_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Hint cascade |
-| `docs/directives/MandarinOS_integration_kit_scenarios_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Integration-kit scenarios |
-| `docs/directives/MandarinOS_scaffolding_transition_harness_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Scaffolding transition harness |
-| `docs/directives/MandarinOS_universal_cards_builder_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Universal cards builder |
-| `docs/directives/mandarinos_copilot_architecture_update.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Copilot architecture update |
+| `docs/directives/README.md` | B | contains-current-material | `docs/CHANGE_CHECKLIST.md`; relevant R2 contracts; verified code | Historical-directive family authority guide; Phase B5B approved family guidance; Phase C2A compatibility entry point covering 17 archived paths |
+
+### 17.5a `docs/archive/directives/`
+
+Archived Phase 2–7 cards/trace/harness implementation directives. Classification C; flags `phase-specific, implementation-not-verified`. Relocated from `docs/directives/` in approved Phase C2A; authority unchanged.
+
+| Path | Class | Flags | Replacement/authority | Notes |
+| ---- | ----- | ----- | --------------------- | ----- |
+| `docs/archive/directives/MANDARINOS_ARCHITECT_COPILOT_HANDOFF_DIRECTIVE_PHASE7.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Phase 7 handoff directive. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MANDARINOS_COPILOT_STARTUP_INSTRUCTIONS.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Copilot startup (retired tool). Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_OPEN_CARD_Trace_Wiring_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card trace wiring. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_OPEN_CARD_Unit_Test_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card unit-test directive. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_Phase_Boundaries_v1.0.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Phase boundaries. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_Runtime_Card_Integration_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Runtime card integration. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_Simulator_Entrypoint_Copilot_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Simulator entrypoint. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_TurnState_Trace_Contract_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | TurnState trace contract. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_UI_Shell_Copilot_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | UI shell directive. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_card_contract_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card contract. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_conformance_harness_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Conformance harness. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_content_coverage_scanner_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Coverage scanner. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_hint_cascade_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Hint cascade. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_integration_kit_scenarios_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Integration-kit scenarios. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_scaffolding_transition_harness_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Scaffolding transition harness. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/MandarinOS_universal_cards_builder_v1_directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Universal cards builder. Relocated in approved Phase C2A; authority unchanged. |
+| `docs/archive/directives/mandarinos_copilot_architecture_update.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Copilot architecture update. Relocated in approved Phase C2A; authority unchanged. |
 
 ### 17.6 `docs/phases/`
 
@@ -812,7 +821,7 @@ Other totals:
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
 - `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B is approved: three guides cover 31 files (two new class-B guides; one existing class-C README hosts prepended family guidance without reclassification). `status-header-added` remains 79. Phase B5C is approved: eight generated rows carry approved guidance; `generated-guidance-added` equals 8. Phase B5D is approved: 46 documents mapped in §13.1 without target modification or reclassification. Phase B closeout is approved and complete (§15). Phase B is complete. All 22 class-F documents carry the flag through completed Phase B3.
 - `generated-guidance-added` (8) covers the eight class-G generated/captured output files with Phase B5C approved headers (§15); equal to the eight `generated` inventory flags.
-- Phase C1 (§15) adds one new class-E document, `docs/PHASE_C1_ARCHIVAL_AUDIT.md`, taking class E from 37 to 38 and `dated-snapshot` from 39 to 40; total inventory moves from 230 to 231. No pre-existing row's class or flags changed. Phase C1 is approved 2026-07-14; no Phase C2 relocation batch has begun.
+- Phase C1 (§15) adds one new class-E document, `docs/PHASE_C1_ARCHIVAL_AUDIT.md`, taking class E from 37 to 38 and `dated-snapshot` from 39 to 40; total inventory moves from 230 to 231. No pre-existing row's class or flags changed. Phase C1 is approved 2026-07-14. Phase C2A (§15) relocated 17 class-C directive paths from `docs/directives/` to `docs/archive/directives/`; inventory total remains 231 (path replacement only). Phase C2B and later batches have not begun. Phase C remains incomplete.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).
