@@ -300,6 +300,8 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase B4 — all class-E dated reports and historical-evidence documents: 36 files — complete and approved through Phase B1 and Phase B4A–B4D on 2026-07-14.** Coverage: Phase B1 class-E file 1; Phase B4A 12; Phase B4B 10; Phase B4C 8; Phase B4D 5; total 36. All 36 class-E documents now carry approved authority notices. Phase B4 is complete. Phase B as a whole remains incomplete. Phase B4 completion changes no primary classification, does not endorse historical findings, and authorises no implementation or remediation work.
 
+**Phase B5 — remaining class-B, class-C, and class-G risk and scope assessment — candidate completed 2026-07-14; pending review and approval.** No status notices were added. No primary classifications changed. No secondary flags changed. Phase B5 is an assessment and scoping phase only; recommended remediation has not begun. Phase B remains incomplete. Assessment recorded in `docs/PHASE_B5_SCOPE_ASSESSMENT.md`.
+
 ### Phase C — physical archive
 Move selected files into a structured archive, preserving Git history and fixing references.
 
@@ -370,6 +372,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `docs/DOCUMENT_AUTHORITY_INDEX.md` | A | — | — | This document. Approved ninth authoritative R2 document (see §4) |
 | `docs/DEVELOPER_ONBOARDING.md` | B | contains-obsolete-material | `docs/ARCHITECTURE.md` | 2026-05-11; counts drift |
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | B | misleading-filename, contains-current-material, status-header-added | `docs/TEST_STRATEGY.md` | Regression-guard register. Classification inference: B — guards still relevant; evidence weight per TEST_STRATEGY |
+| `docs/PHASE_B5_SCOPE_ASSESSMENT.md` | E | dated-snapshot | dated evidence only | Phase B5 candidate scope assessment; not implementation authority |
 | `docs/RESPONSE_OPTION_STYLE_GUIDE.md` | B | contains-current-material | `docs/ANSWER_SOURCE_CONTRACT.md` | Option style rules |
 | `docs/REPO_STRUCTURE_PROPOSAL.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Proposed layout; not executed. Phase B3A notice approved |
 | `docs/SCHEMA_SYNC_RECOMMENDATION.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Recommends consolidating two schema dirs (still separate); no duplicate-document relationship. Phase B3B notice approved |
@@ -654,11 +657,11 @@ Counts by primary classification (verified from §17 rows):
 | B | Current supporting guidance | 18 |
 | C | Historical context | 112 |
 | D | Superseded | 10 |
-| E | Archival evidence / dated report | 36 |
+| E | Archival evidence / dated report | 37 |
 | F | Proposal / plan / unimplemented spec | 22 |
 | G | Generated / procedural artefact | 20 |
 | H | Unresolved | 0 |
-| — | **Total** | **227** |
+| — | **Total** | **228** |
 
 Secondary flag `status-header-added`: a standard `MANDARINOS-DOCUMENT-STATUS` notice has been inserted into the file without changing its primary classification or original body content. This flag records notice insertion only; it does not elevate authority and does not change the file's A–H classification. If the notice is later removed, this flag must be removed in the same change; it must be updated in the same change as any future notice insertion or removal.
 
@@ -668,7 +671,7 @@ Exact counts by secondary flag (generated from the final §17 rows; only used fl
 | ---- | ----- |
 | `phase-specific` | 107 |
 | `implementation-not-verified` | 39 |
-| `dated-snapshot` | 38 |
+| `dated-snapshot` | 39 |
 | `duplicate-or-near-duplicate` | 13 |
 | `misleading-filename` | 12 |
 | `status-header-added` | 77 |
