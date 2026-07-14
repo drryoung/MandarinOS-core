@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as a historical audit of translation-surface consistency.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current translation, transcript, UI, and answer-source code together with `docs/ANSWER_SOURCE_CONTRACT.md`, `docs/ASR_PIPELINE.md`, and applicable tests.
+> - **Principal caution:** Historical translation inconsistencies may have been fixed, changed, or reintroduced. Reproduce each finding against the current application before acting.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Translation Surface Consistency Audit
 
 **Date:** 2026-05-19  

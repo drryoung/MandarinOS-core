@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the version-two historical request that defined the scope or questions for a conversation-architecture audit.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code, `docs/CONVERSATION_ARCHITECTURE.md`, and the approved R2 governance package.
+> - **Principal caution:** An audit request records requested analysis rather than verified findings or implementation authority. Its questions and assumptions may no longer match the current architecture.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 
 MANDARINOS — CONVERSATION SYSTEM STRUCTURAL OVERVIEW REQUEST (REVISED)
 Phase: Pre–Phase 11 Alpha (Design Audit)

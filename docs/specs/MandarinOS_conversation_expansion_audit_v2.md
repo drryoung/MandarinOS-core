@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the version-two historical audit of conversation-expansion behaviour or design.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current frame, selector, routing, and conversation code together with `docs/CONVERSATION_ARCHITECTURE.md`.
+> - **Principal caution:** The audit records findings from a prior system state. Expansion gaps, recommendations, and coverage claims must be reverified against the current R2 baseline.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Conversation Expansion Audit (v2)
 This document compares CURRENT conversation frames with recommended **treasure questions**, **loop questions**, and the **Conversation Oxygen Set**.
 

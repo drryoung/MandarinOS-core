@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the dated implementation report for the Session Intelligence slice completed at that development point.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current Session Intelligence code and endpoints, current tests, `docs/STATE_CONTRACT.md`, `docs/TEST_STRATEGY.md`, and other applicable R2 contracts.
+> - **Principal caution:** The report records implementation evidence at its date. It does not prove that every reported component, endpoint, storage path, workflow, or limitation remains current.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Session Intelligence — Implementation Report
 
 **Architecture ref:** `docs/session_intelligence_architecture.md`
