@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class B: Current supporting guidance**
+>
+> - **Current use:** Supporting register of protected behaviours and regression concerns.
+> - **May guide current implementation:** Yes, within its verified narrow scope.
+> - **Current authority:** `docs/TEST_STRATEGY.md`, `docs/CHANGE_CHECKLIST.md`, and the applicable behavioural contract.
+> - **Principal caution:** “LOCK” does not make this document behavioural authority. Every test or regression claim must be interpreted according to the evidence categories in `docs/TEST_STRATEGY.md`.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS — Regression Lock
 
 Behaviours that must not regress. Each entry records **why it exists** and which test in `tests/test_golden_regression.py` guards it.

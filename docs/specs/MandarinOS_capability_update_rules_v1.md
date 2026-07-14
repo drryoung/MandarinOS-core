@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class C: Historical context**
+>
+> - **Current use:** Retained as historical capability-update design rationale.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified code and `docs/CONVERSATION_ARCHITECTURE.md`.
+> - **Principal caution:** Its internal `LOCKED` language does not establish current behavioural authority.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 
 # MandarinOS Capability Map Update Rules (v1) — LOCKED
 

@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained for traceability of the earlier AI-bootstrap workflow.
+> - **May guide current implementation:** No.
+> - **Current authority:** `AI_CONTEXT.md` for subordinate current orientation, and the nine-document R2 governance package for authority.
+> - **Principal caution:** The `master` label is obsolete. The document’s bootstrap role and pre-R2 assumptions have been superseded.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 
 # MandarinOS Master AI Bootstrap Context
 Version: v1

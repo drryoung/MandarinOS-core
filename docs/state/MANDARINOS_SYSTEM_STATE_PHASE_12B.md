@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Archival evidence or dated report**
+>
+> - **Current use:** Dated evidence of system-state findings at Phase 12B.
+> - **May guide current implementation:** No.
+> - **Current authority:** `docs/STATE_CONTRACT.md` and verified current code.
+> - **Principal caution:** Its `LOCKED` constraints describe a dated snapshot and must not be treated as the current state contract.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 MANDARINOS — SYSTEM STATE SNAPSHOT (PHASE 12B)
 
 1. Phase Status

@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained for traceability of the earlier Cursor onboarding sequence.
+> - **May guide current implementation:** No.
+> - **Current authority:** `docs/ARCHITECTURE.md` §21, `docs/DOCUMENT_AUTHORITY_INDEX.md` §13, and `docs/CHANGE_CHECKLIST.md`.
+> - **Principal caution:** Its internal `ACTIVE` status and read-first sequence have been superseded by the R2 onboarding and authority hierarchy.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # CURSOR_STARTUP_PROTOCOL.md
 
 MandarinOS -- Cursor Mandatory Startup Instructions

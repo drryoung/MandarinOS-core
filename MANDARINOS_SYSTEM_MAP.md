@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class B: Current supporting guidance**
+>
+> - **Current use:** Supporting pipeline and system mental model where it agrees with current code and `docs/ARCHITECTURE.md`.
+> - **May guide current implementation:** Yes, within its verified narrow scope.
+> - **Current authority:** `docs/ARCHITECTURE.md` and the applicable detailed R2 contract.
+> - **Principal caution:** Its internal “Authoritative” label predates the R2 governance package, and some trace-contract framing describes legacy or non-runtime structures.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MANDARINOS_SYSTEM_MAP.md — System Pipeline Map (Authoritative)
 Version: 1.0  
 Purpose: Give any AI assistant a fast, correct mental model of MandarinOS so it stops making classic architectural mistakes.

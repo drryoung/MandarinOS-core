@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class C: Historical context**
+>
+> - **Current use:** Retained as an index of earlier conversation-design specifications.
+> - **May guide current implementation:** No.
+> - **Current authority:** `docs/ARCHITECTURE.md`, `docs/CONVERSATION_ARCHITECTURE.md`, and `docs/ANSWER_SOURCE_CONTRACT.md`.
+> - **Principal caution:** Specifications marked `LOCKED` inside this index remain historical design records unless separately reflected in verified R2 behaviour.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Conversation Architecture Index
 
 **Purpose:** Single entry point for all conversation-design decisions created (including iPhone/ChatGPT work copied into the repo). Use this so **ChatGPT (strategist)** and **Cursor (senior architect)** are aware of every decision and can implement when the time is right.

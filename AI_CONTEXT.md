@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class B: Current supporting guidance**
+>
+> - **Current use:** AI orientation and project context within its verified current portions.
+> - **May guide current implementation:** Yes, within its verified narrow scope.
+> - **Current authority:** The nine-document R2 architecture-governance package, especially `docs/ARCHITECTURE.md`, the applicable behavioural contract, and `docs/CHANGE_CHECKLIST.md`.
+> - **Principal caution:** Its internal “Authoritative” label predates the R2 governance package. It mixes current guidance with Phase 11-era and forward-looking material and cannot override an approved R2 document.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # AI_CONTEXT.md — MandarinOS Repo Map (Authoritative)
 
 This file is the *fast orientation map* for any AI assistant (Cursor, ChatGPT) working on MandarinOS.

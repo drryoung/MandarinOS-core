@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class C: Historical context**
+>
+> - **Current use:** Retained as evidence of the former GitHub Copilot workflow.
+> - **May guide current implementation:** No.
+> - **Current authority:** `docs/CHANGE_CHECKLIST.md` §23, `AI_CONTEXT.md`, and `.cursor/rules/` within their supporting scope.
+> - **Principal caution:** GitHub Copilot is retired from the current project workflow. This file’s instruction-like name does not make it current operating guidance.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS — Cursor (Implementation) Operating Instructions (v1)
 _Last updated: 2026-03-08_
 

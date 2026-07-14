@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class C: Historical context**
+>
+> - **Current use:** Retained as a historical selector-design specification.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified selector code and `docs/CONVERSATION_ARCHITECTURE.md`.
+> - **Principal caution:** Its internal `LOCKED` language records design-phase intent and does not define the current selector implementation.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 
 # MandarinOS Next Question Selector (v1) — LOCKED
 

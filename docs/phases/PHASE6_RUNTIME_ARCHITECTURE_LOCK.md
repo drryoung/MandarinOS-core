@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class C: Historical context**
+>
+> - **Current use:** Retained as evidence of the Phase 6 runtime-architecture position.
+> - **May guide current implementation:** No.
+> - **Current authority:** `docs/ARCHITECTURE.md` and the applicable current R2 contracts.
+> - **Principal caution:** The `LOCK` label applies only to its historical phase and does not govern the R2 baseline.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 6 — Runtime Architecture Lock (Canonical)
 
 Status: STRICT RUNTIME MODE ENABLED  

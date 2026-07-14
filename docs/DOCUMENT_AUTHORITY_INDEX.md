@@ -276,7 +276,11 @@ Defined here; **not** executed by this draft.
 This task: create the classification authority and inventory.
 
 ### Phase B — status headers
-Potentially add standard headers to historical (C), superseded (D), proposal (F), and report (E) files.
+Add standard headers to historical (C), superseded (D), proposal (F), and report (E) files, and to high-risk misleading-titled current (B) files.
+
+Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pair; each notice states the document's classification, current use, whether it may guide current implementation, the current replacement/authority, the principal caution, and the classification source and dates. Original body content must remain unchanged beneath the notice. Notices are placed immediately after required front matter, or otherwise at the very start of the file. No file receives more than one notice. Phase B may be performed in reviewed batches rather than as a single pass.
+
+**Phase B1 — high-risk misleading-title set: 12 files.** Completed in candidate state by this task; see the misleading-title register (§11) and the `status-header-added` flag (§17, §18). Phase B as a whole is **not** described as fully complete — further C/D/E/F batches remain for later reviewed passes.
 
 ### Phase C — physical archive
 Move selected files into a structured archive, preserving Git history and fixing references.
@@ -316,8 +320,8 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `AI_CONTEXT.md` | B | mixed-current-and-historical, misleading-filename | `docs/ARCHITECTURE.md` | "Authoritative" label overstated; Phase 11 era. Classification inference: B from valid repo-map/guardrails despite obsolete phase references |
-| `MANDARINOS_SYSTEM_MAP.md` | B | mixed-current-and-historical, misleading-filename | `docs/ARCHITECTURE.md` | Pipeline map; trace framing legacy. Classification inference: B from still-useful pipeline framing despite legacy trace concepts |
+| `AI_CONTEXT.md` | B | mixed-current-and-historical, misleading-filename, status-header-added | `docs/ARCHITECTURE.md` | "Authoritative" label overstated; Phase 11 era. Classification inference: B from valid repo-map/guardrails despite obsolete phase references |
+| `MANDARINOS_SYSTEM_MAP.md` | B | mixed-current-and-historical, misleading-filename, status-header-added | `docs/ARCHITECTURE.md` | Pipeline map; trace framing legacy. Classification inference: B from still-useful pipeline framing despite legacy trace concepts |
 | `README.md` | B | contains-current-material | — | Current quick-start/tech stack |
 | `requirements.txt` | B | contains-current-material | repo config | Runtime dependency manifest |
 | `requirements-tools.txt` | B | contains-current-material | repo config | Optional tooling deps |
@@ -327,7 +331,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `server_out.txt` | G | generated | — | Server stdout capture |
 | `server_err.txt` | G | generated | — | Server stderr capture |
 | `server_startup_err.txt` | G | generated | — | Startup stderr capture |
-| `.github/copilot-instructions.md` | C | contains-obsolete-material, misleading-filename | `AI_CONTEXT.md`, `.cursor/rules/*`, `docs/CHANGE_CHECKLIST.md` §23 | Copilot retired; Cursor ops moved |
+| `.github/copilot-instructions.md` | C | contains-obsolete-material, misleading-filename, status-header-added | `AI_CONTEXT.md`, `.cursor/rules/*`, `docs/CHANGE_CHECKLIST.md` §23 | Copilot retired; Cursor ops moved |
 | `conformance/README.md` | B | branch-specific | `docs/TEST_STRATEGY.md` | Conformance runner exists; side tool |
 | `runtime/README_runtime_indexes.txt` | B | contains-current-material | `docs/ARCHITECTURE.md` §14 | Index defs vs computed |
 | `scripts/_engine_audit.txt` | G | generated | — | Engine/frame audit output |
@@ -347,7 +351,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `docs/ARCHITECTURAL_DECISIONS.md` | A | — | — | ADR record |
 | `docs/DOCUMENT_AUTHORITY_INDEX.md` | A | — | — | This document. Approved ninth authoritative R2 document (see §4) |
 | `docs/DEVELOPER_ONBOARDING.md` | B | contains-obsolete-material | `docs/ARCHITECTURE.md` | 2026-05-11; counts drift |
-| `docs/MANDARINOS_REGRESSION_LOCK.md` | B | misleading-filename, contains-current-material | `docs/TEST_STRATEGY.md` | Regression-guard register. Classification inference: B — guards still relevant; evidence weight per TEST_STRATEGY |
+| `docs/MANDARINOS_REGRESSION_LOCK.md` | B | misleading-filename, contains-current-material, status-header-added | `docs/TEST_STRATEGY.md` | Regression-guard register. Classification inference: B — guards still relevant; evidence weight per TEST_STRATEGY |
 | `docs/RESPONSE_OPTION_STYLE_GUIDE.md` | B | contains-current-material | `docs/ANSWER_SOURCE_CONTRACT.md` | Option style rules |
 | `docs/REPO_STRUCTURE_PROPOSAL.md` | F | implementation-not-verified | proposal only — no current authority | Proposed layout; not executed |
 | `docs/SCHEMA_SYNC_RECOMMENDATION.md` | F | implementation-not-verified | proposal only — no current authority | Recommends consolidating two schema dirs (still separate); no duplicate-document relationship |
@@ -361,7 +365,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `docs/design/mandarinos_design_constitution.txt` | B | mixed-current-and-historical | Nine-document R2 governance package | Product philosophy retained |
 | `docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md` | B | contains-current-material | Nine-document R2 governance package | AI governance model |
 | `docs/design/LICENSE.md` | B | — | — | Copyright statement |
-| `docs/design/CURSOR_STARTUP_PROTOCOL.md` | D | misleading-filename | `docs/ARCHITECTURE.md` §21 | Onboarding order superseded |
+| `docs/design/CURSOR_STARTUP_PROTOCOL.md` | D | misleading-filename, status-header-added | `docs/ARCHITECTURE.md` §21 | Onboarding order superseded |
 | `docs/design/CARDS_BUILD_v1.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Cards-build era |
 | `docs/design/TRACE_CONTRACT_v1.md` | C | phase-specific, implementation-not-verified | `docs/ARCHITECTURE.md` | Trace contract not in conversation runtime |
 | `docs/design/p3_architecture.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Early architecture |
@@ -446,8 +450,8 @@ All Phase 2–7 cards/trace/harness implementation directives. Classification C;
 | `docs/phases/PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | `docs/ARCHITECTURE.md` | Near-dup |
 | `docs/phases/MANDARINOS_PHASE_10_5_STABILISATION_BRIEF.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 10.5 stabilisation |
 | `docs/phases/MandarinOS_Phase9_Signoff.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 9 sign-off |
-| `docs/phases/PHASE6_FREEZE.md` | C | phase-specific, misleading-filename | `docs/ARCHITECTURE.md` | Phase 6 freeze |
-| `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md` | C | phase-specific, misleading-filename | `docs/ARCHITECTURE.md` | Phase 6 lock |
+| `docs/phases/PHASE6_FREEZE.md` | C | phase-specific, misleading-filename, status-header-added | `docs/ARCHITECTURE.md` | Phase 6 freeze |
+| `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md` | C | phase-specific, misleading-filename, status-header-added | `docs/ARCHITECTURE.md` | Phase 6 lock |
 | `docs/phases/PHASE6_RUNTIME_INDEXES_NOTES.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 6 runtime-index notes |
 | `docs/phases/PHASE9_2_BRIDGE_TIER.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Phase 9.2 bridge tier |
 | `docs/phases/PHASE_10_5_CONVERSATION_SIMULATION.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Phase 10.5 simulation |
@@ -526,7 +530,7 @@ All classification E, flags `dated-snapshot`; current authority is code + contra
 | `docs/specs/MandarinOS_turn_data_contract_v1.md` | D | — | `docs/STATE_CONTRACT.md`, `docs/ANSWER_SOURCE_CONTRACT.md` | Turn data contract superseded |
 | `docs/specs/MandarinOS_conversation_memory_model_v1.md` | D | duplicate-or-near-duplicate | `_v2`; `docs/STATE_CONTRACT.md` | Superseded by v2 |
 | `docs/specs/mandarinos_family_conversation_ladder.md` | D | duplicate-or-near-duplicate | `_v2` | Superseded by v2 |
-| `docs/specs/MandarinOS_master_AI_bootstrap_context.md` | D | misleading-filename | `AI_CONTEXT.md` | Bootstrap role replaced |
+| `docs/specs/MandarinOS_master_AI_bootstrap_context.md` | D | misleading-filename, status-header-added | `AI_CONTEXT.md` | Bootstrap role replaced |
 | `docs/specs/MANDARINOS_CONVERSATION_ARCHITECTURE_AUDIT_v1.md` | E | dated-snapshot | — | Architecture audit |
 | `docs/specs/MandarinOS_conversation_expansion_audit_v2.md` | E | dated-snapshot | — | Expansion audit |
 | `docs/specs/Translation_Surface_Consistency_Audit.md` | E | dated-snapshot | — | Translation audit |
@@ -538,19 +542,19 @@ All classification E, flags `dated-snapshot`; current authority is code + contra
 | `docs/specs/PHASE_12C_INVARIANTS.md` | F | partially-implemented | Contracts | Phase 12C invariants. Classification inference: F — partial implementation not verified per item |
 | `docs/specs/MOBILE_WORD_INSIGHT_UI_SPEC.md` | F | implementation-not-verified | `docs/ASR_PIPELINE.md` §14 | Word-insight UI spec |
 | `docs/specs/TRANSCRIPT_REPLAY_TRANSLATION_UI_SPEC.md` | F | implementation-not-verified | — | Transcript-replay UI spec |
-| `docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md` | C | misleading-filename | `docs/ARCHITECTURE.md` | Index of design specs |
+| `docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md` | C | misleading-filename, status-header-added | `docs/ARCHITECTURE.md` | Index of design specs |
 | `docs/specs/Live_Beginner_Ability_Model.md` | C | phase-specific | Contracts | Ability model |
 | `docs/specs/MandarinOS_Conversation_UX_Protocol_v1.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | UX protocol |
 | `docs/specs/MandarinOS_Progress_Tracking_Cursor_Spec_v2.md` | C | phase-specific | — | Progress-tracking spec |
 | `docs/specs/MandarinOS_Repair_Curiosity_Loop.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Repair/curiosity design |
-| `docs/specs/MandarinOS_capability_update_rules_v1.md` | C | misleading-filename | `docs/CONVERSATION_ARCHITECTURE.md` | LOCKED-labelled design spec |
+| `docs/specs/MandarinOS_capability_update_rules_v1.md` | C | misleading-filename, status-header-added | `docs/CONVERSATION_ARCHITECTURE.md` | LOCKED-labelled design spec |
 | `docs/specs/MandarinOS_conversation_capability_map_v1.md` | C | phase-specific | — | Capability map |
 | `docs/specs/MandarinOS_conversation_ladders_full_draft_v2.md` | C | phase-specific | Contracts | Ladders draft |
 | `docs/specs/MandarinOS_conversation_memory_model_v2.md` | C | phase-specific | `docs/STATE_CONTRACT.md` | Memory model (design) |
 | `docs/specs/MandarinOS_conversation_system_blueprint_v1.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | System blueprint |
 | `docs/specs/MandarinOS_engine_specs_v1.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Engine specs |
 | `docs/specs/MandarinOS_marketing_positioning_v1.md` | C | phase-specific | — | Marketing positioning |
-| `docs/specs/MandarinOS_next_question_selector_v1.md` | C | misleading-filename | `docs/CONVERSATION_ARCHITECTURE.md` | LOCKED-labelled selector spec |
+| `docs/specs/MandarinOS_next_question_selector_v1.md` | C | misleading-filename, status-header-added | `docs/CONVERSATION_ARCHITECTURE.md` | LOCKED-labelled selector spec |
 | `docs/specs/MandarinOS_support_packs_v1.md` | C | phase-specific | — | Support packs |
 | `docs/specs/PHASE_10_6_ASR_STABILIZATION_MINI_SPEC.md` | C | phase-specific | `docs/ASR_PIPELINE.md` | ASR stabilisation mini-spec |
 | `docs/specs/Progress_Scorecard_Alignment.md` | C | phase-specific | — | Scorecard alignment |
@@ -583,7 +587,7 @@ Social_Media files are authored marketing collateral (procedural, campaign-scope
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/state/MANDARINOS_SYSTEM_STATE_PHASE_12B.md` | E | dated-snapshot, misleading-filename | dated evidence only | Phase 12B state snapshot |
+| `docs/state/MANDARINOS_SYSTEM_STATE_PHASE_12B.md` | E | dated-snapshot, misleading-filename, status-header-added | dated evidence only | Phase 12B state snapshot |
 | `docs/Social_Media/README.txt` | G | — | — | Authored marketing collateral index |
 | `docs/Social_Media/deck1-first-video.marp.md` | G | — | — | Authored Marp source deck |
 | `docs/Social_Media/deck2-vocabulary-trap.marp.md` | G | — | — | Authored Marp source deck |
@@ -638,6 +642,8 @@ Counts by primary classification (verified from §17 rows):
 | H | Unresolved | 0 |
 | — | **Total** | **227** |
 
+Secondary flag `status-header-added`: a standard `MANDARINOS-DOCUMENT-STATUS` notice has been inserted into the file without changing its primary classification or original body content. This flag records notice insertion only; it does not elevate authority and does not change the file's A–H classification. If the notice is later removed, this flag must be removed in the same change; it must be updated in the same change as any future notice insertion or removal.
+
 Exact counts by secondary flag (generated from the final §17 rows; only used flags are shown):
 
 | Flag | Count |
@@ -647,6 +653,7 @@ Exact counts by secondary flag (generated from the final §17 rows; only used fl
 | `dated-snapshot` | 38 |
 | `duplicate-or-near-duplicate` | 13 |
 | `misleading-filename` | 12 |
+| `status-header-added` | 12 |
 | `contains-current-material` | 11 |
 | `generated` | 8 |
 | `mixed-current-and-historical` | 3 |
@@ -659,6 +666,7 @@ Other totals:
 - Misleading-title register rows: 12 (§11) — equal to the 12 `misleading-filename` inventory flags.
 - Duplicate/overlap groups: 9 (§12) — collectively covering all 13 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files).
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
+- `status-header-added` (12) covers exactly the Phase B1 high-risk misleading-title set (§15); it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).
