@@ -232,18 +232,117 @@ No file is deleted or merged in this phase.
 | `docs/specs/mandarinos_conversation_architecture_v1.md`, `MandarinOS_conversation_system_blueprint_v1.md`, `MandarinOS_conversation_runtime_model_v1.md` | Overlap current conversation contract | `docs/CONVERSATION_ARCHITECTURE.md` | v1/blueprint/runtime = D/C | Archive after R2 stability |
 | `AI_CONTEXT.md`, `MANDARINOS_SYSTEM_MAP.md`, `docs/specs/MandarinOS_master_AI_bootstrap_context.md` | Overlapping orientation maps | `docs/ARCHITECTURE.md` | AI_CONTEXT/SYSTEM_MAP = B; bootstrap = D | Point orientation maps at ARCHITECTURE |
 
-## 13. Reading path for a new maintainer
+## 13. Developer entry path
 
-1. `docs/ARCHITECTURE.md`
-2. the applicable detailed behavioural contracts (`docs/CONVERSATION_ARCHITECTURE.md`, `docs/STATE_CONTRACT.md`, `docs/ANSWER_SOURCE_CONTRACT.md`, `docs/ASR_PIPELINE.md`);
-3. `docs/TEST_STRATEGY.md`;
-4. `docs/CHANGE_CHECKLIST.md`;
-5. `docs/ARCHITECTURAL_DECISIONS.md`;
-6. this document authority index;
-7. current supporting guidance (§5) as needed;
-8. historical documents (§6) only for context.
+This section is the operational entry path for maintainers and AI coding agents. It does not create a second authority hierarchy — see §2.
+
+### Starting sequence (nine class-A documents)
+
+1. `docs/DOCUMENT_AUTHORITY_INDEX.md` (this document) — classify before relying.
+2. `docs/ARCHITECTURE.md` — system orientation map.
+3. `docs/CONVERSATION_ARCHITECTURE.md` — conversation behavioural contract.
+4. The detailed behavioural contracts for your subsystem: `docs/STATE_CONTRACT.md`, `docs/ANSWER_SOURCE_CONTRACT.md`, `docs/ASR_PIPELINE.md`.
+5. `docs/TEST_STRATEGY.md` — evidence contract.
+6. `docs/CHANGE_CHECKLIST.md` — change-control checklist.
+7. `docs/ARCHITECTURAL_DECISIONS.md` — architectural decision record.
+
+Steps 1–7 are the nine-document approved R2 governance package (§4). Read class-B supporting guidance (§5) only after this sequence, and only when subordinate to verified code and the applicable class-A document.
+
+### Maintenance decision table
+
+| Maintenance question | Start with | Then verify |
+| -------------------- | ---------- | ----------- |
+| Overall system structure | `docs/ARCHITECTURE.md` | current code and ADRs |
+| Conversation routing and engine behaviour | `docs/CONVERSATION_ARCHITECTURE.md` | server/UI code and tests |
+| State and memory behaviour | `docs/STATE_CONTRACT.md` | persistence and turn-state code |
+| Answer source and persona behaviour | `docs/ANSWER_SOURCE_CONTRACT.md` | content, persona, and routing code |
+| ASR behaviour | `docs/ASR_PIPELINE.md` | ASR code and tests |
+| Regression and test requirements | `docs/TEST_STRATEGY.md` | test suite |
+| Making a change safely | `docs/CHANGE_CHECKLIST.md` | relevant subsystem contracts |
+| Why an architectural choice exists | `docs/ARCHITECTURAL_DECISIONS.md` | current code |
+| Documentation status or authority | `docs/DOCUMENT_AUTHORITY_INDEX.md` | §17 inventory |
+
+### Family guidance (Phase B5B)
+
+Before opening individual files in these historical families, read the approved family guides:
+
+- [`docs/directives/README.md`](directives/README.md) — 17 phase directives.
+- [`docs/phases/README.md`](phases/README.md) — 9 phase milestone documents.
+- [`integration_kit/README.md`](../integration_kit/README.md) — 5 trace-kit files.
+
+These guides control directory entry without reclassifying underlying documents.
+
+### Generated-output warning
+
+Files with the `generated-guidance-added` secondary flag (§17) are captured or tool-generated outputs. Regenerate through the producing workflow (Phase B5C). Do not treat them as behavioural authority or edit them as primary sources.
+
+### Phase B5D integration set (46 documents)
+
+Forty-six previously unnotified documents are covered by bounded onboarding and authority-path integration (approved `docs/PHASE_B5_SCOPE_ASSESSMENT.md` §13.2). **They were not modified, reclassified, or given individual notices.** Linking here does not grant class-A or class-B authority.
+
+| Subsystem / family | Files | Class mix | Principal caution |
+| ------------------ | ----- | --------- | ----------------- |
+| Repo entry, Cursor rules, specs supporting, runtime indexes | 11 | B | Subordinate to §4 contracts and verified code |
+| `docs/briefings/` strategist briefings | 28 | C | Historical context; E audits in same directory are Phase B4C |
+| `docs/design/` early design | 5 | C | Pre-R2 design era |
+| `docs/project/` procedural templates | 2 | G | Workflow templates, not generated dumps |
+
+### 13.1 Phase B5D onboarding integration set (46)
+
+Each path appears exactly once. Full disposition authority: `docs/PHASE_B5_SCOPE_ASSESSMENT.md` §13.2.
+
+| Path | Class | Family | Governing authority | Onboarding use | Principal caution |
+| ---- | ----- | ------ | ------------------- | -------------- | ----------------- |
+| `.cursor/rules/mandarinos-architecture.mdc` | B | repo entry / Cursor / specs supporting | `docs/ARCHITECTURAL_DECISIONS.md` | supporting reference | Subordinate to class-A and verified code |
+| `.cursor/rules/mandarinos-ui-objects.mdc` | B | repo entry / Cursor / specs supporting | `docs/ARCHITECTURE.md` | supporting reference | Subordinate to class-A and verified code |
+| `README.md` | B | repo entry / Cursor / specs supporting | — | supporting reference | Subordinate to class-A and verified code |
+| `conformance/README.md` | B | repo entry / Cursor / specs supporting | `docs/TEST_STRATEGY.md` | supporting reference | Subordinate to class-A and verified code |
+| `docs/RESPONSE_OPTION_STYLE_GUIDE.md` | B | repo entry / Cursor / specs supporting | `docs/ANSWER_SOURCE_CONTRACT.md` | supporting reference | Subordinate to class-A and verified code |
+| `docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md` | B | repo entry / Cursor / specs supporting | Nine-document R2 governance package | supporting reference | Subordinate to class-A and verified code |
+| `docs/design/mandarinos_design_constitution.txt` | B | repo entry / Cursor / specs supporting | Nine-document R2 governance package | supporting reference | Subordinate to class-A and verified code |
+| `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | B | repo entry / Cursor / specs supporting | ADR record | supporting reference | Subordinate to class-A and verified code |
+| `docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md` | B | repo entry / Cursor / specs supporting | `docs/CONVERSATION_ARCHITECTURE.md` | supporting reference | Subordinate to class-A and verified code |
+| `docs/specs/MandarinOS_Extensibility_Strategy.md` | B | repo entry / Cursor / specs supporting | ADR record | supporting reference | Subordinate to class-A and verified code |
+| `runtime/README_runtime_indexes.txt` | B | repo entry / Cursor / specs supporting | `docs/ARCHITECTURE.md` §14 | supporting reference | Subordinate to class-A and verified code |
+| `docs/briefings/BRIEFING_CHANGES_FOR_CHATGPT_REVIEW.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | C | docs/briefings/ strategist briefing | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/MandarinOS_Phase12E_CuriosityProbe_Brief.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/MandarinOS_laptop_handoff_UI_cascading_help_briefing.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/NEXT_PHASE_ADVICE_CURSOR.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE7_4_UI_POLISH_STRATEGIST_BRIEFING.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE7_COMPLETE_STRATEGIST_BRIEFING.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE8_OPTIONS_APPROPRIATENESS.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE8_STEP1_TRANSCRIPT_ARCHITECTURE.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE9_SIGNOFF_STRATEGIST_BRIEFING.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE_12B_STABILIZATION_AND_UI_FLOW_STRATEGIST_BRIEFING.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE_12C_EXECUTIVE_STRATEGIST_BRIEF.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/PHASE_12C_STRATEGIST_PROPOSAL_CURIOSITY_PERSONA_SESSION_ARC.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/STRATEGIST_BRIEFING_MAY2026_UI_POLISH_AND_DISTANCE_THREAD.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/UI_SHELL_STRATEGIST_BRIEFING_APR2026.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/architecture_briefing_apr2026.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/mandarinos_chatgpt_session_briefing.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/mandarinos_recovery_phrases_v1_2_cursor_briefing.txt` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/phase12c_recovery_trigger_briefing.txt` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/briefings/phase7_3_senior_architect_briefing.md` | C | docs/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
+| `docs/design/CARDS_BUILD_v1.md` | C | docs/design/ early design | `docs/ARCHITECTURE.md` | historical context | Phase-era narrative; does not authorise changes |
+| `docs/design/MandarinOS Developer Handoff.txt` | C | docs/design/ early design | `docs/DEVELOPER_ONBOARDING.md` | historical context | Phase-era narrative; does not authorise changes |
+| `docs/design/MandarinOS_brief.md` | C | docs/design/ early design | `docs/ARCHITECTURE.md` | historical context | Phase-era narrative; does not authorise changes |
+| `docs/design/p3_architecture.md` | C | docs/design/ early design | `docs/ARCHITECTURE.md` | historical context | Phase-era narrative; does not authorise changes |
+| `docs/design/ux_flow.txt` | C | docs/design/ early design | `docs/ARCHITECTURE.md` | historical context | Phase-era narrative; does not authorise changes |
+| `docs/project/CHATGPT_BRANCH_START_TEMPLATE.md` | G | docs/project/ procedural | — | procedural template | Authored template; not behavioural authority |
+| `docs/project/COMMIT_INSTRUCTIONS.md` | G | docs/project/ procedural | — | procedural template | Authored template; not behavioural authority |
 
 An AI coding agent must **not** begin from a historical phase lock, briefing, or recovery report. It must diagnose against verified code and the nine-document approved R2 governance package, and treat everything in §6–§9 as context or evidence, never as behavioural authority.
+
+Supporting walkthrough: `docs/DEVELOPER_ONBOARDING.md` §Documentation authority and safe starting path.
 
 ## 14. Rules for creating future documents
 
@@ -304,9 +403,11 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase B5A — approved-assessment individual-notice set: 2 files — approved 2026-07-14.** Class breakdown: B 1 (`docs/DEVELOPER_ONBOARDING.md`); C 1 (`docs/design/TRACE_CONTRACT_v1.md`). Phase B5A is approved and complete. Both approved high-risk individual notices authorised by the approved Phase B5 scope assessment are in place. `docs/DEVELOPER_ONBOARDING.md` remains class B supporting documentation. `docs/design/TRACE_CONTRACT_v1.md` remains class C historical/contextual documentation. No original document body was altered. No primary classification changed. Phase B5B, B5C, and B5D have not begun. Phase B remains incomplete.
 
-**Phase B5B — approved-assessment family and directory guidance: 3 guides covering 31 files — approved 2026-07-14.** Coverage: `docs/directives/` 17; `docs/phases/` 9; `integration_kit/` 5; total 31. Phase B5B is approved and complete. Two new class-B family guides were created (`docs/directives/README.md`; `docs/phases/README.md`). The existing class-C `integration_kit/README.md` hosts a prepended family-authority wrapper while retaining its class and flags. No covered historical document was reclassified. No individual notice was added. No covered historical body was altered. Phase B5C and B5D have not begun. Phase B remains incomplete.
+**Phase B5B — approved-assessment family and directory guidance: 3 guides covering 31 files — approved 2026-07-14.** Coverage: `docs/directives/` 17; `docs/phases/` 9; `integration_kit/` 5; total 31. Phase B5B is approved and complete. Two new class-B family guides were created (`docs/directives/README.md`; `docs/phases/README.md`). The existing class-C `integration_kit/README.md` hosts a prepended family-authority wrapper while retaining its class and flags. No covered historical document was reclassified. No individual notice was added. No covered historical body was altered. Phase B5C is approved. Phase B remains incomplete.
 
 **Phase B5C — approved-assessment generated-output guidance: 8 files — approved 2026-07-14.** Phase B5C is approved and complete. All eight approved generated or captured outputs carry maintenance guidance. The headers identify output status, regeneration expectations, freshness risk, and direct-edit risk. No output was regenerated. No original output body was altered. No target was reclassified. `generated-guidance-added` applies to exactly eight files. Phase B5D has not begun. Phase B remains incomplete.
+
+**Phase B5D — approved-assessment onboarding and authority-path integration: 46 files — candidate completed 2026-07-14; pending review and approval.** Forty-six documents are mapped into the approved authority path via §13 and `docs/DEVELOPER_ONBOARDING.md`. The documents themselves were not modified. No individual notices were added. No document was reclassified. B5D is candidate/pending approval. Phase B5A, B5B, and B5C remain approved. Phase B closeout has not begun. Phase B remains incomplete.
 
 ### Phase C — physical archive
 Move selected files into a structured archive, preserving Git history and fixing references.
@@ -698,7 +799,7 @@ Other totals:
 - Misleading-title register rows: 12 (§11) — equal to the 12 `misleading-filename` inventory flags.
 - Duplicate/overlap groups: 9 (§12) — collectively covering all 13 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files).
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
-- `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B is approved: three guides cover 31 files (two new class-B guides; one existing class-C README hosts prepended family guidance without reclassification). `status-header-added` remains 79. Phase B5C is approved: eight generated rows carry approved guidance; `generated-guidance-added` equals 8. Phase B5D has not begun. Phase B remains incomplete. All 22 class-F documents carry the flag through completed Phase B3.
+- `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B is approved: three guides cover 31 files (two new class-B guides; one existing class-C README hosts prepended family guidance without reclassification). `status-header-added` remains 79. Phase B5C is approved: eight generated rows carry approved guidance; `generated-guidance-added` equals 8. Phase B5D is candidate/pending approval: 46 documents mapped in §13.1 without target modification or reclassification. Phase B closeout has not begun. Phase B remains incomplete. All 22 class-F documents carry the flag through completed Phase B3.
 - `generated-guidance-added` (8) covers the eight class-G generated/captured output files with Phase B5C approved headers (§15); equal to the eight `generated` inventory flags.
 - Unresolved classifications: 0 (§10).
 

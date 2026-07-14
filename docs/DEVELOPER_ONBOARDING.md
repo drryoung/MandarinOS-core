@@ -18,6 +18,78 @@
 
 ---
 
+## Documentation authority and safe starting path
+
+This section complements the class-B notice above. It does **not** elevate this document to class-A authority. For the canonical classification register, see `docs/DOCUMENT_AUTHORITY_INDEX.md`.
+
+### Starting sequence
+
+Begin with the **nine-document approved R2 governance package** (class A), in this order:
+
+1. `docs/DOCUMENT_AUTHORITY_INDEX.md` — how to classify every document before relying on it.
+2. `docs/ARCHITECTURE.md` — system orientation map.
+3. `docs/CONVERSATION_ARCHITECTURE.md` — conversation behavioural contract.
+4. The detailed behavioural contracts applicable to your change:
+   - `docs/STATE_CONTRACT.md`
+   - `docs/ANSWER_SOURCE_CONTRACT.md`
+   - `docs/ASR_PIPELINE.md`
+5. `docs/TEST_STRATEGY.md` — evidence requirements for behavioural claims.
+6. `docs/CHANGE_CHECKLIST.md` — operational change workflow.
+7. `docs/ARCHITECTURAL_DECISIONS.md` — architectural decision record.
+
+Only after that sequence, use class-B supporting material (including this document), family guides, and lower-authority documents for context.
+
+### How to use lower-authority documents
+
+| Class | Role | Safe use |
+| ----- | ---- | -------- |
+| **B** | Current supporting guidance | May guide implementation **only** when consistent with class-A contracts and verified code. |
+| **C** | Historical / contextual | Explains history and rationale; does **not** independently authorise changes. |
+| **D** | Superseded operational instructions | Must **not** guide current implementation. |
+| **E** | Dated evidence | Records what was true at a review date; not present authority. |
+| **F** | Proposals / unimplemented specs | Implementation must be verified against code and contracts. |
+| **G** | Generated or procedural artefacts | Regenerate captured outputs; treat authored templates as workflow aids only. |
+
+### Safe maintenance workflow
+
+Before modifying the application:
+
+1. Identify the relevant subsystem.
+2. Identify its class-A governing document (see decision table in `docs/DOCUMENT_AUTHORITY_INDEX.md` §13).
+3. Inspect current code and tests.
+4. Check relevant ADRs in `docs/ARCHITECTURAL_DECISIONS.md`.
+5. Inspect lower-authority documents only for context.
+6. Follow `docs/CHANGE_CHECKLIST.md`.
+7. Run the relevant regression tests.
+8. Update documentation only when verified behaviour changes.
+
+### Family guidance
+
+Historical document families have approved entry guides (Phase B5B). Use these before opening individual files in those directories:
+
+- [`docs/directives/README.md`](directives/README.md) — Phase 2–7 implementation directives (17 files).
+- [`docs/phases/README.md`](phases/README.md) — phase milestones and locks (9 files).
+- [`integration_kit/README.md`](../integration_kit/README.md) — trace-export kit (5 files).
+
+These guides control entry into those families without reclassifying the underlying documents.
+
+### Generated guidance
+
+Files flagged `generated-guidance-added` in `docs/DOCUMENT_AUTHORITY_INDEX.md` §17 are **outputs**, not sources. Regenerate them through their producing workflow (see Phase B5C). Do not edit captured dumps as if they were authoritative specifications.
+
+### The 46-document integration set (Phase B5D)
+
+Forty-six previously unnotified supporting documents are mapped into the authority path via onboarding and this index — **not** via individual notices. Inclusion here does **not** grant class-A or class-B authority. The complete path list is in `docs/PHASE_B5_SCOPE_ASSESSMENT.md` §13.2 and `docs/DOCUMENT_AUTHORITY_INDEX.md` §13.1.
+
+| Subsystem / family | Count | Class | Governing authority | Normal use |
+| ------------------ | ----- | ----- | ------------------- | ---------- |
+| Repo entry, Cursor rules, conformance, runtime indexes, option style, extensibility/flow specs, design constitution | 11 | B | Nine-document R2 package and applicable contracts (see index §13.1) | Supporting reference when aligned with contracts and code |
+| `docs/briefings/` strategist and phase briefings | 28 | C | Nine-document R2 governance package | Historical context only; class-E audits in the same directory are separately noticed (Phase B4C) |
+| `docs/design/` early design artefacts | 5 | C | `docs/ARCHITECTURE.md` | Historical context only |
+| `docs/project/` procedural templates | 2 | G | Authorship workflow | Templates and commit instructions; not behavioural authority |
+
+---
+
 ## 1. What MandarinOS Is
 
 MandarinOS is a **conversation-first Mandarin Chinese learning app**. It teaches spoken competence through structured dialogue — not flashcards, not grammar drills. The learner has a conversation with a Chinese-speaking persona (a virtual partner), guided by a frame-based engine that selects questions, manages topic flow, and adapts to the learner's responses.

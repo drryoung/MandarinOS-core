@@ -16,6 +16,8 @@
 This file is the *fast orientation map* for any AI assistant (Cursor, ChatGPT) working on MandarinOS.
 If you are an AI tool: **read this file first** before proposing or writing code.
 
+**Documentation authority path (R2):** Before relying on any document, begin with `docs/DOCUMENT_AUTHORITY_INDEX.md` and the nine-document approved R2 governance package (§4 of that index). This file is class **B** supporting guidance — it cannot override class-A contracts, ADRs, or verified code. Safe starting sequence and the Phase B5D integration map: `docs/DOCUMENT_AUTHORITY_INDEX.md` §13 and `docs/DEVELOPER_ONBOARDING.md` §Documentation authority and safe starting path.
+
 ---
 
 ## Current Era: Phase 11 — Alpha Productisation

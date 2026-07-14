@@ -507,16 +507,28 @@ classifying or rewriting them is out of scope here (see Section 3).
 
 ## 21. Onboarding sequence
 
-Recommended reading and setup sequence for a new maintainer:
+Recommended reading and setup sequence for a new maintainer. The **nine-document approved R2 governance package** is listed in `docs/DOCUMENT_AUTHORITY_INDEX.md` §4. Expanded navigation, maintenance decision table, and Phase B5D document map: `docs/DOCUMENT_AUTHORITY_INDEX.md` §13; supporting walkthrough: `docs/DEVELOPER_ONBOARDING.md` §Documentation authority and safe starting path.
 
-1. Read `docs/ARCHITECTURE.md` (this document).
-2. Read the four approved contracts: `CONVERSATION_ARCHITECTURE.md`, `STATE_CONTRACT.md`, `ANSWER_SOURCE_CONTRACT.md`, `ASR_PIPELINE.md`.
-3. Read `AI_CONTEXT.md` for current phase status and non-negotiable guardrails.
-4. Read the applicable Cursor rules (`.cursor/rules/mandarinos-architecture.mdc`, `.cursor/rules/mandarinos-ui-objects.mdc`).
-5. Run the application locally: `python scripts/ui_server.py`, then open `http://localhost:8765/ui/index.html`.
-6. Run the targeted, non-`live_server` test suite: `python -m pytest tests/ -m "not live_server"`.
-7. Inspect a captured request/response — e.g. run one turn locally and read the `/api/run_turn` request/response bodies, or enable `MANDARINOS_DIAG_TOKEN` locally to inspect a diagnostics trace.
-8. Only after understanding the contracts, study the high-risk files (Section 16) in depth.
+**Documentation reading order (nine class-A documents):**
+
+| Step | Document | Role |
+| ---- | -------- | ---- |
+| 1 | `docs/DOCUMENT_AUTHORITY_INDEX.md` | Classify documents before relying on them |
+| 2 | `docs/ARCHITECTURE.md` (this document) | System orientation map |
+| 3 | `docs/CONVERSATION_ARCHITECTURE.md` | Conversation behavioural contract |
+| 4 | `docs/STATE_CONTRACT.md`, `docs/ANSWER_SOURCE_CONTRACT.md`, `docs/ASR_PIPELINE.md` | Detailed contracts for the subsystem you will touch |
+| 5 | `docs/TEST_STRATEGY.md` | Evidence requirements |
+| 6 | `docs/CHANGE_CHECKLIST.md` | Change workflow |
+| 7 | `docs/ARCHITECTURAL_DECISIONS.md` | Architectural decision record |
+
+**After the class-A sequence** (class B and lower — context only when subordinate to the above):
+
+1. Read `AI_CONTEXT.md` for current phase status and guardrails (class B — not class A).
+2. Read the applicable Cursor rules (`.cursor/rules/mandarinos-architecture.mdc`, `.cursor/rules/mandarinos-ui-objects.mdc`).
+3. Run the application locally: `python scripts/ui_server.py`, then open `http://localhost:8765/ui/index.html`.
+4. Run the targeted, non-`live_server` test suite: `python -m pytest tests/ -m "not live_server"`.
+5. Inspect a captured request/response — e.g. run one turn locally and read the `/api/run_turn` request/response bodies, or enable `MANDARINOS_DIAG_TOKEN` locally to inspect a diagnostics trace.
+6. Only after understanding the contracts, study the high-risk files (Section 16) in depth.
 
 **First safe change** recommendations, in order of preference: a documentation-only correction (e.g. fixing a stale claim in one of the
 contracts); a phrase-bank content change with an accompanying test (e.g. adding a recovery phrase to `content/recovery_phrases.json` plus a
