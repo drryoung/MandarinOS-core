@@ -1,3 +1,12 @@
+# MANDARINOS-GENERATED-OUTPUT:BEGIN
+# Status: Generated or captured output — not source and not implementation authority.
+# Source/workflow: Generated frame-order dump.
+# Regeneration: Rerun the current frame-dump workflow or tool after verifying its source and command.
+# Maintenance: Do not edit the output to change application behaviour. Update the source or generator, then regenerate.
+# Freshness: Content may be stale and applies only to the repository or runtime state that produced it.
+# Guidance added: 2026-07-14
+# MANDARINOS-GENERATED-OUTPUT:END
+
 ﻿--- family: 11 frames ---
   f_have_family [OPEN] reqs=[] after=[]
   f_yes_have_family [ANSWER] reqs=[] after=[]

@@ -1,3 +1,13 @@
+<!-- MANDARINOS-GENERATED-OUTPUT:BEGIN -->
+> **Generated coverage output — not source and not implementation authority**
+>
+> - **Source/workflow:** Content coverage scanning process.
+> - **Regeneration:** Re-run the current coverage scanner rather than manually updating reported coverage.
+> - **Maintenance:** Change source content or scanner logic, then regenerate this report.
+> - **Freshness:** Results apply only to the source state and scan that produced them.
+> - **Guidance added:** `2026-07-14`
+<!-- MANDARINOS-GENERATED-OUTPUT:END -->
+
 # Content Coverage Report
 
 ## Readiness Distribution
