@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the April 2026 audit of conversation engines and related behaviour.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current engine, frame, selector, and routing code together with `docs/CONVERSATION_ARCHITECTURE.md`.
+> - **Principal caution:** Historical engine findings do not establish current engine inventory, routing, progression, or behavioural correctness.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Engine Audit — April 2026
 
 Generated from `_FRAME_ORDER` in `ui_server.py` + `p1_frames.json` + `p2_frames.json`.

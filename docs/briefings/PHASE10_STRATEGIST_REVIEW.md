@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the Phase 10 strategist review and historical record of recommendations made during that phase.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code and the nine-document R2 architecture-governance package.
+> - **Principal caution:** Strategist recommendations and evaluations are dated observations, not current architecture or implementation authority.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 10 — Memory + Persona: Strategist Review Briefing
 
 **Status:** **Approved and closed.**

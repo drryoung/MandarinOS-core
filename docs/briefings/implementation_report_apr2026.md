@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as an April 2026 implementation report and evidence of work reported complete at that time.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current code, Git history, current tests, and the nine-document R2 governance package.
+> - **Principal caution:** An implementation report is dated evidence, not proof that every reported feature remains implemented or unchanged.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS — Implementation Report (April 2026 Landing)
 
 **Branch:** phase10  

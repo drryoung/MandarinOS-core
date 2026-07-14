@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as a dated assessment of the UI conversation loop.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current UI and server interaction code, current tests, `docs/ARCHITECTURE.md`, and the applicable state and ASR contracts.
+> - **Principal caution:** The assessed UI loop may differ from the current implementation. Reproduce any finding against the current baseline before acting.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # UI vs Full Conversation Loop — Assessment
 
 **Date:** 2026-03-08  

@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as a dated assessment of the conversation architecture.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current conversation code and `docs/CONVERSATION_ARCHITECTURE.md`.
+> - **Principal caution:** This assessment may explain concerns or reasoning from its review date, but it must not override the approved R2 conversation contract.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Conversation Architecture — Senior Architect Assessment
 
 **Date:** 2026-03-08  

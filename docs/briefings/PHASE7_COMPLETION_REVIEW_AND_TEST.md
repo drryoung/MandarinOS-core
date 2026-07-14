@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the Phase 7 completion review and test record.
+> - **May guide current implementation:** No.
+> - **Current authority:** Current code, current test execution, `docs/TEST_STRATEGY.md`, and the applicable R2 contracts.
+> - **Principal caution:** Phase-completion and test-pass statements apply only to the reviewed Phase 7 state and do not certify the current R2 application.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 7 completion — how to review and test
 
 Use this when you start again to check that the Phase 7 directives were implemented as you hoped.

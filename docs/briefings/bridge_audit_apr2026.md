@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as the April 2026 bridge audit and evidence of bridge-related findings at that time.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current bridge and integration code, current tests, and the applicable R2 contracts.
+> - **Principal caution:** The audit reflects the repository state reviewed in April 2026. Its findings may have been resolved, changed, or invalidated by later development.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Bridge Audit — Slot Followup Preferences — April 2026
 
 When a learner discloses a slot (e.g. says their JOB, CITY, HOBBY), the selector

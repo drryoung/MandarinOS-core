@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class E: Dated report or historical evidence**
+>
+> - **Current use:** Retained as historical evidence of schema discoveries made during Phase 7.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current schemas, their consuming code, and the applicable R2 state and answer-source contracts.
+> - **Principal caution:** Historical schema discoveries do not establish the current schema set, field semantics, or runtime consumption.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # Phase 7 Schema Invariants (Locked)
 
 ## Runtime Cards (cards_by_id.json)
