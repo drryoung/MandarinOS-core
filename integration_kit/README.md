@@ -1,3 +1,70 @@
+# MandarinOS Integration Kit
+
+## Current authority guidance
+
+This file remains **class C** historical/contextual documentation (`phase-specific`, `implementation-not-verified`). It is one of the **five B5B-covered files** in this directory and hosts the integration-kit **family-level navigational guidance** prepended here.
+
+The prepended guidance does **not** reclassify this file or elevate its original body into current supporting authority. The historical trace-export kit content below is retained unchanged. Current authority is verified code and the approved R2 contracts.
+
+The exact covered file list is recorded in `docs/PHASE_B5_SCOPE_ASSESSMENT.md` §11 and `docs/DOCUMENT_AUTHORITY_INDEX.md` §17.
+
+When guidance conflicts, use this order:
+
+1. verified current server and UI code;
+2. class-A R2 documents;
+3. class-B supporting documents;
+4. kit examples and historical instructions only after explicit verification.
+
+## What this directory contains
+
+Supporting and historical integration material from the Phase 2–7 trace/card/conformance era: example directives, schema pointers, TypeScript exporter snippets, validation scripts, and reference traces.
+
+The kit is a **side tool** — not wired to the current conversation turn path. Words such as **integration**, **specification**, **directive**, or **contract** in filenames do **not** establish current runtime authority.
+
+## Integration guidance
+
+Use this directory to understand how trace export and conformance validation were approached historically. Before reusing any pattern:
+
+- confirm whether `TraceBuilder`, trace exporters, or conformance runners are still present and invoked in the live codebase;
+- read the applicable R2 contract instead of `docs/design/TRACE_CONTRACT_v1.md` alone;
+- treat snippets, examples, and CI samples as templates requiring re-verification.
+
+Do **not** assume an example proves current runtime consumption.
+
+## Verification required before reuse
+
+No integration instruction should be executed without verifying:
+
+- current HTTP endpoints and UI entry points;
+- request and response field shapes;
+- environment variables and deployment paths;
+- authentication or diagnostic requirements;
+- schema and state behaviour against `docs/STATE_CONTRACT.md` and verified code.
+
+## Current governing documents
+
+- `docs/DOCUMENT_AUTHORITY_INDEX.md`
+- `docs/ARCHITECTURE.md`
+- `docs/STATE_CONTRACT.md`
+- `docs/ANSWER_SOURCE_CONTRACT.md`
+- `docs/ASR_PIPELINE.md`
+- verified current server code (`scripts/ui_server.py` and related modules) and UI code (`ui/app.js` and related assets)
+
+## Covered files
+
+The following five paths are covered by this family guide (Phase B5B):
+
+- `integration_kit/README.md`
+- `integration_kit/examples/PHASE_2B_DIRECTIVE_CARD_RESOLVED_RACE_GUARD.txt`
+- `integration_kit/examples/PHASE_2C_DIRECTIVE_CARD_PANEL_HISTORY_BACK.md`
+- `integration_kit/examples/PHASE_2_DIRECTIVE_2A_WIRE_REDUCER_INTO_LIVE_UI.md`
+- `integration_kit/schemas/README.md`
+
+## Maintenance rule
+
+Do not edit covered kit files to “modernise” integration steps. Current integration behaviour belongs in verified code and approved R2 contracts. Update only this prepended guidance when the approved B5B family set or authority relationships change through governance review.
+
+<!-- MANDARINOS-B5B-FAMILY-GUIDANCE:END -->
 # Integration Kit: Trace Export & Validation v1
 
 This kit enables full-app repositories to **instrument trace capture, validate conformance locally, and integrate with CI** to guarantee MandarinOS contract compliance.

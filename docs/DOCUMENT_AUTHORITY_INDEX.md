@@ -304,6 +304,8 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase B5A — approved-assessment individual-notice set: 2 files — approved 2026-07-14.** Class breakdown: B 1 (`docs/DEVELOPER_ONBOARDING.md`); C 1 (`docs/design/TRACE_CONTRACT_v1.md`). Phase B5A is approved and complete. Both approved high-risk individual notices authorised by the approved Phase B5 scope assessment are in place. `docs/DEVELOPER_ONBOARDING.md` remains class B supporting documentation. `docs/design/TRACE_CONTRACT_v1.md` remains class C historical/contextual documentation. No original document body was altered. No primary classification changed. Phase B5B, B5C, and B5D have not begun. Phase B remains incomplete.
 
+**Phase B5B — approved-assessment family and directory guidance: 3 guides covering 31 files — candidate completed 2026-07-14; pending review and approval.** Three family guides: `docs/directives/README.md` (17 files, new class B); `docs/phases/README.md` (9 files, new class B); `integration_kit/README.md` (5 files, family guidance prepended to existing class-C README). No individual notices were added to the 31 covered documents. Two new class-B supporting guides were created; covered-document classifications remain unchanged. Phase B5B is not approved. Phase B5C and B5D have not begun. Phase B remains incomplete.
+
 ### Phase C — physical archive
 Move selected files into a structured archive, preserving Git history and fixing references.
 
@@ -447,6 +449,7 @@ All Phase 2–7 cards/trace/harness implementation directives. Classification C;
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
+| `docs/directives/README.md` | B | contains-current-material | `docs/CHANGE_CHECKLIST.md`; relevant R2 contracts; verified code | Historical-directive family authority guide; Phase B5B family guidance covering 17 approved assessment paths |
 | `docs/directives/MANDARINOS_ARCHITECT_COPILOT_HANDOFF_DIRECTIVE_PHASE7.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Phase 7 handoff directive |
 | `docs/directives/MANDARINOS_COPILOT_STARTUP_INSTRUCTIONS.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Copilot startup (retired tool) |
 | `docs/directives/MandarinOS_OPEN_CARD_Trace_Wiring_Directive.txt` | C | phase-specific, implementation-not-verified | code + `docs/CHANGE_CHECKLIST.md` | Card trace wiring |
@@ -469,6 +472,7 @@ All Phase 2–7 cards/trace/harness implementation directives. Classification C;
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
+| `docs/phases/README.md` | B | contains-current-material | `docs/ARCHITECTURE.md`; `docs/ARCHITECTURAL_DECISIONS.md` | Historical-phase family authority guide; Phase B5B family guidance covering 9 approved assessment paths |
 | `docs/phases/MANDARINOS_PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | `docs/ARCHITECTURE.md` | Near-dup of `PHASE9_1_ACCEPTANCE_CRITERIA.md` |
 | `docs/phases/PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | `docs/ARCHITECTURE.md` | Near-dup |
 | `docs/phases/MANDARINOS_PHASE_10_5_STABILISATION_BRIEF.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 10.5 stabilisation |
@@ -621,7 +625,7 @@ Social_Media files are authored marketing collateral (procedural, campaign-scope
 | `docs/Social_Media/mandarinos-marp-template.md` | G | duplicate-or-near-duplicate | — | Authored Marp template (canonical) |
 | `docs/Social_Media/mandarinos-marp-template 1.md` | G | duplicate-or-near-duplicate | — | Duplicate template copy |
 | `docs/Social_Media/mandarinos_prelaunch_scripts.txt` | G | — | — | Authored pre-launch scripts |
-| `integration_kit/README.md` | C | phase-specific, implementation-not-verified | `docs/ARCHITECTURE.md` | Trace-export kit (not wired to runtime) |
+| `integration_kit/README.md` | C | phase-specific, implementation-not-verified | `docs/ARCHITECTURE.md` | Trace-export kit (not wired to runtime); Phase B5B family guidance prepended |
 | `integration_kit/schemas/README.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Kit schema index |
 | `integration_kit/examples/PHASE_2_DIRECTIVE_2A_WIRE_REDUCER_INTO_LIVE_UI.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 2A example directive |
 | `integration_kit/examples/PHASE_2B_DIRECTIVE_CARD_RESOLVED_RACE_GUARD.txt` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 2B example directive |
@@ -656,14 +660,14 @@ Counts by primary classification (verified from §17 rows):
 | Code | Classification | Count |
 | ---- | -------------- | ----- |
 | A | Authoritative — approved R2 governance (incl. this index) | 9 |
-| B | Current supporting guidance | 18 |
+| B | Current supporting guidance | 20 |
 | C | Historical context | 112 |
 | D | Superseded | 10 |
 | E | Archival evidence / dated report | 37 |
 | F | Proposal / plan / unimplemented spec | 22 |
 | G | Generated / procedural artefact | 20 |
 | H | Unresolved | 0 |
-| — | **Total** | **228** |
+| — | **Total** | **230** |
 
 Secondary flag `status-header-added`: a standard `MANDARINOS-DOCUMENT-STATUS` notice has been inserted into the file without changing its primary classification or original body content. This flag records notice insertion only; it does not elevate authority and does not change the file's A–H classification. If the notice is later removed, this flag must be removed in the same change; it must be updated in the same change as any future notice insertion or removal.
 
@@ -677,7 +681,7 @@ Exact counts by secondary flag (generated from the final §17 rows; only used fl
 | `duplicate-or-near-duplicate` | 13 |
 | `misleading-filename` | 12 |
 | `status-header-added` | 79 |
-| `contains-current-material` | 11 |
+| `contains-current-material` | 13 |
 | `generated` | 8 |
 | `mixed-current-and-historical` | 3 |
 | `partially-implemented` | 3 |
@@ -689,7 +693,7 @@ Other totals:
 - Misleading-title register rows: 12 (§11) — equal to the 12 `misleading-filename` inventory flags.
 - Duplicate/overlap groups: 9 (§12) — collectively covering all 13 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files).
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
-- `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B, B5C, and B5D have not begun. Phase B remains incomplete. All 22 class-F documents carry the flag through completed Phase B3.
+- `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B family guides are candidate (§15); Phase B5B is not approved. Phase B5C and B5D have not begun. Phase B remains incomplete. All 22 class-F documents carry the flag through completed Phase B3.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).
