@@ -418,7 +418,7 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 ### Phase C — physical archive
 
-**Phase C1 — historical-document dependency audit and archival plan — candidate completed 2026-07-14; pending review and approval.** Phase B remains complete. Phase C1 is diagnostic only. No file was moved, renamed, deleted, reclassified, or reflagged. No link was updated. No archive directory was created. Recommendations — including a full per-file relocation map, dependency-search results, move-risk ratings, a proposed target structure, and 17 proposed Phase C2 batches — are recorded in `docs/PHASE_C1_ARCHIVAL_AUDIT.md`. No Phase C2 relocation batch is authorised by this candidate.
+**Phase C1 — historical-document dependency audit and archival plan — approved 2026-07-14.** Phase B remains complete. Phase C1 is approved. No relocation has occurred. Phase C2 has not begun. The approved relocation plan is recorded in `docs/PHASE_C1_ARCHIVAL_AUDIT.md`. The assessment is dated evidence, not standing implementation authority. The exact planned moves remain subject to separate batch directives. No file was moved, renamed, deleted, reclassified, or reflagged during Phase C1.
 
 Move selected files into a structured archive, preserving Git history and fixing references.
 
@@ -490,7 +490,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `docs/DEVELOPER_ONBOARDING.md` | B | contains-obsolete-material, status-header-added | `docs/ARCHITECTURE.md` | 2026-05-11; counts drift; Phase B5A notice approved |
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | B | misleading-filename, contains-current-material, status-header-added | `docs/TEST_STRATEGY.md` | Regression-guard register. Classification inference: B — guards still relevant; evidence weight per TEST_STRATEGY |
 | `docs/PHASE_B5_SCOPE_ASSESSMENT.md` | E | dated-snapshot | dated evidence only | Phase B5 approved scope assessment; not implementation authority |
-| `docs/PHASE_C1_ARCHIVAL_AUDIT.md` | E | dated-snapshot | dated evidence only | Phase C1 candidate archival audit and relocation plan; not relocation authority |
+| `docs/PHASE_C1_ARCHIVAL_AUDIT.md` | E | dated-snapshot | dated evidence only | Phase C1 approved archival audit and relocation plan; not relocation authority |
 | `docs/RESPONSE_OPTION_STYLE_GUIDE.md` | B | contains-current-material | `docs/ANSWER_SOURCE_CONTRACT.md` | Option style rules |
 | `docs/REPO_STRUCTURE_PROPOSAL.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Proposed layout; not executed. Phase B3A notice approved |
 | `docs/SCHEMA_SYNC_RECOMMENDATION.md` | F | implementation-not-verified, status-header-added | proposal only — no current authority | Recommends consolidating two schema dirs (still separate); no duplicate-document relationship. Phase B3B notice approved |
@@ -812,7 +812,7 @@ Other totals:
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
 - `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B is approved: three guides cover 31 files (two new class-B guides; one existing class-C README hosts prepended family guidance without reclassification). `status-header-added` remains 79. Phase B5C is approved: eight generated rows carry approved guidance; `generated-guidance-added` equals 8. Phase B5D is approved: 46 documents mapped in §13.1 without target modification or reclassification. Phase B closeout is approved and complete (§15). Phase B is complete. All 22 class-F documents carry the flag through completed Phase B3.
 - `generated-guidance-added` (8) covers the eight class-G generated/captured output files with Phase B5C approved headers (§15); equal to the eight `generated` inventory flags.
-- Phase C1 (§15) adds one new class-E document, `docs/PHASE_C1_ARCHIVAL_AUDIT.md`, taking class E from 37 to 38 and `dated-snapshot` from 39 to 40; total inventory moves from 230 to 231. No pre-existing row's class or flags changed. Phase C1 is candidate/pending approval; no Phase C2 relocation batch is authorised.
+- Phase C1 (§15) adds one new class-E document, `docs/PHASE_C1_ARCHIVAL_AUDIT.md`, taking class E from 37 to 38 and `dated-snapshot` from 39 to 40; total inventory moves from 230 to 231. No pre-existing row's class or flags changed. Phase C1 is approved 2026-07-14; no Phase C2 relocation batch has begun.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).

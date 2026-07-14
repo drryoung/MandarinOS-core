@@ -4,7 +4,7 @@ Assessment date: 2026-07-14
 Repository branch: docs/architecture-v1
 Documentation baseline: b8ccfd7bc6c32989ebc0b942abe3776194373f65
 Application baseline: 3be0315b2c9f7316b03ac2183a887f602ae9a297
-Status: Candidate assessment — pending review and approval
+Status: Approved archival audit and relocation plan — 2026-07-14
 
 ## 1. Purpose
 
@@ -638,13 +638,53 @@ The "documents assessed but recommended to remain in place" table is in §13.
 
 **Ordering:** the directive's suggested C2A–C2G sequence is followed at the family level, refined into 17 sub-batches by evidence (§9, §12) rather than forced into exactly 7 groups, because 3 of the suggested families (briefings, specs, proposals) contain a materially different risk profile within the family that the evidence does not support merging.
 
+**Batch reconciliation table** (verified at approval; source and destination totals are equal per batch):
+
+| Batch | File count | Risk mix | Dependency profile | Model | Source total | Destination total |
+| ----- | ---------: | -------- | ------------------ | ----- | -----------: | ----------------: |
+| C2A | 17 | 13 Low, 4 Medium | 4 code-comment mentions | Composer 2.5 | 17 | 17 |
+| C2B | 11 | 10 Low, 1 Medium | 1 AI/bootstrap citation | Composer 2.5 | 11 | 11 |
+| C2C-core | 20 | All Low | Historical cross-links only | Auto | 20 | 20 |
+| C2C-review | 8 | All Medium | AI/bootstrap citations | Sonnet diagnosis first → Composer 2.5 | 8 | 8 |
+| C2D1 | 6 | 4 Low, 2 Medium | 2 AI/bootstrap citations | Sonnet diagnosis first → Composer 2.5 | 6 | 6 |
+| C2D2 | 10 | 8 Low, 2 Medium | 2 AI/bootstrap citations | Sonnet diagnosis first → Composer 2.5 | 10 | 10 |
+| C2D3-core | 32 | All Low | Historical cross-links only | Auto | 32 | 32 |
+| C2D3-review | 6 | All Medium | Code-comment and AI/bootstrap | Composer 2.5 | 6 | 6 |
+| C2D4 | 6 | All Low | Historical cross-links only | Auto | 6 | 6 |
+| C2E1 | 8 | 7 Low, 1 Medium | 1 AI/bootstrap citation | Composer 2.5 | 8 | 8 |
+| C2E2 | 4 | All Low | None | Auto | 4 | 4 |
+| C2E3 | 12 | All Low | None | Auto | 12 | 12 |
+| C2E4 | 10 | 4 Low, 6 Medium | 6 code-comment mentions | Composer 2.5 | 10 | 10 |
+| C2E5 | 2 | All Low | None | Auto | 2 | 2 |
+| C2F | 6 | All Low | None | Auto | 6 | 6 |
+| C2G-core | 14 | All Low | None | Auto | 14 | 14 |
+| C2G-review | 8 | All Medium | Code-comment and AI/bootstrap | Composer 2.5 | 8 | 8 |
+| **Total relocation programme** | **180** | **139 Low, 41 Medium, 0 High** | — | — | **180** | **180** |
+| C2 closeout | 0 | — | Verification only | Sonnet closeout review | 0 | 0 |
+
 ## 19. Model and cost recommendations
 
-Applied per §12 of the directive and reflected in the "Recommended model" column of §18:
+Applied per §12 of the directive and reconciled against the per-batch "Recommended model" column of §18 at approval. The candidate completion report's executive model summary contained a **15-file arithmetic gap** (`92 + 41 + 32 = 165` vs the correct `180`). Cause, determined from the exact per-batch source lists in §18:
 
-* **Auto** — C2C-core, C2D3-core, C2D4, C2E2, C2E3, C2E5, C2F, C2G-core (8 batches, 92 files): exact moves are uniform, dependencies are simple historical cross-links only, no mixed-authority judgment remains once this audit's classification is approved.
-* **Composer 2.5** — C2A, C2B, C2D3-review, C2E1, C2E4 (5 batches, 41 files): multiple files and comment/link updates must be changed together, and body preservation must be verified across the move.
-* **Sonnet diagnosis first, then Composer 2.5 to execute** — C2C-review, C2D1, C2D2, C2G-review (4 batches, 32 files): each requires drafting the specific `AI_CONTEXT.md` wording correction (which sentence to remove/replace, and what it should point to instead) before a mechanical move is safe, because these are the batches where AI-bootstrap behaviour could visibly change for an AI assistant reading `AI_CONTEXT.md` after the move.
+1. **Composer file total understated by 11** — the stated total of 41 files counted only C2A (17), C2D3-review (6), C2E1 (8), and C2E4 (10), omitting **C2B (11 files)** even though C2B was named in the batch list.
+2. **Auto file total understated by 4** — the stated total of 92 files was a summation error across the eight Auto batches; the correct sum is **96** (20+32+6+4+12+2+6+14).
+3. **C2G-review miscategorised in the executive summary** — the completion report assigned C2G-review (8 files) to the Sonnet category, but §18's per-batch table assigns it to **Composer 2.5** because the required work is semantic pointer verification after move, not drafting a new `AI_CONTEXT.md` correction. This miscategorisation did not change the relocation total but inflated the Sonnet file count by 8 and deflated the Composer file count by 8.
+
+Corrected model allocation (verified at approval):
+
+| Model recommendation | Relocation batches | Files |
+| -------------------- | -----------------: | ----: |
+| Auto | 8 | 96 |
+| Composer 2.5 | 6 | 60 |
+| Sonnet diagnosis first → Composer 2.5 | 3 | 24 |
+| **Total relocation programme** | **17** | **180** |
+| Sonnet closeout review | 1 closeout | 0 moved files |
+
+Per-batch assignment:
+
+* **Auto** — C2C-core, C2D3-core, C2D4, C2E2, C2E3, C2E5, C2F, C2G-core (8 batches, 96 files): exact moves are uniform, dependencies are simple historical cross-links only, no mixed-authority judgment remains once this audit's classification is approved.
+* **Composer 2.5** — C2A, C2B, C2D3-review, C2E1, C2E4, C2G-review (6 batches, 60 files): multiple files and comment/link updates must be changed together, and body preservation must be verified across the move.
+* **Sonnet diagnosis first, then Composer 2.5 to execute** — C2C-review, C2D1, C2D2 (3 batches, 24 files): each requires drafting the specific `AI_CONTEXT.md` wording correction (which sentence to remove/replace, and what it should point to instead) before a mechanical move is safe, because these are the batches where AI-bootstrap behaviour could visibly change for an AI assistant reading `AI_CONTEXT.md` after the move.
 * **Sonnet diagnosis first (closeout judgment)** — C2 closeout: final reconciliation and the decision on whether to retire any family-README redirect wording.
 * **Opus** — not recommended for any batch. No batch involves an unresolved architecture or runtime-dependency conflict; the two genuine hard dependencies (§8.1) are excluded from all batches rather than requiring Opus-level resolution.
 
@@ -690,4 +730,6 @@ Verification was performed with temporary scripts (`_c1_extract.py`, `_c1_deps.p
 
 ## 22. Approval status
 
-**Candidate assessment — pending review and approval.** No document has been moved. No Phase C2 batch is authorised. Phase B remains `Complete — approved 2026-07-14`. This document and the corresponding `docs/DOCUMENT_AUTHORITY_INDEX.md` §15/§17/§18 amendments require separate review and approval before any Phase C2 batch may begin, and each individual Phase C2 batch in §18 additionally requires its own separate reviewed directive before execution.
+**Approved archival audit and relocation plan — 2026-07-14.**
+
+Phase C1 is approved. It is an audit and relocation plan only — not relocation authority and not implementation authority. Two hundred and thirty pre-existing documents were assessed. One hundred and eighty are proposed relocation candidates (Low 139, Medium 41, High 0). Fifty remain in place. Two operational hard dependencies (`requirements.txt`; `tools/coverage/coverage_report.md`) are excluded from relocation by design — a risk-control decision, not a claim that those dependencies do not exist. The 17 future relocation batches reconcile to exactly 180 files with zero destination collisions; model-allocation totals reconcile to 96 + 60 + 24 = 180. No document was moved, renamed, deleted, reclassified, or reflagged during Phase C1. No Phase C2 batch has begun. Every Phase C2 batch requires a separate candidate, review, approval, and push before any `git mv` is issued. Phase B remains `Complete — approved 2026-07-14`.
