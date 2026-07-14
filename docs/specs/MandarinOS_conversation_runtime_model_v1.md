@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained for traceability of the earlier conversation-runtime model.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified code, `docs/CONVERSATION_ARCHITECTURE.md`, and `docs/STATE_CONTRACT.md`.
+> - **Principal caution:** Its earlier runtime assumptions and responsibility boundaries have been replaced by the verified R2 conversation and state contracts.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Conversation Runtime Model v1
 
 Purpose: Define how the MandarinOS conversation system decides what to

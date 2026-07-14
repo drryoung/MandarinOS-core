@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained as the earlier conceptual conversation-architecture record.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified conversation code and `docs/CONVERSATION_ARCHITECTURE.md`.
+> - **Principal caution:** This pre-R2 conceptual architecture has been superseded and must not be treated as the current engine, frame, selector, or progression contract.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Conversation Architecture v1
 
 Purpose: Capture the current conceptual spine of MandarinOS conversation

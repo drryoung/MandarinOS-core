@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained as the earlier conversation-state diagram and design snapshot.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified code and `docs/STATE_CONTRACT.md`.
+> - **Principal caution:** This diagram has been superseded and must not be relied upon for current state ownership, transport, reset, or persistence behaviour.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Conversation State Diagram v1
 
 Purpose: Show how a MandarinOS conversation moves between engines,

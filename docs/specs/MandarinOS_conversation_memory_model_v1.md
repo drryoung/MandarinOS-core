@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained as version one of the conversation-memory design lineage.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified persistence code and `docs/STATE_CONTRACT.md`. `docs/specs/MandarinOS_conversation_memory_model_v2.md` is the later historical design version, not current behavioural authority.
+> - **Principal caution:** Version one is superseded by version two within the design lineage, while the R2 State Contract governs current memory behaviour.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Conversation Memory Model v1 (Revised)
 
 Purpose: Define how MandarinOS stores and reuses conversational

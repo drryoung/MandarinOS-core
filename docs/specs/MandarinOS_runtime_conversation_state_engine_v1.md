@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained as historical design rationale for the earlier runtime state-engine model.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified state-producing and state-consuming code plus `docs/STATE_CONTRACT.md`.
+> - **Principal caution:** Its earlier state-engine model, including any implication of one central state owner, does not describe the distributed state ownership documented at the R2 baseline.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 
 # MandarinOS Runtime Conversation State Engine
 Version: v1 (updated)

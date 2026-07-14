@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained as version one of the family-conversation ladder design.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified frame and selector code plus `docs/CONVERSATION_ARCHITECTURE.md`. `docs/specs/mandarinos_family_conversation_ladder_v2.md` is the later historical design version.
+> - **Principal caution:** This version-one ladder has been superseded. The v2 design record also remains historical and does not override current code or the R2 conversation contract.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 
 # MandarinOS Family Conversation Ladder
 

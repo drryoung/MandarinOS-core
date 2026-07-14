@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained for traceability of the original version-one project roadmap.
+> - **May guide current implementation:** No.
+> - **Current authority:** The nine-document R2 architecture-governance package. Within the roadmap document lineage, `docs/project/MandarinOS_project_plan_v2.md` is the latest named version, but it remains a class-F proposal rather than implementation authority.
+> - **Principal caution:** Version one has been superseded within the roadmap lineage. Neither the v1 nor v2 roadmap overrides verified code or the approved R2 governance documents.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS Development Roadmap (Strategic Plan v1)
 
 Purpose: Align ChatGPT (strategist), Cursor (architect/programmer), and

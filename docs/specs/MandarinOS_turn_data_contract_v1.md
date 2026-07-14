@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class D: Superseded**
+>
+> - **Current use:** Retained for traceability of the earlier turn-data contract.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified request/response code, `docs/STATE_CONTRACT.md`, and `docs/ANSWER_SOURCE_CONTRACT.md`.
+> - **Principal caution:** Its earlier payload and field assumptions have been superseded. Current field meaning and transport behaviour must be verified against code and the approved contracts.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 
 # MandarinOS Turn Data Contract (v1)
 Purpose: Define the minimal and recommended data exchanged for a single conversation turn
