@@ -302,6 +302,8 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase B5 — remaining class-B, class-C, and class-G risk and scope assessment — approved 2026-07-14.** The assessment is approved. No status notices were added. No existing primary classification changed. No existing secondary flag changed. The new assessment file (`docs/PHASE_B5_SCOPE_ASSESSMENT.md`) is class E dated evidence. Remediation has not begun. Approved recommendations are recorded in `docs/PHASE_B5_SCOPE_ASSESSMENT.md`. Phase B remains incomplete.
 
+**Phase B5A — approved-assessment individual-notice set: 2 files — candidate completed 2026-07-14; pending review and approval.** Class breakdown: B 1 (`docs/DEVELOPER_ONBOARDING.md`); C 1 (`docs/design/TRACE_CONTRACT_v1.md`). The two individual notices authorised by the approved Phase B5 assessment have been added as candidates. Phase B5A is not approved. Phase B5B, B5C, and B5D have not begun. Phase B remains incomplete. No original document body was intentionally altered. No classification changed.
+
 ### Phase C — physical archive
 Move selected files into a structured archive, preserving Git history and fixing references.
 
@@ -370,7 +372,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `docs/CHANGE_CHECKLIST.md` | A | — | — | Change-control checklist |
 | `docs/ARCHITECTURAL_DECISIONS.md` | A | — | — | ADR record |
 | `docs/DOCUMENT_AUTHORITY_INDEX.md` | A | — | — | This document. Approved ninth authoritative R2 document (see §4) |
-| `docs/DEVELOPER_ONBOARDING.md` | B | contains-obsolete-material | `docs/ARCHITECTURE.md` | 2026-05-11; counts drift |
+| `docs/DEVELOPER_ONBOARDING.md` | B | contains-obsolete-material, status-header-added | `docs/ARCHITECTURE.md` | 2026-05-11; counts drift; Phase B5A candidate notice added |
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | B | misleading-filename, contains-current-material, status-header-added | `docs/TEST_STRATEGY.md` | Regression-guard register. Classification inference: B — guards still relevant; evidence weight per TEST_STRATEGY |
 | `docs/PHASE_B5_SCOPE_ASSESSMENT.md` | E | dated-snapshot | dated evidence only | Phase B5 approved scope assessment; not implementation authority |
 | `docs/RESPONSE_OPTION_STYLE_GUIDE.md` | B | contains-current-material | `docs/ANSWER_SOURCE_CONTRACT.md` | Option style rules |
@@ -388,7 +390,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 | `docs/design/LICENSE.md` | B | — | — | Copyright statement |
 | `docs/design/CURSOR_STARTUP_PROTOCOL.md` | D | misleading-filename, status-header-added | `docs/ARCHITECTURE.md` §21 | Onboarding order superseded |
 | `docs/design/CARDS_BUILD_v1.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Cards-build era |
-| `docs/design/TRACE_CONTRACT_v1.md` | C | phase-specific, implementation-not-verified | `docs/ARCHITECTURE.md` | Trace contract not in conversation runtime |
+| `docs/design/TRACE_CONTRACT_v1.md` | C | phase-specific, implementation-not-verified, status-header-added | `docs/ARCHITECTURE.md` | Trace contract not in conversation runtime; Phase B5A candidate notice added |
 | `docs/design/p3_architecture.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Early architecture |
 | `docs/design/ux_flow.txt` | C | phase-specific | `docs/ARCHITECTURE.md` | Early UX flow |
 | `docs/design/MandarinOS_brief.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Early project brief |
@@ -674,7 +676,7 @@ Exact counts by secondary flag (generated from the final §17 rows; only used fl
 | `dated-snapshot` | 39 |
 | `duplicate-or-near-duplicate` | 13 |
 | `misleading-filename` | 12 |
-| `status-header-added` | 77 |
+| `status-header-added` | 79 |
 | `contains-current-material` | 11 |
 | `generated` | 8 |
 | `mixed-current-and-historical` | 3 |
@@ -687,7 +689,7 @@ Other totals:
 - Misleading-title register rows: 12 (§11) — equal to the 12 `misleading-filename` inventory flags.
 - Duplicate/overlap groups: 9 (§12) — collectively covering all 13 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files).
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
-- `status-header-added` (77) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, and 5-file Phase B4D final class-E sets (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 77 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B remains incomplete. All 22 class-F documents carry the flag through completed Phase B3.
+- `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), all approved, plus the 2-file Phase B5A individual-notice candidate set (§15), pending review and approval; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 77 documents carry approved notices; 2 additional documents carry candidate notices (Phase B5A). All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is not approved; Phase B5B, B5C, and B5D have not begun. Phase B remains incomplete. All 22 class-F documents carry the flag through completed Phase B3.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).

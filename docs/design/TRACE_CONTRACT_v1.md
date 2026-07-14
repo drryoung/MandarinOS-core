@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class C: Historical or contextual documentation**
+>
+> - **Current use:** Retained as the historical version-one Trace contract and as context for an earlier diagnostics and observability design.
+> - **May guide current implementation:** No.
+> - **Current authority:** Verified current diagnostic, session-capture, review, and scorecard code together with the applicable R2 architecture, state, and test documents.
+> - **Principal caution:** The word `CONTRACT` in this filename does not make this a current behavioural contract. Trace was replaced by later scorecard and Session Intelligence mechanisms, and every present diagnostic behaviour must be verified against current code.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS TurnState Trace Contract v1
 
 **Integration Guide for Full App Repositories**

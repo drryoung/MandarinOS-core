@@ -1,3 +1,16 @@
+<!-- MANDARINOS-DOCUMENT-STATUS:BEGIN -->
+> **MandarinOS document authority notice — Class B: Current supporting documentation**
+>
+> - **Current use:** Provides supporting orientation for developers entering the MandarinOS repository.
+> - **May guide current implementation:** Yes, but only when read through the approved R2 document hierarchy.
+> - **Current authority:** The nine-document R2 architecture-governance package, beginning with `docs/DOCUMENT_AUTHORITY_INDEX.md`, `docs/ARCHITECTURE.md`, and the relevant detailed contracts.
+> - **Principal caution:** This onboarding document is not a complete or primary architecture contract. Where it conflicts with verified code or a class-A R2 document, the verified code and class-A document govern.
+> - **Classification source:** `docs/DOCUMENT_AUTHORITY_INDEX.md`
+> - **Classification date:** `2026-07-13`
+> - **Notice added:** `2026-07-14`
+> - **Original content:** Preserved below without reinterpretation.
+<!-- MANDARINOS-DOCUMENT-STATUS:END -->
+
 # MandarinOS — Developer Onboarding & Hosting Guide
 
 > **Audience:** A professional developer joining the project to help with hosting, deployment, and beta-feedback refinement.
