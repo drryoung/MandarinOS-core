@@ -62,13 +62,13 @@ Future roadmap:
 
 GitHub Copilot is no longer used in this workflow.
 ---
-See docs/project/MANDARINOS_PROJECT_PLAN_v1.md for the current development roadmap.
+The development roadmap is tracked under "Project Plan" below; `docs/project/MANDARINOS_PROJECT_PLAN_v1.md` is superseded within that lineage and archived at `docs/archive/superseded/MANDARINOS_PROJECT_PLAN_v1.md` (class D, historical only).
 See docs/design/MANDARINOS_ARCHITECTURE_MAP.png for system architecture.
 ---
 AI governance rules are defined in:
 docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md
 ---
-Cursor must read docs/design/CURSOR_STARTUP_PROTOCOL.md before performing any analysis or code changes.
+Cursor must follow the current onboarding sequence in `docs/ARCHITECTURE.md` §21 and `docs/DOCUMENT_AUTHORITY_INDEX.md` §13 before performing any analysis or code changes. The earlier startup protocol formerly cited here is superseded; its archived copy (`docs/archive/superseded/CURSOR_STARTUP_PROTOCOL.md`, class D) is optional historical context only and does not override the current onboarding sequence or verified code.
 ---
 ## Project Plan
 
