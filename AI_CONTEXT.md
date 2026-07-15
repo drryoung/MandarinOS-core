@@ -143,10 +143,9 @@ Before making architectural or behavioral changes, always consult these document
 
 - **MandarinOS Design Constitution:** `docs/design/mandarinos_design_constitution.txt`
 - **MandarinOS AI Interaction Protocol** (if present)
-- **Trace contract:** `docs/design/TRACE_CONTRACT_v1.md`
 - **Historical phase milestones:** `docs/phases/README.md` (archived class-C bodies at `docs/archive/phases/`)
 
-These documents define the **authoritative system architecture** where they remain current class-A/B authority. Historical phase material is contextual only; the nine-document R2 governance package (`docs/DOCUMENT_AUTHORITY_INDEX.md` §4) takes precedence for current work.
+These documents define the **authoritative system architecture** where they remain current class-A/B authority. Historical phase material is contextual only; the nine-document R2 governance package (`docs/DOCUMENT_AUTHORITY_INDEX.md` §4) takes precedence for current work. The archived design-era trace contract (`docs/archive/design-history/TRACE_CONTRACT_v1.md`, class C) is optional historical context only — current behavioural authority for architecture and traces is `docs/ARCHITECTURE.md` and the applicable R2 contracts, not that archived file.
 If proposed changes conflict with these documents, the documents take precedence unless the user explicitly approves a revision.
 
 ### 1.3 Minimal change policy (Cursor as programmer: strict)
@@ -373,9 +372,9 @@ If a change would conflict with the Design Constitution or phase locks, do not i
 If present, read these before making architectural suggestions:
 - `docs/design/mandarinos_design_constitution.txt` (Design Constitution)
 - MandarinOS AI Interaction Protocol (if present)
-- `docs/design/TRACE_CONTRACT_v1.md` (trace contract)
 - `docs/phases/README.md` — historical phase family entry (archived at `docs/archive/phases/`)
 - Build directives under `integration_kit/` (if relevant to the task)
+- Optional historical design-era background only (not mandatory): `docs/archive/design-history/TRACE_CONTRACT_v1.md` — early trace-contract narrative; does not override `docs/ARCHITECTURE.md` or the nine-document R2 package
 - **`docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — extensibility directive (mandatory for any change proposal; canonical current copy per `docs/DOCUMENT_AUTHORITY_INDEX.md` and `.cursor/rules/mandarinos-architecture.mdc`)
 - **`docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md`** — conversation flow design principles: curiosity-led ordering, `skip_when` mechanism, oxygen questions, recovery hierarchy, and anti-patterns. **Mandatory for any selector, ordering, or frame-content change.**
 - The 12C / 12C.1 / 12D layer separation and the user-led discovery framework are summarised below (§"Phase alignment"). Their originating strategist briefings are historical class-C material archived at `docs/archive/briefings/` — useful optional background, not mandatory reading.

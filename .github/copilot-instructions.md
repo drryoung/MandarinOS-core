@@ -125,7 +125,7 @@ This file remains at `.github/copilot-instructions.md` (historical name); it now
 ## 8) Authoritative references:
 - `AI_CONTEXT.md` (repo root) — AI roles and step-by-step discipline
 - `docs/design/mandarinos_design_constitution.txt` (authoritative for UX rules)
-- `docs/design/MandarinOS Developer Handoff.txt` (authoritative for architecture + data pack rules)
+- `docs/DEVELOPER_ONBOARDING.md` — current developer onboarding (class B); the archived early handoff at `docs/archive/design-history/MandarinOS Developer Handoff.txt` is historical class-C context only and is not architecture authority
 - `.github/pull_request_template.md` (include “tripwires added?” checkbox)
 - `docs/` for the larger design constitution / developer handoff (link from README)
 

@@ -26,7 +26,7 @@ The kit is a **side tool** — not wired to the current conversation turn path. 
 Use this directory to understand how trace export and conformance validation were approached historically. Before reusing any pattern:
 
 - confirm whether `TraceBuilder`, trace exporters, or conformance runners are still present and invoked in the live codebase;
-- read the applicable R2 contract instead of `docs/design/TRACE_CONTRACT_v1.md` alone;
+- read the applicable R2 contract instead of `docs/archive/design-history/TRACE_CONTRACT_v1.md` alone;
 - treat snippets, examples, and CI samples as templates requiring re-verification.
 
 Do **not** assume an example proves current runtime consumption.
