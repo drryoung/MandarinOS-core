@@ -250,7 +250,7 @@ All conversation-design decisions (engines, sentence selector, memory, capabilit
 
 - **`docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md`** — Lists every conversation-related spec: 7 engines (Identity, Place, Food, Family, Study/Work, Travel, Interests), Next Question Selector, memory model, capability map, steering engine, ladders, support packs, persona network. Use it when implementing or reviewing conversation logic so no iPhone/ChatGPT design work is missed.
 
-**Strategist handoffs (ChatGPT):** e.g. **`docs/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md`** — Phase 10.5/10.6 delivery summary, alpha notes, defer-naturalness-until-post–Phase‑11 intent, and questions for next-step feedback. Older context: `docs/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md`. Phase 10.7 / move grammar: **`docs/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt`**, **`docs/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt`**. **Minimal implementation plan (preserve 10.5/10.6):** **`docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md`**. **User-led discovery & next-phase alignment:** **`docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`**, **`docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`**, **`docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`**.
+**Strategist handoffs (ChatGPT, historical background — archived, class C):** e.g. **`docs/archive/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md`** — Phase 10.5/10.6 delivery summary, alpha notes, defer-naturalness-until-post–Phase‑11 intent, and questions for next-step feedback. Older context: `docs/archive/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md`. Phase 10.7 / move grammar: **`docs/archive/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt`**, **`docs/archive/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt`**. **Minimal implementation plan (preserve 10.5/10.6):** **`docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md`**. **User-led discovery & next-phase alignment:** **`docs/archive/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`**, **`docs/archive/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`**, **`docs/archive/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`**. These are class-C historical narratives (`docs/DOCUMENT_AUTHORITY_INDEX.md`); they do not override the nine-document R2 governance package.
 
 ### 5.1 Runtime (server-side)
 Likely areas:
@@ -376,31 +376,29 @@ If present, read these before making architectural suggestions:
 - `docs/design/TRACE_CONTRACT_v1.md` (trace contract)
 - `docs/phases/README.md` — historical phase family entry (archived at `docs/archive/phases/`)
 - Build directives under `integration_kit/` (if relevant to the task)
-- **`docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — extensibility directive (mandatory for any change proposal)
-- **`docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`** — 12C / 12C.1 / 12D separation (mandatory for conversation-layer work)
-- **`docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`** — when implementing or scoping Phase 12D overlay
-- **`docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`** — user-led discovery, counter-reply, recovery; architectural debt AD-1–AD-3
+- **`docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — extensibility directive (mandatory for any change proposal; canonical current copy per `docs/DOCUMENT_AUTHORITY_INDEX.md` and `.cursor/rules/mandarinos-architecture.mdc`)
 - **`docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md`** — conversation flow design principles: curiosity-led ordering, `skip_when` mechanism, oxygen questions, recovery hierarchy, and anti-patterns. **Mandatory for any selector, ordering, or frame-content change.**
+- The 12C / 12C.1 / 12D layer separation and the user-led discovery framework are summarised below (§"Phase alignment"). Their originating strategist briefings are historical class-C material archived at `docs/archive/briefings/` — useful optional background, not mandatory reading.
 
 ### Extensibility strategy (mandatory — read before proposing any change)
 
-- **`docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — Standing Cursor directive (authoritative copy; a parallel copy may exist under `docs/specs/`). Defines: treat the architecture as a **stable extensible base**; decision priority order (**content → ordering/builder → minimal selector hygiene → architecture only with justification**); beta-feedback classification **A–E** (content value, selector/flow, builder/options, structural discourse, alpha polish); rules: **selector independence**, **additive growth**, **soft `FRAME_ORDER`**, **extensibility test** (20–50 new frames must not force selector/scoring/runtime rewrites), **builder-first**; what to optimise for (extensibility, stability, conversational value density, minimal churn); proposals must state intervention level and why it is the **lowest sufficient** level.
+- **`docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — Standing Cursor directive; the canonical current copy (class B — `docs/DOCUMENT_AUTHORITY_INDEX.md` §17.10). Defines: treat the architecture as a **stable extensible base**; decision priority order (**content → ordering/builder → minimal selector hygiene → architecture only with justification**); beta-feedback classification **A–E** (content value, selector/flow, builder/options, structural discourse, alpha polish); rules: **selector independence**, **additive growth**, **soft `FRAME_ORDER`**, **extensibility test** (20–50 new frames must not force selector/scoring/runtime rewrites), **builder-first**; what to optimise for (extensibility, stability, conversational value density, minimal churn); proposals must state intervention level and why it is the **lowest sufficient** level. An identical historical copy is archived at `docs/archive/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` (class C) — optional background only; it does not add authority beyond the canonical copy above.
 - **`docs/specs/MandarinOS_Extensibility_Strategy.md`** — Strategist-level strategy doc. Core principles: stable backbone, additive growth, competitive coexistence, builder-centric improvement.
 
 These files define the **mandatory working framework** for all future MandarinOS development. A Cursor rule at `.cursor/rules/mandarinos-architecture.mdc` enforces the key points automatically every session.
 
 ### Phase alignment — 12C, 12C.1, 12D (mandatory for near-term work)
 
-- **`docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`** — Canonical separation of three layers:
-  - **Phase 12C — Repair → Comprehension:** user input unclear / ASR mismatch → soft repair → one targeted clarification → then fallback. No cultural explanation or strategic advice in this layer.
-  - **Phase 12C.1 — Reciprocity & exploration:** user questions, direction shifts, 你呢？→ persona responds coherently, progressive depth, no forced return to prior flow. Aligns with **user-led discovery / counter-reply** work.
-  - **Phase 12D — Meaning + Move overlay:** ambiguous **partner** language → show likely meaning + 2–3 safe next moves. Direction: **Persona → User** (interpret + act). **Must not** change Phase 6 runtime, merge layers, or add selector complexity.
+Canonical separation of three layers (historical background: `docs/archive/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`, class C):
+- **Phase 12C — Repair → Comprehension:** user input unclear / ASR mismatch → soft repair → one targeted clarification → then fallback. No cultural explanation or strategic advice in this layer.
+- **Phase 12C.1 — Reciprocity & exploration:** user questions, direction shifts, 你呢？→ persona responds coherently, progressive depth, no forced return to prior flow. Aligns with **user-led discovery / counter-reply** work.
+- **Phase 12D — Meaning + Move overlay:** ambiguous **partner** language → show likely meaning + 2–3 safe next moves. Direction: **Persona → User** (interpret + act). **Must not** change Phase 6 runtime, merge layers, or add selector complexity.
 
 **Implementation priority (from alignment brief):** (1) finish/stabilise **12C** (repair), (2) stabilise **12C.1** (reciprocity), (3) then **12D** (overlay). **Optimise for:** conversation survival, interaction continuity, user confidence under uncertainty — not abstract “correctness” or completeness.
 
-- **`docs/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`** — Detailed build spec for **12D**: thin **content + UI overlay** (`meaning_move_overlay` runtime artifact, ~20–30 high-value items v1), keyed by **`frame_id`**, expandable “Meaning + Move” UI, fail-soft if missing, **no** selector/engine/move_type rewrite. Non-goals: live meeting assistant, ASR rewrite, personalization engine, cultural essays on every turn.
+Build spec for **12D** (historical background: `docs/archive/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`, class C): thin **content + UI overlay** (`meaning_move_overlay` runtime artifact, ~20–30 high-value items v1), keyed by **`frame_id`**, expandable “Meaning + Move” UI, fail-soft if missing, **no** selector/engine/move_type rewrite. Non-goals: live meeting assistant, ASR rewrite, personalization engine, cultural essays on every turn.
 
-**User-led discovery & recovery (12C.1-related product track):** see **`docs/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`** — counter-reply, discovery panel, recovery phrases, data-driven mirror/deflection JSON.
+**User-led discovery & recovery (12C.1-related product track; historical background: `docs/archive/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`, class C):** counter-reply, discovery panel, recovery phrases, data-driven mirror/deflection JSON.
 
 ---
 
@@ -504,8 +502,8 @@ Updated: 2026-03-29 (extensibility + 12C/12D alignment integrated)
 | Phase 11.1.1 | Complete | Post-fix observation pass; extended identity guard to ladder + coherence gate |
 | Phase 12 | Complete | EXTEND frames, persona layer, discoverability (voice_line + partner_fact), Phase 12B curiosity chain limit + soft repair ladder |
 | **12C — Repair → Comprehension** | **In progress / next** | Clarification before fallback on unclear input; see alignment brief. Does not subsume 12C.1 or 12D. |
-| **12C.1 — Reciprocity & exploration** | **Active / evolving** | User questions, 你呢？, counter-reply, discovery panel, progressive persona answers; strategist brief: `USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`. |
-| **12D — Meaning + Move overlay** | **Planned** | Thin UI + `meaning_move_overlay` artifact; **after** 12C stable; see `MandarinOS_Phase12D_Cursor_Implementation_Brief.md`. |
+| **12C.1 — Reciprocity & exploration** | **Active / evolving** | User questions, 你呢？, counter-reply, discovery panel, progressive persona answers; historical strategist brief: `docs/archive/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`. |
+| **12D — Meaning + Move overlay** | **Planned** | Thin UI + `meaning_move_overlay` artifact; **after** 12C stable; see `docs/archive/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`. |
 | **Alpha tuning** | **Active** | Conversation quality, matrix tests, content/data iteration per extensibility directive |
 
 ### Active alpha tuning — what has been implemented (baseline)
