@@ -144,10 +144,9 @@ Before making architectural or behavioral changes, always consult these document
 - **MandarinOS Design Constitution:** `docs/design/mandarinos_design_constitution.txt`
 - **MandarinOS AI Interaction Protocol** (if present)
 - **Trace contract:** `docs/design/TRACE_CONTRACT_v1.md`
-- **Phase architecture lock:** `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md`
-- Other phase docs: `docs/phases/` (freezes, checklists, rollback)
+- **Historical phase milestones:** `docs/phases/README.md` (archived class-C bodies at `docs/archive/phases/`)
 
-These documents define the **authoritative system architecture**.
+These documents define the **authoritative system architecture** where they remain current class-A/B authority. Historical phase material is contextual only; the nine-document R2 governance package (`docs/DOCUMENT_AUTHORITY_INDEX.md` §4) takes precedence for current work.
 If proposed changes conflict with these documents, the documents take precedence unless the user explicitly approves a revision.
 
 ### 1.3 Minimal change policy (Cursor as programmer: strict)
@@ -374,9 +373,8 @@ If a change would conflict with the Design Constitution or phase locks, do not i
 If present, read these before making architectural suggestions:
 - `docs/design/mandarinos_design_constitution.txt` (Design Constitution)
 - MandarinOS AI Interaction Protocol (if present)
-- `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md`
 - `docs/design/TRACE_CONTRACT_v1.md` (trace contract)
-- Other phase docs: `docs/phases/`
+- `docs/phases/README.md` — historical phase family entry (archived at `docs/archive/phases/`)
 - Build directives under `integration_kit/` (if relevant to the task)
 - **`docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`** — extensibility directive (mandatory for any change proposal)
 - **`docs/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`** — 12C / 12C.1 / 12D separation (mandatory for conversation-layer work)
