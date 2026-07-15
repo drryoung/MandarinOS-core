@@ -422,7 +422,7 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase C2A — historical directives relocation: 17 files — approved 2026-07-14.** Phase C2A is approved and complete. Seventeen class-C directive files moved from `docs/directives/` to `docs/archive/directives/` via `git mv`. `docs/directives/README.md` remains the compatibility and authority entry point. All 17 bodies are byte-identical to the approved baseline (`94dc5ad5a3d09d4c1120505c98d5a56e312a0dbe`). Classes and flags are unchanged. Active documentation links were repaired in the family README and this index. Four code/test comment or docstring mentions remain as historical references; no operational or AI/bootstrap dependency remains on the old paths.
 
-**Phase C2B — historical phase documents (`docs/phases/`, class C): 11 relocations — candidate completed 2026-07-14; pending review and approval.** Eleven class-C phase files moved from `docs/phases/` to `docs/archive/phases/` via `git mv`. Source family: `docs/phases/`; destination family: `docs/archive/phases/`. Compatibility: `docs/phases/README.md` remains at the original entry path and points to the archive; three class-F proposals remain in `docs/phases/` for a later batch. Active documentation links repaired in the family README, `AI_CONTEXT.md`, and this index; historical mentions preserved elsewhere. Classes and flags unchanged. Phase C2A remains approved. Phase C2C and later batches have not begun. Phase C remains incomplete.
+**Phase C2B — historical phase documents relocation: 11 files — approved 2026-07-14.** Phase C2B is approved and complete. Eleven class-C phase documents moved from `docs/phases/` to `docs/archive/phases/` via `git mv`. `docs/phases/README.md` remains the compatibility and authority entry point. Three class-F proposals remain in place for later relocation. All 11 moved bodies are byte-identical to the approved baseline (`462aadfd5b359b1c6cf532e3573cf26c2d1feba6`). Status notices were preserved. Classes, flags, and authority fields remain unchanged. Active documentation and AI/bootstrap references were repaired. No operational dependency remains on an old path. Phase C2A remains approved. Phase C2C and later batches have not begun. Phase C remains incomplete.
 
 Move selected files into a structured archive, preserving Git history and fixing references.
 
@@ -595,7 +595,7 @@ Archived Phase 2–7 cards/trace/harness implementation directives. Classificati
 
 ### 17.6 `docs/phases/`
 
-Family entry point for historical phase documents. Eleven class-C historical bodies were relocated to `docs/archive/phases/` in Phase C2B candidate; this directory retains the class-B family guide and three class-F proposals pending a later batch.
+Family entry point for historical phase documents. Eleven class-C historical bodies were relocated to `docs/archive/phases/` in approved Phase C2B; this directory retains the class-B family guide and three class-F proposals pending a later batch.
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
@@ -606,21 +606,21 @@ Family entry point for historical phase documents. Eleven class-C historical bod
 
 ### 17.6a `docs/archive/phases/`
 
-Archived historical phase documents. Classification C; flags vary per row. Relocated from `docs/phases/` in Phase C2B candidate; authority unchanged.
+Archived historical phase documents. Classification C; flags vary per row. Relocated from `docs/phases/` in approved Phase C2B; authority unchanged.
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/archive/phases/MANDARINOS_PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | `docs/ARCHITECTURE.md` | Near-dup of `PHASE9_1_ACCEPTANCE_CRITERIA.md`. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | `docs/ARCHITECTURE.md` | Near-dup. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/MANDARINOS_PHASE_10_5_STABILISATION_BRIEF.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 10.5 stabilisation. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/MandarinOS_Phase9_Signoff.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 9 sign-off. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/PHASE6_FREEZE.md` | C | phase-specific, misleading-filename, status-header-added | `docs/ARCHITECTURE.md` | Phase 6 freeze. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md` | C | phase-specific, misleading-filename, status-header-added | `docs/ARCHITECTURE.md` | Phase 6 lock. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/PHASE6_RUNTIME_INDEXES_NOTES.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 6 runtime-index notes. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/PHASE9_2_BRIDGE_TIER.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Phase 9.2 bridge tier. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/PHASE_10_5_CONVERSATION_SIMULATION.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Phase 10.5 simulation. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/Phase 3 Step 1 Audio-first UI.md` | C | phase-specific | `docs/ASR_PIPELINE.md` | Phase 3 audio-first UI. Relocated in Phase C2B candidate; authority unchanged. |
-| `docs/archive/phases/ROLLBACK_POINT_v1.md` | C | phase-specific, dated-snapshot | dated evidence only | Rollback point. Relocated in Phase C2B candidate; authority unchanged. |
+| `docs/archive/phases/MANDARINOS_PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | `docs/ARCHITECTURE.md` | Near-dup of `PHASE9_1_ACCEPTANCE_CRITERIA.md`. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/PHASE9_1_ACCEPTANCE_CRITERIA.md` | C | phase-specific, duplicate-or-near-duplicate | `docs/ARCHITECTURE.md` | Near-dup. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/MANDARINOS_PHASE_10_5_STABILISATION_BRIEF.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 10.5 stabilisation. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/MandarinOS_Phase9_Signoff.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 9 sign-off. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/PHASE6_FREEZE.md` | C | phase-specific, misleading-filename, status-header-added | `docs/ARCHITECTURE.md` | Phase 6 freeze. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md` | C | phase-specific, misleading-filename, status-header-added | `docs/ARCHITECTURE.md` | Phase 6 lock. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/PHASE6_RUNTIME_INDEXES_NOTES.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Phase 6 runtime-index notes. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/PHASE9_2_BRIDGE_TIER.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Phase 9.2 bridge tier. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/PHASE_10_5_CONVERSATION_SIMULATION.md` | C | phase-specific | `docs/CONVERSATION_ARCHITECTURE.md` | Phase 10.5 simulation. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/Phase 3 Step 1 Audio-first UI.md` | C | phase-specific | `docs/ASR_PIPELINE.md` | Phase 3 audio-first UI. Relocated in approved Phase C2B; authority unchanged. |
+| `docs/archive/phases/ROLLBACK_POINT_v1.md` | C | phase-specific, dated-snapshot | dated evidence only | Rollback point. Relocated in approved Phase C2B; authority unchanged. |
 
 ### 17.7 `docs/plans/`
 
@@ -832,7 +832,7 @@ Other totals:
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
 - `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B is approved: three guides cover 31 files (two new class-B guides; one existing class-C README hosts prepended family guidance without reclassification). `status-header-added` remains 79. Phase B5C is approved: eight generated rows carry approved guidance; `generated-guidance-added` equals 8. Phase B5D is approved: 46 documents mapped in §13.1 without target modification or reclassification. Phase B closeout is approved and complete (§15). Phase B is complete. All 22 class-F documents carry the flag through completed Phase B3.
 - `generated-guidance-added` (8) covers the eight class-G generated/captured output files with Phase B5C approved headers (§15); equal to the eight `generated` inventory flags.
-- Phase C1 (§15) adds one new class-E document, `docs/PHASE_C1_ARCHIVAL_AUDIT.md`, taking class E from 37 to 38 and `dated-snapshot` from 39 to 40; total inventory moves from 230 to 231. No pre-existing row's class or flags changed. Phase C1 is approved 2026-07-14. Phase C2A (§15) is approved and complete: 17 class-C directive paths relocated from `docs/directives/` to `docs/archive/directives/`; inventory total remains 231 (path replacement only). Phase C2B (§15) candidate: 11 class-C phase paths relocated from `docs/phases/` to `docs/archive/phases/`; inventory total remains 231. Phase C2C and later batches have not begun. Phase C remains incomplete.
+- Phase C1 (§15) adds one new class-E document, `docs/PHASE_C1_ARCHIVAL_AUDIT.md`, taking class E from 37 to 38 and `dated-snapshot` from 39 to 40; total inventory moves from 230 to 231. No pre-existing row's class or flags changed. Phase C1 is approved 2026-07-14. Phase C2A (§15) is approved and complete: 17 class-C directive paths relocated from `docs/directives/` to `docs/archive/directives/`; inventory total remains 231 (path replacement only). Phase C2B (§15) is approved and complete: 11 class-C phase paths relocated from `docs/phases/` to `docs/archive/phases/`; inventory total remains 231. Phase C2C and later batches have not begun. Phase C remains incomplete.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).
