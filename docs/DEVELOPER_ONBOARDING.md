@@ -396,7 +396,7 @@ The `docs/` directory is extensive. Here's what matters for a developer joining 
 | `docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md` | How the conversation selector works, anti-patterns to avoid. |
 | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | The "extensibility first" principle — how to classify and fix issues. |
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | Which behaviors are protected by regression tests and why. |
-| `docs/specs/Live_Beginner_Ability_Model.md` | The learner ability model (observational — Phase 1). |
+| `docs/archive/specs/Live_Beginner_Ability_Model.md` | The learner ability model (observational — Phase 1; historical background, class C). |
 | `docs/archive/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md` | How the blue discovery panel, counter-reply, and recovery systems work (historical background, class C). |
 | `docs/briefings/STRATEGIST_BRIEFING_MAY2026_UI_POLISH_AND_DISTANCE_THREAD.md` | Latest strategist briefing — current priorities and refinement direction. |
 
