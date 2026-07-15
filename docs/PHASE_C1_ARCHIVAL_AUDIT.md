@@ -638,7 +638,7 @@ The "documents assessed but recommended to remain in place" table is in §13.
 
 | Batch | Implementation status | Verified deviations |
 | ----- | ---------------------- | ------------------- |
-| **C2A** | Candidate implemented — pending review and approval | Four code-comment references in `conformance/run_conformance.py`, `tools/coverage/coverage_scan.py`, `tests/test_hint_cascade.py`, and `tests/test_scaffolding_transitions_v1.py` preserved as historical mentions (C2A scope excludes application code and tests). |
+| **C2A** | Approved and implemented — 2026-07-14 | Four module-docstring filename mentions in `conformance/run_conformance.py`, `tools/coverage/coverage_scan.py`, `tests/test_hint_cascade.py`, and `tests/test_scaffolding_transitions_v1.py` preserved as historical, non-operational provenance notes (filename only; no path construction, file open, or assertion). C2A scope excluded application code and tests. |
 
 **On batch-size exceptions:** C2C-core (20) is at the limit; C2D3-core (32) exceeds the ~20 guideline but is uniformly Low-risk and mechanically identical (a `git mv` plus a handful of historical cross-link updates, no AI-bootstrap or code-comment correction required for any of its 32 members) — this matches the directive's explicit exception for batches where "all dependencies are low risk and mechanically identical." No other batch exceeds 20.
 
