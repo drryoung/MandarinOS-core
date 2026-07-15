@@ -90,9 +90,9 @@ builders may evolve - UI may evolve - content packs may evolve
 
 ### TRACE Contract
 
-docs/design/TRACE_CONTRACT_v1.md
+Current authority: docs/ARCHITECTURE.md and the applicable R2 trace/state contract.
 
-Defines diagnostic trace structure. Changes require strategist approval.
+Historical background only (class C, non-authoritative): docs/archive/design-history/TRACE_CONTRACT_v1.md — early trace-structure narrative; does not override current R2 contracts.
 
 ------------------------------------------------------------------------
 

@@ -230,6 +230,6 @@ For now, manual validation:
 ## References
 
 - [MandarinOS Design Constitution](./mandarinos_design_constitution.txt)
-- [TurnState Trace Contract v1](./TRACE_CONTRACT_v1.md)
+- [TurnState Trace Contract v1](../archive/design-history/TRACE_CONTRACT_v1.md)
 - [Conformance Runner](../conformance/run_trace_conformance.py)
 - [Integration Kit Examples](../integration_kit/examples/)

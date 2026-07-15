@@ -83,7 +83,7 @@ UI is where the product loop is executed:
 - emit trace events for every meaningful action
 
 ### 2.5 Trace = contracted signals
-Trace events are structured signals defined by `docs/design/TRACE_CONTRACT_v1.md`.
+Trace events are structured signals. Current authority for trace structure is `docs/ARCHITECTURE.md` and the applicable R2 contract. Historical background only (class C, non-authoritative): `docs/archive/design-history/TRACE_CONTRACT_v1.md`.
 
 Trace is used for:
 - debugging (what happened and why)
@@ -203,7 +203,7 @@ When asked to implement a feature, follow this checklist:
 - `AI_CONTEXT.md`
 - `MandarinOS_AI_Governance_Protocol.md`
 - MandarinOS Design Constitution: `docs/design/mandarinos_design_constitution.txt`
-- Trace contract: `docs/design/TRACE_CONTRACT_v1.md`
+- Trace/state current authority: `docs/ARCHITECTURE.md` and the applicable R2 contract (historical background only, class C, non-authoritative: `docs/archive/design-history/TRACE_CONTRACT_v1.md`)
 - Phase architecture lock: `docs/phases/PHASE6_RUNTIME_ARCHITECTURE_LOCK.md`
 - Other phase docs: `docs/phases/` (freezes, checklists, rollback)
 
