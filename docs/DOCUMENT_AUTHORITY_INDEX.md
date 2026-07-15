@@ -424,7 +424,7 @@ Standard: notices use the `MANDARINOS-DOCUMENT-STATUS:BEGIN`/`:END` sentinel pai
 
 **Phase C2B — historical phase documents relocation: 11 files — approved 2026-07-14.** Phase C2B is approved and complete. Eleven class-C phase documents moved from `docs/phases/` to `docs/archive/phases/` via `git mv`. `docs/phases/README.md` remains the compatibility and authority entry point. Three class-F proposals remain in place for later relocation. All 11 moved bodies are byte-identical to the approved baseline (`462aadfd5b359b1c6cf532e3573cf26c2d1feba6`). Status notices were preserved. Classes, flags, and authority fields remain unchanged. Active documentation and AI/bootstrap references were repaired. No operational dependency remains on an old path. Phase C2A remains approved. Phase C2C and later batches have not begun. Phase C remains incomplete.
 
-**Phase C2C-core — historical briefings, low-risk core (`docs/briefings/`, class C): 20 relocations — candidate completed 2026-07-14; pending review and approval.** Twenty class-C briefing files moved from `docs/briefings/` to `docs/archive/briefings/` via `git mv`. Source family: `docs/briefings/`; destination family: `docs/archive/briefings/`. Compatibility: no new family README (approved plan: existing family posture; eight class-C C2C-review briefings and eight class-E evidence files remain in `docs/briefings/`). Active documentation links repaired in this index §13.1 and §17; historical mentions preserved elsewhere. No AI/bootstrap correction in this batch (deferred to C2C-review). Classes and flags unchanged. Phase C2A and C2B remain approved. Phase C2C-review and later batches have not begun. Phase C remains incomplete.
+**Phase C2C-core — low-risk historical briefings relocation: 20 files — approved 2026-07-14.** Phase C2C-core is approved and complete. Twenty low-risk class-C briefings moved from `docs/briefings/` to `docs/archive/briefings/` via `git mv`. Eight C2C-review class-C files remain for the next review batch. Eight class-E evidence files remain in `docs/briefings/`. All 20 moved bodies are byte-identical to the approved baseline (`e80b660ee5335eff15c885af273ec9e83e4b4015`). No notice-bearing file was moved. Classes, flags, and authority fields remain unchanged. No operational or active AI/bootstrap dependency remains on old paths. Implementation-model deviation: Composer 2.5 was used where Auto was approved; no repository-integrity impact. Phase C2A and C2B remain approved. Phase C2C-review and later batches have not begun. Phase C remains incomplete.
 
 Move selected files into a structured archive, preserving Git history and fixing references.
 
@@ -522,7 +522,7 @@ Every tracked documentation file in audit scope appears exactly once. Paths are 
 
 ### 17.4 `docs/briefings/`
 
-Mixed briefing directory: eight class-C strategist briefings deferred to C2C-review, plus eight class-E dated evidence files. Twenty low-risk class-C briefings were relocated to `docs/archive/briefings/` in Phase C2C-core candidate.
+Mixed briefing directory: eight class-C strategist briefings deferred to C2C-review, plus eight class-E dated evidence files. Twenty low-risk class-C briefings were relocated to `docs/archive/briefings/` in approved Phase C2C-core.
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
@@ -545,30 +545,30 @@ Mixed briefing directory: eight class-C strategist briefings deferred to C2C-rev
 
 ### 17.4a `docs/archive/briefings/`
 
-Archived historical strategist/phase briefings (class C). Relocated from `docs/briefings/` in Phase C2C-core candidate; authority unchanged.
+Archived historical strategist/phase briefings (class C). Relocated from `docs/briefings/` in approved Phase C2C-core; authority unchanged.
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/archive/briefings/BRIEFING_CHANGES_FOR_CHATGPT_REVIEW.md` | C | phase-specific | R2 governance set | Review briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md` | C | phase-specific | R2 governance set | Strategist briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/MandarinOS_Phase12E_CuriosityProbe_Brief.md` | C | phase-specific, implementation-not-verified | R2 governance set | Phase 12E brief. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/MandarinOS_laptop_handoff_UI_cascading_help_briefing.md` | C | phase-specific | R2 governance set | Handoff briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/NEXT_PHASE_ADVICE_CURSOR.md` | C | phase-specific | R2 governance set | Next-phase advice. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/PHASE7_4_UI_POLISH_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 7.4 briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/PHASE7_COMPLETE_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 7 briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/PHASE8_OPTIONS_APPROPRIATENESS.md` | C | phase-specific | R2 governance set | Phase 8 briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/PHASE8_STEP1_TRANSCRIPT_ARCHITECTURE.md` | C | phase-specific | R2 governance set | Phase 8 transcript arch. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/PHASE9_SIGNOFF_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 9 sign-off. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/PHASE_12B_STABILIZATION_AND_UI_FLOW_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 12B briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/PHASE_12C_EXECUTIVE_STRATEGIST_BRIEF.md` | C | phase-specific | R2 governance set | Phase 12C exec brief. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/PHASE_12C_STRATEGIST_PROPOSAL_CURIOSITY_PERSONA_SESSION_ARC.md` | C | phase-specific, implementation-not-verified | R2 governance set | Phase 12C proposal briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/STRATEGIST_BRIEFING_MAY2026_UI_POLISH_AND_DISTANCE_THREAD.md` | C | phase-specific | R2 governance set | May 2026 briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/UI_SHELL_STRATEGIST_BRIEFING_APR2026.md` | C | phase-specific | R2 governance set | Apr 2026 briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/architecture_briefing_apr2026.md` | C | phase-specific | R2 governance set | Apr 2026 architecture briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/mandarinos_chatgpt_session_briefing.md` | C | phase-specific | R2 governance set | Session briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/mandarinos_recovery_phrases_v1_2_cursor_briefing.txt` | C | phase-specific | R2 governance set | Recovery-phrase briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/phase12c_recovery_trigger_briefing.txt` | C | phase-specific | R2 governance set | Phase 12C recovery trigger. Relocated in Phase C2C-core candidate; authority unchanged. |
-| `docs/archive/briefings/phase7_3_senior_architect_briefing.md` | C | phase-specific | R2 governance set | Phase 7.3 briefing. Relocated in Phase C2C-core candidate; authority unchanged. |
+| `docs/archive/briefings/BRIEFING_CHANGES_FOR_CHATGPT_REVIEW.md` | C | phase-specific | R2 governance set | Review briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md` | C | phase-specific | R2 governance set | Strategist briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/MandarinOS_Phase12E_CuriosityProbe_Brief.md` | C | phase-specific, implementation-not-verified | R2 governance set | Phase 12E brief. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/MandarinOS_laptop_handoff_UI_cascading_help_briefing.md` | C | phase-specific | R2 governance set | Handoff briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/NEXT_PHASE_ADVICE_CURSOR.md` | C | phase-specific | R2 governance set | Next-phase advice. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/PHASE7_4_UI_POLISH_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 7.4 briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/PHASE7_COMPLETE_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 7 briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/PHASE8_OPTIONS_APPROPRIATENESS.md` | C | phase-specific | R2 governance set | Phase 8 briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/PHASE8_STEP1_TRANSCRIPT_ARCHITECTURE.md` | C | phase-specific | R2 governance set | Phase 8 transcript arch. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/PHASE9_SIGNOFF_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 9 sign-off. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/PHASE_12B_STABILIZATION_AND_UI_FLOW_STRATEGIST_BRIEFING.md` | C | phase-specific | R2 governance set | Phase 12B briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/PHASE_12C_EXECUTIVE_STRATEGIST_BRIEF.md` | C | phase-specific | R2 governance set | Phase 12C exec brief. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/PHASE_12C_STRATEGIST_PROPOSAL_CURIOSITY_PERSONA_SESSION_ARC.md` | C | phase-specific, implementation-not-verified | R2 governance set | Phase 12C proposal briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/STRATEGIST_BRIEFING_MAY2026_UI_POLISH_AND_DISTANCE_THREAD.md` | C | phase-specific | R2 governance set | May 2026 briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/UI_SHELL_STRATEGIST_BRIEFING_APR2026.md` | C | phase-specific | R2 governance set | Apr 2026 briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/architecture_briefing_apr2026.md` | C | phase-specific | R2 governance set | Apr 2026 architecture briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/mandarinos_chatgpt_session_briefing.md` | C | phase-specific | R2 governance set | Session briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/mandarinos_recovery_phrases_v1_2_cursor_briefing.txt` | C | phase-specific | R2 governance set | Recovery-phrase briefing. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/phase12c_recovery_trigger_briefing.txt` | C | phase-specific | R2 governance set | Phase 12C recovery trigger. Relocated in approved Phase C2C-core; authority unchanged. |
+| `docs/archive/briefings/phase7_3_senior_architect_briefing.md` | C | phase-specific | R2 governance set | Phase 7.3 briefing. Relocated in approved Phase C2C-core; authority unchanged. |
 
 ### 17.5 `docs/directives/`
 
@@ -841,7 +841,7 @@ Other totals:
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
 - `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B is approved: three guides cover 31 files (two new class-B guides; one existing class-C README hosts prepended family guidance without reclassification). `status-header-added` remains 79. Phase B5C is approved: eight generated rows carry approved guidance; `generated-guidance-added` equals 8. Phase B5D is approved: 46 documents mapped in §13.1 without target modification or reclassification. Phase B closeout is approved and complete (§15). Phase B is complete. All 22 class-F documents carry the flag through completed Phase B3.
 - `generated-guidance-added` (8) covers the eight class-G generated/captured output files with Phase B5C approved headers (§15); equal to the eight `generated` inventory flags.
-- Phase C1 (§15) adds one new class-E document, `docs/PHASE_C1_ARCHIVAL_AUDIT.md`, taking class E from 37 to 38 and `dated-snapshot` from 39 to 40; total inventory moves from 230 to 231. No pre-existing row's class or flags changed. Phase C1 is approved 2026-07-14. Phase C2A (§15) is approved and complete: 17 class-C directive paths relocated from `docs/directives/` to `docs/archive/directives/`; inventory total remains 231 (path replacement only). Phase C2B (§15) is approved and complete: 11 class-C phase paths relocated from `docs/phases/` to `docs/archive/phases/`; inventory total remains 231. Phase C2C-core (§15) candidate: 20 class-C briefing paths relocated from `docs/briefings/` to `docs/archive/briefings/`; inventory total remains 231. Phase C2C-review and later batches have not begun. Phase C remains incomplete.
+- Phase C1 (§15) adds one new class-E document, `docs/PHASE_C1_ARCHIVAL_AUDIT.md`, taking class E from 37 to 38 and `dated-snapshot` from 39 to 40; total inventory moves from 230 to 231. No pre-existing row's class or flags changed. Phase C1 is approved 2026-07-14. Phase C2A (§15) is approved and complete: 17 class-C directive paths relocated from `docs/directives/` to `docs/archive/directives/`; inventory total remains 231 (path replacement only). Phase C2B (§15) is approved and complete: 11 class-C phase paths relocated from `docs/phases/` to `docs/archive/phases/`; inventory total remains 231. Phase C2C-core (§15) is approved and complete: 20 class-C briefing paths relocated from `docs/briefings/` to `docs/archive/briefings/`; inventory total remains 231. Phase C2C-review and later batches have not begun. Phase C remains incomplete.
 - Unresolved classifications: 0 (§10).
 
 Principal Git-history range inspected: Phase 6 (2026-03) through the R2 baseline (2026-07-12), including `7ad0e56` (Phase 7 restructure), `083d3c2` (Phase 10 memory/persona), and `3be0315` (R2 baseline).
