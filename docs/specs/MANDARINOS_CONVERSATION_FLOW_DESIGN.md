@@ -269,8 +269,8 @@ If a proposed change fails this test, it is an extensibility risk. Flag it, expl
 |----------|------|
 | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Decision priority order; beta feedback classification |
 | `docs/archive/specs/MandarinOS_Repair_Curiosity_Loop.md` | Curiosity trigger and comprehension repair loop design (historical, class C) |
-| `docs/specs/MandarinOS_next_question_selector_v1.md` | Selector philosophy and input model |
-| `docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md` | Index of all conversation design documents |
+| `docs/archive/specs/MandarinOS_next_question_selector_v1.md` | Selector philosophy and input model (historical, class C) |
+| `docs/archive/specs/CONVERSATION_ARCHITECTURE_INDEX.md` | Index of all conversation design documents (historical, class C) |
 | `.cursor/rules/mandarinos-architecture.mdc` | Cursor standing rule; enforced every session |
 | `.cursor/rules/mandarinos-ui-objects.mdc` | Canonical UI object rules |
 | `AI_CONTEXT.md` | Repo map; read before any architecture change |

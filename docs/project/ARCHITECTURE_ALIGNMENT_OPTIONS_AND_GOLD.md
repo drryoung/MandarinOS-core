@@ -14,7 +14,7 @@
 # Architecture alignment: response options and "gold"
 
 **Purpose:** Ensure implementation stays consistent with the conversation design.  
-**References:** Design Constitution, [MandarinOS_Conversation_UX_Protocol_v1.md](../specs/MandarinOS_Conversation_UX_Protocol_v1.md), [CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md](../briefings/CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md), [CONVERSATION_ARCHITECTURE_INDEX.md](../specs/CONVERSATION_ARCHITECTURE_INDEX.md).
+**References:** Design Constitution, [MandarinOS_Conversation_UX_Protocol_v1.md](../specs/MandarinOS_Conversation_UX_Protocol_v1.md), [CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md](../briefings/CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md), [CONVERSATION_ARCHITECTURE_INDEX.md](../archive/specs/CONVERSATION_ARCHITECTURE_INDEX.md).
 
 ---
 

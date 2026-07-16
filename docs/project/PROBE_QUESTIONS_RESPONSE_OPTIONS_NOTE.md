@@ -11,13 +11,13 @@ Probe behaviour must follow these documents.
 - **Blueprint** ([MandarinOS_conversation_system_blueprint_v1.md](../specs/MandarinOS_conversation_system_blueprint_v1.md))  
   Layers: **Engines → Curiosity → Fillers → Repair → Memory → Persona**. The **Curiosity** layer is where learner follow-ups (e.g. 为什么？, 谁？, 哪里？) and curiosity triggers live.
 
-- **Architecture index** ([CONVERSATION_ARCHITECTURE_INDEX.md](../specs/CONVERSATION_ARCHITECTURE_INDEX.md))  
+- **Architecture index** ([CONVERSATION_ARCHITECTURE_INDEX.md](../archive/specs/CONVERSATION_ARCHITECTURE_INDEX.md))  
   Single entry point for conversation design; points to ladders (oxygen loop questions), curiosity engine, emergency curiosity pack, selector, capability map.
 
 - **Conversation ladder model** ([mandarinos_copilot_architecture_update.txt](../directives/mandarinos_copilot_architecture_update.txt))  
   Each engine: Opener → Core → Treasure → **Oxygen loops** (short reusable follow-ups) → Bridge. "Oxygen loops" are the canonical reusable probe set.
 
-- **Ladders spec** ([MandarinOS_conversation_ladders_full_draft_v2.md](../specs/MandarinOS_conversation_ladders_full_draft_v2.md))  
+- **Ladders spec** ([MandarinOS_conversation_ladders_full_draft_v2.md](../archive/specs/MandarinOS_conversation_ladders_full_draft_v2.md))  
   Defines **OXYGEN LOOP QUESTIONS** per engine. Use this as the **canonical probe set**:
 
   | Phrase        | Pinyin / meaning     |
@@ -31,7 +31,7 @@ Probe behaviour must follow these documents.
   | 跟谁一起？    | With whom?           |
   | 什么时候开始？| When did it start?   |
 
-- **Next Question Selector v1** ([MandarinOS_next_question_selector_v1.md](../specs/MandarinOS_next_question_selector_v1.md))  
+- **Next Question Selector v1** ([MandarinOS_next_question_selector_v1.md](../archive/specs/MandarinOS_next_question_selector_v1.md))  
   Output types include **B. Follow-up question** (e.g. 为什么？). Candidate generation uses the **curiosity toolkit**. Follow-up/probe is a first-class move type; the selector (or a sibling "option selector") should eventually drive when the **learner** is offered probe options.
 
 - **Capability map** ([MandarinOS_conversation_capability_map_v1.md](../specs/MandarinOS_conversation_capability_map_v1.md))  
@@ -43,7 +43,7 @@ Probe behaviour must follow these documents.
 - **Emergency curiosity pack** ([mandarinos_emergency_curiosity_pack_v1.md](../specs/mandarinos_emergency_curiosity_pack_v1.md))  
   Core beginner questions: 这是什么？, 什么意思？, 你主要做什么？, 难吗？, 为什么？, 像什么？; plus follow-ups (可以再说一次吗？, 可以慢一点吗？, etc.). Use for P1 probe options alongside oxygen loop questions where appropriate.
 
-- **Engine specs** ([MandarinOS_engine_specs_v1.md](../specs/MandarinOS_engine_specs_v1.md))  
+- **Engine specs** ([MandarinOS_engine_specs_v1.md](../archive/specs/MandarinOS_engine_specs_v1.md))  
   Each engine defines Loop questions [L] (e.g. 为什么？, 谁？, 哪里？, 跟谁一起？); these align with the ladder's oxygen loop list.
 
 ---
@@ -95,15 +95,15 @@ Implementing the **Curiosity** layer from the learner side: offer **oxygen loop 
 
 ## 6. References (architecture-first)
 
-- [CONVERSATION_ARCHITECTURE_INDEX.md](../specs/CONVERSATION_ARCHITECTURE_INDEX.md) — entry point; ladders, curiosity, selector, capability.
+- [CONVERSATION_ARCHITECTURE_INDEX.md](../archive/specs/CONVERSATION_ARCHITECTURE_INDEX.md) — entry point; ladders, curiosity, selector, capability.
 - [MandarinOS_conversation_system_blueprint_v1.md](../specs/MandarinOS_conversation_system_blueprint_v1.md) — Curiosity layer.
-- [MandarinOS_conversation_ladders_full_draft_v2.md](../specs/MandarinOS_conversation_ladders_full_draft_v2.md) — **OXYGEN LOOP QUESTIONS** (canonical probe set).
+- [MandarinOS_conversation_ladders_full_draft_v2.md](../archive/specs/MandarinOS_conversation_ladders_full_draft_v2.md) — **OXYGEN LOOP QUESTIONS** (canonical probe set).
 - [mandarinos_copilot_architecture_update.txt](../directives/mandarinos_copilot_architecture_update.txt) — oxygen loops in ladder model.
-- [MandarinOS_next_question_selector_v1.md](../specs/MandarinOS_next_question_selector_v1.md) — Follow-up question, curiosity toolkit.
+- [MandarinOS_next_question_selector_v1.md](../archive/specs/MandarinOS_next_question_selector_v1.md) — Follow-up question, curiosity toolkit.
 - [MandarinOS_conversation_capability_map_v1.md](../specs/MandarinOS_conversation_capability_map_v1.md) — curiosity capability.
 - [mandarinos_curiosity_engine_v1.md](../specs/mandarinos_curiosity_engine_v1.md) — when learner can probe.
 - [mandarinos_emergency_curiosity_pack_v1.md](../specs/mandarinos_emergency_curiosity_pack_v1.md) — beginner probes.
-- [MandarinOS_engine_specs_v1.md](../specs/MandarinOS_engine_specs_v1.md) — Loop [L] per engine.
+- [MandarinOS_engine_specs_v1.md](../archive/specs/MandarinOS_engine_specs_v1.md) — Loop [L] per engine.
 - [ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md](ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md) — current option/gold design.
 - `tools/build_runtime_artifacts.py` — `build_frame_options`; no probe layer yet.
 

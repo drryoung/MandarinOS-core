@@ -1166,7 +1166,7 @@ _MUTUAL_EXCLUSION_FRAMES: dict = {
     "f_place_origin":   {"f_from_where", "f_home_where"},
 }
 
-# Oxygen loop questions (canonical list from MandarinOS_conversation_ladders_full_draft_v2.md) — offered as "Ask back" when user gave an interesting answer.
+# Oxygen loop questions (canonical list from docs/archive/specs/MandarinOS_conversation_ladders_full_draft_v2.md, historical class C) — offered as "Ask back" when user gave an interesting answer.
 _OXYGEN_LOOP_PROBES: list = [
     {"id": "weishenme", "hanzi": "为什么？", "pinyin": "wèishénme", "meaning": "Why?"},
     {"id": "shei", "hanzi": "谁？", "pinyin": "shéi", "meaning": "Who?"},

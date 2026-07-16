@@ -15,7 +15,7 @@
 
 **Purpose:** Compare the conversation architecture defined in `docs/specs/` with the current implementation so development can be guided by the spec files rather than piecemeal. This document lists what each key spec requires and what is **implemented** vs **not implemented**.
 
-**References:** [CONVERSATION_ARCHITECTURE_INDEX.md](../specs/CONVERSATION_ARCHITECTURE_INDEX.md) is the single entry point for all conversation design docs.
+**References:** [CONVERSATION_ARCHITECTURE_INDEX.md](../archive/specs/CONVERSATION_ARCHITECTURE_INDEX.md) is the single entry point for all conversation design docs.
 
 ---
 

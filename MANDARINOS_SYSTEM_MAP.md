@@ -98,7 +98,7 @@ Trace is used for:
 - **Word**: lexicon entry (has hanzi, etc.)
 - **Frame**: sentence pattern (text + structure)
 - **Card**: UI panel content for a word or frame (display/actions/state)
-- **Engine**: grouping of frames/options for a learning mode or phase. Conversation engines (Identity, Place, Food, Family, Study/Work, Travel, Interests) and their design specs are catalogued in **`docs/specs/CONVERSATION_ARCHITECTURE_INDEX.md`** — use that index when implementing or reviewing conversation logic.
+- **Engine**: grouping of frames/options for a learning mode or phase. Conversation engines (Identity, Place, Food, Family, Study/Work, Travel, Interests) and their design specs were catalogued in **`docs/archive/specs/CONVERSATION_ARCHITECTURE_INDEX.md`** (historical navigation index, class C; relocated in Phase C2D3-review — not current authority) — see `docs/CONVERSATION_ARCHITECTURE.md` for current conversation architecture.
 
 ### 3.2 ID spaces (do not mix)
 Typical ID patterns (examples):
