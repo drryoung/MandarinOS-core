@@ -102,7 +102,7 @@ Additional engine-related content:
 | [MandarinOS_Conversation_UX_Protocol_v1.md](./MandarinOS_Conversation_UX_Protocol_v1.md) | UX protocol | How conversation UX should behave |
 | [MandarinOS_conversation_state_diagram_v1.md](../superseded/MandarinOS_conversation_state_diagram_v1.md) | State diagram | Conversation state machine / diagram |
 | [MandarinOS_conversation_runtime_model_v1.md](../superseded/MandarinOS_conversation_runtime_model_v1.md) | Runtime model | Runtime conversation model |
-| [MandarinOS_conversation_expansion_audit_v2.md](../../specs/MandarinOS_conversation_expansion_audit_v2.md) | Audit | Expansion audit of conversation design |
+| [MandarinOS_conversation_expansion_audit_v2.md](../../evidence/specs/MandarinOS_conversation_expansion_audit_v2.md) | Audit | Expansion audit of conversation design (dated evidence, class E) |
 
 ---
 
