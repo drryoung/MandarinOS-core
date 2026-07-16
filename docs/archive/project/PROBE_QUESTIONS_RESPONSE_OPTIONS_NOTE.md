@@ -104,7 +104,7 @@ Implementing the **Curiosity** layer from the learner side: offer **oxygen loop 
 - [mandarinos_curiosity_engine_v1.md](../specs/mandarinos_curiosity_engine_v1.md) — when learner can probe.
 - [mandarinos_emergency_curiosity_pack_v1.md](../specs/mandarinos_emergency_curiosity_pack_v1.md) — beginner probes.
 - [MandarinOS_engine_specs_v1.md](../specs/MandarinOS_engine_specs_v1.md) — Loop [L] per engine.
-- [ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md](../../project/ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md) — current option/gold design.
+- [ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md](../../evidence/project/ARCHITECTURE_ALIGNMENT_OPTIONS_AND_GOLD.md) — option/gold design (dated evidence, class E).
 - `tools/build_runtime_artifacts.py` — `build_frame_options`; no probe layer yet.
 
 *Created 2026-03. Updated to follow conversation architecture; oxygen loop questions from ladders spec. Update when probe module is scoped or implemented.*
