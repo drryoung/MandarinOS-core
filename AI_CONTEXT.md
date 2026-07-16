@@ -211,7 +211,7 @@ Important known mapping:
 - Lighter “learner memory bridge” between Form and full etymology — **`docs/plans/learner_etymology_hints_plan.md`**.
 - Parenthetical **component/radical glosses** on the Form line — implemented via **`component_gloss_maps.json`** at repo root (UI: `GET /component_gloss_maps.json`; fallback `/data/…`) + `loadComponentGlossMaps()` in `ui/app.js`; audit **`python scripts/audit_component_gloss_coverage.py`** → `docs/reports/component_gloss_coverage.md`; optional corpus sync **`python tools/backfill_component_gloss_en.py`**. Plan: **`docs/plans/component_radical_gloss_plan.md`**.
 
-**Corpus recovery:** If the full character DB is missing from the clone, see **`docs/reports/CORPUS_RECOVERY_NOTES.md`** (git/OneDrive forensic notes from Step 1).
+**Corpus recovery:** If the full character DB is missing from the clone, see **`docs/evidence/reports/CORPUS_RECOVERY_NOTES.md`** (git/OneDrive forensic notes from Step 1; dated evidence, class E).
 
 ---
 
