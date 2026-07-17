@@ -208,8 +208,8 @@ Important known mapping:
 **Coverage audit:** Run `python scripts/audit_vocab_character_coverage.py` from repo root; it prints gaps and writes `docs/reports/vocab_character_coverage_audit.md` (UTF-8). Use it whenever lexicon, links, or `characters_1200.json` change.
 
 **Deferred product plans (not implemented):**
-- Lighter “learner memory bridge” between Form and full etymology — **`docs/plans/learner_etymology_hints_plan.md`**.
-- Parenthetical **component/radical glosses** on the Form line — implemented via **`component_gloss_maps.json`** at repo root (UI: `GET /component_gloss_maps.json`; fallback `/data/…`) + `loadComponentGlossMaps()` in `ui/app.js`; audit **`python scripts/audit_component_gloss_coverage.py`** → `docs/reports/component_gloss_coverage.md`; optional corpus sync **`python tools/backfill_component_gloss_en.py`**. Plan: **`docs/plans/component_radical_gloss_plan.md`**.
+- Lighter “learner memory bridge” between Form and full etymology — **`docs/proposals/learner_etymology_hints_plan.md`**.
+- Parenthetical **component/radical glosses** on the Form line — implemented via **`component_gloss_maps.json`** at repo root (UI: `GET /component_gloss_maps.json`; fallback `/data/…`) + `loadComponentGlossMaps()` in `ui/app.js`; audit **`python scripts/audit_component_gloss_coverage.py`** → `docs/reports/component_gloss_coverage.md`; optional corpus sync **`python tools/backfill_component_gloss_en.py`**. Plan: **`docs/proposals/component_radical_gloss_plan.md`**.
 
 **Corpus recovery:** If the full character DB is missing from the clone, see **`docs/evidence/reports/CORPUS_RECOVERY_NOTES.md`** (git/OneDrive forensic notes from Step 1; dated evidence, class E).
 
@@ -249,7 +249,7 @@ All conversation-design decisions (engines, sentence selector, memory, capabilit
 
 - **`docs/archive/specs/CONVERSATION_ARCHITECTURE_INDEX.md`** (historical navigation index, class C; relocated in Phase C2D3-review — not current authority) — Lists every conversation-related spec: 7 engines (Identity, Place, Food, Family, Study/Work, Travel, Interests), Next Question Selector, memory model, capability map, steering engine, ladders, support packs, persona network. Use it as optional historical background when reviewing conversation-design history; current conversation architecture authority is `docs/CONVERSATION_ARCHITECTURE.md`.
 
-**Strategist handoffs (ChatGPT, historical background — archived, class C):** e.g. **`docs/archive/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md`** — Phase 10.5/10.6 delivery summary, alpha notes, defer-naturalness-until-post–Phase‑11 intent, and questions for next-step feedback. Older context: `docs/archive/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md`. Phase 10.7 / move grammar: **`docs/archive/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt`**, **`docs/archive/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt`**. **Minimal implementation plan (preserve 10.5/10.6):** **`docs/plans/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md`**. **User-led discovery & next-phase alignment:** **`docs/archive/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`**, **`docs/archive/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`**, **`docs/archive/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`**. These are class-C historical narratives (`docs/DOCUMENT_AUTHORITY_INDEX.md`); they do not override the nine-document R2 governance package.
+**Strategist handoffs (ChatGPT, historical background — archived, class C):** e.g. **`docs/archive/briefings/PHASE_10_5_10_6_ALPHA_STRATEGIST_BRIEFING.md`** — Phase 10.5/10.6 delivery summary, alpha notes, defer-naturalness-until-post–Phase‑11 intent, and questions for next-step feedback. Older context: `docs/archive/briefings/PHASE10_STRATEGIST_BRIEFING_SPECS_GAP_AND_PATH.md`. Phase 10.7 / move grammar: **`docs/archive/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt`**, **`docs/archive/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt`**. **Minimal implementation plan (preserve 10.5/10.6):** **`docs/proposals/PHASE_10_7_MINIMAL_IMPLEMENTATION_PLAN.md`**. **User-led discovery & next-phase alignment:** **`docs/archive/briefings/USER_LED_DISCOVERY_STRATEGIST_BRIEF.md`**, **`docs/archive/briefings/MandarinOS_Phase_12C_Alignment_Brief.md`**, **`docs/archive/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md`**. These are class-C historical narratives (`docs/DOCUMENT_AUTHORITY_INDEX.md`); they do not override the nine-document R2 governance package.
 
 ### 5.1 Runtime (server-side)
 Likely areas:
@@ -416,7 +416,7 @@ MandarinOS is in a **refinement phase**: gains should come mainly from **better 
 
 ## 12) Hybrid AI vision (concept-level — not yet implemented)
 
-**Source:** `docs/design/MANDARINOS_PHASE_12_HYBRID_AI_CONCEPT_BRIEFING.txt`
+**Source:** `docs/proposals/MANDARINOS_PHASE_12_HYBRID_AI_CONCEPT_BRIEFING.txt`
 **Status:** Architectural north-star only. Do NOT implement AI execution layer yet.
 
 ### Core principle (non-negotiable)

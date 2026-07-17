@@ -1191,7 +1191,7 @@ _PROBE_STUB_BY_ID: dict = {
 _PROBE_STUB_DEFAULT: str = "嗯，好问题！"
 
 _WEAK_LOOP_FRAME_IDS: set = {
-    # From docs/specs/PHASE_10_5_BEHAVIOUR_IMPLEMENTATION_PLAN.md §6
+    # From docs/proposals/PHASE_10_5_BEHAVIOUR_IMPLEMENTATION_PLAN.md §6
     "p2_pl_1", "p2_pl_3",
     "p2_tr_1", "p2_tr_2", "p2_tr_3", "p2_tr_4",
 }

@@ -15,7 +15,7 @@ python scripts/export_session_review_prompt.py data/sessions/<lid>/<sid>.json --
 # Explicit output path:
 python scripts/export_session_review_prompt.py <input.json> --out path/to/out.md
 
-Architecture reference: docs/session_intelligence_architecture.md §Phase 1
+Architecture reference: docs/proposals/session_intelligence_architecture.md §Phase 1
 """
 
 import argparse

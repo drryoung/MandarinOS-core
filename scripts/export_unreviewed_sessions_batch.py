@@ -27,7 +27,7 @@ python scripts/export_unreviewed_sessions_batch.py --include-reviewed --write
 # Suppress stdout:
 python scripts/export_unreviewed_sessions_batch.py --write --no-stdout
 
-Architecture reference: docs/session_intelligence_architecture.md §Phase 3
+Architecture reference: docs/proposals/session_intelligence_architecture.md §Phase 3
 """
 
 import argparse

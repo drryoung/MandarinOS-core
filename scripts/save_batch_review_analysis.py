@@ -26,7 +26,7 @@ data/product_intel/rollups/<batch_id>_rollup.json      (Section G JSON)
 data/product_intel/cursor_tasks/<batch_id>_tasks.md    (Section H Markdown)
 data/product_intel/manifests/<batch_id>_analysis_manifest.json
 
-Architecture reference: docs/session_intelligence_architecture.md §Phase 2
+Architecture reference: docs/proposals/session_intelligence_architecture.md §Phase 2
 """
 
 import argparse

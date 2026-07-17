@@ -25,7 +25,7 @@ python scripts/run_session_review_pipeline.py \\
 # Skip the import step (use only locally available sessions):
 python scripts/run_session_review_pipeline.py --skip-import
 
-Architecture reference: docs/session_intelligence_architecture.md
+Architecture reference: docs/proposals/session_intelligence_architecture.md
 """
 
 import argparse

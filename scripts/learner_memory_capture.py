@@ -1,7 +1,7 @@
 """
 Phase 10 — Fact-capture: map frame_id + selected option (or submitted text) to learner_memory fields.
 
-Authoritative: docs/phases/PHASE10_TECHNICAL_PROPOSAL.md §2 capture rules.
+Authoritative: docs/proposals/PHASE10_TECHNICAL_PROPOSAL.md §2 capture rules.
 Called by ui_server after a response turn; returns a dict of field updates to apply.
 No persistence; ui_server applies updates and persists by learner_id.
 """

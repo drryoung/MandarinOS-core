@@ -1,7 +1,7 @@
 """
 Phase 10 — Learner memory schema and store.
 
-Authoritative: docs/phases/PHASE10_TECHNICAL_PROPOSAL.md
+Authoritative: docs/proposals/PHASE10_TECHNICAL_PROPOSAL.md
 Persistence key: learner_id (not session_id).
 Server is authoritative; client never sends learner_memory.
 

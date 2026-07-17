@@ -1,7 +1,7 @@
 """
 Phase 10 — Persona schema and built-in persona profiles.
 
-Authoritative: docs/phases/PHASE10_TECHNICAL_PROPOSAL.md §3.
+Authoritative: docs/proposals/PHASE10_TECHNICAL_PROPOSAL.md §3.
 Read-only data; no persistence. Used by selector and persona-consistent stubs (Step 6).
 """
 

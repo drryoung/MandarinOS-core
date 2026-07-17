@@ -499,7 +499,7 @@ deliberate and follow Section 17.
 | `AI_CONTEXT.md` | Product-intent / guardrails | Fast repo map, non-negotiable AI-assistant rules, phase status | Before proposing any architecture or content change |
 | `.cursor/rules/mandarinos-architecture.mdc` | Standing Cursor rule | Decision-priority order, additive-growth and selector-independence rules | Automatically enforced every session; re-read when proposing a selector/architecture change |
 | `.cursor/rules/mandarinos-ui-objects.mdc` | Standing Cursor rule | Canonical `.option-panel` UI structure requirement | Automatically enforced every session; re-read before building any new response UI |
-| `docs/session_intelligence_architecture.md`, `docs/evidence/session_intelligence_implementation_report.md` (dated evidence, class E) | Existing subsystem documentation (not yet reconciled against this hierarchy) | Session-capture design and enablement notes | Working on session capture/review, alongside `ASR_PIPELINE.md` §16 |
+| `docs/proposals/session_intelligence_architecture.md`, `docs/evidence/session_intelligence_implementation_report.md` (dated evidence, class E) | Existing subsystem documentation (not yet reconciled against this hierarchy) | Session-capture design and enablement notes | Working on session capture/review, alongside `ASR_PIPELINE.md` §16 |
 
 **Warning:** older conversation-design documents under `docs/specs/`, `docs/briefings/`, `docs/phases/`, and `docs/design/` have **not yet
 been fully classified** against the R2 baseline and must not override the four approved contracts or this document where they conflict —
@@ -550,7 +550,7 @@ or `ui/app.js` request/response handling) — those require the full Section 17 
 | Late ASR-junk repair | `scripts/ui_server.py` (`_repair_asr_junk_text`) | `docs/ASR_PIPELINE.md` §11 | See the authoritative contract's traceability appendix |
 | Learner memory | `scripts/learner_memory.py`, `scripts/learner_memory_capture.py` | `docs/STATE_CONTRACT.md` | See the authoritative contract's traceability appendix |
 | Progress snapshots | `scripts/progress_store.py` | Not separately contracted; documented in this map §6.4 | `tests/test_progress_store.py` (behavioural, exercises the real module) |
-| Session capture (opt-in) | `scripts/session_intelligence.py` | `docs/ASR_PIPELINE.md` §16 (capture semantics), `docs/session_intelligence_architecture.md` | `docs/evidence/session_intelligence_implementation_report.md` (dated evidence, class E) |
+| Session capture (opt-in) | `scripts/session_intelligence.py` | `docs/ASR_PIPELINE.md` §16 (capture semantics), `docs/proposals/session_intelligence_architecture.md` | `docs/evidence/session_intelligence_implementation_report.md` (dated evidence, class E) |
 | Deployment / version verification | `railway.toml`, `Procfile`, `nixpacks.toml`, `scripts/ui_server.py` (`/api/version`) | This document §13 | Manual `/api/version` check per Section 17 step 13 |
 | Generated runtime artifacts | `tools/build_runtime_artifacts.py` | `AI_CONTEXT.md` §1.1, this document §14 | Golden/build tests referenced in `AI_CONTEXT.md` §7 |
 | Challenge Mode | `ui/app.js`, `ui/styles.css` | `docs/ASR_PIPELINE.md` (visibility/reveal layer) | `tests/test_challenge_recovery.py` (mostly static, per `ASR_PIPELINE.md`) |

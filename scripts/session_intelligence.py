@@ -8,7 +8,7 @@ Behaviour is entirely gated by the MANDARINOS_SESSION_CAPTURE environment
 variable.  When the variable is absent or not "1", every public function
 is a no-op and the caller receives False / None.
 
-Architecture reference: docs/session_intelligence_architecture.md
+Architecture reference: docs/proposals/session_intelligence_architecture.md
 """
 
 import datetime
