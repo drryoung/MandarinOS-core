@@ -2,9 +2,11 @@
 
 ## Relocation notice
 
-Eleven historical class-C phase documents that were formerly in this directory were **relocated in Phase C2B candidate** to [`docs/archive/phases/`](../archive/phases/). This README remains the family entry point at `docs/phases/`.
+Eleven historical class-C phase documents that were formerly in this directory were **relocated in approved Phase C2B** to [`docs/archive/phases/`](../archive/phases/). This README remains the family entry point at `docs/phases/`.
 
-Three class-F proposal files remain in this directory pending a later relocation batch. Archived documents are **not** current implementation authority. For classifications and replacement authority, see `docs/DOCUMENT_AUTHORITY_INDEX.md` §17.
+The three class-F proposal files that once remained in this directory pending a later relocation batch were subsequently **relocated to [`docs/proposals/`](../proposals/) in approved Phase C2G-core and Phase C2G-review**: `PHASE10_TECHNICAL_PROPOSAL.md`, `PHASE9_CONTENT_AND_ENGINES_PLAN.md`, and `PHASE_10_5_MAPPING_AND_SCHEMA_PROPOSAL.md`. No class-F proposal remains physically in this directory.
+
+This directory now physically holds only this family guide and one class-C document, `MandarinOS-Phase 3 Acceptance checklist.MD` (a prospective pre-acceptance gating checklist, not a completion record; added to inventory during approved Phase D1). Archived documents are **not** current implementation authority. For classifications and replacement authority, see `docs/DOCUMENT_AUTHORITY_INDEX.md` §17.6.
 
 ## Authority and maintenance status
 
@@ -21,7 +23,7 @@ When guidance conflicts, use this order:
 
 ## What this directory contains
 
-This directory now holds **this family guide** and **three class-F proposals** pending later relocation. Eleven historical class-C phase documents from Phase 3–10.5 live in [`docs/archive/phases/`](../archive/phases/).
+This directory now holds **this family guide** and **one class-C document**, a Phase 3 pre-acceptance gating checklist (`MandarinOS-Phase 3 Acceptance checklist.MD`; Phase D1 approved addition to inventory). Eleven historical class-C phase documents from Phase 3–10.5 live in [`docs/archive/phases/`](../archive/phases/) (relocated in approved Phase C2B). The three class-F proposals formerly in this directory now live in [`docs/proposals/`](../proposals/) (relocated in approved Phase C2G-core/C2G-review).
 
 Phase documents are historical records of milestones, decisions, acceptance criteria, stabilisation briefs, simulation notes, rollback points, and similar programme artefacts.
 
@@ -54,7 +56,7 @@ Completion claims, acceptance criteria, and rollback points must be checked agai
 
 ## Covered files
 
-The following eleven archived paths are covered by this family guide (Phase B5B; relocated Phase C2B candidate):
+The following eleven archived paths are covered by this family guide (Phase B5B; relocated in approved Phase C2B):
 
 - `docs/archive/phases/MANDARINOS_PHASE9_1_ACCEPTANCE_CRITERIA.md`
 - `docs/archive/phases/MANDARINOS_PHASE_10_5_STABILISATION_BRIEF.md`
