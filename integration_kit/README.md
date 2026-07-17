@@ -279,7 +279,7 @@ The `examples/` folder contains three working traces:
 
 ## Required Scenarios
 
-Your app MUST export traces for all six required scenarios. See [SCENARIOS_REQUIRED_v1.md](./SCENARIOS_REQUIRED_v1.md) for full details:
+Your app MUST export traces for all six required scenarios. See [SCENARIOS_REQUIRED_v1.md](../docs/proposals/SCENARIOS_REQUIRED_v1.md) for full details:
 
 - **S1_basic_slot_fill**: Frame slots remain executable
 - **S2_hint_narrow_structure_model**: Hint cascade effects are actionable
@@ -370,7 +370,7 @@ Once traces are exported and validated:
 
 ## Support
 
-- **Questions about scenarios?** See [SCENARIOS_REQUIRED_v1.md](./SCENARIOS_REQUIRED_v1.md)
+- **Questions about scenarios?** See [SCENARIOS_REQUIRED_v1.md](../docs/proposals/SCENARIOS_REQUIRED_v1.md)
 - **Questions about trace format?** See [TurnStateTrace.schema.json](../schemas/TurnStateTrace.schema.json) (repo root)
 - **Questions about validation?** See [run_trace_conformance.py](../conformance/run_trace_conformance.py)
 - **Questions about capture?** See [trace_exporter.ts](./ts_exporter_snippets/trace_exporter.ts)

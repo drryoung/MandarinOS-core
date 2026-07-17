@@ -767,7 +767,7 @@ The client's end-session payload sends a transcript array shaped as follows — 
 
 **No.** Exhaustive search for the literal string `"asr_raw"` across the repository found it only in:
 
-* `docs/proposals/session_intelligence_architecture.md:161` — schema documentation (an example only).
+* `docs/proposals/session_intelligence_architecture.md:174` — schema documentation (an example only).
 * `scripts/session_intelligence.py:95` — an *allow-list* of field names that would be passed through *if* a client ever sent them; this does not mean any production writer populates the field.
 * `tests/test_export_session_review_prompt.py:106` — a test fixture's input data.
 

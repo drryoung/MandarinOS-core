@@ -72,9 +72,9 @@ Cursor must follow the current onboarding sequence in `docs/ARCHITECTURE.md` §2
 ---
 ## Project Plan
 
-The authoritative development roadmap is:
+The current roadmap/proposal document (class F; not R2 governance authority — approved class-A documents and verified current code control any conflict) is:
 
-docs/project_plan/MandarinOS_project_plan_v2.md
+docs/proposals/MandarinOS_project_plan_v2.md
 
 This supersedes:
 MandarinOS_project_plan_v1.md
