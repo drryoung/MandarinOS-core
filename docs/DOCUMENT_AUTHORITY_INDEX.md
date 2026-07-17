@@ -94,7 +94,7 @@ Subordinate to the nine-document approved R2 governance package. None of these m
 | `docs/MANDARINOS_REGRESSION_LOCK.md` | Protected-behaviour register | Records real regression guards + golden-regression suite | `docs/TEST_STRATEGY.md` | "LOCK" is not authority; interpret evidence per TEST_STRATEGY | misleading-filename, contains-current-material |
 | `docs/RESPONSE_OPTION_STYLE_GUIDE.md` | Learner-option style rules | Current rules for response options | `docs/ANSWER_SOURCE_CONTRACT.md` | References a 2026-05 audit for open violations | contains-current-material |
 | `docs/specs/MANDARINOS_CONVERSATION_FLOW_DESIGN.md` | Flow/anti-pattern design | Cited by `.cursor/rules` as read-first for flow changes | `docs/CONVERSATION_ARCHITECTURE.md` | Dated 2026-04-05; behaviour authority is the contract | contains-current-material |
-| `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Extensibility directive | Cited by `.cursor/rules` as full directive | `docs/ARCHITECTURAL_DECISIONS.md` | Canonical copy (a duplicate exists under `docs/briefings/`) | duplicate-or-near-duplicate |
+| `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Extensibility directive | Cited by `.cursor/rules` as full directive | `docs/ARCHITECTURAL_DECISIONS.md` | Canonical copy (byte-identical archive duplicate removed in Phase D4A candidate) | — |
 | `docs/specs/MandarinOS_Extensibility_Strategy.md` | Extensibility strategy | Cited by `.cursor/rules` as strategy doc | `docs/ARCHITECTURAL_DECISIONS.md` | Strategy, not behavioural authority | contains-current-material |
 | `docs/design/mandarinos_design_constitution.txt` | Product design constitution | Referenced as non-negotiable product philosophy | Nine-document R2 governance package | Older phrasing; philosophy retained, specifics may drift | mixed-current-and-historical |
 | `docs/design/MANDARINOS_AI_GOVERNANCE_MODEL_v1.md` | AI governance model | Referenced by `AI_CONTEXT.md`/startup docs | Nine-document R2 governance package | v1; predates R2 governance package | contains-current-material |
@@ -122,7 +122,7 @@ Retained for rationale; not current implementation guidance. Read with date/phas
 
 | Family (see §17 for every path) | Members | Classification reason | Current authority | Secondary flags |
 | ------------------------------- | ------- | --------------------- | ----------------- | --------------- |
-| `docs/archive/briefings/*` strategist briefings (28; all class-C briefings relocated — C2C-core and C2C-review both approved) | 28 | Phase-era strategy/hand-off narratives | Nine-document R2 governance package | phase-specific, implementation-not-verified, duplicate-or-near-duplicate |
+| `docs/archive/briefings/*` strategist briefings (27; all class-C briefings relocated — C2C-core and C2C-review both approved; one byte-identical duplicate removed in Phase D4A candidate) | 27 | Phase-era strategy/hand-off narratives | Nine-document R2 governance package | phase-specific, implementation-not-verified |
 | `docs/archive/directives/*` cards/trace/harness directives (entry: `docs/directives/README.md`) | 17 | Phase 2–7 implementation directives | `docs/CHANGE_CHECKLIST.md`; code | phase-specific, implementation-not-verified |
 | `docs/specs/*` engine/ladder/pack/model design specs | 39 (38 relocated to `docs/archive/specs/`; 1 — `MandarinOS_conversation_architecture_decisions_v1.pdf`, Phase D1 approved — pending future relocation, still at `docs/specs/`) | Design-phase specs; engines now live in code + contracts | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ANSWER_SOURCE_CONTRACT.md` | phase-specific, misleading-filename |
 | `docs/archive/phases/*` phase notes/freezes/locks (entry: `docs/phases/README.md`) | 11 | Phase milestones/locks | `docs/ARCHITECTURE.md`; ADRs | phase-specific, misleading-filename |
@@ -223,21 +223,21 @@ Tracked files whose name or prominent heading implies authority that the file do
 
 ## 12. Duplicate and overlap register
 
-No file is deleted or merged in this phase.
+Duplicate reduction began with Phase D4A (candidate, pending independent approval): two byte-identical duplicate copies were deleted per explicit owner approval; no merge or consolidation was performed in this pass.
 
 | Documents | Relationship | Canonical/current file | Classification of others | Future cleanup action |
 | --------- | ------------ | ---------------------- | ------------------------ | --------------------- |
 | `docs/archive/superseded/MANDARINOS_PROJECT_PLAN_v1.md`, `docs/proposals/MandarinOS_project_plan_v2.md`, `_v2_CORRECTED.md`, `_v2_UPDATED.md` | Roadmap versions/variants (all three v2 variants relocated from `docs/project/` in approved Phase C2G-core/C2G-review; v1 relocated from `docs/project/` in approved Phase C2D2) | `MandarinOS_project_plan_v2.md` (latest named version in the family; class F, not R2 authority; does not supersede the R2 governance package) | v1 = D; CORRECTED/UPDATED = F | Consolidate to one roadmap after owner review |
 | `docs/project/COMMIT_SUMMARY.md`, `COMMIT_SUMMARY_v1.md` | Dated commit summaries | Neither (both dated) | Both E | Retain as dated evidence |
-| `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`, `docs/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Identical copies | `docs/specs/…` (cited by `.cursor/rules`) | specs = B; briefings copy = C | Remove/redirect duplicate after link check |
+| `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` (canonical; cited by `.cursor/rules`) | Former duplicate pair — archive copy deleted | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Former archive copy was class C | **Phase D4A candidate (2026-07-17):** byte-identical archive copy `docs/archive/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` deleted per owner approval; canonical `docs/specs/` copy retained unchanged |
 | `docs/specs/MandarinOS_conversation_memory_model_v1.md`, `_v2.md` | Version pair | v2 | v1 = D; v2 = C | Authority is `docs/STATE_CONTRACT.md` |
 | `docs/specs/mandarinos_family_conversation_ladder.md`, `_v2.md` | Version pair | v2 | v1 = D; v2 = C | — |
 | `docs/archive/phases/MANDARINOS_PHASE9_1_ACCEPTANCE_CRITERIA.md`, `docs/archive/phases/PHASE9_1_ACCEPTANCE_CRITERIA.md` | Near-duplicate | Neither current | Both C | De-duplicate after review |
-| `docs/Social_Media/mandarinos-marp-template.md`, `mandarinos-marp-template 1.md` | Duplicate template | `mandarinos-marp-template.md` | Both G | Remove the " 1" copy |
+| `docs/Social_Media/mandarinos-marp-template.md` (canonical) | Former duplicate pair — " 1" copy deleted | `mandarinos-marp-template.md` | Former " 1" copy was class G | **Phase D4A candidate (2026-07-17):** byte-identical `mandarinos-marp-template 1.md` deleted per owner approval; canonical template retained unchanged |
 | `docs/specs/mandarinos_conversation_architecture_v1.md`, `MandarinOS_conversation_system_blueprint_v1.md`, `MandarinOS_conversation_runtime_model_v1.md` | Overlap current conversation contract | `docs/CONVERSATION_ARCHITECTURE.md` | v1/blueprint/runtime = D/C | Archive after R2 stability |
 | `AI_CONTEXT.md`, `MANDARINOS_SYSTEM_MAP.md`, `docs/specs/MandarinOS_master_AI_bootstrap_context.md` | Overlapping orientation maps | `docs/ARCHITECTURE.md` | AI_CONTEXT/SYSTEM_MAP = B; bootstrap = D | Point orientation maps at ARCHITECTURE |
 | `docs/design/MandarinOS Developer Handoff.rtf` (Phase D1 approved), `docs/archive/design-history/MandarinOS Developer Handoff.txt` | Near-duplicate — substantively compared: same title/author/pack/version/language header and the same 17 numbered body sections word-for-word (verified by full RTF text extraction); the `.txt` is a plain-text extraction/transformation of the `.rtf` (curly quotes, bullets, and `→` arrows render differently; the `.rtf` additionally carries an embedded Office XML/OLE fragment after "End of file." that contributes no additional readable text) | `docs/archive/design-history/MandarinOS Developer Handoff.txt` (already relocated in approved Phase C2D1; `.github/copilot-instructions.md` line 128 explicitly names this `.txt` as "historical class-C context only ... not architecture authority") | `.txt` = C (already inventoried); `.rtf` = C (Phase D1 approved, new row) | Relocate `.rtf` to `docs/archive/design-history/` alongside its `.txt` counterpart in a future batch; treat as a duplicate-reduction candidate given the substantive content overlap |
-| `docs/alpha_logs/session8_20260401`, `docs/alpha_logs/session9_20260401` (Phase D1 approved) | Byte-identical duplicate — same Git blob SHA (`8e062b34aac1f588bced63365ce0144a9279e0a7`), same size (1849 bytes), same SHA-256, identical persona/focus/transcript/notes content; `session9` was simply re-touched in a later commit (`e3ee991`) than `session8` (`819b8ef`) without any content change | Neither is current authority (both dated evidence); `session8_20260401` is the earlier-committed copy | Both E | Retain both as dated evidence pending owner review; flag as a duplicate-reduction candidate for a future batch (one is a verbatim copy of the other) |
+| `docs/alpha_logs/session8_20260401`, `docs/alpha_logs/session9_20260401` (Phase D1 approved) | Byte-identical duplicate — same Git blob SHA (`8e062b34aac1f588bced63365ce0144a9279e0a7`), same size (1849 bytes), same SHA-256, identical persona/focus/transcript/notes content; `session9` was simply re-touched in a later commit (`e3ee991`) than `session8` (`819b8ef`) without any content change | Neither is current authority (both dated evidence); both retained as separately named dated-evidence records | Both E | **Owner decision (Phase D4A assessment, 2026-07-17): retain both unchanged** — separately named dated-evidence records; deletion would provide negligible benefit and would weaken the evidence trail; duplicate relationship remains documented; no deletion authorised |
 
 ## 13. Developer entry path
 
@@ -313,7 +313,6 @@ Each path appears exactly once. Full disposition authority: `docs/PHASE_B5_SCOPE
 | `runtime/README_runtime_indexes.txt` | B | repo entry / Cursor / specs supporting | `docs/ARCHITECTURE.md` §14 | supporting reference | Subordinate to class-A and verified code |
 | `docs/archive/briefings/BRIEFING_CHANGES_FOR_CHATGPT_REVIEW.md` | C | docs/archive/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
 | `docs/archive/briefings/CHATGPT_STRATEGIST_CONVERSATION_DESIGN_BRIEFING.md` | C | docs/archive/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
-| `docs/archive/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | C | docs/archive/briefings/ strategist briefing | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | historical context | Phase-era narrative; does not authorise changes |
 | `docs/archive/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt` | C | docs/archive/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
 | `docs/archive/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt` | C | docs/archive/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
 | `docs/archive/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md` | C | docs/archive/briefings/ strategist briefing | R2 governance set | historical context | Phase-era narrative; does not authorise changes |
@@ -566,12 +565,11 @@ Briefing directory is now empty of tracked files. All twenty-eight class-C strat
 
 ### 17.4a `docs/archive/briefings/`
 
-Archived historical strategist/phase briefings (class C). Twenty relocated from `docs/briefings/` in approved Phase C2C-core (authority unchanged); eight relocated in approved Phase C2C-review (authority unchanged).
+Archived historical strategist/phase briefings (class C). Twenty relocated from `docs/briefings/` in approved Phase C2C-core (authority unchanged); eight relocated in approved Phase C2C-review (authority unchanged). One byte-identical duplicate (`Cursor_Directive_MandarinOS_Extensibility_Strategy.md`) deleted in Phase D4A candidate; canonical copy remains at `docs/specs/`.
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
 | `docs/archive/briefings/BRIEFING_CHANGES_FOR_CHATGPT_REVIEW.md` | C | phase-specific | R2 governance set | Review briefing. Relocated in approved Phase C2C-core; authority unchanged. |
-| `docs/archive/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | C | duplicate-or-near-duplicate | `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | Duplicate of `docs/specs/` canonical. Relocated in approved Phase C2C-review; authority unchanged. |
 | `docs/archive/briefings/MANDARINOS_MOVE_TYPE_TAGGING_BRIEF.txt` | C | phase-specific | R2 governance set | Move-type brief. Relocated in approved Phase C2C-review; authority unchanged. |
 | `docs/archive/briefings/MANDARINOS_PHASE_10_7_PHASE_11_BRIEFING.txt` | C | phase-specific | R2 governance set | Phase 10.7/11 briefing. Relocated in approved Phase C2C-review; authority unchanged. |
 | `docs/archive/briefings/MandarinOS_Phase12D_Cursor_Implementation_Brief.md` | C | phase-specific, implementation-not-verified | R2 governance set | Phase 12D brief. Relocated in approved Phase C2C-review; authority unchanged. |
@@ -772,7 +770,7 @@ Eight class-D superseded documents relocated to `docs/archive/superseded/` in ap
 
 | Path | Class | Flags | Replacement/authority | Notes |
 | ---- | ----- | ----- | --------------------- | ----- |
-| `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | B | duplicate-or-near-duplicate | ADR record | Canonical (cited by `.cursor/rules`). Classification inference: B because cited by `.cursor/rules` despite pre-R2 date |
+| `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` | B | — | ADR record | Canonical (cited by `.cursor/rules`). Classification inference: B because cited by `.cursor/rules` despite pre-R2 date. Byte-identical archive duplicate removed in Phase D4A candidate. |
 | `docs/specs/MandarinOS_conversation_architecture_decisions_v1.pdf` (Phase D1 approved) | C | phase-specific, misleading-filename | `docs/CONVERSATION_ARCHITECTURE.md`, `docs/ARCHITECTURAL_DECISIONS.md` | "MandarinOS Conversation Architecture — Locked Decisions v1" (visually inspected, both pages). Describes an early Persona World → Steering Engine → Engines → Loops → Phrase Mastery architecture and a 3-phase product roadmap; conceptually a predecessor of the current engine model, not verified identical to it. `LOCKED`-style heading is not proof of authority (§2). Actively referenced (not merely a bare filename) by `docs/archive/specs/CONVERSATION_ARCHITECTURE_INDEX.md` line 113, itself class C. Not yet relocated |
 | `docs/specs/MANDARINOS — PHASE 10.5 BEHAVIOUR TUNING SPEC` (Phase D1 approved) | F | phase-specific, implementation-not-verified | Contracts (`docs/CONVERSATION_ARCHITECTURE.md`); ADR deferred register | Behavioural-tuning proposal (reaction-layer bias, continuous curiosity, reciprocity bias, soft engine-transition chaining, contextual oxygen vocabulary). Explicitly cited as **Basis** by the already-inventoried `docs/proposals/PHASE_10_5_BEHAVIOUR_IMPLEMENTATION_PLAN.md` ("Status: planning only — do not implement yet") — same planning cluster as an already-relocated file, itself unrelocated. See §8 |
 | `docs/specs/MandarinOS Scorecard & Challenge Mode Spec` (Phase D1 approved) | F | implementation-not-verified, partially-implemented | `docs/STATE_CONTRACT.md`; ADR deferred register | Session-scoring/Challenge-Mode spec, self-titled "(v2)" internally despite an unversioned filename. "Scorecard"/"Challenge Mode" concepts are genuinely present in `ui/app.js`, `scripts/session_intelligence.py`, `scripts/capability_estimator.py`, and `docs/STATE_CONTRACT.md`, but the specific metrics/thresholds here are not verified against code in this bounded pass. Possible overlap with already-archived `docs/archive/specs/Progress_Scorecard_Alignment.md` and `docs/archive/specs/MandarinOS_Progress_Tracking_Cursor_Spec_v2.md` — not resolved here; flagged for future duplicate-register review. Extensionless filename is a navigation/tooling risk. See §8 |
@@ -820,8 +818,7 @@ One class-E dated-evidence document relocated from `docs/state/` in approved Pha
 | `docs/Social_Media/deck4-immersion-not-enough.marp.md` | G | — | — | Authored Marp source deck |
 | `docs/Social_Media/deck5-missing-skill.marp.md` | G | — | — | Authored Marp source deck |
 | `docs/Social_Media/mandarinos-first-video.marp.md` | G | — | — | Authored Marp source deck |
-| `docs/Social_Media/mandarinos-marp-template.md` | G | duplicate-or-near-duplicate | — | Authored Marp template (canonical) |
-| `docs/Social_Media/mandarinos-marp-template 1.md` | G | duplicate-or-near-duplicate | — | Duplicate template copy |
+| `docs/Social_Media/mandarinos-marp-template.md` | G | — | — | Authored Marp template (canonical). Byte-identical " 1" copy removed in Phase D4A candidate. |
 | `docs/Social_Media/mandarinos_prelaunch_scripts.txt` | G | — | — | Authored pre-launch scripts |
 | `integration_kit/README.md` | C | phase-specific, implementation-not-verified | `docs/ARCHITECTURE.md` | Trace-export kit (not wired to runtime); Phase B5B approved family guidance prepended; file remains class C and original body remains historical/contextual |
 | `integration_kit/schemas/README.md` | C | phase-specific | `docs/ARCHITECTURE.md` | Kit schema index |
@@ -915,27 +912,30 @@ Counting rule: every file tracked by Git matching `*.md`, `*.txt`, or `*.rst`, p
 
 **Phase D1 approved — current post-D1 inventory: 246 rows, 246 unique paths.** Phase D1 is separately authorised post-closeout remediation that expands coverage to include 15 tracked, non-excluded, documentation-shaped files that were outside the Phase C1 audit's extension-filtered enumeration (12 extensionless/differently-cased/binary files: 1 PDF, 2 extensionless specs, 1 uppercase-`.MD` checklist, 9 extensionless alpha-log transcripts under a family directory the original audit never enumerated, 1 PNG, 1 RTF). These files were not incorrectly excluded by Phase C1 verification; they were never in that audit's governed population. Row-count arithmetic: 231 (Phase C closeout) + 15 (Phase D1 additions) = **246**.
 
+**Phase D4A exact-duplicate removal — candidate implemented, pending independent approval (2026-07-17, Composer 2.5).** Phase C remains formally closed; Phase D1, D2, and D3 remain approved. Explicit owner approval authorised deletion of exactly two byte-identical duplicate copies: `docs/archive/briefings/Cursor_Directive_MandarinOS_Extensibility_Strategy.md` (archive duplicate of canonical `docs/specs/Cursor_Directive_MandarinOS_Extensibility_Strategy.md`, blob `dd260c2ed0c52289cb6e769dbb3c6b1f3b209875`) and `docs/Social_Media/mandarinos-marp-template 1.md` (duplicate of canonical `docs/Social_Media/mandarinos-marp-template.md`, blob `e3d4a04052b1d1f9c9534f6342fc8dd0c7596f19`). Owner explicitly retained both `docs/alpha_logs/session8_20260401` and `docs/alpha_logs/session9_20260401` unchanged. Current post-D4A-candidate inventory: **244 rows, 244 unique paths** (246 − 2 deletions). Primary totals: A9/B21/C114/D10/E47/F24/G19/H0. Secondary `duplicate-or-near-duplicate` flag count: 12 (16 − 2 deleted rows − 2 flags removed from canonical copies). One bounded `AI_CONTEXT.md` correction removed the obsolete duplicate-existence sentence. No retained canonical file body was edited. No runtime, test, deployment, or branch-integration change. D4B–D4E not started. This entry records the Phase D4A candidate only; independent approval-pass review remains separately authorised work.
+
 - Total tracked documentation files (glob `*.md`/`*.txt`/`*.rst`): 225 (Phase C baseline; unchanged by Phase D1, which adds files outside this glob)
 - Plus `.cursor/rules/*.mdc`: 2
 - Phase C closeout classified total: 227 counted-by-extension / 231 canonical rows
 - Phase D1 additions: 15 (1 `.pdf`, 2 extensionless, 1 `.MD`, 9 extensionless, 1 `.png`, 1 `.rtf`)
 - **Phase D1 approved total classified: 246**
+- **Phase D4A candidate total classified: 244** (246 − 2 owner-approved exact-duplicate deletions)
 
 Counts by primary classification (verified from §17 rows; Phase C closeout figure shown first, Phase D1 approved figure second):
 
-| Code | Classification | Phase C closeout count | Phase D1 approved count | Phase D1 delta | Delta source |
-| ---- | -------------- | ----------------------: | ------------------------: | --------------: | ------------ |
-| A | Authoritative — approved R2 governance (incl. this index) | 9 | 9 | 0 | — |
-| B | Current supporting guidance | 20 | 21 | +1 | `MANDARINOS_ARCHITECTURE_MAP.png` |
-| C | Historical context | 112 | 115 | +3 | PDF, Phase 3 checklist, Developer Handoff `.rtf` |
-| D | Superseded | 10 | 10 | 0 | — |
-| E | Archival evidence / dated report | 38 | 47 | +9 | nine `docs/alpha_logs/` transcripts |
-| F | Proposal / plan / unimplemented spec | 22 | 24 | +2 | PHASE 10.5 BEHAVIOUR TUNING SPEC, Scorecard & Challenge Mode Spec |
-| G | Generated / procedural artefact | 20 | 20 | 0 | — |
-| H | Unresolved | 0 | 0 | 0 | — |
-| — | **Total** | **231** | **246** | **+15** | — |
+| Code | Classification | Phase C closeout count | Phase D1 approved count | Phase D4A candidate count | Phase D4A delta | Delta source |
+| ---- | -------------- | ----------------------: | ------------------------: | --------------------------: | --------------: | ------------ |
+| A | Authoritative — approved R2 governance (incl. this index) | 9 | 9 | 9 | 0 | — |
+| B | Current supporting guidance | 20 | 21 | 21 | 0 | — |
+| C | Historical context | 112 | 115 | 114 | −1 | archive briefings duplicate deleted |
+| D | Superseded | 10 | 10 | 10 | 0 | — |
+| E | Archival evidence / dated report | 38 | 47 | 47 | 0 | — |
+| F | Proposal / plan / unimplemented spec | 22 | 24 | 24 | 0 | — |
+| G | Generated / procedural artefact | 20 | 20 | 19 | −1 | marp template " 1" duplicate deleted |
+| H | Unresolved | 0 | 0 | 0 | 0 | — |
+| — | **Total** | **231** | **246** | **244** | **−2** | — |
 
-Verification: 9+21+115+10+47+24+20+0 = 246; matches 231+15 exactly.
+Verification: 9+21+114+10+47+24+19+0 = 244; matches 246−2 exactly.
 
 Secondary flag `status-header-added`: a standard `MANDARINOS-DOCUMENT-STATUS` notice has been inserted into the file without changing its primary classification or original body content. This flag records notice insertion only; it does not elevate authority and does not change the file's A–H classification. If the notice is later removed, this flag must be removed in the same change; it must be updated in the same change as any future notice insertion or removal.
 
@@ -943,26 +943,26 @@ Secondary flag `generated-guidance-added`: a `MANDARINOS-GENERATED-OUTPUT` maint
 
 Exact counts by secondary flag (generated from the final §17 rows; only used flags are shown; Phase C closeout count shown first, Phase D1 approved count second):
 
-| Flag | Phase C closeout count | Phase D1 approved count | Delta | Delta source |
-| ---- | ----------------------: | ------------------------: | -----: | ------------ |
-| `phase-specific` | 107 | 120 | +13 | PDF, Phase 3 checklist, 10.5 tuning spec, all 9 alpha logs, Developer Handoff `.rtf` |
-| `implementation-not-verified` | 39 | 41 | +2 | 10.5 tuning spec, Scorecard spec |
-| `dated-snapshot` | 40 | 49 | +9 | all 9 alpha logs |
-| `duplicate-or-near-duplicate` | 13 | 16 | +3 | `session8_20260401`, `session9_20260401`, Developer Handoff `.rtf` |
-| `misleading-filename` | 12 | 13 | +1 | PDF |
-| `status-header-added` | 79 | 79 | 0 | — (no new notices added; forbidden in this pass) |
-| `contains-current-material` | 13 | 13 | 0 | — |
-| `generated` | 8 | 8 | 0 | — |
-| `generated-guidance-added` | 8 | 8 | 0 | — |
-| `mixed-current-and-historical` | 3 | 4 | +1 | architecture-map PNG |
-| `partially-implemented` | 3 | 4 | +1 | Scorecard spec |
-| `contains-obsolete-material` | 2 | 3 | +1 | architecture-map PNG |
-| `branch-specific` | 1 | 1 | 0 | — |
+| Flag | Phase C closeout count | Phase D1 approved count | Phase D4A candidate count | Phase D4A delta | Delta source |
+| ---- | ----------------------: | ------------------------: | --------------------------: | --------------: | ------------ |
+| `phase-specific` | 107 | 120 | 120 | 0 | — |
+| `implementation-not-verified` | 39 | 41 | 41 | 0 | — |
+| `dated-snapshot` | 40 | 49 | 49 | 0 | — |
+| `duplicate-or-near-duplicate` | 13 | 16 | 12 | −4 | 2 deleted rows; 2 flags removed from canonical copies |
+| `misleading-filename` | 12 | 13 | 13 | 0 | — |
+| `status-header-added` | 79 | 79 | 79 | 0 | — |
+| `contains-current-material` | 13 | 13 | 13 | 0 | — |
+| `generated` | 8 | 8 | 8 | 0 | — |
+| `generated-guidance-added` | 8 | 8 | 8 | 0 | — |
+| `mixed-current-and-historical` | 3 | 4 | 4 | 0 | — |
+| `partially-implemented` | 3 | 4 | 4 | 0 | — |
+| `contains-obsolete-material` | 2 | 3 | 3 | 0 | — |
+| `branch-specific` | 1 | 1 | 1 | 0 | — |
 
-Other totals (Phase D1 approved figures):
+Other totals (Phase D4A candidate figures):
 
-- Misleading-title register rows: 13 (§11) — equal to the 13 `misleading-filename` inventory flags (Phase C closeout: 12 rows / 12 flags; Phase D1 adds 1 row for the architecture-decisions PDF).
-- Duplicate/overlap groups: 11 (§12) — collectively covering all 16 `duplicate-or-near-duplicate` inventory flags (a group may cover several flagged files; Phase C closeout: 9 groups / 13 flags; Phase D1 adds 2 groups — the Developer Handoff `.rtf`/`.txt` pair and the `session8_20260401`/`session9_20260401` byte-identical pair — covering 3 additional flags).
+- Misleading-title register rows: 13 (§11) — unchanged.
+- Duplicate/overlap groups: 11 (§12) — two groups resolved by Phase D4A candidate exact-duplicate deletion (Groups 3 and 7); Group 11 owner decision recorded (retain both alpha logs); collectively covering 12 `duplicate-or-near-duplicate` inventory flags at the D4A candidate baseline.
 - `generated` flag count (8) is deliberately lower than the class-G total (20): authored/procedural G artefacts (templates, marketing collateral) are not flagged `generated`.
 - `status-header-added` (79) covers the 12-file Phase B1, 8-file Phase B2, 11-file Phase B3A, 11-file Phase B3B, 12-file Phase B4A, 10-file Phase B4B reports-directory, 8-file Phase B4C briefing, 5-file Phase B4D final class-E sets (§15), and the 2-file Phase B5A individual-notice set (§15), all approved; it does not change the 12-file misleading-title register in §11, and no file was removed from that register because a notice was added. Exactly 79 documents carry approved notices. All 36 class-E documents are covered; Phase B4 is complete. Phase B5A is approved. Phase B5B is approved: three guides cover 31 files (two new class-B guides; one existing class-C README hosts prepended family guidance without reclassification). `status-header-added` remains 79. Phase B5C is approved: eight generated rows carry approved guidance; `generated-guidance-added` equals 8. Phase B5D is approved: 46 documents mapped in §13.1 without target modification or reclassification. Phase B closeout is approved and complete (§15). Phase B is complete. All 22 class-F documents carry the flag through completed Phase B3.
 - `generated-guidance-added` (8) covers the eight class-G generated/captured output files with Phase B5C approved headers (§15); equal to the eight `generated` inventory flags.
