@@ -70,6 +70,10 @@ The following eleven archived paths are covered by this family guide (Phase B5B;
 - `docs/archive/phases/Phase 3 Step 1 Audio-first UI.md`
 - `docs/archive/phases/ROLLBACK_POINT_v1.md`
 
+### Phase 9.1 acceptance-criteria pair note (Phase D4C, 2026-07-18)
+
+`PHASE9_1_ACCEPTANCE_CRITERIA.md` and `MANDARINOS_PHASE9_1_ACCEPTANCE_CRITERIA.md` are both archived class-C history; neither is current authority — current architecture and code (see `docs/DOCUMENT_AUTHORITY_INDEX.md` §17.6a) control current behaviour. `PHASE9_1_ACCEPTANCE_CRITERIA.md` is the preferred historical implementation-reference copy; `MANDARINOS_PHASE9_1_ACCEPTANCE_CRITERIA.md` is a complementary QA/outcome record. Both are retained because each contains unique material — see `docs/DOCUMENT_AUTHORITY_INDEX.md` §12 Group 6.
+
 ## Maintenance rule
 
 Do not edit covered phase documents to refresh claims or criteria. Current behaviour belongs in code, tests, and approved R2 contracts. Update this README only when the approved B5B family set or authority relationships change through governance review.
