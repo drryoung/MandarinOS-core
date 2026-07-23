@@ -18,6 +18,7 @@
           <div class="starting-point-bar" id="startingPointBar">
             <span class="starting-point-label">Choose starting point</span>
             <button id="practiceLevelBtn" type="button" class="starting-point-btn" title="Choose your practice comfort level">Select…</button>
+            <button id="betaCodeBtn" type="button" class="starting-point-btn" title="Manage your MandarinOS beta code">Beta code</button>
           </div>
         </div>
         <!-- Phase 11C: Persona selector — top bar so partner is always visible -->
@@ -656,6 +657,45 @@
             <span class="level-gate-option-title">Can hold a basic conversation</span>
             <span class="level-gate-option-desc">Less scaffolding, longer open-ended flow</span>
           </button>
+        </div>
+      </div>
+    </div>
+    <div
+      id="betaCodeOverlay"
+      class="level-gate-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="betaCodeTitle"
+    >
+      <div class="level-gate-panel beta-code-panel">
+        <h2 id="betaCodeTitle">Beta code</h2>
+        <p class="level-gate-sub">
+          Connecting a beta code links your MandarinOS activity to your beta registration — it never
+          shares your name or email with this app.
+        </p>
+
+        <p id="betaCodeStatus" class="beta-code-status" aria-live="polite" aria-atomic="true">
+          No beta code connected.
+        </p>
+
+        <div class="beta-code-field-row">
+          <label for="betaCodeInput" class="beta-code-input-label">Beta code</label>
+          <input
+            id="betaCodeInput"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            placeholder="MOS-BETA-XXXXXX"
+            aria-describedby="betaCodeStatus"
+          />
+        </div>
+
+        <div class="beta-code-actions">
+          <button type="button" id="betaCodeConnectBtn" class="button">Validate / Connect</button>
+          <button type="button" id="betaCodeRemoveBtn" class="button beta-code-remove-btn">Remove</button>
+          <button type="button" id="betaCodeCloseBtn" class="button beta-code-close-btn">Close</button>
         </div>
       </div>
     </div>

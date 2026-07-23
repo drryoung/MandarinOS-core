@@ -1631,6 +1631,52 @@ body.is-listening #optionsContainer {
   font-size: 0.85rem;
   color: #64748b;
 }
+/* Beta-code manual management panel (reuses .level-gate-overlay / .level-gate-panel) */
+.beta-code-status {
+  font-size: 0.88rem;
+  color: #334155;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0 0 14px;
+}
+.beta-code-status[data-state="active"] { background: #ecfdf5; color: #065f46; }
+.beta-code-status[data-state="invalid"] { background: #fef2f2; color: #991b1b; }
+.beta-code-status[data-state="temporarily-unavailable"] { background: #fffbeb; color: #92400e; }
+.beta-code-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.beta-code-input-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+#betaCodeInput {
+  font: 1rem "SF Mono", Consolas, monospace;
+  letter-spacing: 0.04em;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+#betaCodeInput:focus-visible {
+  outline: 2px solid #0b4f6c;
+  outline-offset: 1px;
+}
+.beta-code-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.beta-code-actions .button:focus-visible,
+.starting-point-btn:focus-visible {
+  outline: 2px solid #0b4f6c;
+  outline-offset: 2px;
+}
+.beta-code-remove-btn { background: #fff; color: #991b1b; border-color: #fca5a5; }
+.beta-code-close-btn { background: #fff; color: #334155; }
 body.comfort-mode .transcript-toolbar label[for="transcriptDisplayMode"]::after {
   content: " (comfort)";
   font-size: 0.7rem;

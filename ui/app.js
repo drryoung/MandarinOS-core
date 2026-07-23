@@ -511,72 +511,386 @@ window.setLearnerId = setLearnerId;
 // Deliberately independent of learner_id/identity above: this only carries
 // an opaque code (MOS-BETA-XXXXXX) issued by the website, never a name or
 // email. Persisted on this origin (app.mandarinos.app) so it survives
-// across sessions on the same device/browser; a device without the
-// `?beta_code=` link simply has no code (anonymous), same as today.
+// across sessions on the same device/browser; a device without a code
+// simply has none (anonymous), same as today.
+//
+// Storage-key naming: this file's other beta-adjacent keys are all
+// manos_-prefixed (manos_learner_id, manos_user_tier, manos_progress_history).
+// These two keys follow that established convention rather than
+// introducing a second naming scheme (e.g. mandarinos.betaCode) in the
+// same file. The website's own mandarinos.betaCode key lives on a
+// different origin (mandarinos.app vs app.mandarinos.app); cross-origin
+// localStorage can never be shared regardless of naming, so there is no
+// literal-key compatibility requirement — only the wire values exchanged
+// via the URL fragment and the /api/beta_code/validate body need to
+// agree, and they do (both are the raw MOS-BETA-XXXXXX string). This is
+// an unshipped candidate, so no migration of a previously-shipped key is
+// needed; if this key is ever renamed, read the old key once as a
+// fallback before removing it.
 const _BETA_CODE_STORAGE_KEY = "manos_beta_code";
+const _BETA_CODE_VALIDATED_AT_KEY = "manos_beta_code_validated_at";
 // Mirrors MandarinOS.app's lib/beta/code.ts BETA_CODE_PATTERN exactly.
 const _BETA_CODE_PATTERN = /^MOS-BETA-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/;
+// How long a validated code is trusted before being rechecked with the
+// website. Bounds how stale a revocation can be while avoiding a network
+// call on every page load or event.
+const BETA_CODE_REVALIDATION_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 
-function setBetaCode(code) {
-  const trimmed = String(code || "").trim();
-  if (!trimmed || !_BETA_CODE_PATTERN.test(trimmed)) return false;
-  window._betaCode = trimmed;
-  try {
-    localStorage.setItem(_BETA_CODE_STORAGE_KEY, trimmed);
-  } catch (_) {}
-  return true;
+// Explicit state machine — never an undifferentiated "fail open" boolean.
+//   none                     — no code known
+//   validating               — checking with the website right now
+//   active                   — confirmed active (fresh, or within interval)
+//   invalid                  — website definitively said no; not attached
+//   temporarily-unavailable  — network/server error while checking; a
+//                              PREVIOUSLY-active code may still be used
+//                              this session (rule B), but a code that has
+//                              never been confirmed is not (rule A).
+if (typeof window._betaCodeState === "undefined") {
+  window._betaCodeState = { code: null, status: "none", validatedAt: null };
 }
 
-function clearBetaCode() {
-  window._betaCode = null;
+function _setBetaCodeState(patch) {
+  window._betaCodeState = Object.assign({}, window._betaCodeState, patch);
+  _renderBetaCodeUi();
+}
+
+function _persistBetaCodeState() {
+  try {
+    if (window._betaCodeState.code && window._betaCodeState.status === "active") {
+      localStorage.setItem(_BETA_CODE_STORAGE_KEY, window._betaCodeState.code);
+      localStorage.setItem(
+        _BETA_CODE_VALIDATED_AT_KEY,
+        String(window._betaCodeState.validatedAt || Date.now())
+      );
+    }
+  } catch (_) {}
+}
+
+function _clearBetaCodeStorage() {
   try {
     localStorage.removeItem(_BETA_CODE_STORAGE_KEY);
+    localStorage.removeItem(_BETA_CODE_VALIDATED_AT_KEY);
   } catch (_) {}
 }
 
 /**
- * Re-checks a beta code against MandarinOS.app (server-to-server via this
- * app's own /api/beta_code/validate, which fails open on outage). Only a
- * definitive `{valid: false}` clears the stored code — this is how a
- * revoked/incorrect code stops being attached to future sessions.
+ * Removes a beta code. Affects only FUTURE sessions — never mutates
+ * window._sessionBetaCode, which is snapshotted once per session (see
+ * _snapshotSessionBetaCode) and never re-read from storage afterward.
+ * Historical progress/session records already saved are untouched.
  */
-function _revalidateBetaCode(code) {
-  if (!code) return;
-  fetch("/api/beta_code/validate", {
+function removeBetaCode() {
+  _clearBetaCodeStorage();
+  _setBetaCodeState({ code: null, status: "none", validatedAt: null });
+}
+
+/** Calls this app's own /api/beta_code/validate. Never rejects — resolves
+ * to true (definitively valid), false (definitively invalid), or null
+ * (temporarily unavailable / unknown, e.g. network or server error). */
+function _checkBetaCodeWithServer(code) {
+  return fetch("/api/beta_code/validate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ beta_code: code }),
   })
     .then((res) => res.json())
-    .then((data) => {
-      if (data && data.valid === false && window._betaCode === code) {
-        clearBetaCode();
-      }
-    })
-    .catch(() => {}); // network failure: fail open, leave the stored code as-is
+    .then((data) => (data && typeof data.valid === "boolean" ? data.valid : null))
+    .catch(() => null);
+}
+
+/**
+ * Runs the validate-or-revalidate flow for `code` and updates
+ * window._betaCodeState. `hadPriorActiveValidation`/`priorValidatedAt`
+ * distinguish rule A (brand-new code) from rule B (previously-active
+ * stored code being rechecked because it went stale).
+ */
+function _validateBetaCode(code, opts) {
+  const hadPriorActiveValidation = !!(opts && opts.hadPriorActiveValidation);
+  const priorValidatedAt = (opts && opts.priorValidatedAt) || null;
+
+  if (!code || !_BETA_CODE_PATTERN.test(code)) {
+    // Malformed: reject locally without a network call.
+    _setBetaCodeState({ code: null, status: "none", validatedAt: null });
+    return Promise.resolve(false);
+  }
+
+  _setBetaCodeState({
+    code,
+    status: "validating",
+    validatedAt: hadPriorActiveValidation ? priorValidatedAt : null,
+  });
+
+  return _checkBetaCodeWithServer(code).then((result) => {
+    if (result === true) {
+      _setBetaCodeState({ code, status: "active", validatedAt: Date.now() });
+      _persistBetaCodeState();
+      return true;
+    }
+    if (result === false) {
+      // Definitive invalid/revoked — remove for all future sessions.
+      removeBetaCode();
+      return false;
+    }
+    // result === null: temporarily unavailable (network/server error).
+    if (hadPriorActiveValidation) {
+      // Rule B: keep the previously-validated code usable this session;
+      // retain its original validatedAt so the staleness clock is not
+      // reset by a failed recheck (the next load retries promptly).
+      _setBetaCodeState({
+        code,
+        status: "temporarily-unavailable",
+        validatedAt: priorValidatedAt,
+      });
+      return true;
+    }
+    // Rule A: brand-new code, never confirmed active — do not attach it.
+    _setBetaCodeState({ code, status: "temporarily-unavailable", validatedAt: null });
+    return false;
+  });
+}
+
+/** Manual entry (from the Beta code panel). Always treated as "new". */
+function setBetaCodeManually(rawCode) {
+  const trimmed = String(rawCode || "").trim().toUpperCase();
+  if (!trimmed) return Promise.resolve(false);
+  return _validateBetaCode(trimmed, { hadPriorActiveValidation: false });
+}
+
+/**
+ * Reads a beta code from the URL fragment (#beta_code=...) — the
+ * preferred transport, since fragments are never sent to any server and
+ * so the code cannot leak into request/access logs. Removes the fragment
+ * immediately after capture via history.replaceState.
+ */
+function _consumeFragmentBetaCode() {
+  if (!window.location.hash) return null;
+  try {
+    const hash = window.location.hash.replace(/^#/, "");
+    const params = new URLSearchParams(hash);
+    const code = params.get("beta_code");
+    if (!code) return null;
+    let decoded;
+    try {
+      decoded = decodeURIComponent(code);
+    } catch (_) {
+      decoded = code;
+    }
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    return decoded;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * TEMPORARY backward-compatible query-string reader.
+ *
+ * MIGRATION COMPATIBILITY: an earlier candidate of the website's launch
+ * link used `?beta_code=<code>` instead of the fragment form. This reads
+ * that ONLY when no fragment code was found, and immediately strips the
+ * query parameter via history.replaceState so it never lingers in the
+ * address bar, browser history, or server access logs beyond the single
+ * initial request that (if this were a real deploy) already happened
+ * before this script ran.
+ *
+ * REMOVAL PLAN: delete this function and its call site once it is
+ * confirmed no deployed website build still generates `?beta_code=`.
+ * The website's current launch-URL builder (lib/beta/launchUrl.ts)
+ * already always emits the fragment form as of this candidate.
+ */
+function _consumeQueryStringBetaCodeForMigration() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("beta_code");
+    if (!code) return null;
+    params.delete("beta_code");
+    const newSearch = params.toString();
+    const newUrl =
+      window.location.pathname + (newSearch ? `?${newSearch}` : "") + window.location.hash;
+    history.replaceState(null, "", newUrl);
+    return code;
+  } catch (_) {
+    return null;
+  }
 }
 
 function initBetaCode() {
+  const fromFragment = _consumeFragmentBetaCode();
+  const fromUrl = fromFragment || (fromFragment ? null : _consumeQueryStringBetaCodeForMigration());
+
+  if (fromUrl) {
+    // A URL-supplied code is always treated as new (rule A), even if it
+    // happens to match what's already stored.
+    _validateBetaCode(fromUrl, { hadPriorActiveValidation: false });
+    return;
+  }
+
+  let storedCode = null;
+  let storedValidatedAt = null;
   try {
-    const params = new URLSearchParams(window.location.search);
-    const fromParam = params.get("beta_code");
-    if (fromParam && setBetaCode(fromParam)) {
-      _revalidateBetaCode(window._betaCode);
-      return;
-    }
-    const stored = localStorage.getItem(_BETA_CODE_STORAGE_KEY);
-    if (stored && _BETA_CODE_PATTERN.test(stored.trim())) {
-      window._betaCode = stored.trim();
-      _revalidateBetaCode(window._betaCode);
-      return;
-    }
+    storedCode = localStorage.getItem(_BETA_CODE_STORAGE_KEY);
+    const rawTs = localStorage.getItem(_BETA_CODE_VALIDATED_AT_KEY);
+    storedValidatedAt = rawTs ? parseInt(rawTs, 10) : null;
   } catch (_) {}
-  if (typeof window._betaCode === "undefined") window._betaCode = null;
+
+  if (storedCode && _BETA_CODE_PATTERN.test(storedCode)) {
+    const isFresh =
+      storedValidatedAt && Date.now() - storedValidatedAt < BETA_CODE_REVALIDATION_INTERVAL_MS;
+    if (isFresh) {
+      // Fresh + previously active: use directly, no network call.
+      _setBetaCodeState({ code: storedCode, status: "active", validatedAt: storedValidatedAt });
+      return;
+    }
+    // Stale: revalidate under rule B (a transient outage must not strip it).
+    _validateBetaCode(storedCode, {
+      hadPriorActiveValidation: true,
+      priorValidatedAt: storedValidatedAt,
+    });
+    return;
+  }
+
+  _setBetaCodeState({ code: null, status: "none", validatedAt: null });
 }
 
-if (typeof window._betaCode === "undefined") window._betaCode = null;
+/**
+ * Snapshots the current best-known beta-code state into the session that
+ * is about to begin. This snapshot is stable for the lifetime of that
+ * session: later changes to the stored code (manual entry, removal, a
+ * revalidation triggered by a later page load) never retroactively
+ * change window._sessionBetaCode. /api/end_session reads ONLY this
+ * snapshot — never localStorage or window._betaCodeState directly.
+ *
+ * A code attaches to a session only if it is currently "active", or
+ * "temporarily-unavailable" while carrying a prior successful validation
+ * (rule B) — never a code that is merely format-valid but has never been
+ * confirmed (rule A), and never a fabricated fallback code.
+ */
+function _snapshotSessionBetaCode() {
+  const st = window._betaCodeState || {};
+  const usable =
+    st.code && (st.status === "active" || (st.status === "temporarily-unavailable" && st.validatedAt));
+  window._sessionBetaCode = usable ? st.code : null;
+}
+
+// ── Manual beta-code management UI ──────────────────────────────────────────
+const _BETA_CODE_STATUS_TEXT = {
+  none: "No beta code connected.",
+  validating: "Checking your beta code…",
+  active: (code) => `Connected: ${code}.`,
+  invalid: "That code isn't valid or may have been revoked. Try again or remove it.",
+  "temporarily-unavailable": (code) =>
+    `Couldn't reach MandarinOS.app to confirm ${code} right now — using your last known status.`,
+};
+
+function _renderBetaCodeUi() {
+  const statusEl = document.getElementById("betaCodeStatus");
+  const removeBtn = document.getElementById("betaCodeRemoveBtn");
+  if (!statusEl) return; // page not loaded yet / no dialog on this build
+  const st = window._betaCodeState || { status: "none" };
+  const textOrFn = _BETA_CODE_STATUS_TEXT[st.status] || _BETA_CODE_STATUS_TEXT.none;
+  statusEl.textContent = typeof textOrFn === "function" ? textOrFn(st.code) : textOrFn;
+  statusEl.setAttribute("data-state", st.status);
+  if (removeBtn) removeBtn.disabled = !st.code;
+}
+
+let _betaCodeDialogTriggerEl = null;
+
+function _openBetaCodeDialog() {
+  const overlay = document.getElementById("betaCodeOverlay");
+  if (!overlay) return;
+  _betaCodeDialogTriggerEl = document.activeElement;
+  overlay.classList.remove("hidden");
+  _renderBetaCodeUi();
+  const input = document.getElementById("betaCodeInput");
+  if (input) {
+    input.value = "";
+    input.focus();
+  }
+  document.addEventListener("keydown", _onBetaCodeDialogKeydown, true);
+}
+
+function _closeBetaCodeDialog() {
+  const overlay = document.getElementById("betaCodeOverlay");
+  if (overlay) overlay.classList.add("hidden");
+  document.removeEventListener("keydown", _onBetaCodeDialogKeydown, true);
+  if (_betaCodeDialogTriggerEl && typeof _betaCodeDialogTriggerEl.focus === "function") {
+    _betaCodeDialogTriggerEl.focus();
+  }
+}
+
+function _onBetaCodeDialogKeydown(evt) {
+  if (evt.key === "Escape") {
+    evt.preventDefault();
+    _closeBetaCodeDialog();
+    return;
+  }
+  // Minimal focus containment: Tab cycles between the dialog's own
+  // focusable controls instead of escaping to the page behind it.
+  if (evt.key === "Tab") {
+    const overlay = document.getElementById("betaCodeOverlay");
+    if (!overlay) return;
+    const focusables = Array.from(
+      overlay.querySelectorAll("input, button, [href], select, textarea, [tabindex]")
+    ).filter((el) => !el.disabled && el.tabIndex !== -1);
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (evt.shiftKey && document.activeElement === first) {
+      evt.preventDefault();
+      last.focus();
+    } else if (!evt.shiftKey && document.activeElement === last) {
+      evt.preventDefault();
+      first.focus();
+    }
+  }
+}
+
+function _wireBetaCodeUi() {
+  const openBtn = document.getElementById("betaCodeBtn");
+  const closeBtn = document.getElementById("betaCodeCloseBtn");
+  const connectBtn = document.getElementById("betaCodeConnectBtn");
+  const removeBtn = document.getElementById("betaCodeRemoveBtn");
+  const input = document.getElementById("betaCodeInput");
+  const overlay = document.getElementById("betaCodeOverlay");
+
+  if (openBtn) openBtn.addEventListener("click", _openBetaCodeDialog);
+  if (closeBtn) closeBtn.addEventListener("click", _closeBetaCodeDialog);
+  if (overlay) {
+    overlay.addEventListener("click", (evt) => {
+      if (evt.target === overlay) _closeBetaCodeDialog();
+    });
+  }
+  if (connectBtn && input) {
+    const doConnect = () => {
+      const raw = input.value;
+      setBetaCodeManually(raw); // async; UI re-renders via _setBetaCodeState
+    };
+    connectBtn.addEventListener("click", doConnect);
+    input.addEventListener("keydown", (evt) => {
+      if (evt.key === "Enter") {
+        evt.preventDefault();
+        doConnect();
+      }
+    });
+  }
+  if (removeBtn) {
+    removeBtn.addEventListener("click", () => {
+      removeBetaCode();
+      if (input) input.value = "";
+    });
+  }
+}
+
+if (typeof document !== "undefined" && document.readyState !== "loading") {
+  _wireBetaCodeUi();
+} else if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", _wireBetaCodeUi);
+}
+
 initBetaCode();
-window.setBetaCode = setBetaCode;
+_snapshotSessionBetaCode();
+window.setBetaCode = setBetaCodeManually;
+window.removeBetaCode = removeBetaCode;
 
 // Beta learner profile — practice comfort level (L1/L2)
 const _VALID_LEARNER_LEVELS = new Set(["beginner", "lower_intermediate", "intermediate"]);
@@ -6485,6 +6799,7 @@ function _resetCurrentSessionState() {
   window._sessionId = "session_" + Date.now();
   window._sessionStartedAt = Date.now();
   window._recentFrameIds = [];
+  _snapshotSessionBetaCode();
   window._lastAnswer = null;
   window._probeDepth = 0;
   window._userQuestionChain = 0;
@@ -10693,7 +11008,10 @@ async function endSession() {
   const payload = {
     session_id:            window._sessionId || "",
     learner_id:            window._learnerId || "",
-    beta_code:             window._betaCode || null,
+    // Captured once at session start (_snapshotSessionBetaCode) — never
+    // re-read from localStorage/window._betaCodeState here, so a code
+    // change/removal mid-session cannot retroactively alter this record.
+    beta_code:             window._sessionBetaCode || null,
     mode:                  t.mode,
     tier:                  getUserTier(),
     persona_id:            window._partnerId || window._personaId || "",
