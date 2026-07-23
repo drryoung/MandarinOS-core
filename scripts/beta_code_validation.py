@@ -35,7 +35,12 @@ from typing import Optional
 # website is always the source of truth).
 _SAFE_BETA_CODE = re.compile(r"^MOS-BETA-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$")
 
-_WEBSITE_BASE_URL = os.environ.get("MANDARINOS_WEBSITE_URL", "https://mandarinos.app").rstrip("/")
+# Default to the www host: Vercel permanently redirects (308) the apex
+# host mandarinos.app → www.mandarinos.app, and urllib.request does not
+# follow 308 on POST, so using the apex URL makes every validation look
+# like a transport failure (temporarily_unavailable). Prefer www unless
+# MANDARINOS_WEBSITE_URL is set explicitly to a non-redirecting base.
+_WEBSITE_BASE_URL = os.environ.get("MANDARINOS_WEBSITE_URL", "https://www.mandarinos.app").rstrip("/")
 _VALIDATE_URL = f"{_WEBSITE_BASE_URL}/api/beta/validate"
 _TIMEOUT_SECONDS = 3.0
 _CACHE_TTL_SECONDS = 600  # 10 minutes — bounds how stale a revocation can be
