@@ -8939,10 +8939,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/beta_code/validate":
             # Called once per page load by ui/app.js initBetaCode() to check
             # whether a stored/URL-supplied beta_code is still active.
-            # Never receives or returns participant identity — only a
-            # boolean. Fails open (valid=True) on any transient error
-            # calling the website, so an outage never strips a legitimate
-            # code from a real participant's session.
+            # Never receives or returns participant identity.
+            #
+            # Tri-state response — {"status": "valid" | "invalid" |
+            # "temporarily_unavailable"} — NEVER a plain boolean. An
+            # earlier version of this endpoint collapsed "website
+            # unreachable" into the same `{"valid": true}` shape as a
+            # confirmed-active code, which made an outage indistinguishable
+            # from a real validation on the browser side. "invalid" means
+            # the website (or a local format check) definitively rejected
+            # the code; "temporarily_unavailable" means we don't know
+            # either way right now — the browser must not treat that as
+            # active for a code it has never confirmed before (see
+            # ui/app.js _validateBetaCode rule A/B).
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length) if length else b"{}"
             try:
@@ -8953,14 +8962,15 @@ class Handler(BaseHTTPRequestHandler):
             if not beta_code:
                 self._json_error(400, "missing beta_code")
                 return
-            if _bc_is_well_formed and not _bc_is_well_formed(beta_code):
-                result = {"valid": False}
-            elif _bc_validate:
-                result = {"valid": _bc_validate(beta_code)}
+            if _bc_validate:
+                status = _bc_validate(beta_code)
+            elif _bc_is_well_formed and not _bc_is_well_formed(beta_code):
+                status = "invalid"
             else:
-                # Validation module unavailable — fail open rather than
-                # punishing every participant for a local import failure.
-                result = {"valid": True}
+                # Validation module failed to import — an environment/
+                # config problem, not a confirmed result either way.
+                status = "temporarily_unavailable"
+            result = {"status": status}
             data = json.dumps(result, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")

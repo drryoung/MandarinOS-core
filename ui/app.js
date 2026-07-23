@@ -584,9 +584,16 @@ function removeBetaCode() {
   _setBetaCodeState({ code: null, status: "none", validatedAt: null });
 }
 
-/** Calls this app's own /api/beta_code/validate. Never rejects — resolves
- * to true (definitively valid), false (definitively invalid), or null
- * (temporarily unavailable / unknown, e.g. network or server error). */
+/**
+ * Calls this app's own /api/beta_code/validate, which returns a tri-state
+ * {"status": "valid" | "invalid" | "temporarily_unavailable"} — never a
+ * plain boolean (an earlier version conflated "unreachable website" with
+ * "confirmed valid", which made an outage indistinguishable from a real
+ * validation). Never rejects — resolves to true (valid), false (invalid),
+ * or null (temporarily_unavailable, or any unexpected/malformed shape,
+ * which is treated the same as "unavailable" rather than guessed either
+ * way).
+ */
 function _checkBetaCodeWithServer(code) {
   return fetch("/api/beta_code/validate", {
     method: "POST",
@@ -594,7 +601,11 @@ function _checkBetaCodeWithServer(code) {
     body: JSON.stringify({ beta_code: code }),
   })
     .then((res) => res.json())
-    .then((data) => (data && typeof data.valid === "boolean" ? data.valid : null))
+    .then((data) => {
+      if (data && data.status === "valid") return true;
+      if (data && data.status === "invalid") return false;
+      return null; // temporarily_unavailable, or unrecognised shape
+    })
     .catch(() => null);
 }
 

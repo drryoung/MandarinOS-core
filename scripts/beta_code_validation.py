@@ -4,15 +4,21 @@ website's POST /api/beta/validate endpoint (server-to-server, Railway to
 Vercel — no CORS needed, no participant identity ever crosses this
 boundary).
 
-Fail-open by design: any network/timeout/parse error returns True (treat
-the code as valid) so a transient website outage never strips a
-legitimate participant's beta_code from their session data. Only an
-explicit `{"valid": false}` response from the website is a definitive
-"no" and clears the cached/attached code.
+Tri-state result, never a plain boolean: validate_beta_code() returns one
+of "valid", "invalid", or "temporarily_unavailable". Callers (ui_server.py's
+POST /api/beta_code/validate, and transitively ui/app.js) must never
+collapse "temporarily_unavailable" into "valid" — that conflation was a
+real defect in an earlier version of this module (it returned a plain
+`True` for both a confirmed-active code AND an unreachable website,
+making the two indistinguishable to the browser). Only an explicit,
+well-formed `{"valid": true}` or `{"valid": false}` response from the
+website is definitive; everything else — timeout, connection failure,
+non-2xx status, malformed JSON, or an unexpected response shape — is
+"temporarily_unavailable".
 
 The website endpoint returns only a boolean — never name, email, or any
 other identity field — so nothing privacy-sensitive is received, cached,
-or logged here.
+or logged here. Cache keys (beta codes) are never written to any log.
 """
 
 import json
@@ -34,7 +40,12 @@ _VALIDATE_URL = f"{_WEBSITE_BASE_URL}/api/beta/validate"
 _TIMEOUT_SECONDS = 3.0
 _CACHE_TTL_SECONDS = 600  # 10 minutes — bounds how stale a revocation can be
 
-# code (already uppercased/trimmed) -> (valid, expires_at_monotonic)
+VALID = "valid"
+INVALID = "invalid"
+TEMPORARILY_UNAVAILABLE = "temporarily_unavailable"
+
+# code (already uppercased/trimmed) -> (status, expires_at_monotonic)
+# Only VALID/INVALID are ever stored here — see validate_beta_code().
 _cache: dict = {}
 
 
@@ -43,14 +54,20 @@ def is_well_formed(code: str) -> bool:
     return bool(code) and bool(_SAFE_BETA_CODE.match(code.strip()))
 
 
-def validate_beta_code(code: str, *, _time_fn=time.monotonic) -> bool:
-    """Returns True unless the website definitively reports the code invalid.
+def validate_beta_code(code: str, *, _time_fn=time.monotonic) -> str:
+    """Returns "valid", "invalid", or "temporarily_unavailable". Never raises.
 
-    Never raises. Results are cached per-code for _CACHE_TTL_SECONDS so a
-    page that re-checks on every load does not hammer the website.
+    - Malformed input -> "invalid" immediately, no network call (rule C).
+    - A definitive website response ("valid"/"invalid") is cached for
+      _CACHE_TTL_SECONDS, so a page that re-checks on every load does not
+      hammer the website.
+    - Any transport/parse failure, timeout, or non-2xx status is
+      "temporarily_unavailable" and is NEVER cached — the next call
+      retries promptly rather than sticking on a guess (or on a stale
+      negative that would otherwise outlive an outage).
     """
     if not is_well_formed(code):
-        return False
+        return INVALID
 
     normalized = code.strip()
     now = _time_fn()
@@ -60,16 +77,18 @@ def validate_beta_code(code: str, *, _time_fn=time.monotonic) -> bool:
 
     result = _call_website(normalized)
     if result is None:
-        # Unknown/transient outcome: fail open, and do not cache it, so
-        # the next check retries soon rather than sticking on a guess.
-        return True
+        return TEMPORARILY_UNAVAILABLE
 
-    _cache[normalized] = (result, now + _CACHE_TTL_SECONDS)
-    return result
+    status = VALID if result else INVALID
+    _cache[normalized] = (status, now + _CACHE_TTL_SECONDS)
+    return status
 
 
 def _call_website(code: str) -> Optional[bool]:
-    """Returns True/False on a definitive website response, None on any failure."""
+    """Returns True/False on a definitive, well-formed website response.
+    Returns None (meaning: temporarily unavailable / indeterminate) for
+    any network error, timeout, non-2xx HTTP status, or malformed/
+    unexpected response body. Never raises."""
     try:
         payload = json.dumps({"betaCode": code}).encode("utf-8")
         req = urllib.request.Request(
@@ -79,12 +98,19 @@ def _call_website(code: str) -> Optional[bool]:
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:
+            status_code = getattr(resp, "status", 200)
             raw = resp.read().decode("utf-8")
+        if status_code < 200 or status_code >= 300:
+            # Defensive: urlopen normally raises HTTPError for non-2xx
+            # (caught below), but some environments/mocks may not.
+            return None
         body = json.loads(raw)
         if isinstance(body, dict) and isinstance(body.get("valid"), bool):
             return body["valid"]
+        # Well-formed HTTP response, but not the expected JSON shape —
+        # treat as indeterminate rather than guessing either way.
         return None
-    except (urllib.error.URLError, TimeoutError, ValueError, OSError):
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError, OSError):
         return None
     except Exception:
         # Defense in depth: this function must never raise into the caller.

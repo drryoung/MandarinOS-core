@@ -6,6 +6,13 @@
  * snapshot stability (a mid-session code swap must not retroactively
  * change an already-started session's attributed beta_code).
  *
+ * Also verifies the tri-state {"status": "valid"|"invalid"|
+ * "temporarily_unavailable"} wire contract with /api/beta_code/validate:
+ * an explicit "temporarily_unavailable" response, a network failure, and
+ * an unrecognised response shape must ALL be treated identically
+ * (never as "valid") — this is the outage/validity conflation this pass
+ * corrected.
+ *
  * Loads the REAL, verbatim source block from ui/app.js (not a mirror) so
  * this test can never silently drift from what actually ships.
  *
@@ -63,7 +70,7 @@ function makeSandbox({ fetchImpl, initialHash = "", initialSearch = "", initialS
     activeElement: null,
   };
   const windowObj = { location: locationObj };
-  const fetchFn = fetchImpl || (() => Promise.resolve({ json: () => Promise.resolve({ valid: true }) }));
+  const fetchFn = fetchImpl || (() => Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) }));
 
   const factoryBody =
     extractBlock() +
@@ -94,7 +101,7 @@ async function main() {
   {
     const { windowObj, locationObj } = makeSandbox({
       initialHash: "#beta_code=MOS-BETA-234789",
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: true }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) }),
     });
     await Promise.resolve(); // let the validate promise chain settle
     await new Promise((r) => setTimeout(r, 0));
@@ -108,7 +115,7 @@ async function main() {
     const encoded = encodeURIComponent("MOS-BETA-234789");
     const { windowObj } = makeSandbox({
       initialHash: `#beta_code=${encoded}`,
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: true }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) }),
     });
     await new Promise((r) => setTimeout(r, 0));
     check("URL-encoded fragment value decodes correctly", windowObj._betaCodeState.code === "MOS-BETA-234789");
@@ -119,7 +126,7 @@ async function main() {
   {
     const { windowObj, locationObj } = makeSandbox({
       initialSearch: "?beta_code=MOS-BETA-234789",
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: true }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) }),
     });
     await new Promise((r) => setTimeout(r, 0));
     check("query-string code is still picked up (migration compat)", windowObj._betaCodeState.code === "MOS-BETA-234789");
@@ -132,7 +139,7 @@ async function main() {
     const { windowObj } = makeSandbox({
       initialHash: "#beta_code=MOS-BETA-234789",
       initialSearch: "?beta_code=MOS-BETA-BADBAD",
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: true }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) }),
     });
     await new Promise((r) => setTimeout(r, 0));
     check("fragment wins over query-string when both present", windowObj._betaCodeState.code === "MOS-BETA-234789");
@@ -146,7 +153,7 @@ async function main() {
       initialHash: "#beta_code=not-a-real-code",
       fetchImpl: () => {
         called = true;
-        return Promise.resolve({ json: () => Promise.resolve({ valid: true }) });
+        return Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) });
       },
     });
     await new Promise((r) => setTimeout(r, 0));
@@ -159,7 +166,7 @@ async function main() {
   {
     const { windowObj, store } = makeSandbox({
       initialHash: "#beta_code=MOS-BETA-234789",
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: true }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) }),
     });
     await new Promise((r) => setTimeout(r, 0));
     check("definitive valid -> status active", windowObj._betaCodeState.status === "active");
@@ -169,7 +176,7 @@ async function main() {
   {
     const { windowObj, store } = makeSandbox({
       initialHash: "#beta_code=MOS-BETA-234789",
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: false }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "invalid" }) }),
     });
     await new Promise((r) => setTimeout(r, 0));
     check("definitive invalid -> code removed (not attached)", windowObj._betaCodeState.code === null);
@@ -187,6 +194,36 @@ async function main() {
     check("outage on brand-new code -> temporarily-unavailable", windowObj._betaCodeState.status === "temporarily-unavailable");
     api._snapshotSessionBetaCode();
     check("never-confirmed code is NOT attached to a new session", windowObj._sessionBetaCode === null);
+  }
+  {
+    // Server reachable but explicitly reports {"status":
+    // "temporarily_unavailable"} (Railway's own tri-state contract) —
+    // must be treated identically to a network-level failure, never as
+    // "valid" merely because a response was received.
+    const { windowObj, api } = makeSandbox({
+      initialHash: "#beta_code=MOS-BETA-234789",
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "temporarily_unavailable" }) }),
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    check(
+      "explicit temporarily_unavailable status is not treated as active",
+      windowObj._betaCodeState.status === "temporarily-unavailable"
+    );
+    api._snapshotSessionBetaCode();
+    check("new code with explicit unavailable status is NOT attached", windowObj._sessionBetaCode === null);
+  }
+  {
+    // Malformed/unrecognised server response shape must also fail closed
+    // to "unavailable", never silently become "active".
+    const { windowObj } = makeSandbox({
+      initialHash: "#beta_code=MOS-BETA-234789",
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ unexpected: "shape" }) }),
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    check(
+      "unrecognised response shape is treated as unavailable, not active",
+      windowObj._betaCodeState.status === "temporarily-unavailable"
+    );
   }
 
   // ── Rule B: previously-active code survives an outage ──────────────────
@@ -213,7 +250,7 @@ async function main() {
       initialStore: { manos_beta_code: "MOS-BETA-234789", manos_beta_code_validated_at: String(freshTs) },
       fetchImpl: () => {
         called = true;
-        return Promise.resolve({ json: () => Promise.resolve({ valid: true }) });
+        return Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) });
       },
     });
     await new Promise((r) => setTimeout(r, 0));
@@ -230,7 +267,7 @@ async function main() {
       initialStore: { manos_beta_code: "MOS-BETA-234789", manos_beta_code_validated_at: String(staleTs) },
       fetchImpl: () => {
         called = true;
-        return Promise.resolve({ json: () => Promise.resolve({ valid: true }) });
+        return Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) });
       },
     });
     await new Promise((r) => setTimeout(r, 0));
@@ -245,7 +282,7 @@ async function main() {
     const staleTs = Date.now() - 25 * 60 * 60 * 1000;
     const { windowObj, store } = makeSandbox({
       initialStore: { manos_beta_code: "MOS-BETA-234789", manos_beta_code_validated_at: String(staleTs) },
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: false }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "invalid" }) }),
     });
     await new Promise((r) => setTimeout(r, 0));
     check("revoked stale code is removed", windowObj._betaCodeState.code === null);
@@ -256,7 +293,7 @@ async function main() {
   console.log("MANUAL ENTRY");
   {
     const { windowObj, api } = makeSandbox({
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: true }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) }),
     });
     await new Promise((r) => setTimeout(r, 0)); // let the initial (empty) init settle
     await api.setBetaCodeManually("mos-beta-234789"); // lowercase input
@@ -265,7 +302,7 @@ async function main() {
   }
   {
     const { windowObj, api } = makeSandbox({
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: false }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "invalid" }) }),
     });
     await new Promise((r) => setTimeout(r, 0));
     const result = await api.setBetaCodeManually("MOS-BETA-234789");
@@ -278,7 +315,7 @@ async function main() {
   {
     const { windowObj, api, store } = makeSandbox({
       initialStore: { manos_beta_code: "MOS-BETA-234789", manos_beta_code_validated_at: String(Date.now()) },
-      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ valid: true }) }),
+      fetchImpl: () => Promise.resolve({ json: () => Promise.resolve({ status: "valid" }) }),
     });
     await new Promise((r) => setTimeout(r, 0));
     api.removeBetaCode();
@@ -293,7 +330,7 @@ async function main() {
       fetchImpl: (_url, opts) => {
         const body = JSON.parse(opts.body);
         // Both code A and code B validate as active in this scenario.
-        return Promise.resolve({ json: () => Promise.resolve({ valid: true, code: body.beta_code }) });
+        return Promise.resolve({ json: () => Promise.resolve({ status: "valid", code: body.beta_code }) });
       },
     });
     await new Promise((r) => setTimeout(r, 0));
