@@ -235,7 +235,7 @@ class TestSchema:
     def test_required_top_level_keys(self, tmp_path):
         record, _ = self._build(tmp_path)
         for key in (
-            "schema", "capture_source", "session_id", "learner_id",
+            "schema", "capture_source", "session_id", "learner_id", "beta_code",
             "created_at", "persona_id", "mode", "counters", "metrics",
             "progress_snapshot_ref", "transcript", "event_log", "capture_flags",
         ):
@@ -255,6 +255,38 @@ class TestSchema:
         si = _import_si(capture_enabled=True, data_dir=tmp_path)
         record = si.build_session_record({"duration_seconds": -5}, {}, {})
         assert record["duration_seconds"] == 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6b. Beta-code handoff field (additive, independent of learner_id)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestBetaCodeField:
+    def test_well_formed_code_is_included(self, tmp_path):
+        si = _import_si(capture_enabled=True, data_dir=tmp_path)
+        sess = _minimal_sess(beta_code="MOS-BETA-234789")
+        record = si.build_session_record(sess, {}, {})
+        assert record["beta_code"] == "MOS-BETA-234789"
+
+    def test_absent_beta_code_is_none(self, tmp_path):
+        si = _import_si(capture_enabled=True, data_dir=tmp_path)
+        record = si.build_session_record(_minimal_sess(), {}, {})
+        assert record["beta_code"] is None
+
+    def test_malformed_beta_code_is_dropped_not_stored(self, tmp_path):
+        si = _import_si(capture_enabled=True, data_dir=tmp_path)
+        sess = _minimal_sess(beta_code="<script>alert(1)</script>")
+        record = si.build_session_record(sess, {}, {})
+        assert record["beta_code"] is None
+
+    def test_beta_code_independent_of_learner_id(self, tmp_path):
+        """Anonymous sessions (no learner_id) can still carry a beta_code, and
+        vice versa — the two fields are never coupled."""
+        si = _import_si(capture_enabled=True, data_dir=tmp_path)
+        sess = _minimal_sess(learner_id="", beta_code="MOS-BETA-234789")
+        record = si.build_session_record(sess, {}, {})
+        assert record["learner_id"] is None
+        assert record["beta_code"] == "MOS-BETA-234789"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

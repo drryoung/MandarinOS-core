@@ -117,6 +117,30 @@ def test_stability_score_none_for_short_session():
     assert snap["conversation_stability_score"] is None
 
 
+def test_snapshot_includes_beta_code_when_passed_explicitly():
+    srv = _load_ui_server()
+    snap = _make_snapshot(srv)
+    # _make_snapshot doesn't pass beta_code, so absence should be None,
+    # never a missing key (callers always get a stable shape).
+    assert "beta_code" in snap
+    assert snap["beta_code"] is None
+
+    sess = {"session_id": "test_session_2", "total_turns": 5}
+    metrics = srv._compute_scorecard(sess)
+    snap_with_code = srv._build_progress_snapshot(sess, metrics, beta_code="MOS-BETA-234789")
+    assert snap_with_code["beta_code"] == "MOS-BETA-234789"
+
+
+def test_snapshot_falls_back_to_beta_code_in_sess_when_kwarg_omitted():
+    """Robustness: if a caller builds a snapshot without the beta_code kwarg
+    but the raw sess payload has one, it should still be attached."""
+    srv = _load_ui_server()
+    sess = {"session_id": "test_session_3", "total_turns": 5, "beta_code": "MOS-BETA-234789"}
+    metrics = srv._compute_scorecard(sess)
+    snap = srv._build_progress_snapshot(sess, metrics)
+    assert snap["beta_code"] == "MOS-BETA-234789"
+
+
 def test_standard_retention_keeps_latest_ten():
     history = [{"session_id": f"s{i}"} for i in range(15)]
     kept = _apply_retention(history, "standard")

@@ -507,6 +507,77 @@ if (typeof window._learnerId === "undefined") window._learnerId = "default_learn
 initLearnerId();
 window.setLearnerId = setLearnerId;
 
+// ── MandarinOS.app beta-code handoff ────────────────────────────────────────
+// Deliberately independent of learner_id/identity above: this only carries
+// an opaque code (MOS-BETA-XXXXXX) issued by the website, never a name or
+// email. Persisted on this origin (app.mandarinos.app) so it survives
+// across sessions on the same device/browser; a device without the
+// `?beta_code=` link simply has no code (anonymous), same as today.
+const _BETA_CODE_STORAGE_KEY = "manos_beta_code";
+// Mirrors MandarinOS.app's lib/beta/code.ts BETA_CODE_PATTERN exactly.
+const _BETA_CODE_PATTERN = /^MOS-BETA-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/;
+
+function setBetaCode(code) {
+  const trimmed = String(code || "").trim();
+  if (!trimmed || !_BETA_CODE_PATTERN.test(trimmed)) return false;
+  window._betaCode = trimmed;
+  try {
+    localStorage.setItem(_BETA_CODE_STORAGE_KEY, trimmed);
+  } catch (_) {}
+  return true;
+}
+
+function clearBetaCode() {
+  window._betaCode = null;
+  try {
+    localStorage.removeItem(_BETA_CODE_STORAGE_KEY);
+  } catch (_) {}
+}
+
+/**
+ * Re-checks a beta code against MandarinOS.app (server-to-server via this
+ * app's own /api/beta_code/validate, which fails open on outage). Only a
+ * definitive `{valid: false}` clears the stored code — this is how a
+ * revoked/incorrect code stops being attached to future sessions.
+ */
+function _revalidateBetaCode(code) {
+  if (!code) return;
+  fetch("/api/beta_code/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ beta_code: code }),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data && data.valid === false && window._betaCode === code) {
+        clearBetaCode();
+      }
+    })
+    .catch(() => {}); // network failure: fail open, leave the stored code as-is
+}
+
+function initBetaCode() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromParam = params.get("beta_code");
+    if (fromParam && setBetaCode(fromParam)) {
+      _revalidateBetaCode(window._betaCode);
+      return;
+    }
+    const stored = localStorage.getItem(_BETA_CODE_STORAGE_KEY);
+    if (stored && _BETA_CODE_PATTERN.test(stored.trim())) {
+      window._betaCode = stored.trim();
+      _revalidateBetaCode(window._betaCode);
+      return;
+    }
+  } catch (_) {}
+  if (typeof window._betaCode === "undefined") window._betaCode = null;
+}
+
+if (typeof window._betaCode === "undefined") window._betaCode = null;
+initBetaCode();
+window.setBetaCode = setBetaCode;
+
 // Beta learner profile — practice comfort level (L1/L2)
 const _VALID_LEARNER_LEVELS = new Set(["beginner", "lower_intermediate", "intermediate"]);
 const _LEVEL_LABELS = {
@@ -10622,6 +10693,7 @@ async function endSession() {
   const payload = {
     session_id:            window._sessionId || "",
     learner_id:            window._learnerId || "",
+    beta_code:             window._betaCode || null,
     mode:                  t.mode,
     tier:                  getUserTier(),
     persona_id:            window._partnerId || window._personaId || "",

@@ -21,3 +21,13 @@ startCommand = "python scripts/ui_server.py"
 # The app reads MANDARINOS_DATA_DIR at startup (progress_store.py,
 # beta_profile.py, learner_memory.py all use it) — no code changes needed
 # once the volume and variable are set.
+
+# ── Beta-code handoff (MandarinOS.app) ────────────────────────────────────────
+# scripts/beta_code_validation.py calls the website server-to-server to
+# check whether a beta_code is still active. Optional; defaults to
+# https://mandarinos.app if unset. Only used to POST {"betaCode": "..."}
+# to <base>/api/beta/validate and read back {"valid": bool} — no
+# participant identity ever crosses this boundary. Fails open (treats the
+# code as valid) if the website is unreachable, so this variable is safe
+# to leave unset in local/dev environments.
+#   MANDARINOS_WEBSITE_URL = https://mandarinos.app

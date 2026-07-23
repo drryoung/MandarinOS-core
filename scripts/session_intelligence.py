@@ -35,6 +35,10 @@ SCHEMA_VERSION = "session_record_v1"
 
 _SAFE_LEARNER_ID = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 _SAFE_SESSION_ID = re.compile(r"^[a-zA-Z0-9_\-.]{1,128}$")
+# Mirrors MandarinOS.app's beta-code format. Kept independent of
+# beta_code_validation.py (same convention as _SAFE_LEARNER_ID above) —
+# this module intentionally has no cross-module dependencies.
+_SAFE_BETA_CODE = re.compile(r"^MOS-BETA-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$")
 
 # Maximum transcript entries stored (guard against runaway payload size)
 _MAX_TRANSCRIPT_ENTRIES = 200
@@ -148,6 +152,12 @@ def build_session_record(
     learner_id = (sess.get("learner_id") or "").strip() or None
     persona_id = (sess.get("persona_id") or "").strip() or None
     mode = (sess.get("mode") or "normal").strip().lower()
+    # Additive beta-code handoff field — independent of learner_id/identity.
+    # Malformed values are dropped rather than stored (defense in depth;
+    # ui/app.js already validates before sending, and the website is the
+    # authority on whether a well-formed code is actually active).
+    _raw_beta_code = (sess.get("beta_code") or "").strip() or None
+    beta_code = _raw_beta_code if (_raw_beta_code and _SAFE_BETA_CODE.match(_raw_beta_code)) else None
 
     try:
         created_at = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
@@ -171,6 +181,7 @@ def build_session_record(
         "capture_source": "end_session_payload",
         "session_id": session_id,
         "learner_id": learner_id,
+        "beta_code": beta_code,
         "created_at": created_at,
         "persona_id": persona_id,
         "mode": mode,

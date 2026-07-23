@@ -65,6 +65,15 @@ try:
     )
 except ImportError:
     _si_is_enabled = _si_build_record = _si_save_record = None
+# Beta-code handoff from MandarinOS.app: format check + server-to-server
+# revocation check against the website (additive, fails open on outage).
+try:
+    from beta_code_validation import (
+        is_well_formed     as _bc_is_well_formed,
+        validate_beta_code as _bc_validate,
+    )
+except ImportError:
+    _bc_is_well_formed = _bc_validate = None
 
 _LEARNER_MEMORY_FIELD_KEYS = (
     "learner_name",
@@ -8380,6 +8389,7 @@ def _build_progress_snapshot(
     tier: str = "standard",
     persona_id: Optional[str] = None,
     duration_seconds: int = 0,
+    beta_code: Optional[str] = None,
 ) -> dict:
     """Compact progress record from existing session counters and scorecard metrics."""
     total_turns           = max(0, int(sess.get("total_turns",             0) or 0))
@@ -8402,6 +8412,8 @@ def _build_progress_snapshot(
     mode                  = (sess.get("mode") or "normal").strip().lower()
     session_id            = (sess.get("session_id") or "").strip()
     learner_id            = (sess.get("learner_id") or "").strip() or None
+    # Additive beta-code handoff field — independent of learner_id/identity.
+    beta_code             = beta_code or (sess.get("beta_code") or "").strip() or None
 
     engines = sess.get("engines_used")
     if not isinstance(engines, list):
@@ -8457,6 +8469,7 @@ def _build_progress_snapshot(
     return {
         "session_id":                    session_id,
         "learner_id":                    learner_id,
+        "beta_code":                     beta_code,
         "created_at":                    created_at,
         "tier":                          tier_norm,
         "persona_id":                    (persona_id or sess.get("persona_id") or "").strip() or None,
@@ -8917,6 +8930,39 @@ class Handler(BaseHTTPRequestHandler):
             }
             data = json.dumps(result, ensure_ascii=False).encode("utf-8")
             self.send_response(200 if ok else 500)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path == "/api/beta_code/validate":
+            # Called once per page load by ui/app.js initBetaCode() to check
+            # whether a stored/URL-supplied beta_code is still active.
+            # Never receives or returns participant identity — only a
+            # boolean. Fails open (valid=True) on any transient error
+            # calling the website, so an outage never strips a legitimate
+            # code from a real participant's session.
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length else b"{}"
+            try:
+                payload = json.loads(body)
+            except Exception:
+                payload = {}
+            beta_code = (payload.get("beta_code") or "").strip()
+            if not beta_code:
+                self._json_error(400, "missing beta_code")
+                return
+            if _bc_is_well_formed and not _bc_is_well_formed(beta_code):
+                result = {"valid": False}
+            elif _bc_validate:
+                result = {"valid": _bc_validate(beta_code)}
+            else:
+                # Validation module unavailable — fail open rather than
+                # punishing every participant for a local import failure.
+                result = {"valid": True}
+            data = json.dumps(result, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
@@ -12447,6 +12493,17 @@ class Handler(BaseHTTPRequestHandler):
             except (TypeError, ValueError):
                 duration_seconds = 0
 
+            # Beta-code handoff (additive): attach only if well-formed.
+            # Never re-validated against the website here — initBetaCode()
+            # in ui/app.js already checked /api/beta_code/validate on load
+            # and clears its own storage on a definitive "invalid", so a
+            # malformed/garbage value reaching here means client tampering
+            # or a stale build, not a legitimately revoked code either way.
+            _raw_beta_code = (sess.get("beta_code") or "").strip() or None
+            if _raw_beta_code and _bc_is_well_formed and not _bc_is_well_formed(_raw_beta_code):
+                _raw_beta_code = None
+            beta_code = _raw_beta_code
+
             metrics = _compute_scorecard(sess)
             progress_snapshot = _build_progress_snapshot(
                 sess,
@@ -12454,6 +12511,7 @@ class Handler(BaseHTTPRequestHandler):
                 tier=tier,
                 persona_id=persona_id,
                 duration_seconds=duration_seconds,
+                beta_code=beta_code,
             )
             learner_id = (sess.get("learner_id") or progress_snapshot.get("learner_id") or "").strip()
             if learner_id and _ps_save_snapshot:
